@@ -1,26 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Navbar } from "@/components/landing/navbar";
+import { Hero } from "@/components/landing/hero";
+import { LogosBar } from "@/components/landing/logos-bar";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { Features } from "@/components/landing/features";
+import { Ecosystem } from "@/components/landing/ecosystem";
+import { LiveTracking } from "@/components/landing/live-tracking";
+import { Testimonials } from "@/components/landing/testimonials";
+import { Faq } from "@/components/landing/faq";
+import { FinalCta } from "@/components/landing/final-cta";
+import { Footer } from "@/components/landing/footer";
 
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Diambar Agro — Du Champ à Votre Cuisine" },
+      { name: "description", content: "Plateforme N°1 d'approvisionnement agricole au Sénégal. Connectez agriculteurs, restaurants et livreurs." },
+    ],
+  }),
+  component: LandingPage,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
+function LandingPage() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main>
+        <Hero />
+        <LogosBar />
+        <HowItWorks />
+        <Features />
+        <Ecosystem />
+        <LiveTracking />
+        <Testimonials />
+        <Faq />
+        <FinalCta />
+      </main>
+      <Footer />
     </div>
   );
-}
-
-function Index() {
-  return <PlaceholderIndex />;
 }
