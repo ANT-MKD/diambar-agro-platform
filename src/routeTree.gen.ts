@@ -16,6 +16,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
+import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
+import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
+import { Route as FarmerProductsRouteImport } from './routes/farmer.products'
+import { Route as FarmerOrdersRouteImport } from './routes/farmer.orders'
+import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
+import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
+import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
+import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -52,34 +61,106 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FarmerStockRoute = FarmerStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerSettingsRoute = FarmerSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueRoute = FarmerRevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsRoute = FarmerProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => FarmerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/farmer': typeof FarmerRoute
+  '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/messages': typeof FarmerMessagesRoute
+  '/farmer/notifications': typeof FarmerNotificationsRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/products': typeof FarmerProductsRoute
+  '/farmer/revenue': typeof FarmerRevenueRoute
+  '/farmer/settings': typeof FarmerSettingsRoute
+  '/farmer/stock': typeof FarmerStockRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/farmer': typeof FarmerRoute
+  '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/messages': typeof FarmerMessagesRoute
+  '/farmer/notifications': typeof FarmerNotificationsRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/products': typeof FarmerProductsRoute
+  '/farmer/revenue': typeof FarmerRevenueRoute
+  '/farmer/settings': typeof FarmerSettingsRoute
+  '/farmer/stock': typeof FarmerStockRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/farmer': typeof FarmerRoute
+  '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/farmer/analytics': typeof FarmerAnalyticsRoute
+  '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/messages': typeof FarmerMessagesRoute
+  '/farmer/notifications': typeof FarmerNotificationsRoute
+  '/farmer/orders': typeof FarmerOrdersRoute
+  '/farmer/products': typeof FarmerProductsRoute
+  '/farmer/revenue': typeof FarmerRevenueRoute
+  '/farmer/settings': typeof FarmerSettingsRoute
+  '/farmer/stock': typeof FarmerStockRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +172,15 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/register'
     | '/reset-password'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/messages'
+    | '/farmer/notifications'
+    | '/farmer/orders'
+    | '/farmer/products'
+    | '/farmer/revenue'
+    | '/farmer/settings'
+    | '/farmer/stock'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +190,15 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/register'
     | '/reset-password'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/messages'
+    | '/farmer/notifications'
+    | '/farmer/orders'
+    | '/farmer/products'
+    | '/farmer/revenue'
+    | '/farmer/settings'
+    | '/farmer/stock'
   id:
     | '__root__'
     | '/'
@@ -109,11 +208,20 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/register'
     | '/reset-password'
+    | '/farmer/analytics'
+    | '/farmer/dashboard'
+    | '/farmer/messages'
+    | '/farmer/notifications'
+    | '/farmer/orders'
+    | '/farmer/products'
+    | '/farmer/revenue'
+    | '/farmer/settings'
+    | '/farmer/stock'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  FarmerRoute: typeof FarmerRoute
+  FarmerRoute: typeof FarmerRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -172,12 +280,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/farmer/stock': {
+      id: '/farmer/stock'
+      path: '/stock'
+      fullPath: '/farmer/stock'
+      preLoaderRoute: typeof FarmerStockRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/settings': {
+      id: '/farmer/settings'
+      path: '/settings'
+      fullPath: '/farmer/settings'
+      preLoaderRoute: typeof FarmerSettingsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/revenue': {
+      id: '/farmer/revenue'
+      path: '/revenue'
+      fullPath: '/farmer/revenue'
+      preLoaderRoute: typeof FarmerRevenueRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products': {
+      id: '/farmer/products'
+      path: '/products'
+      fullPath: '/farmer/products'
+      preLoaderRoute: typeof FarmerProductsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/orders': {
+      id: '/farmer/orders'
+      path: '/orders'
+      fullPath: '/farmer/orders'
+      preLoaderRoute: typeof FarmerOrdersRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/notifications': {
+      id: '/farmer/notifications'
+      path: '/notifications'
+      fullPath: '/farmer/notifications'
+      preLoaderRoute: typeof FarmerNotificationsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/messages': {
+      id: '/farmer/messages'
+      path: '/messages'
+      fullPath: '/farmer/messages'
+      preLoaderRoute: typeof FarmerMessagesRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/dashboard': {
+      id: '/farmer/dashboard'
+      path: '/dashboard'
+      fullPath: '/farmer/dashboard'
+      preLoaderRoute: typeof FarmerDashboardRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/analytics': {
+      id: '/farmer/analytics'
+      path: '/analytics'
+      fullPath: '/farmer/analytics'
+      preLoaderRoute: typeof FarmerAnalyticsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
   }
 }
 
+interface FarmerRouteChildren {
+  FarmerAnalyticsRoute: typeof FarmerAnalyticsRoute
+  FarmerDashboardRoute: typeof FarmerDashboardRoute
+  FarmerMessagesRoute: typeof FarmerMessagesRoute
+  FarmerNotificationsRoute: typeof FarmerNotificationsRoute
+  FarmerOrdersRoute: typeof FarmerOrdersRoute
+  FarmerProductsRoute: typeof FarmerProductsRoute
+  FarmerRevenueRoute: typeof FarmerRevenueRoute
+  FarmerSettingsRoute: typeof FarmerSettingsRoute
+  FarmerStockRoute: typeof FarmerStockRoute
+}
+
+const FarmerRouteChildren: FarmerRouteChildren = {
+  FarmerAnalyticsRoute: FarmerAnalyticsRoute,
+  FarmerDashboardRoute: FarmerDashboardRoute,
+  FarmerMessagesRoute: FarmerMessagesRoute,
+  FarmerNotificationsRoute: FarmerNotificationsRoute,
+  FarmerOrdersRoute: FarmerOrdersRoute,
+  FarmerProductsRoute: FarmerProductsRoute,
+  FarmerRevenueRoute: FarmerRevenueRoute,
+  FarmerSettingsRoute: FarmerSettingsRoute,
+  FarmerStockRoute: FarmerStockRoute,
+}
+
+const FarmerRouteWithChildren =
+  FarmerRoute._addFileChildren(FarmerRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  FarmerRoute: FarmerRoute,
+  FarmerRoute: FarmerRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
