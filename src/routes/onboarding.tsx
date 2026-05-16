@@ -19,19 +19,19 @@ function Onboarding() {
   const { role } = Route.useSearch();
   const f = flows[role] || flows.farmer;
   return (
-    <div className="min-h-screen bg-hero-dark text-white flex flex-col">
+    <div className="min-h-screen bg-hero text-foreground flex flex-col">
       <div className="p-6"><Logo /></div>
       <div className="flex-1 grid place-items-center px-4">
         <div className="max-w-xl w-full glass-strong rounded-3xl p-8 text-center">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/40">
-            <CheckCircle2 className="h-9 w-9 text-white" />
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary shadow-lg shadow-primary/40">
+            <CheckCircle2 className="h-9 w-9 text-primary-foreground" />
           </div>
           <h1 className="mt-6 font-display text-3xl font-bold">Bienvenue {f.name} !</h1>
-          <p className="mt-2 text-white/70">{f.greeting}</p>
+          <p className="mt-2 text-muted-foreground">{f.greeting}</p>
           <div className="mt-8 space-y-3 text-left">
             {f.steps.map((s, i) => (
               <div key={i} className="flex items-center gap-3 glass rounded-xl p-3">
-                <div className="grid h-7 w-7 place-items-center rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-bold">{i + 1}</div>
+                <div className="grid h-7 w-7 place-items-center rounded-full bg-primary/20 text-primary text-sm font-bold">{i + 1}</div>
                 <span className="text-sm">{s}</span>
               </div>
             ))}

@@ -165,6 +165,12 @@
       radial-gradient(ellipse 60% 40% at 80% 80%, oklch(0.32 0.14 155 / 0.3), transparent 70%),
       linear-gradient(180deg, oklch(0.13 0.012 260) 0%, oklch(0.1 0.02 160) 100%);
   }
+  .bg-hero {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%),
+      var(--background);
+  }
 }
 
 @keyframes marquee {

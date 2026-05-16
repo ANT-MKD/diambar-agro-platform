@@ -108,3 +108,77 @@ export const revenueChart = [
   { day: "27", revenue: 91000, orders: 12 },
   { day: "29", revenue: 88000, orders: 11 },
 ];
+
+export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
+export type Transaction = {
+  id: string;
+  date: string;
+  orderRef: string;
+  restaurantId: string;
+  gross: number;
+  commission: number;
+  net: number;
+  method: PaymentMethod;
+  status: "Payé" | "En attente" | "Échec";
+};
+
+export const transactions: Transaction[] = [
+  { id: "t1", date: "2025-05-15", orderRef: "CMD-2851", restaurantId: "r1", gross: 56000, commission: 5600, net: 50400, method: "Wave", status: "Payé" },
+  { id: "t2", date: "2025-05-14", orderRef: "CMD-2847", restaurantId: "r2", gross: 56000, commission: 5600, net: 50400, method: "Orange Money", status: "Payé" },
+  { id: "t3", date: "2025-05-13", orderRef: "CMD-2842", restaurantId: "r3", gross: 32500, commission: 3250, net: 29250, method: "Wave", status: "Payé" },
+  { id: "t4", date: "2025-05-12", orderRef: "CMD-2838", restaurantId: "r1", gross: 18000, commission: 1800, net: 16200, method: "Free Money", status: "En attente" },
+  { id: "t5", date: "2025-05-10", orderRef: "CMD-2829", restaurantId: "r2", gross: 42000, commission: 4200, net: 37800, method: "Wave", status: "Payé" },
+  { id: "t6", date: "2025-05-08", orderRef: "CMD-2820", restaurantId: "r3", gross: 73000, commission: 7300, net: 65700, method: "Espèces", status: "Payé" },
+];
+
+export type Conversation = {
+  id: string;
+  restaurantId: string;
+  lastMessage: string;
+  lastAt: string;
+  unread: number;
+  messages: { id: string; from: "me" | "them"; text: string; at: string }[];
+};
+
+export const conversations: Conversation[] = [
+  {
+    id: "c1", restaurantId: "r1", lastMessage: "Parfait, on confirme pour demain matin 8h.", lastAt: "2025-05-15T10:42:00Z", unread: 2,
+    messages: [
+      { id: "m1", from: "them", text: "Bonjour Mamadou, vous avez encore des tomates fraîches ?", at: "2025-05-15T10:30:00Z" },
+      { id: "m2", from: "me", text: "Oui chef, j'ai 60kg disponibles ce matin.", at: "2025-05-15T10:35:00Z" },
+      { id: "m3", from: "them", text: "Je prends 50kg.", at: "2025-05-15T10:38:00Z" },
+      { id: "m4", from: "them", text: "Parfait, on confirme pour demain matin 8h.", at: "2025-05-15T10:42:00Z" },
+    ],
+  },
+  {
+    id: "c2", restaurantId: "r2", lastMessage: "Merci pour la livraison, tout est nickel !", lastAt: "2025-05-14T18:10:00Z", unread: 0,
+    messages: [
+      { id: "m1", from: "them", text: "Merci pour la livraison, tout est nickel !", at: "2025-05-14T18:10:00Z" },
+      { id: "m2", from: "me", text: "Merci à vous chef Aminata 🙏", at: "2025-05-14T18:12:00Z" },
+    ],
+  },
+  {
+    id: "c3", restaurantId: "r3", lastMessage: "Vous pouvez livrer 20kg d'oignons mardi ?", lastAt: "2025-05-13T09:00:00Z", unread: 1,
+    messages: [
+      { id: "m1", from: "them", text: "Vous pouvez livrer 20kg d'oignons mardi ?", at: "2025-05-13T09:00:00Z" },
+    ],
+  },
+];
+
+export type AppNotification = {
+  id: string;
+  type: "order" | "payment" | "stock" | "system" | "message";
+  title: string;
+  body: string;
+  at: string;
+  read: boolean;
+};
+
+export const notifications: AppNotification[] = [
+  { id: "n1", type: "order", title: "Nouvelle commande", body: "Le Baobab · 56 000 FCFA", at: "2025-05-15T11:05:00Z", read: false },
+  { id: "n2", type: "payment", title: "Paiement reçu", body: "Wave · +50 400 FCFA (CMD-2851)", at: "2025-05-15T10:50:00Z", read: false },
+  { id: "n3", type: "stock", title: "Stock faible", body: "Oignons rouges : 18kg restant (min 25)", at: "2025-05-15T08:30:00Z", read: true },
+  { id: "n4", type: "message", title: "Nouveau message", body: "Chez Aminata vous a écrit", at: "2025-05-14T18:10:00Z", read: true },
+  { id: "n5", type: "system", title: "Mise à jour", body: "Nouveau tableau analytics disponible", at: "2025-05-13T15:00:00Z", read: true },
+  { id: "n6", type: "order", title: "Commande livrée", body: "CMD-2847 livrée à Chez Aminata", at: "2025-05-14T11:30:00Z", read: true },
+];

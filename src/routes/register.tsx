@@ -203,7 +203,7 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
   );
 }
 
-function Input({ label, type = "text", value, onChange }: any) {
+function Input({ label, type = "text", value, onChange }: { label: string; type?: string; value?: string; onChange?: (v: string) => void }) {
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
