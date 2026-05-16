@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, Pencil, Copy, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -163,7 +163,7 @@ function ProductFormDialog({ open, onOpenChange, product, onSave }: { open: bool
   const empty: Product = { id: "", name: "", category: "Légumes", pricePerKg: 0, unit: "kg", stock: 0, minStock: 0, sku: "", image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=600", status: "draft", ordersThisMonth: 0, farmerId: "f1" };
   const [form, setForm] = useState<Product>(product || empty);
   // sync when opening with a different product
-  useMemoSync(() => setForm(product || empty), [product, open]);
+  useEffect(() => { setForm(product || empty); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [product, open]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,5 +228,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-// helper that syncs state when deps change (avoids extra effect import noise)
-import { useEffect as useMemoSync } from "react";
