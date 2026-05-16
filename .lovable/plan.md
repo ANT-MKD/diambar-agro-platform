@@ -1,111 +1,101 @@
-# DIAMBAR AGRO — Plan Phase 0 + 1 + 2+3
+# Plan — Corrections thème + Auth visuel + CRUD Agriculteur complet
 
-## Brief confirmé (Phase 0 — Cadrage)
+## 1. Correction du mode clair (landing, login, register, onboarding)
 
-**Produit** : Plateforme SaaS de logistique alimentaire au Sénégal connectant Agriculteurs, Restaurants, Livreurs et Admins. Slogan : *"Du Champ à Votre Cuisine"*.
+Problème : plusieurs sections sont codées en dur en sombre (`text-white`, gradients fixes, `bg-hero-dark`) et ignorent le thème.
 
-**Identité visuelle (verrouillée pour TOUTES les phases)** :
+Fichiers à corriger pour devenir thème-aware (light/dark) :
+- `src/components/landing/hero.tsx` — remplacer `text-white`, `text-white/70`, etc. par `text-foreground` / `text-muted-foreground` ; utiliser un fond conditionnel (gradient clair en light, `bg-hero-dark` en dark via `dark:bg-hero-dark`).
+- `src/components/landing/final-cta.tsx` — wrapper avec gradient emerald qui fonctionne sur les deux thèmes (les textes blancs y restent OK car le fond reste coloré).
+- `src/components/landing/live-tracking.tsx` — vérifier badges et cards.
+- `src/components/landing/features.tsx`, `how-it-works.tsx`, `testimonials.tsx`, `faq.tsx`, `ecosystem.tsx`, `footer.tsx`, `navbar.tsx`, `logos-bar.tsx` — passer en revue pour tokens sémantiques uniquement.
+- `src/components/auth/split-layout.tsx` — le panneau gauche reste un visuel sombre intentionnel (style premium), mais on garde le formulaire à droite parfaitement clair (déjà OK). On confirme via la classe `bg-background`.
+- `src/routes/register.tsx` (wizard 4 étapes) — auditer les classes : remplacer toute couleur dure par `bg-card`, `text-foreground`, `border-border`, `bg-muted`.
+- `src/routes/onboarding.tsx` — idem.
 
-- Theme : dark-first avec toggle light, glassmorphism subtil premium
-- Palette : emerald `#059669` (primary), `#10b981` (accent), `#0a0a0a` (bg dark), `#111827` (cards), `#374151` (borders), `#fafaf9` (texte), `#f59e0b` (premium/alertes), `#ef4444` (erreurs)
-- Typographie : **Sora** (titres), **Inter** (corps) — Google Fonts
-- Style cards : `rounded-2xl`, `border-white/10`, `bg-white/5`, `backdrop-blur-md`, `shadow-xl`
-- Boutons primaires : `bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold`
-- Transitions : `transition-all duration-300 ease-in-out`
-- Animations : fadeIn / slideUp au scroll
+Règle appliquée partout : **aucune classe `text-white`, `bg-black`, `bg-gray-*`, gradient codé en dur** sauf dans des sections délibérément immersives (hero gauche auth, CTA final).
 
-**Stack effective** (adapté Lovable) : TanStack Start + React + TS strict + Tailwind v4 + shadcn + Lucide + Recharts (quand nécessaire) + framer-motion. **Pas de Supabase pour l'instant** — toutes les données mockées en attendant l'intégration backend ultérieure. Les routes seront structurées pour accueillir le backend plus tard.
+## 2. Carousel d'images Unsplash sur le panneau gauche du login/register
 
-**Données mock centralisées** : agriculteurs (Mamadou Diallo/Thiès, Fatou Sow/Pikine, Ibrahima Ndoye/Mbour), restaurants (Le Baobab, Chez Aminata, Téranga), produits (tomates 850, oignons 450, poulet 3200, mangues 600, manioc 350, bissap 1200), livreurs (Oumar Ba, Cheikh Fall).
+Dans `src/components/auth/split-layout.tsx` :
+- Ajouter un fond image plein écran sur la moitié gauche avec rotation toutes les 5 secondes (fade crossfade).
+- 5 images Unsplash thématiques (agriculture sénégalaise, marché, livraison, légumes frais, ferme).
+- Garder un overlay sombre (`bg-black/55`) pour préserver la lisibilité des cards glass et du logo.
+- Les cards "Commande en cours / Livraison / Stats" restent affichées par-dessus.
+- Indicateurs (dots) en bas pour signaler la slide active.
+- Implémenté avec un `useEffect` + `setInterval`, transitions via `opacity` et `transition-opacity duration-1000`.
 
----
+## 3. Pages CRUD Agriculteur — implémentation complète
 
-## Architecture des routes (préparée pour les 9 phases)
+Remplacer les 8 stubs actuels par des écrans réels avec données mockées (`src/data/mocks.ts`), listes, filtres, modales de formulaire complètes, et états vides/loading.
 
-```
-src/routes/
-  __root.tsx               → shell + ThemeProvider + Toaster + <Outlet/>
-  index.tsx                → Landing (Phase 1)
-  login.tsx                → Connexion (Phase 2)
-  register.tsx             → Inscription multi-étapes (Phase 2)
-  forgot-password.tsx      → Reset (Phase 2)
-  reset-password.tsx       → Nouveau mot de passe (Phase 2)
-  onboarding.tsx           → Bienvenue post-inscription (Phase 2)
-  farmer/...               → (Phase 3, stubs créés)
-  restaurant/...           → (Phase 4, stubs créés)
-  driver/...               → (Phase 5, stubs créés)
-  admin/...                → (Phase 6, stubs créés)
-```
+### 3.1 `/farmer/products` — Mes Produits
+- Header : titre + bouton "Ajouter un produit" (ouvre dialog).
+- Filtres : recherche, catégorie (select), statut (active/low/out/draft).
+- Vue grille cards : image, nom, catégorie badge, prix/kg, stock + barre vs min, statut, menu actions (Éditer / Dupliquer / Supprimer).
+- Dialog `ProductFormDialog` : champs nom, catégorie, prix, unité, SKU, stock initial, stock min, image URL, statut. Validation `zod` + `react-hook-form`. Toast succès.
+- Confirmation `AlertDialog` avant suppression.
 
-Pour Phases 1+2, je crée uniquement les routes listées ci-dessus (Landing + Auth + Onboarding). Les dashboards par rôle viendront aux phases suivantes.
+### 3.2 `/farmer/stock` — Gestion du Stock
+- Tableau (`Table` shadcn) : produit + image, SKU, stock actuel, min, statut (badge), dernière MAJ.
+- Filtre alerte : "Stock faible" / "Rupture" / "Tous".
+- Bouton "Ajuster" par ligne → dialog `StockAdjustDialog` (type : ajout / retrait / inventaire ; quantité ; motif ; date).
+- KPI en haut : Total références, Stock faible, Ruptures, Valeur stock totale (FCFA).
 
----
+### 3.3 `/farmer/orders` — Commandes
+- Tabs par statut : Toutes / En attente / Confirmées / En préparation / En livraison / Livrées / Annulées (compteurs).
+- Liste cards : référence, restaurant (avatar + nom + ville), items résumés, total FCFA, date relative, statut, ETA si applicable.
+- Bouton détail → `OrderDetailDialog` (timeline statut, items complets, livreur, actions : Confirmer / Marquer prête / Annuler avec motif).
+- Recherche par référence/restaurant.
 
-## Étapes d'implémentation (ce plan couvre Phases 1 & 2)
+### 3.4 `/farmer/revenue` — Mes Revenus
+- KPI : CA du mois, CA total, Commandes payées, Panier moyen, En attente paiement.
+- Graphique `AreaChart` Recharts (revenueChart) avec sélecteur période (7j / 30j / 90j).
+- Tableau transactions : date, commande, restaurant, montant brut, commission, net, méthode (Wave/Orange/Free), statut.
+- Bouton "Exporter CSV" (mock).
 
-### 1. Fondations design system
+### 3.5 `/farmer/analytics` — Analytics
+- Cards KPI : Top produit, Meilleur client, Taux de réachat, Taux d'annulation.
+- `BarChart` produits les plus vendus.
+- `LineChart` évolution commandes.
+- `PieChart` répartition par catégorie.
+- Heatmap simple jours × heures (grille CSS) des commandes.
 
-- Mettre à jour `src/styles.css` : tokens emerald/charbon en oklch, surfaces glass, fonts Sora + Inter via `<link>` dans `__root.tsx` head
-- Ajouter `ThemeProvider` (dark/light) + toggle glassmorphism réutilisable dans `src/components/theme/`
-- `src/components/ui/glass-card.tsx` (wrapper réutilisable)
-- `src/lib/format.ts` : `formatFCFA`, helpers
-- `src/data/mocks.ts` : agriculteurs, restaurants, produits, livreurs, témoignages, FAQ — source unique de vérité pour toutes les phases
+### 3.6 `/farmer/messages` — Messages
+- Layout 2 colonnes : liste conversations (avatar restaurant, dernier message, badge non lu) + panneau conversation (bulles, input, attache).
+- État vide si aucune conversation sélectionnée.
+- Données mockées : 4 conversations avec restaurants.
 
-### 2. Phase 1 — Landing (`src/routes/index.tsx`)
+### 3.7 `/farmer/notifications` — Notifications
+- Liste regroupée par date (Aujourd'hui / Cette semaine / Plus ancien).
+- Types : commande, paiement, stock, système, message.
+- Actions : marquer tout comme lu, filtre type, switch préférences (email/SMS/push) par catégorie.
 
-Composants découpés dans `src/components/landing/` :
+### 3.8 `/farmer/settings` — Paramètres
+- Tabs : Profil, Exploitation, Paiement, Sécurité, Notifications.
+- Formulaires complets avec champs Sénégal (nom, téléphone +221, ville, langue Wolof/Français, Wave/Orange Money n°, changement mot de passe avec `PasswordStrength`).
 
-- `Navbar` (logo, liens, theme toggle, CTA Se connecter)
-- `Hero` (gradient animé + particules, badge, H1 "Du Champ à Votre Cuisine" avec dégradé sur "Cuisine", 2 CTA, 4 stats, mockup card commande animée)
-- `LogosBar` (scroll horizontal infini)
-- `HowItWorks` (3 cartes glass, slideUp au scroll)
-- `Features` (grille 10 fonctionnalités, hover scale)
-- `Ecosystem` (4 profils : Agriculteur vert / Restaurant orange / Livreur bleu / Admin violet)
-- `LiveTracking` (carte stylisée + moto animée + panel livreur Oumar Ba)
-- `Testimonials` (carousel 4, autoplay 4s)
-- `Faq` (accordéon shadcn, 10 Q/R)
-- `FinalCta` (gradient emerald)
-- `Footer` (4 colonnes + copyright)
+## 4. Composants partagés à créer
 
-Chaque section reçoit `head()` SEO-friendly sur la route index.
-
-### 3. Phase 2 — Authentification
-
-Composants partagés `src/components/auth/` :
-
-- `AuthSplitLayout` (split 2 colonnes desktop, fond gradient + stats animées à gauche)
-- `RoleCard`, `OtpInput`, `PasswordStrength`, `Stepper`
-
-Routes :
-
-- `login.tsx` — split screen, formulaire email/password, toggle mot de passe, "Se souvenir", lien forgot, boutons Google + Téléphone, états loading/erreur (mock)
-- `register.tsx` — wrapper avec `useState` step 1→4 et progress bar
-  - Étape 1 : sélection rôle (4 cartes)
-  - Étape 2 : infos perso (nom, email, tel +221, password + force, confirm, ville)
-  - Étape 3 : champs spécifiques au rôle choisi (agri / resto / livreur)
-  - Étape 4 : OTP 6 digits + countdown 59s + renvoyer
-- `forgot-password.tsx` — 2 étapes (email → confirmation animée)
-- `reset-password.tsx` — nouveau mot de passe + force
-- `onboarding.tsx` — écran personnalisé selon rôle (lit `?role=` query) avec 3 steps suggérés et CTA vers dashboard correspondant (route stub pour l'instant)
-
-Validation : `zod` + `react-hook-form` (déjà disponibles dans le template shadcn).
-
-### 4. Polish
-
-- Toaster sonner global
-- Animations framer-motion (fadeIn / slideUp / stagger)
-- Responsive mobile (hamburger nav, stack vertical des sections)
-- Vérification build automatique
+- `src/components/farmer/page-header.tsx` — titre + sous-titre + actions.
+- `src/components/farmer/kpi-card.tsx` — KPI réutilisable.
+- `src/components/farmer/empty-state.tsx`.
+- `src/components/farmer/status-badge.tsx` — couleurs par statut commande/stock.
+- `src/components/farmer/product-form-dialog.tsx`, `stock-adjust-dialog.tsx`, `order-detail-dialog.tsx`.
 
 ## Détails techniques
 
-- **Pas de backend** activé : auth simulée (toast "Connexion simulée — backend à brancher en Phase ultérieure"), pas d'appel Supabase. Structure des handlers prête à recevoir `supabase.auth.signIn(...)`.
-- **Mock data** typée TypeScript dans `src/data/` pour réutilisation dans toutes les phases.
-- **Routes dashboards** non créées dans cette phase — les CTA d'onboarding pointent vers `/farmer/dashboard` etc. qui rendront 404 jusqu'à Phase 3+ (acceptable, prévu).
-- **Code clean / scalable** : un fichier = une responsabilité, composants `<200 lignes`, props typées, pas de logique métier inline dans les routes.
+- Formulaires : `react-hook-form` + `zod` (déjà disponibles) + `@/components/ui/form`, `dialog`, `alert-dialog`, `tabs`, `table`, `select`, `textarea`, `switch`.
+- Toasts : `sonner` (déjà câblé).
+- Charts : `recharts` (déjà utilisé sur le dashboard).
+- Données mockées : utiliser `products`, `orders`, `restaurants`, `revenueChart`, `farmers`, `drivers` de `src/data/mocks.ts`. Étendre légèrement si besoin (transactions, messages, notifications).
+- État local React (`useState`) pour CRUD — pas de backend, conforme à la stratégie "mock first".
+- Aucun changement de routing : on remplit les fichiers de routes existants `src/routes/farmer.*.tsx`.
 
-## Ce qui n'est PAS dans ce plan
+## Ordre d'exécution
 
-Phases 3 à 9 (dashboards par rôle, chat, notifications, polissage final mobile) — chaque phase fera l'objet d'un message séparé comme demandé.
-
-On vas ajouter la phase 3 et pour la page des CRUDS on va leur dediee des pages
+1. Corriger thème clair (styles + composants landing + auth/register).
+2. Ajouter carousel Unsplash dans `split-layout.tsx`.
+3. Créer composants partagés farmer (`kpi-card`, `page-header`, `status-badge`, dialogs).
+4. Implémenter les 8 pages CRUD (`products`, `stock`, `orders`, `revenue`, `analytics`, `messages`, `notifications`, `settings`).
+5. Vérifier build, naviguer chaque page en preview.
