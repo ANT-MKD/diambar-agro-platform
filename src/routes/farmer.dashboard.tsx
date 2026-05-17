@@ -1,61 +1,76 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { TrendingUp, ShoppingBag, Package, Star, Plus, ArrowRight, Check, X } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { orders, products, restaurants, revenueChart } from "@/data/mocks";
+import { restaurants, revenueChart, sparklineOrders, sparklineRevenue } from "@/data/mocks";
+import { useOrders, useProducts, orderActions } from "@/data/store";
+import { BentoKpi } from "@/components/farmer/bento-kpi";
+import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
+import { LiveFeed } from "@/components/farmer/live-feed";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
   component: Dashboard,
 });
 
-const kpis = [
-  { label: "Revenus du mois", value: "847 500 FCFA", change: "+12%", icon: TrendingUp, color: "emerald" },
-  { label: "Commandes reçues", value: "23", change: "+5 cette sem.", icon: ShoppingBag, color: "blue" },
-  { label: "Produits actifs", value: "8/12", change: "publiés", icon: Package, color: "amber" },
-  { label: "Note moyenne", value: "4.8 ★", change: "156 avis", icon: Star, color: "violet" },
-];
-
 function Dashboard() {
+  const products = useProducts();
+  const orders = useOrders().filter((o) => o.farmerId === "f1");
   const pending = orders.filter((o) => o.status === "pending").slice(0, 3);
+  const active = products.filter((p) => p.status === "active").length;
+  const [period, setPeriod] = useState<"7" | "30" | "12">("30");
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold">Bonjour, Mamadou 👋</h1>
-          <p className="text-sm text-muted-foreground mt-1">Voici l'état de votre exploitation aujourd'hui</p>
+          <p className="text-sm text-muted-foreground mt-1">{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
         </div>
-        <Link to="/farmer/products" className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold shadow-lg shadow-primary/20">
-          <Plus className="h-4 w-4" /> Ajouter un produit
+        <Link to="/farmer/products/new" className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-semibold shadow-lg shadow-primary/20">
+          <Plus className="h-4 w-4" /> Nouveau produit
         </Link>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k, i) => (
-          <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-            className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-${k.color}-500/10 text-${k.color}-500`}>
-                <k.icon className="h-5 w-5" />
-              </div>
-              <span className="text-xs text-emerald-500 font-semibold">{k.change}</span>
-            </div>
-            <div className="mt-4 font-display text-2xl font-bold">{k.value}</div>
-            <div className="text-xs text-muted-foreground mt-1">{k.label}</div>
+        {[
+          { icon: TrendingUp, label: "REVENUS CE MOIS", value: "847 500", suffix: "FCFA", trend: "↑ +12%", tone: "emerald" as const, sparkline: <Sparkline data={sparklineRevenue} /> },
+          { icon: ShoppingBag, label: "COMMANDES REÇUES", value: String(orders.length), trend: "↑ +5 cette sem.", tone: "amber" as const, sparkline: <Sparkline data={sparklineOrders} type="bar" color="oklch(0.75 0.18 50)" /> },
+        ].map((k, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+            <BentoKpi {...k}>{k.sparkline}</BentoKpi>
           </motion.div>
         ))}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <div className="glass rounded-2xl p-5 flex flex-col">
+            <div className="flex items-center justify-between">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/10 text-blue-500"><Package className="h-5 w-5" /></div>
+              <ProgressCircle value={active} max={products.length} color="oklch(0.65 0.2 260)" />
+            </div>
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="font-display text-2xl font-bold">{active}</span>
+              <span className="text-xs text-muted-foreground">/ {products.length} publiés</span>
+            </div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">PRODUITS ACTIFS</div>
+          </div>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <BentoKpi icon={Star} label="NOTE MOYENNE" value="4.8" tone="yellow" trend="156 avis">
+            <div className="flex gap-0.5">{[1, 2, 3, 4, 5].map((s) => <Star key={s} className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />)}</div>
+          </BentoKpi>
+        </motion.div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 className="font-semibold">Évolution de vos revenus</h3>
-            <div className="flex gap-1 text-xs">
-              {["Semaine", "Mois", "Année"].map((t, i) => (
-                <button key={t} className={`px-3 py-1.5 rounded-lg ${i === 1 ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}>{t}</button>
-              ))}
-            </div>
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+              <TabsList><TabsTrigger value="7">7J</TabsTrigger><TabsTrigger value="30">30J</TabsTrigger><TabsTrigger value="12">12M</TabsTrigger></TabsList>
+            </Tabs>
           </div>
           <div className="h-72">
             <ResponsiveContainer>
@@ -66,10 +81,10 @@ function Dashboard() {
                     <stop offset="100%" stopColor="oklch(0.7 0.17 155)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="currentColor" opacity={0.1} vertical={false} />
+                <CartesianGrid stroke="currentColor" opacity={0.1} vertical={false} strokeDasharray="4 4" />
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
                 <YAxis tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12 }} />
+                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--foreground)" }} formatter={(v: number) => formatFCFA(v)} />
                 <Area type="monotone" dataKey="revenue" stroke="oklch(0.7 0.17 155)" strokeWidth={2.5} fill="url(#rev)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -77,7 +92,10 @@ function Dashboard() {
         </div>
 
         <div className="glass rounded-2xl p-6">
-          <h3 className="font-semibold mb-4">À traiter maintenant</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">À traiter</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground">{pending.length}</span>
+          </div>
           <div className="space-y-3">
             {pending.map((o) => {
               const r = restaurants.find((x) => x.id === o.restaurantId);
@@ -91,12 +109,13 @@ function Dashboard() {
                     <span className="text-[10px] text-muted-foreground">{relativeTime(o.createdAt)}</span>
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500 text-white text-xs font-semibold py-1.5"><Check className="h-3 w-3" />Confirmer</button>
-                    <button className="px-2.5 rounded-lg border border-border text-muted-foreground hover:bg-accent"><X className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => orderActions.setStatus(o.id, "confirmed")} className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500 text-white text-xs font-semibold py-1.5"><Check className="h-3 w-3" />Confirmer</button>
+                    <Link to="/farmer/orders/$orderId/refuse" params={{ orderId: o.id }} className="px-2.5 grid place-items-center rounded-lg border border-border text-muted-foreground hover:bg-accent"><X className="h-3.5 w-3.5" /></Link>
                   </div>
                 </div>
               );
             })}
+            {pending.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Aucune commande en attente</p>}
           </div>
           <Link to="/farmer/orders" className="mt-4 flex items-center justify-center gap-1 text-sm text-primary font-medium">
             Voir toutes <ArrowRight className="h-3.5 w-3.5" />
@@ -109,7 +128,7 @@ function Dashboard() {
           <h3 className="font-semibold mb-4">Produits populaires</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             {products.slice(0, 3).map((p) => (
-              <Link key={p.id} to="/farmer/products" className="rounded-xl overflow-hidden border border-border hover:border-primary/40 transition group">
+              <Link key={p.id} to="/farmer/products/$productId" params={{ productId: p.id }} className="rounded-xl overflow-hidden border border-border hover:border-primary/40 transition group">
                 <div className="aspect-[4/3] overflow-hidden bg-muted">
                   <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition" />
                 </div>
@@ -124,26 +143,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="glass rounded-2xl p-6">
-          <h3 className="font-semibold mb-4">Activité récente</h3>
-          <div className="space-y-3">
-            {[
-              { t: "Nouvelle commande", d: "Le Baobab · 42 500 FCFA", time: "2 min", color: "emerald" },
-              { t: "Paiement reçu", d: "Wave · 38 250 FCFA", time: "1h", color: "amber" },
-              { t: "Stock mis à jour", d: "Tomates +50 kg", time: "3h", color: "blue" },
-              { t: "Avis reçu ★ 5", d: "Restaurant Téranga", time: "5h", color: "violet" },
-            ].map((a, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className={`mt-0.5 h-2 w-2 rounded-full bg-${a.color}-500`} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">{a.t}</div>
-                  <div className="text-xs text-muted-foreground truncate">{a.d}</div>
-                </div>
-                <span className="text-[10px] text-muted-foreground">{a.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <LiveFeed />
       </div>
     </div>
   );

@@ -182,3 +182,80 @@ export const notifications: AppNotification[] = [
   { id: "n5", type: "system", title: "Mise à jour", body: "Nouveau tableau analytics disponible", at: "2025-05-13T15:00:00Z", read: true },
   { id: "n6", type: "order", title: "Commande livrée", body: "CMD-2847 livrée à Chez Aminata", at: "2025-05-14T11:30:00Z", read: true },
 ];
+
+export type StockMovement = {
+  id: string;
+  productId: string;
+  type: "in" | "out" | "adjust";
+  qty: number;
+  reason: string;
+  at: string;
+  operator: string;
+};
+
+export const stockMovements: StockMovement[] = [
+  { id: "sm1", productId: "p1", type: "in", qty: 50, reason: "Récolte du matin", at: "2025-05-15T07:00:00Z", operator: "Mamadou" },
+  { id: "sm2", productId: "p1", type: "out", qty: 30, reason: "Vente CMD-2851", at: "2025-05-15T10:30:00Z", operator: "Système" },
+  { id: "sm3", productId: "p2", type: "out", qty: 12, reason: "Vente CMD-2849", at: "2025-05-14T16:20:00Z", operator: "Système" },
+  { id: "sm4", productId: "p3", type: "in", qty: 20, reason: "Nouvel arrivage", at: "2025-05-14T08:00:00Z", operator: "Mamadou" },
+  { id: "sm5", productId: "p4", type: "out", qty: 40, reason: "Périmé", at: "2025-05-13T11:00:00Z", operator: "Mamadou" },
+  { id: "sm6", productId: "p7", type: "adjust", qty: 5, reason: "Inventaire mensuel", at: "2025-05-12T09:00:00Z", operator: "Mamadou" },
+  { id: "sm7", productId: "p8", type: "in", qty: 25, reason: "Récolte", at: "2025-05-11T07:30:00Z", operator: "Mamadou" },
+];
+
+export const wallets = [
+  { id: "w1", method: "Wave" as const, balance: 145000, phone: "77 123 45 67", color: "#1DB7FF" },
+  { id: "w2", method: "Orange Money" as const, balance: 78500, phone: "78 200 33 44", color: "#FF6F00" },
+  { id: "w3", method: "Free Money" as const, balance: 22000, phone: "76 555 11 22", color: "#CD1F4C" },
+];
+
+export type Withdrawal = {
+  id: string;
+  date: string;
+  method: PaymentMethod;
+  amount: number;
+  fee: number;
+  status: "Effectué" | "En cours" | "Échec";
+  reference: string;
+};
+
+export const withdrawals: Withdrawal[] = [
+  { id: "wd1", date: "2025-05-12", method: "Wave", amount: 200000, fee: 1000, status: "Effectué", reference: "WD-001" },
+  { id: "wd2", date: "2025-05-05", method: "Orange Money", amount: 150000, fee: 750, status: "Effectué", reference: "WD-002" },
+  { id: "wd3", date: "2025-04-28", method: "Wave", amount: 320000, fee: 1500, status: "Effectué", reference: "WD-003" },
+  { id: "wd4", date: "2025-05-15", method: "Wave", amount: 100000, fee: 500, status: "En cours", reference: "WD-004" },
+];
+
+export const topClients = [
+  { restaurantId: "r1", orders: 24, total: 845000, recurringPct: 78 },
+  { restaurantId: "r2", orders: 18, total: 612000, recurringPct: 65 },
+  { restaurantId: "r3", orders: 11, total: 423000, recurringPct: 42 },
+];
+
+export const geoPins = [
+  { id: "g1", region: "Dakar", x: 18, y: 40, count: 12, color: "#10b981" },
+  { id: "g2", region: "Thiès", x: 28, y: 38, count: 8, color: "#10b981" },
+  { id: "g3", region: "Mbour", x: 24, y: 50, count: 5, color: "#f59e0b" },
+  { id: "g4", region: "Saint-Louis", x: 32, y: 14, count: 3, color: "#3b82f6" },
+  { id: "g5", region: "Kaolack", x: 45, y: 52, count: 4, color: "#3b82f6" },
+  { id: "g6", region: "Ziguinchor", x: 30, y: 82, count: 2, color: "#8b5cf6" },
+];
+
+export const sparklineRevenue = [12, 19, 14, 23, 18, 28, 24, 32, 27, 38, 34, 45, 41, 52];
+export const sparklineOrders = [3, 5, 4, 7, 6, 9, 8, 11, 9, 12, 10, 14, 13, 16];
+
+export type RecurringOrder = {
+  id: string;
+  restaurantId: string;
+  items: { productId: string; qty: number }[];
+  frequency: "weekly" | "biweekly" | "monthly";
+  dayOfWeek: number;
+  active: boolean;
+  nextDelivery: string;
+};
+
+export const recurringOrders: RecurringOrder[] = [
+  { id: "ro1", restaurantId: "r1", items: [{ productId: "p1", qty: 30 }, { productId: "p2", qty: 15 }], frequency: "weekly", dayOfWeek: 1, active: true, nextDelivery: "2025-05-19" },
+  { id: "ro2", restaurantId: "r2", items: [{ productId: "p3", qty: 10 }], frequency: "biweekly", dayOfWeek: 4, active: true, nextDelivery: "2025-05-22" },
+  { id: "ro3", restaurantId: "r3", items: [{ productId: "p7", qty: 25 }, { productId: "p8", qty: 12 }], frequency: "weekly", dayOfWeek: 3, active: false, nextDelivery: "—" },
+];
