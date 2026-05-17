@@ -19,7 +19,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
-import { Route as FarmerProductsRouteImport } from './routes/farmer.products'
 import { Route as FarmerOrdersRouteImport } from './routes/farmer.orders'
 import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
@@ -76,11 +75,6 @@ const FarmerRevenueRoute = FarmerRevenueRouteImport.update({
   path: '/revenue',
   getParentRoute: () => FarmerRoute,
 } as any)
-const FarmerProductsRoute = FarmerProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => FarmerRoute,
-} as any)
 const FarmerOrdersRoute = FarmerOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -120,7 +114,6 @@ export interface FileRoutesByFullPath {
   '/farmer/messages': typeof FarmerMessagesRoute
   '/farmer/notifications': typeof FarmerNotificationsRoute
   '/farmer/orders': typeof FarmerOrdersRoute
-  '/farmer/products': typeof FarmerProductsRoute
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRoute
@@ -138,7 +131,6 @@ export interface FileRoutesByTo {
   '/farmer/messages': typeof FarmerMessagesRoute
   '/farmer/notifications': typeof FarmerNotificationsRoute
   '/farmer/orders': typeof FarmerOrdersRoute
-  '/farmer/products': typeof FarmerProductsRoute
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRoute
@@ -157,7 +149,6 @@ export interface FileRoutesById {
   '/farmer/messages': typeof FarmerMessagesRoute
   '/farmer/notifications': typeof FarmerNotificationsRoute
   '/farmer/orders': typeof FarmerOrdersRoute
-  '/farmer/products': typeof FarmerProductsRoute
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRoute
@@ -177,7 +168,6 @@ export interface FileRouteTypes {
     | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
-    | '/farmer/products'
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
@@ -195,7 +185,6 @@ export interface FileRouteTypes {
     | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
-    | '/farmer/products'
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
@@ -213,7 +202,6 @@ export interface FileRouteTypes {
     | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
-    | '/farmer/products'
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
@@ -301,13 +289,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerRevenueRouteImport
       parentRoute: typeof FarmerRoute
     }
-    '/farmer/products': {
-      id: '/farmer/products'
-      path: '/products'
-      fullPath: '/farmer/products'
-      preLoaderRoute: typeof FarmerProductsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
     '/farmer/orders': {
       id: '/farmer/orders'
       path: '/orders'
@@ -352,7 +333,6 @@ interface FarmerRouteChildren {
   FarmerMessagesRoute: typeof FarmerMessagesRoute
   FarmerNotificationsRoute: typeof FarmerNotificationsRoute
   FarmerOrdersRoute: typeof FarmerOrdersRoute
-  FarmerProductsRoute: typeof FarmerProductsRoute
   FarmerRevenueRoute: typeof FarmerRevenueRoute
   FarmerSettingsRoute: typeof FarmerSettingsRoute
   FarmerStockRoute: typeof FarmerStockRoute
@@ -364,7 +344,6 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerMessagesRoute: FarmerMessagesRoute,
   FarmerNotificationsRoute: FarmerNotificationsRoute,
   FarmerOrdersRoute: FarmerOrdersRoute,
-  FarmerProductsRoute: FarmerProductsRoute,
   FarmerRevenueRoute: FarmerRevenueRoute,
   FarmerSettingsRoute: FarmerSettingsRoute,
   FarmerStockRoute: FarmerStockRoute,
@@ -385,3 +364,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
