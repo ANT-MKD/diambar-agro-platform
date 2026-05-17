@@ -1,101 +1,146 @@
-# Plan — Corrections thème + Auth visuel + CRUD Agriculteur complet
+## Analyse des deux prompts
 
-## 1. Correction du mode clair (landing, login, register, onboarding)
+Oui, **combiner les deux est la bonne décision**. Ils sont complémentaires, pas contradictoires :
 
-Problème : plusieurs sections sont codées en dur en sombre (`text-white`, gradients fixes, `bg-hero-dark`) et ignorent le thème.
+- **Prompt 1** = exhaustivité fonctionnelle (tous les champs, tous les écrans, toute la logique métier : SKU, code-barres, inventaire, wallet Wave/OM, retraits, certifications bio…).
+- **Prompt 2** = direction UX/structure 2026 (bento grid, sparklines, Kanban drag&drop, panels coulissants, vue Kanban↔Liste, live feed).
 
-Fichiers à corriger pour devenir thème-aware (light/dark) :
-- `src/components/landing/hero.tsx` — remplacer `text-white`, `text-white/70`, etc. par `text-foreground` / `text-muted-foreground` ; utiliser un fond conditionnel (gradient clair en light, `bg-hero-dark` en dark via `dark:bg-hero-dark`).
-- `src/components/landing/final-cta.tsx` — wrapper avec gradient emerald qui fonctionne sur les deux thèmes (les textes blancs y restent OK car le fond reste coloré).
-- `src/components/landing/live-tracking.tsx` — vérifier badges et cards.
-- `src/components/landing/features.tsx`, `how-it-works.tsx`, `testimonials.tsx`, `faq.tsx`, `ecosystem.tsx`, `footer.tsx`, `navbar.tsx`, `logos-bar.tsx` — passer en revue pour tokens sémantiques uniquement.
-- `src/components/auth/split-layout.tsx` — le panneau gauche reste un visuel sombre intentionnel (style premium), mais on garde le formulaire à droite parfaitement clair (déjà OK). On confirme via la classe `bg-background`.
-- `src/routes/register.tsx` (wizard 4 étapes) — auditer les classes : remplacer toute couleur dure par `bg-card`, `text-foreground`, `border-border`, `bg-muted`.
-- `src/routes/onboarding.tsx` — idem.
+Stratégie retenue : **garder la richesse fonctionnelle du prompt 1**, **adopter les patterns UX du prompt 2** (bento, Kanban, sparklines, panel latéral), **sans toucher au design system actuel** (tokens sémantiques, glass, fonts Sora/Inter, palette emerald — déjà en place). Pas de refonte visuelle, uniquement ajout de structure et de pages.
 
-Règle appliquée partout : **aucune classe `text-white`, `bg-black`, `bg-gray-*`, gradient codé en dur** sauf dans des sections délibérément immersives (hero gauche auth, CTA final).
+Règle transverse : **plus aucun modal pour le CRUD**. Tout passe par des routes dédiées (`/new`, `/$id`, `/$id/edit`, `/$id/history`, etc.).
 
-## 2. Carousel d'images Unsplash sur le panneau gauche du login/register
+---
 
-Dans `src/components/auth/split-layout.tsx` :
-- Ajouter un fond image plein écran sur la moitié gauche avec rotation toutes les 5 secondes (fade crossfade).
-- 5 images Unsplash thématiques (agriculture sénégalaise, marché, livraison, légumes frais, ferme).
-- Garder un overlay sombre (`bg-black/55`) pour préserver la lisibilité des cards glass et du logo.
-- Les cards "Commande en cours / Livraison / Stats" restent affichées par-dessus.
-- Indicateurs (dots) en bas pour signaler la slide active.
-- Implémenté avec un `useEffect` + `setInterval`, transitions via `opacity` et `transition-opacity duration-1000`.
+## Ce qu'on ajoute aux CRUDs (synthèse pré-plan)
 
-## 3. Pages CRUD Agriculteur — implémentation complète
+**Produits** : page détail produit (vue publique interne), page édition séparée de création, page d'import Excel avec mapping colonnes + preview, page brouillons, gestion multi-photos (jusqu'à 5) avec photo principale, code-barres, SKU auto/manuel, prix min négociable, quantité min commande, date de disponibilité, lieu de collecte, certif bio, notes internes, toggle catalogue public, commandes récurrentes.
 
-Remplacer les 8 stubs actuels par des écrans réels avec données mockées (`src/data/mocks.ts`), listes, filtres, modales de formulaire complètes, et états vides/loading.
+**Stock** : page mouvement (entrée/sortie/ajustement) dédiée au lieu de modal, page historique par produit (timeline complète + filtres), page inventaire complet (saisie réel vs théorique, écarts auto, export Excel, validation), alertes seuils configurables.
 
-### 3.1 `/farmer/products` — Mes Produits
-- Header : titre + bouton "Ajouter un produit" (ouvre dialog).
-- Filtres : recherche, catégorie (select), statut (active/low/out/draft).
-- Vue grille cards : image, nom, catégorie badge, prix/kg, stock + barre vs min, statut, menu actions (Éditer / Dupliquer / Supprimer).
-- Dialog `ProductFormDialog` : champs nom, catégorie, prix, unité, SKU, stock initial, stock min, image URL, statut. Validation `zod` + `react-hook-form`. Toast succès.
-- Confirmation `AlertDialog` avant suppression.
+**Commandes** : **vue Kanban drag&drop** (4 colonnes statut) + **vue Liste** togglable, page détail commande complète (timeline statuts, livreur, adresse, note resto, produits ligne par ligne, actions contextuelles selon statut), page "refus" avec raison obligatoire, page "signaler un problème".
 
-### 3.2 `/farmer/stock` — Gestion du Stock
-- Tableau (`Table` shadcn) : produit + image, SKU, stock actuel, min, statut (badge), dernière MAJ.
-- Filtre alerte : "Stock faible" / "Rupture" / "Tous".
-- Bouton "Ajuster" par ligne → dialog `StockAdjustDialog` (type : ajout / retrait / inventaire ; quantité ; motif ; date).
-- KPI en haut : Total références, Stock faible, Ruptures, Valeur stock totale (FCFA).
+**Revenus** : page transaction détail, page retrait (Wave/OM/Free/bancaire) avec leurs vraies icone ou genere, page historique des retraits, sélecteur période personnalisée, export Excel paramétrable.
 
-### 3.3 `/farmer/orders` — Commandes
-- Tabs par statut : Toutes / En attente / Confirmées / En préparation / En livraison / Livrées / Annulées (compteurs).
-- Liste cards : référence, restaurant (avatar + nom + ville), items résumés, total FCFA, date relative, statut, ETA si applicable.
-- Bouton détail → `OrderDetailDialog` (timeline statut, items complets, livreur, actions : Confirmer / Marquer prête / Annuler avec motif).
-- Recherche par référence/restaurant.
+**Analytics** : ajouts vs existant — carte Sénégal SVG ou autre avec pins restaurants, radar par catégorie, prévisions ruptures, top clients fidélité (% récurrent vs nouveau).
 
-### 3.4 `/farmer/revenue` — Mes Revenus
-- KPI : CA du mois, CA total, Commandes payées, Panier moyen, En attente paiement.
-- Graphique `AreaChart` Recharts (revenueChart) avec sélecteur période (7j / 30j / 90j).
-- Tableau transactions : date, commande, restaurant, montant brut, commission, net, méthode (Wave/Orange/Free), statut.
-- Bouton "Exporter CSV" (mock).
+**Messages** : page conversation dédiée par `/$id`, panel infos contact + commandes liées à droite, indicateur "en train d'écrire", search conversations.
 
-### 3.5 `/farmer/analytics` — Analytics
-- Cards KPI : Top produit, Meilleur client, Taux de réachat, Taux d'annulation.
-- `BarChart` produits les plus vendus.
-- `LineChart` évolution commandes.
-- `PieChart` répartition par catégorie.
-- Heatmap simple jours × heures (grille CSS) des commandes.
+**Notifications** : déjà OK, ajouter page paramètres notifications par canal (email/SMS/push/in-app).
 
-### 3.6 `/farmer/messages` — Messages
-- Layout 2 colonnes : liste conversations (avatar restaurant, dernier message, badge non lu) + panneau conversation (bulles, input, attache).
-- État vide si aucune conversation sélectionnée.
-- Données mockées : 4 conversations avec restaurants.
+**Paramètres** : ne pas modifier (soit ameliorer )
 
-### 3.7 `/farmer/notifications` — Notifications
-- Liste regroupée par date (Aujourd'hui / Cette semaine / Plus ancien).
-- Types : commande, paiement, stock, système, message.
-- Actions : marquer tout comme lu, filtre type, switch préférences (email/SMS/push) par catégorie.
+---
 
-### 3.8 `/farmer/settings` — Paramètres
-- Tabs : Profil, Exploitation, Paiement, Sécurité, Notifications.
-- Formulaires complets avec champs Sénégal (nom, téléphone +221, ville, langue Wolof/Français, Wave/Orange Money n°, changement mot de passe avec `PasswordStrength`).
+## Plan d'implémentation
 
-## 4. Composants partagés à créer
+### Bloc A — Refactor structurel agriculteur (sans toucher au design)
 
-- `src/components/farmer/page-header.tsx` — titre + sous-titre + actions.
-- `src/components/farmer/kpi-card.tsx` — KPI réutilisable.
-- `src/components/farmer/empty-state.tsx`.
-- `src/components/farmer/status-badge.tsx` — couleurs par statut commande/stock.
-- `src/components/farmer/product-form-dialog.tsx`, `stock-adjust-dialog.tsx`, `order-detail-dialog.tsx`.
+1. **Sidebar** : ajouter sections labels ("NAVIGATION" / "COMPTE"), badge rôle "🌾 Agriculteur" sous le logo, garder largeur/couleurs/glass actuelles.
+2. **Header** : ajouter breadcrumb dynamique (depuis `useRouterState`), search global (`Ctrl+K` visuel), dropdown profil sur l'avatar.
+3. **Bottom nav mobile** : 5 icônes (Dashboard, Produits, Commandes, Messages, Plus) — visible `lg:hidden`.
+
+### Bloc B — Dashboard amélioré
+
+4. Convertir la grille KPI en **bento 4 colonnes** avec :
+  - **Sparklines Recharts** dans chaque KPI (revenus = area, commandes = bar, produits = progress circle SVG, note = stars row).
+  - Tabs 7J/30J/12M sur le chart revenus (déjà partiel).
+  - "Activité récente" avec **dot pulsant Live** + auto-push d'un event toutes les 30s (setInterval simulé).
+
+### Bloc C — CRUD Produits (pages dédiées, suppression du modal)
+
+5. `/farmer/products` : liste + toolbar (search, tabs, filtres catégorie/tri, toggle grille/liste). Suppression du `ProductFormDialog`.
+6. `/farmer/products/new` : formulaire 2 colonnes complet (tous les champs prompt 1) + **preview card live** à droite + upload multi-photos drag&drop.
+7. `/farmer/products/$id` : page détail (photos carousel, stats, commandes liées).
+8. `/farmer/products/$id/edit` : même form que `/new` préremplie.
+9. `/farmer/products/import` : upload Excel, mapping colonnes, preview, validation.
+
+### Bloc D — CRUD Stock (pages dédiées)
+
+10. `/farmer/stock` : table + 3 KPI + clic ligne ouvre **panel latéral coulissant** (Framer Motion) avec historique.
+11. `/farmer/stock/movement/new?productId=&type=in|out|adjust` : page dédiée (remplace les modals).
+12. `/farmer/stock/$productId/history` : timeline complète + filtres date/type.
+13. `/farmer/stock/inventory` : saisie réel vs théorique, écarts auto, export, validation.
+
+### Bloc E — CRUD Commandes (Kanban + pages)
+
+14. `/farmer/orders` : **vue Kanban** par défaut (4 colonnes draggables, totaux FCFA en header) + **toggle vue Liste**. Drag&drop via Framer Motion `Reorder` / `drag`.
+15. `/farmer/orders/$id` : page détail (timeline statuts, produits, livreur, adresse, note, actions contextuelles).
+16. `/farmer/orders/$id/refuse` : page refus avec raison obligatoire.
+17. `/farmer/orders/$id/report` : signaler un problème.
+
+### Bloc F — CRUD Revenus
+
+18. `/farmer/revenue` : KPI + chart + table transactions + section wallet.
+19. `/farmer/revenue/$txId` : détail transaction.
+20. `/farmer/revenue/withdraw` : wizard retrait (choix méthode → montant → confirmation).
+21. `/farmer/revenue/withdrawals` : historique retraits.
+
+### Bloc G — Analytics enrichies
+
+22. Ajouter sur `/farmer/analytics` : **carte Sénégal SVG ou autres** avec pins restaurants (régions principales), radar par catégorie, prévisions ruptures (liste), top clients avec fidélité.
+
+### Bloc H — Messages
+
+23. `/farmer/messages` : layout 3 colonnes (liste / chat / panel infos).
+24. `/farmer/messages/$id` : route dédiée par conversation, "en train d'écrire" simulé.
+
+### Bloc I — Paramètres éclatés en sous-routes
+
+25. `/farmer/settings` redirige vers `/farmer/settings/profile`.
+26. Sous-routes : `profile`, `farm`, `payments`, `notifications`, `security`, `subscription`. Tabs verticaux à gauche (déjà cohérent avec design actuel).
+
+### Bloc J — Données mock étendues
+
+27. Étendre `src/data/mocks.ts` : `stockMovements`, `transactions` détaillées, `withdrawals`, `wallets`, `topRestaurantsClients`, `geoPins`, plus de produits/commandes pour peupler les Kanban et tables.
+
+---
+
+## Phase 4 — Espace Restaurant (créée dans la foulée)
+
+Même philosophie : pages dédiées pour tous les CRUDs, design system identique, sidebar avec badge rôle "🍽️ Restaurant".
+
+**Routes prévues** :
+
+- `/restaurant/dashboard` — bento KPI (commandes du jour, dépenses mois, fournisseurs actifs, économies vs marché), top fournisseurs, livraisons en cours.
+- `/restaurant/marketplace` — catalogue produits (grille, filtres catégorie/prix/distance/bio, search, tri).
+- `/restaurant/marketplace/$productId` — fiche produit + agriculteur + bouton "Ajouter au panier".
+- `/restaurant/cart` — panier multi-fournisseurs (groupé par agriculteur), récap, frais livraison, total.
+- `/restaurant/checkout` — wizard 3 étapes (adresse → mode paiement Wave/OM/Carte/Cash → confirmation).
+- `/restaurant/orders` — liste + tabs statuts + filtres.
+- `/restaurant/orders/$id` — détail commande + **tracking livraison live** (carte SVG avec position livreur animée).
+- `/restaurant/orders/$id/review` — laisser un avis (note + commentaire par produit).
+- `/restaurant/recurring` — commandes récurrentes (CRUD : créer/éditer/pauser).
+- `/restaurant/recurring/new` & `/$id/edit` — formulaire (produits, fréquence, jour, adresse).
+- `/restaurant/favorites` — agriculteurs et produits favoris.
+- `/restaurant/farmers/$id` — page agriculteur (profil, produits, avis, bouton suivre).
+- `/restaurant/expenses` — analytics dépenses (chart par catégorie, par fournisseur, comparatif).
+- `/restaurant/expenses/export` — export Excel/PDF.
+- `/restaurant/messages` & `/$id` — même structure que farmer.
+- `/restaurant/notifications` — centre notifications.
+- `/restaurant/settings/{profile,restaurant,addresses,payments,notifications,security}` — sous-routes.
+
+**Composants partagés à factoriser** (utilisés par farmer + restaurant) :
+
+- `RoleSidebar` paramétrable (items + badge rôle).
+- `BentoKpi` avec slot sparkline.
+- `KanbanBoard` générique.
+- `LiveActivityFeed`.
+- `SidePanel` (Framer Motion slide).
+- `PageHeader` (déjà existant — étendre avec breadcrumb).
+
+---
 
 ## Détails techniques
 
-- Formulaires : `react-hook-form` + `zod` (déjà disponibles) + `@/components/ui/form`, `dialog`, `alert-dialog`, `tabs`, `table`, `select`, `textarea`, `switch`.
-- Toasts : `sonner` (déjà câblé).
-- Charts : `recharts` (déjà utilisé sur le dashboard).
-- Données mockées : utiliser `products`, `orders`, `restaurants`, `revenueChart`, `farmers`, `drivers` de `src/data/mocks.ts`. Étendre légèrement si besoin (transactions, messages, notifications).
-- État local React (`useState`) pour CRUD — pas de backend, conforme à la stratégie "mock first".
-- Aucun changement de routing : on remplit les fichiers de routes existants `src/routes/farmer.*.tsx`.
+- **Routing** : fichiers plats `farmer.products.new.tsx`, `farmer.products.$id.tsx`, `farmer.orders.$id.tsx`, etc. (convention TanStack déjà en place).
+- **State CRUD** : `useState` local + mocks (pas de backend, pas de Cloud à ce stade).
+- **Drag&drop Kanban** : Framer Motion `drag` + `onDragEnd` mettant à jour le statut local.
+- **Sparklines** : Recharts `<LineChart>`/`<BarChart>` sans axes, height 60, données mock.
+- **Carte Sénégal** : SVG inline simplifié (contour pays + 6 pins régions principales).
+- **Live feed** : `useEffect` + `setInterval` 30s, ajout d'un event mock en tête de liste avec animation `motion.div` `initial={opacity:0,y:-10}`.
+- **Aucune modification** de : `styles.css`, palette, fonts, glass utilities, landing page, auth pages.
+- **Suppression** : `ProductFormDialog`, `StockAdjustDialog`, `OrderDetailDialog` (remplacés par routes).
 
-## Ordre d'exécution
+Volume estimé : ~25 nouvelles routes farmer, ~18 routes restaurant, ~6 composants partagés. Livrable en plusieurs itérations si tu préfères découper (ex : Bloc A+B+C d'abord, puis le reste).
 
-1. Corriger thème clair (styles + composants landing + auth/register).
-2. Ajouter carousel Unsplash dans `split-layout.tsx`.
-3. Créer composants partagés farmer (`kpi-card`, `page-header`, `status-badge`, dialogs).
-4. Implémenter les 8 pages CRUD (`products`, `stock`, `orders`, `revenue`, `analytics`, `messages`, `notifications`, `settings`).
-5. Vérifier build, naviguer chaque page en preview.
+Veux-tu que je découpe l'exécution en sous-livraisons, ou je lance tout Phase 3 puis Phase 4 ? phase 3 puis phase 4 (on vas faire quelque chose)
