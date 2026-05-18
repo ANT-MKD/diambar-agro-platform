@@ -1,5 +1,16 @@
 import { useSyncExternalStore } from "react";
-import { products as seedProducts, orders as seedOrders, type Product, type Order, type OrderStatus } from "./mocks";
+import {
+  products as seedProducts,
+  orders as seedOrders,
+  stockMovements as seedMovements,
+  withdrawals as seedWithdrawals,
+  type Product,
+  type Order,
+  type OrderStatus,
+  type StockMovement,
+  type Withdrawal,
+  type PaymentMethod,
+} from "./mocks";
 
 type Listener = () => void;
 
@@ -21,6 +32,11 @@ function createStore<T>(initial: T) {
 
 const productsStore = createStore<Product[]>(seedProducts);
 const ordersStore = createStore<Order[]>(seedOrders);
+const movementsStore = createStore<StockMovement[]>(seedMovements);
+const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
+
+export type CartLine = { productId: string; qty: number };
+const cartStore = createStore<CartLine[]>([]);
 
 export function useProducts() {
   return useSyncExternalStore(productsStore.subscribe, productsStore.get, productsStore.get);
@@ -33,6 +49,16 @@ export function useOrders() {
 }
 export function useOrder(id: string) {
   return useOrders().find((o) => o.id === id) ?? null;
+}
+
+export function useMovements() {
+  return useSyncExternalStore(movementsStore.subscribe, movementsStore.get, movementsStore.get);
+}
+export function useWithdrawals() {
+  return useSyncExternalStore(withdrawalsStore.subscribe, withdrawalsStore.get, withdrawalsStore.get);
+}
+export function useCart() {
+  return useSyncExternalStore(cartStore.subscribe, cartStore.get, cartStore.get);
 }
 
 function recomputeStatus(p: Product): Product {
@@ -70,4 +96,53 @@ export const orderActions = {
     ordersStore.set((arr) => [{ ...o, id }, ...arr]);
     return id;
   },
+};
+
+export const movementActions = {
+  create: (m: Omit<StockMovement, "id" | "at"> & { at?: string }) => {
+    const id = `sm${Date.now()}`;
+    const at = m.at ?? new Date().toISOString();
+    movementsStore.set((arr) => [{ ...m, id, at }, ...arr]);
+    const delta = m.type === "in" ? m.qty : m.type === "out" ? -m.qty : 0;
+    if (m.type === "adjust") {
+      productActions.setStock(m.productId, m.qty);
+    } else if (delta !== 0) {
+      productActions.adjustStock(m.productId, delta, m.reason);
+    }
+    return id;
+  },
+};
+
+export const withdrawalActions = {
+  create: (w: { method: PaymentMethod; amount: number }) => {
+    const id = `wd${Date.now()}`;
+    const fee = Math.round(w.amount * 0.005);
+    withdrawalsStore.set((arr) => [{
+      id,
+      date: new Date().toISOString().slice(0, 10),
+      method: w.method,
+      amount: w.amount,
+      fee,
+      status: "En cours",
+      reference: `WD-${id.slice(-4).toUpperCase()}`,
+    }, ...arr]);
+    return id;
+  },
+};
+
+export const cartActions = {
+  add: (productId: string, qty = 1) => {
+    cartStore.set((arr) => {
+      const existing = arr.find((l) => l.productId === productId);
+      if (existing) return arr.map((l) => l.productId === productId ? { ...l, qty: l.qty + qty } : l);
+      return [...arr, { productId, qty }];
+    });
+  },
+  setQty: (productId: string, qty: number) => {
+    cartStore.set((arr) => qty <= 0 ? arr.filter((l) => l.productId !== productId) : arr.map((l) => l.productId === productId ? { ...l, qty } : l));
+  },
+  remove: (productId: string) => {
+    cartStore.set((arr) => arr.filter((l) => l.productId !== productId));
+  },
+  clear: () => cartStore.set([]),
 };
