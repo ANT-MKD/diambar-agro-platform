@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
+import { demoAccounts, type DemoAccount } from "@/data/demo-accounts";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Connexion · Diambar Agro" }] }),
@@ -19,11 +20,26 @@ function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const account = demoAccounts.find((a) => a.email === email && a.password === password);
     setTimeout(() => {
       setLoading(false);
-      toast.success("Connexion simulée — backend à brancher");
-      navigate({ to: "/farmer/dashboard" });
+      if (account) {
+        window.localStorage.setItem("diambar.session", JSON.stringify({ role: account.role, email: account.email }));
+        toast.success(`Bienvenue ${account.name}`);
+        navigate({ to: account.redirect });
+      } else {
+        toast.success("Connexion simulée — utilisez un compte démo ci-dessous");
+        navigate({ to: "/farmer/dashboard" });
+      }
     }, 900);
+  };
+
+  const loginAs = (account: DemoAccount) => {
+    setEmail(account.email);
+    setPassword(account.password);
+    window.localStorage.setItem("diambar.session", JSON.stringify({ role: account.role, email: account.email }));
+    toast.success(`Connecté en tant que ${account.name}`);
+    setTimeout(() => navigate({ to: account.redirect }), 250);
   };
 
   return (
@@ -57,6 +73,27 @@ function LoginPage() {
             Se connecter
           </button>
         </form>
+
+        <div className="mt-6 rounded-2xl border border-border bg-card/60 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-semibold">Comptes de démonstration</div>
+              <div className="text-[11px] text-muted-foreground">Connexion 1 clic · mdp <code className="font-mono">demo1234</code></div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {demoAccounts.map((a) => (
+              <button key={a.role} type="button" onClick={() => loginAs(a)}
+                className={`text-left rounded-xl border bg-gradient-to-br ${a.tone} p-3 hover:scale-[1.02] transition`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{a.emoji}</span>
+                  <span className="text-xs font-semibold capitalize">{a.role}</span>
+                </div>
+                <div className="mt-1 text-[10px] opacity-80 truncate">{a.email}</div>
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex-1 h-px bg-border" /> ou continuer avec <div className="flex-1 h-px bg-border" />
