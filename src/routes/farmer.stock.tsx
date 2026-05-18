@@ -1,19 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
-import { Warehouse, AlertTriangle, XCircle, Coins, Settings2 } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { Warehouse, AlertTriangle, XCircle, Coins, Plus, Minus, ClipboardList, History, Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { StockStatusBadge } from "@/components/farmer/status-badge";
-import { products as seed, type Product } from "@/data/mocks";
+import { SidePanel } from "@/components/farmer/side-panel";
+import { useProducts } from "@/data/store";
+import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/farmer/stock")({
@@ -22,21 +20,46 @@ export const Route = createFileRoute("/farmer/stock")({
 });
 
 function StockPage() {
-  const [items, setItems] = useState<Product[]>(seed.filter((p) => p.farmerId === "f1"));
+  const all = useProducts();
+  const items = all.filter((p) => p.farmerId === "f1");
   const [filter, setFilter] = useState<"all" | "low" | "out">("all");
-  const [adjust, setAdjust] = useState<Product | null>(null);
+  const [cat, setCat] = useState("all");
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Product | null>(null);
 
   const filtered = useMemo(() =>
-    items.filter((p) => filter === "all" || (filter === "low" && p.status === "low") || (filter === "out" && p.status === "out"))
-  , [items, filter]);
+    items.filter((p) =>
+      (filter === "all" || p.status === filter) &&
+      (cat === "all" || p.category === cat) &&
+      (q === "" || p.name.toLowerCase().includes(q.toLowerCase()) || p.sku.toLowerCase().includes(q.toLowerCase()))
+    )
+  , [items, filter, cat, q]);
 
   const totalValue = items.reduce((acc, p) => acc + p.stock * p.pricePerKg, 0);
   const lowCount = items.filter((p) => p.status === "low").length;
   const outCount = items.filter((p) => p.status === "out").length;
 
+  const exportCsv = () => {
+    const rows = [["sku", "nom", "categorie", "stock", "min", "prix", "valeur", "statut"]];
+    items.forEach((p) => rows.push([p.sku, p.name, p.category, String(p.stock), String(p.minStock), String(p.pricePerKg), String(p.stock * p.pricePerKg), p.status]));
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = "stock-diambar.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Gestion du stock" subtitle="Suivi et ajustement de vos références" />
+      <PageHeader
+        title="Gestion du stock"
+        subtitle="Suivi et ajustement de vos références"
+        actions={
+          <div className="flex gap-2">
+            <Button asChild variant="outline" className="gap-2"><Link to="/farmer/stock/inventory"><ClipboardList className="h-4 w-4" />Inventaire</Link></Button>
+            <Button variant="outline" className="gap-2" onClick={exportCsv}><Download className="h-4 w-4" />Export CSV</Button>
+            <Button asChild className="gap-2"><Link to="/farmer/stock/movement/new" search={{}}><Plus className="h-4 w-4" />Mouvement</Link></Button>
+          </div>
+        }
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Warehouse} label="Références totales" value={String(items.length)} tone="blue" />
@@ -45,14 +68,25 @@ function StockPage() {
         <KpiCard icon={Coins} label="Valeur du stock" value={formatFCFA(totalValue)} tone="emerald" />
       </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="glass rounded-2xl p-3 flex flex-wrap gap-3 items-center">
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
           <TabsList>
             <TabsTrigger value="all">Tous ({items.length})</TabsTrigger>
-            <TabsTrigger value="low">Stock faible ({lowCount})</TabsTrigger>
+            <TabsTrigger value="low">Faible ({lowCount})</TabsTrigger>
             <TabsTrigger value="out">Rupture ({outCount})</TabsTrigger>
           </TabsList>
         </Tabs>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Produit ou SKU…" className="pl-9" />
+        </div>
+        <Select value={cat} onValueChange={setCat}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes catégories</SelectItem>
+            {["Légumes", "Fruits", "Viande", "Volaille", "Céréales", "Tubercules", "Épices"].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="glass rounded-2xl overflow-hidden">
@@ -65,13 +99,13 @@ function StockPage() {
               <TableHead className="text-right">Min</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead className="text-right">Valeur</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
+              <TableRow key={p.id} className="cursor-pointer" onClick={() => setSelected(p)}>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-3">
                     <img src={p.image} alt={p.name} className="h-10 w-10 rounded-lg object-cover" />
                     <div>
@@ -85,8 +119,12 @@ function StockPage() {
                 <TableCell className="text-right text-muted-foreground">{p.minStock}</TableCell>
                 <TableCell><StockStatusBadge status={p.status} /></TableCell>
                 <TableCell className="text-right text-sm">{formatFCFA(p.stock * p.pricePerKg)}</TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="outline" onClick={() => setAdjust(p)} className="gap-1"><Settings2 className="h-3.5 w-3.5" />Ajuster</Button>
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-1">
+                    <Button asChild size="sm" variant="outline" className="gap-1 h-8"><Link to="/farmer/stock/movement/new" search={{ productId: p.id, type: "in" }}><Plus className="h-3.5 w-3.5" /></Link></Button>
+                    <Button asChild size="sm" variant="outline" className="gap-1 h-8"><Link to="/farmer/stock/movement/new" search={{ productId: p.id, type: "out" }}><Minus className="h-3.5 w-3.5" /></Link></Button>
+                    <Button asChild size="sm" variant="outline" className="h-8"><Link to="/farmer/stock/$productId/history" params={{ productId: p.id }}><History className="h-3.5 w-3.5" /></Link></Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -94,57 +132,28 @@ function StockPage() {
         </Table>
       </div>
 
-      <AdjustDialog product={adjust} onClose={() => setAdjust(null)} onApply={(p, qty) => {
-        setItems((arr) => arr.map((x) => x.id === p.id ? { ...x, stock: Math.max(0, qty), status: qty === 0 ? "out" : qty < x.minStock ? "low" : "active" } : x));
-        setAdjust(null);
-        toast.success(`Stock ${p.name} mis à jour`);
-      }} />
+      <SidePanel open={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ""}>
+        {selected && (
+          <div className="space-y-4">
+            <img src={selected.image} alt="" className="w-full aspect-video object-cover rounded-xl" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Stock</div>
+                <div className="font-bold text-lg">{selected.stock} {selected.unit}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Valeur</div>
+                <div className="font-bold text-lg text-primary">{formatFCFA(selected.stock * selected.pricePerKg)}</div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Button asChild className="w-full gap-2"><Link to="/farmer/stock/movement/new" search={{ productId: selected.id, type: "in" }}><Plus className="h-4 w-4" />Ajouter (récolte)</Link></Button>
+              <Button asChild variant="outline" className="w-full gap-2"><Link to="/farmer/stock/movement/new" search={{ productId: selected.id, type: "out" }}><Minus className="h-4 w-4" />Retirer (perte)</Link></Button>
+              <Button asChild variant="outline" className="w-full gap-2"><Link to="/farmer/stock/$productId/history" params={{ productId: selected.id }}><History className="h-4 w-4" />Historique des mouvements</Link></Button>
+            </div>
+          </div>
+        )}
+      </SidePanel>
     </div>
-  );
-}
-
-function AdjustDialog({ product, onClose, onApply }: { product: Product | null; onClose: () => void; onApply: (p: Product, qty: number) => void }) {
-  const [type, setType] = useState<"add" | "remove" | "set">("add");
-  const [qty, setQty] = useState<number>(0);
-  const [reason, setReason] = useState("");
-
-  useEffect(() => { setType("add"); setQty(0); setReason(""); }, [product]);
-
-  if (!product) return null;
-  const next = type === "add" ? product.stock + qty : type === "remove" ? Math.max(0, product.stock - qty) : qty;
-
-  return (
-    <Dialog open={!!product} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Ajuster le stock — {product.name}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div className="text-sm text-muted-foreground">Stock actuel : <span className="font-semibold text-foreground">{product.stock} {product.unit}</span></div>
-          <div className="space-y-1.5">
-            <Label>Type d'ajustement</Label>
-            <Select value={type} onValueChange={(v) => setType(v as typeof type)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="add">Ajout (récolte / approvisionnement)</SelectItem>
-                <SelectItem value="remove">Retrait (perte / casse)</SelectItem>
-                <SelectItem value="set">Inventaire (saisie absolue)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Quantité ({product.unit})</Label>
-            <Input type="number" value={qty} onChange={(e) => setQty(Number(e.target.value))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Motif (optionnel)</Label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Récolte du matin, casse en transport…" rows={2} />
-          </div>
-          <div className="rounded-xl bg-primary/10 border border-primary/20 p-3 text-sm">Nouveau stock : <span className="font-bold text-primary">{next} {product.unit}</span></div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={() => onApply(product, next)}>Appliquer</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
