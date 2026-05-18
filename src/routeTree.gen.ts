@@ -25,6 +25,7 @@ import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notific
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
+import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
 import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.new'
 import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
 import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
@@ -111,6 +112,11 @@ const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => FarmerRoute,
 } as any)
+const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => FarmerStockRoute,
+} as any)
 const FarmerProductsNewRoute = FarmerProductsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
+  '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
 }
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
+  '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
 }
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
+  '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
 }
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/farmer/products/$productId'
     | '/farmer/products/import'
     | '/farmer/products/new'
+    | '/farmer/stock/inventory'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/movement/new'
   fileRoutesByTo: FileRoutesByTo
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/farmer/products/$productId'
     | '/farmer/products/import'
     | '/farmer/products/new'
+    | '/farmer/stock/inventory'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/movement/new'
   id:
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/farmer/products/$productId'
     | '/farmer/products/import'
     | '/farmer/products/new'
+    | '/farmer/stock/inventory'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/movement/new'
   fileRoutesById: FileRoutesById
@@ -404,6 +416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerAnalyticsRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/farmer/stock/inventory': {
+      id: '/farmer/stock/inventory'
+      path: '/inventory'
+      fullPath: '/farmer/stock/inventory'
+      preLoaderRoute: typeof FarmerStockInventoryRouteImport
+      parentRoute: typeof FarmerStockRoute
+    }
     '/farmer/products/new': {
       id: '/farmer/products/new'
       path: '/new'
@@ -473,10 +492,12 @@ const FarmerProductsRouteWithChildren = FarmerProductsRoute._addFileChildren(
 )
 
 interface FarmerStockRouteChildren {
+  FarmerStockInventoryRoute: typeof FarmerStockInventoryRoute
   FarmerStockMovementNewRoute: typeof FarmerStockMovementNewRoute
 }
 
 const FarmerStockRouteChildren: FarmerStockRouteChildren = {
+  FarmerStockInventoryRoute: FarmerStockInventoryRoute,
   FarmerStockMovementNewRoute: FarmerStockMovementNewRoute,
 }
 
