@@ -259,3 +259,37 @@ export const recurringOrders: RecurringOrder[] = [
   { id: "ro2", restaurantId: "r2", items: [{ productId: "p3", qty: 10 }], frequency: "biweekly", dayOfWeek: 4, active: true, nextDelivery: "2025-05-22" },
   { id: "ro3", restaurantId: "r3", items: [{ productId: "p7", qty: 25 }, { productId: "p8", qty: 12 }], frequency: "weekly", dayOfWeek: 3, active: false, nextDelivery: "—" },
 ];
+
+// === Restaurant module ===
+export type RestaurantOrder = {
+  id: string;
+  reference: string;
+  farmerId: string;
+  items: { productId: string; qty: number; price: number }[];
+  total: number;
+  status: OrderStatus;
+  createdAt: string;
+  eta?: string;
+  deliveryAddress: string;
+  paymentMethod: PaymentMethod;
+};
+
+export const restaurantOrders: RestaurantOrder[] = [
+  { id: "ro_1", reference: "CMD-3051", farmerId: "f1", items: [{ productId: "p1", qty: 30, price: 850 }, { productId: "p8", qty: 10, price: 700 }], total: 32500, status: "delivering", createdAt: "2025-05-15T09:00:00Z", eta: "18 min", deliveryAddress: "Le Baobab, Dakar Plateau", paymentMethod: "Wave" },
+  { id: "ro_2", reference: "CMD-3050", farmerId: "f2", items: [{ productId: "p3", qty: 8, price: 3200 }], total: 25600, status: "preparing", createdAt: "2025-05-15T08:15:00Z", deliveryAddress: "Le Baobab, Dakar Plateau", paymentMethod: "Orange Money" },
+  { id: "ro_3", reference: "CMD-3049", farmerId: "f3", items: [{ productId: "p5", qty: 40, price: 350 }], total: 14000, status: "delivered", createdAt: "2025-05-14T14:00:00Z", deliveryAddress: "Le Baobab, Dakar Plateau", paymentMethod: "Wave" },
+  { id: "ro_4", reference: "CMD-3048", farmerId: "f1", items: [{ productId: "p6", qty: 5, price: 1200 }, { productId: "p2", qty: 15, price: 450 }], total: 12750, status: "pending", createdAt: "2025-05-15T11:00:00Z", deliveryAddress: "Le Baobab, Dakar Plateau", paymentMethod: "Free Money" },
+];
+
+export const suppliers = [
+  { id: "f1", favorite: true, lastOrder: "2025-05-15", totalOrders: 24, totalSpent: 845000 },
+  { id: "f2", favorite: true, lastOrder: "2025-05-14", totalOrders: 18, totalSpent: 612000 },
+  { id: "f3", favorite: false, lastOrder: "2025-05-13", totalOrders: 11, totalSpent: 423000 },
+];
+
+export const restaurantNotifications: AppNotification[] = [
+  { id: "rn1", type: "order", title: "Commande en livraison", body: "CMD-3051 · ETA 18 min", at: "2025-05-15T11:30:00Z", read: false },
+  { id: "rn2", type: "payment", title: "Paiement débité", body: "Wave · 32 500 FCFA", at: "2025-05-15T09:05:00Z", read: false },
+  { id: "rn3", type: "stock", title: "Stock faible chez fournisseur", body: "Oignons rouges (Mamadou)", at: "2025-05-14T16:00:00Z", read: true },
+  { id: "rn4", type: "message", title: "Réponse de Mamadou", body: "OK pour demain 8h", at: "2025-05-15T10:42:00Z", read: true },
+];

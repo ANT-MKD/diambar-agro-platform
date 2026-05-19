@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Warehouse, AlertTriangle, XCircle, Coins, Plus, Minus, ClipboardList, History, Download, Search } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { StockStatusBadge } from "@/components/farmer/status-badge";
@@ -45,6 +46,7 @@ function StockPage() {
     const csv = rows.map((r) => r.join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = "stock-diambar.csv"; a.click(); URL.revokeObjectURL(url);
+    toast.success(`${items.length} ligne(s) exportée(s)`);
   };
 
   return (
