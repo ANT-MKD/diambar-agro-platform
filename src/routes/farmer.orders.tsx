@@ -1,18 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, Check, X, Truck, Clock, Package2, Phone } from "lucide-react";
-import { toast } from "sonner";
+import { Search, LayoutGrid, List, Clock, Package2, ShoppingBag } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
+import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { orders as seed, restaurants, drivers, products, type Order, type OrderStatus } from "@/data/mocks";
+import { OrderKanban } from "@/components/farmer/order-kanban";
+import { useOrders } from "@/data/store";
+import { restaurants, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/farmer/orders")({
   head: () => ({ meta: [{ title: "Commandes · Diambar Agro" }] }),
@@ -23,19 +20,18 @@ const TABS: { v: "all" | OrderStatus; label: string }[] = [
   { v: "all", label: "Toutes" },
   { v: "pending", label: "En attente" },
   { v: "confirmed", label: "Confirmées" },
-  { v: "preparing", label: "En préparation" },
-  { v: "delivering", label: "En livraison" },
+  { v: "preparing", label: "Préparation" },
+  { v: "delivering", label: "Livraison" },
   { v: "delivered", label: "Livrées" },
   { v: "cancelled", label: "Annulées" },
 ];
 
 function OrdersPage() {
-  const [items, setItems] = useState<Order[]>(seed.filter((o) => o.farmerId === "f1"));
+  const allOrders = useOrders();
+  const items = useMemo(() => allOrders.filter((o) => o.farmerId === "f1"), [allOrders]);
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<Order | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
+  const [view, setView] = useState<"kanban" | "list">("kanban");
 
   const filtered = useMemo(() => items.filter((o) => {
     const r = restaurants.find((x) => x.id === o.restaurantId);
@@ -45,25 +41,22 @@ function OrdersPage() {
 
   const count = (s: "all" | OrderStatus) => s === "all" ? items.length : items.filter((o) => o.status === s).length;
 
-  const setStatus = (id: string, status: OrderStatus) => {
-    setItems((arr) => arr.map((o) => o.id === id ? { ...o, status } : o));
-    toast.success(`Commande ${ORDER_LABEL[status].toLowerCase()}`);
-    if (selected?.id === id) setSelected({ ...selected, status });
-  };
-  const cancel = () => {
-    if (!cancelTarget) return;
-    setStatus(cancelTarget.id, "cancelled");
-    setCancelTarget(null);
-    setCancelReason("");
-  };
-
   return (
     <div className="space-y-6">
-      <PageHeader title="Commandes" subtitle={`${items.length} commande(s) au total`} />
+      <PageHeader
+        title="Commandes"
+        subtitle={`${items.length} commande(s) · glissez les cartes entre colonnes pour changer le statut`}
+        actions={
+          <div className="inline-flex rounded-xl border border-border p-1 bg-muted/40">
+            <button onClick={() => setView("kanban")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition ${view === "kanban" ? "bg-background shadow-sm" : "text-muted-foreground"}`}><LayoutGrid className="h-3.5 w-3.5" />Kanban</button>
+            <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition ${view === "list" ? "bg-background shadow-sm" : "text-muted-foreground"}`}><List className="h-3.5 w-3.5" />Liste</button>
+          </div>
+        }
+      />
 
       <div className="glass rounded-2xl p-3 flex flex-wrap gap-3 items-center">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="overflow-x-auto">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             {TABS.map((t) => <TabsTrigger key={t.v} value={t.v}>{t.label} ({count(t.v)})</TabsTrigger>)}
           </TabsList>
         </Tabs>
@@ -74,128 +67,37 @@ function OrdersPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Package2} title="Aucune commande" description="Aucune commande ne correspond à ce filtre." />
+        <EmptyState icon={ShoppingBag} title="Aucune commande" description="Aucune commande ne correspond à ce filtre." />
+      ) : view === "kanban" ? (
+        <OrderKanban orders={filtered} />
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="glass rounded-2xl overflow-hidden divide-y divide-border">
           {filtered.map((o) => {
             const r = restaurants.find((x) => x.id === o.restaurantId);
             return (
-              <div key={o.id} className="glass rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <img src={r?.avatar} alt={r?.name} className="h-11 w-11 rounded-xl object-cover" />
-                    <div>
-                      <div className="font-semibold">{r?.name}</div>
-                      <div className="text-xs text-muted-foreground">{r?.city} · {o.reference}</div>
-                    </div>
+              <Link key={o.id} to="/farmer/orders/$orderId" params={{ orderId: o.id }} className="flex items-center gap-4 p-4 hover:bg-accent transition">
+                <img src={r?.avatar} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold">{r?.name}</span>
+                    <span className="text-xs text-muted-foreground">· {o.reference}</span>
                   </div>
-                  <OrderStatusBadge status={o.status} />
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {o.items.map((it, i) => {
+                      const p = products.find((x) => x.id === it.productId);
+                      return <span key={i}>{i > 0 ? " · " : ""}{p?.name} ×{it.qty}</span>;
+                    })}
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground line-clamp-2">
-                  {o.items.map((it, i) => {
-                    const p = products.find((x) => x.id === it.productId);
-                    return <span key={i}>{i > 0 ? " · " : ""}{p?.name} ×{it.qty}{p?.unit}</span>;
-                  })}
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{relativeTime(o.createdAt)}{o.eta && <> · ETA {o.eta}</>}</span>
-                  <span className="font-display text-lg font-bold text-primary">{formatFCFA(o.total)}</span>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-border">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setSelected(o)}>Détail</Button>
-                  {o.status === "pending" && <Button size="sm" className="flex-1 gap-1" onClick={() => setStatus(o.id, "confirmed")}><Check className="h-3.5 w-3.5" />Confirmer</Button>}
-                  {o.status === "confirmed" && <Button size="sm" className="flex-1 gap-1" onClick={() => setStatus(o.id, "preparing")}><Package2 className="h-3.5 w-3.5" />Préparer</Button>}
-                  {o.status === "preparing" && <Button size="sm" className="flex-1 gap-1" onClick={() => setStatus(o.id, "delivering")}><Truck className="h-3.5 w-3.5" />Marquer prête</Button>}
-                  {o.status === "delivering" && <Button size="sm" className="flex-1 gap-1" onClick={() => setStatus(o.id, "delivered")}><Check className="h-3.5 w-3.5" />Livrée</Button>}
-                  {["pending", "confirmed", "preparing"].includes(o.status) && (
-                    <Button size="sm" variant="outline" className="px-2.5" onClick={() => setCancelTarget(o)}><X className="h-3.5 w-3.5" /></Button>
-                  )}
-                </div>
-              </div>
+                <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{relativeTime(o.createdAt)}</div>
+                <OrderStatusBadge status={o.status} />
+                <span className="font-bold text-primary text-sm hidden md:block">{formatFCFA(o.total)}</span>
+                <Package2 className="h-4 w-4 text-muted-foreground" />
+              </Link>
             );
           })}
         </div>
       )}
-
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-lg">
-          {selected && (() => {
-            const r = restaurants.find((x) => x.id === selected.restaurantId);
-            const d = selected.driverId ? drivers.find((x) => x.id === selected.driverId) : null;
-            const steps: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", "delivered"];
-            const currentIdx = steps.indexOf(selected.status);
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle>{selected.reference}</DialogTitle>
-                  <div className="text-xs text-muted-foreground">Créée {relativeTime(selected.createdAt)}</div>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 rounded-xl bg-muted/40 p-3">
-                    <img src={r?.avatar} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                    <div className="flex-1">
-                      <div className="font-medium">{r?.name}</div>
-                      <div className="text-xs text-muted-foreground">{r?.city} · {r?.type}</div>
-                    </div>
-                    <Button size="icon" variant="outline"><Phone className="h-4 w-4" /></Button>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2">PROGRESSION</div>
-                    <div className="flex items-center gap-1">
-                      {steps.map((s, i) => (
-                        <div key={s} className="flex-1">
-                          <div className={`h-1.5 rounded-full ${i <= currentIdx ? "bg-primary" : "bg-muted"}`} />
-                          <div className="text-[10px] mt-1 text-center text-muted-foreground">{ORDER_LABEL[s]}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2">ARTICLES</div>
-                    <div className="space-y-2">
-                      {selected.items.map((it, i) => {
-                        const p = products.find((x) => x.id === it.productId);
-                        return (
-                          <div key={i} className="flex items-center justify-between text-sm rounded-lg border border-border p-2.5">
-                            <span>{p?.name} <span className="text-muted-foreground">×{it.qty}{p?.unit}</span></span>
-                            <span className="font-medium">{formatFCFA(it.qty * it.price)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-3 flex items-center justify-between font-semibold">
-                      <span>Total</span><span className="text-primary">{formatFCFA(selected.total)}</span>
-                    </div>
-                  </div>
-                  {d && (
-                    <div className="rounded-xl bg-muted/40 p-3 flex items-center gap-3">
-                      <img src={d.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{d.name}</div>
-                        <div className="text-xs text-muted-foreground">{d.vehicle} · ★ {d.rating}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la commande ?</AlertDialogTitle>
-            <AlertDialogDescription>{cancelTarget?.reference} · {formatFCFA(cancelTarget?.total || 0)}. Cette action est définitive.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Motif (rupture, indisponibilité…)" rows={2} />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Retour</AlertDialogCancel>
-            <AlertDialogAction onClick={cancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Annuler la commande</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

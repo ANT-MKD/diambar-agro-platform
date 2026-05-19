@@ -33,6 +33,8 @@ import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.
 import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
 import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
 import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products.$productId.edit'
+import { Route as FarmerOrdersOrderIdReportRouteImport } from './routes/farmer.orders.$orderId.report'
+import { Route as FarmerOrdersOrderIdRefuseRouteImport } from './routes/farmer.orders.$orderId.refuse'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -156,6 +158,18 @@ const FarmerProductsProductIdEditRoute =
     path: '/edit',
     getParentRoute: () => FarmerProductsProductIdRoute,
   } as any)
+const FarmerOrdersOrderIdReportRoute =
+  FarmerOrdersOrderIdReportRouteImport.update({
+    id: '/report',
+    path: '/report',
+    getParentRoute: () => FarmerOrdersOrderIdRoute,
+  } as any)
+const FarmerOrdersOrderIdRefuseRoute =
+  FarmerOrdersOrderIdRefuseRouteImport.update({
+    id: '/refuse',
+    path: '/refuse',
+    getParentRoute: () => FarmerOrdersOrderIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -174,11 +188,13 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
-  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRoute
+  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
+  '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
@@ -200,11 +216,13 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
-  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRoute
+  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
+  '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
@@ -227,11 +245,13 @@ export interface FileRoutesById {
   '/farmer/revenue': typeof FarmerRevenueRoute
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
-  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRoute
+  '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
+  '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
@@ -260,6 +280,8 @@ export interface FileRouteTypes {
     | '/farmer/products/import'
     | '/farmer/products/new'
     | '/farmer/stock/inventory'
+    | '/farmer/orders/$orderId/refuse'
+    | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
@@ -286,6 +308,8 @@ export interface FileRouteTypes {
     | '/farmer/products/import'
     | '/farmer/products/new'
     | '/farmer/stock/inventory'
+    | '/farmer/orders/$orderId/refuse'
+    | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
@@ -312,6 +336,8 @@ export interface FileRouteTypes {
     | '/farmer/products/import'
     | '/farmer/products/new'
     | '/farmer/stock/inventory'
+    | '/farmer/orders/$orderId/refuse'
+    | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
@@ -497,15 +523,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerProductsProductIdEditRouteImport
       parentRoute: typeof FarmerProductsProductIdRoute
     }
+    '/farmer/orders/$orderId/report': {
+      id: '/farmer/orders/$orderId/report'
+      path: '/report'
+      fullPath: '/farmer/orders/$orderId/report'
+      preLoaderRoute: typeof FarmerOrdersOrderIdReportRouteImport
+      parentRoute: typeof FarmerOrdersOrderIdRoute
+    }
+    '/farmer/orders/$orderId/refuse': {
+      id: '/farmer/orders/$orderId/refuse'
+      path: '/refuse'
+      fullPath: '/farmer/orders/$orderId/refuse'
+      preLoaderRoute: typeof FarmerOrdersOrderIdRefuseRouteImport
+      parentRoute: typeof FarmerOrdersOrderIdRoute
+    }
   }
 }
 
+interface FarmerOrdersOrderIdRouteChildren {
+  FarmerOrdersOrderIdRefuseRoute: typeof FarmerOrdersOrderIdRefuseRoute
+  FarmerOrdersOrderIdReportRoute: typeof FarmerOrdersOrderIdReportRoute
+}
+
+const FarmerOrdersOrderIdRouteChildren: FarmerOrdersOrderIdRouteChildren = {
+  FarmerOrdersOrderIdRefuseRoute: FarmerOrdersOrderIdRefuseRoute,
+  FarmerOrdersOrderIdReportRoute: FarmerOrdersOrderIdReportRoute,
+}
+
+const FarmerOrdersOrderIdRouteWithChildren =
+  FarmerOrdersOrderIdRoute._addFileChildren(FarmerOrdersOrderIdRouteChildren)
+
 interface FarmerOrdersRouteChildren {
-  FarmerOrdersOrderIdRoute: typeof FarmerOrdersOrderIdRoute
+  FarmerOrdersOrderIdRoute: typeof FarmerOrdersOrderIdRouteWithChildren
 }
 
 const FarmerOrdersRouteChildren: FarmerOrdersRouteChildren = {
-  FarmerOrdersOrderIdRoute: FarmerOrdersOrderIdRoute,
+  FarmerOrdersOrderIdRoute: FarmerOrdersOrderIdRouteWithChildren,
 }
 
 const FarmerOrdersRouteWithChildren = FarmerOrdersRoute._addFileChildren(

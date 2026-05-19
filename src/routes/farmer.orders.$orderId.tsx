@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, X, Phone, Truck, Package2 } from "lucide-react";
+import { ArrowLeft, Check, X, Phone, Truck, Package2, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
@@ -85,8 +85,9 @@ function OrderDetailPage() {
         {order.status === "preparing" && <Button onClick={() => next("delivering")} className="gap-1"><Truck className="h-4 w-4" />Marquer prête</Button>}
         {order.status === "delivering" && <Button onClick={() => next("delivered")} className="gap-1"><Check className="h-4 w-4" />Livrée</Button>}
         {["pending", "confirmed", "preparing"].includes(order.status) && (
-          <Button variant="outline" onClick={() => next("cancelled")} className="gap-1 text-rose-500"><X className="h-4 w-4" />Annuler</Button>
+          <Button asChild variant="outline" className="gap-1 text-rose-500"><Link to="/farmer/orders/$orderId/refuse" params={{ orderId: order.id }}><X className="h-4 w-4" />Refuser</Link></Button>
         )}
+        <Button asChild variant="outline" className="gap-1 ml-auto"><Link to="/farmer/orders/$orderId/report" params={{ orderId: order.id }}><Flag className="h-4 w-4" />Signaler</Link></Button>
       </div>
     </div>
   );
