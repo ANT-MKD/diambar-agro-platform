@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Plus, Search, Package, MoreVertical, Pencil, Trash2, Eye, Upload } from "lucide-react";
+import { Plus, Search, Package, Pencil, Trash2, Eye, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/farmer/products")({
   head: () => ({ meta: [{ title: "Mes produits · Diambar Agro" }] }),
@@ -82,24 +81,12 @@ function ProductsPage() {
           {filtered.map((p) => {
             const pct = Math.min(100, Math.round((p.stock / Math.max(1, p.minStock * 2)) * 100));
             return (
-              <div key={p.id} className="glass rounded-2xl overflow-hidden group flex flex-col">
+              <div key={p.id} className="relative glass rounded-2xl overflow-hidden group flex flex-col">
                 <Link to="/farmer/products/$productId" params={{ productId: p.id }} className="relative aspect-[4/3] bg-muted overflow-hidden block">
                   <img src={p.image} alt={p.name} className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition" />
                   <div className="absolute top-2 left-2"><StockStatusBadge status={p.status} /></div>
                   <div className="absolute bottom-2 left-2 text-[10px] font-mono bg-black/60 text-white backdrop-blur px-1.5 py-0.5 rounded">{p.sku}</div>
                 </Link>
-                <div className="absolute top-2 right-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="grid h-8 w-8 place-items-center rounded-lg bg-background/80 backdrop-blur"><MoreVertical className="h-4 w-4" /></button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild><Link to="/farmer/products/$productId" params={{ productId: p.id }}><Eye className="h-4 w-4 mr-2" />Voir</Link></DropdownMenuItem>
-                      <DropdownMenuItem asChild><Link to="/farmer/products/$productId/edit" params={{ productId: p.id }}><Pencil className="h-4 w-4 mr-2" />Modifier</Link></DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setToDelete(p)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
                 <div className="p-4 flex-1 flex flex-col">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -121,6 +108,11 @@ function ProductsPage() {
                     </div>
                   </div>
                   <div className="mt-3 text-[11px] text-muted-foreground">{p.ordersThisMonth} commandes ce mois</div>
+                  <div className="mt-3 pt-3 border-t border-border grid grid-cols-3 gap-1.5">
+                    <Button asChild size="sm" variant="outline" className="h-8 gap-1 text-xs"><Link to="/farmer/products/$productId" params={{ productId: p.id }}><Eye className="h-3.5 w-3.5" />Voir</Link></Button>
+                    <Button asChild size="sm" variant="outline" className="h-8 gap-1 text-xs"><Link to="/farmer/products/$productId/edit" params={{ productId: p.id }}><Pencil className="h-3.5 w-3.5" />Éditer</Link></Button>
+                    <Button size="sm" variant="outline" className="h-8 gap-1 text-xs text-rose-500 hover:text-rose-600" onClick={() => setToDelete(p)}><Trash2 className="h-3.5 w-3.5" />Suppr.</Button>
+                  </div>
                 </div>
               </div>
             );

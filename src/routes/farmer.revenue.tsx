@@ -1,11 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { TrendingUp, Wallet, ShoppingCart, ShoppingBag, Hourglass, Download } from "lucide-react";
+import { TrendingUp, Wallet, ShoppingCart, ShoppingBag, Hourglass, Download, History } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
-import { revenueChart, transactions, restaurants } from "@/data/mocks";
+import { revenueChart, transactions, restaurants, wallets } from "@/data/mocks";
+import { useWithdrawals } from "@/data/store";
+import { WalletWidget } from "@/components/farmer/wallet-widget";
 import { formatFCFA } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,10 @@ function RevenuePage() {
   const orders = data.reduce((a, x) => a + x.orders, 0);
   const avg = orders > 0 ? Math.round(total / orders) : 0;
   const pending = transactions.filter((t) => t.status === "En attente").reduce((a, t) => a + t.net, 0);
+  const withdrawals = useWithdrawals();
+  const available = transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0)
+    - withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount + w.fee, 0);
+  const totalWithdrawn = withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount, 0);
 
   const exportCsv = () => {
     const rows = [["date", "ref", "restaurant", "brut", "commission", "net", "méthode", "statut"]];
@@ -40,7 +46,29 @@ function RevenuePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Mes revenus" subtitle="Suivi de votre chiffre d'affaires" actions={<Button variant="outline" onClick={exportCsv} className="gap-2"><Download className="h-4 w-4" />Exporter CSV</Button>} />
+      <PageHeader title="Mes revenus" subtitle="Suivi de votre chiffre d'affaires" actions={
+        <div className="flex gap-2">
+          <Button asChild variant="outline" className="gap-2"><Link to="/farmer/revenue/withdrawals"><History className="h-4 w-4" />Historique retraits</Link></Button>
+          <Button variant="outline" onClick={exportCsv} className="gap-2"><Download className="h-4 w-4" />Exporter CSV</Button>
+        </div>
+      } />
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <WalletWidget available={Math.max(0, available)} pending={pending} withdrawn={totalWithdrawn} />
+        <div className="lg:col-span-2 glass rounded-2xl p-5">
+          <div className="text-sm font-semibold mb-3">Comptes mobile money</div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {wallets.map((w) => (
+              <div key={w.id} className="rounded-xl border border-border p-4 relative overflow-hidden">
+                <div className="absolute -top-6 -right-6 h-20 w-20 rounded-full opacity-15" style={{ background: w.color }} />
+                <div className="text-xs text-muted-foreground">{w.method}</div>
+                <div className="font-display text-lg font-bold mt-1">{formatFCFA(w.balance)}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">{w.phone}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard icon={TrendingUp} label="CA période" value={formatFCFA(total)} change="+12%" tone="emerald" />
@@ -99,7 +127,7 @@ function RevenuePage() {
             {transactions.map((t) => {
               const r = restaurants.find((x) => x.id === t.restaurantId);
               return (
-                <TableRow key={t.id}>
+                <TableRow key={t.id} className="cursor-pointer hover:bg-accent/50" onClick={() => { window.location.assign(`/farmer/revenue/${t.id}`); }}>
                   <TableCell className="text-sm">{new Date(t.date).toLocaleDateString("fr-FR")}</TableCell>
                   <TableCell className="font-mono text-xs">{t.orderRef}</TableCell>
                   <TableCell className="text-sm">{r?.name}</TableCell>
