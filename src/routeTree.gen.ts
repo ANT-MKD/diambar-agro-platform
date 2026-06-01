@@ -19,6 +19,7 @@ import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
+import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
@@ -92,6 +93,11 @@ const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
 const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCheckoutRoute = RestaurantCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantCartRoute = RestaurantCartRouteImport.update({
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/cart': typeof RestaurantCartRoute
+  '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -276,6 +283,7 @@ export interface FileRoutesByTo {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/cart': typeof RestaurantCartRoute
+  '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/cart': typeof RestaurantCartRoute
+  '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/cart'
+    | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/cart'
+    | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -423,6 +434,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/cart'
+    | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -522,6 +534,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/restaurant/dashboard'
       preLoaderRoute: typeof RestaurantDashboardRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/checkout': {
+      id: '/restaurant/checkout'
+      path: '/checkout'
+      fullPath: '/restaurant/checkout'
+      preLoaderRoute: typeof RestaurantCheckoutRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/cart': {
@@ -824,12 +843,14 @@ const RestaurantMarketplaceRouteWithChildren =
 
 interface RestaurantRouteChildren {
   RestaurantCartRoute: typeof RestaurantCartRoute
+  RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCartRoute: RestaurantCartRoute,
+  RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
 }
