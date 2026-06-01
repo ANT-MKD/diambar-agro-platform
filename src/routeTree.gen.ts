@@ -18,6 +18,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
+import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
 import { Route as RestaurantOrdersRouteImport } from './routes/restaurant.orders'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
@@ -91,6 +92,11 @@ const IndexRoute = IndexRouteImport.update({
 const RestaurantSuppliersRoute = RestaurantSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
+  id: '/recurring',
+  path: '/recurring',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantOrdersRoute = RestaurantOrdersRouteImport.update({
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
+  '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
+  '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
+  '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
@@ -391,6 +400,7 @@ export interface FileRouteTypes {
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/restaurant/orders'
+    | '/restaurant/recurring'
     | '/restaurant/suppliers'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/restaurant/orders'
+    | '/restaurant/recurring'
     | '/restaurant/suppliers'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/restaurant/orders'
+    | '/restaurant/recurring'
     | '/restaurant/suppliers'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
@@ -563,6 +575,13 @@ declare module '@tanstack/react-router' {
       path: '/suppliers'
       fullPath: '/restaurant/suppliers'
       preLoaderRoute: typeof RestaurantSuppliersRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/recurring': {
+      id: '/restaurant/recurring'
+      path: '/recurring'
+      fullPath: '/restaurant/recurring'
+      preLoaderRoute: typeof RestaurantRecurringRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/orders': {
@@ -915,6 +934,7 @@ interface RestaurantRouteChildren {
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
   RestaurantOrdersRoute: typeof RestaurantOrdersRouteWithChildren
+  RestaurantRecurringRoute: typeof RestaurantRecurringRoute
   RestaurantSuppliersRoute: typeof RestaurantSuppliersRoute
 }
 
@@ -924,6 +944,7 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
   RestaurantOrdersRoute: RestaurantOrdersRouteWithChildren,
+  RestaurantRecurringRoute: RestaurantRecurringRoute,
   RestaurantSuppliersRoute: RestaurantSuppliersRoute,
 }
 
