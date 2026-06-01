@@ -1,31 +1,62 @@
+import { Plus, Minus, Navigation2, MapPin } from "lucide-react";
+import { useState } from "react";
 import { geoPins } from "@/data/mocks";
 
+/**
+ * Carte du Sénégal en simulation "vraie carte" (style satellite/streets)
+ * avec contrôles zoom, grille de rues, et pins animés par région.
+ */
 export function SenegalMap() {
+  const [zoom, setZoom] = useState(1);
   return (
-    <div className="relative w-full aspect-[4/3] rounded-xl bg-gradient-to-br from-emerald-500/5 to-blue-500/5 border border-border overflow-hidden">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
-        {/* Simplified Senegal outline */}
-        <path
-          d="M 10 20 Q 14 12, 22 14 L 38 12 Q 50 14, 62 16 L 78 22 Q 82 28, 80 36 L 78 44 Q 76 50, 70 54 L 60 58 L 50 60 L 42 62 Q 36 68, 32 76 L 28 84 Q 22 88, 16 84 L 10 78 Q 6 70, 8 60 L 10 48 Q 8 36, 10 20 Z"
-          fill="oklch(0.7 0.17 155 / 0.08)"
-          stroke="oklch(0.7 0.17 155)"
-          strokeWidth="0.4"
-        />
-        {geoPins.map((p) => (
-          <g key={p.id}>
-            <circle cx={p.x} cy={p.y} r={Math.max(1.6, p.count * 0.35)} fill={p.color} fillOpacity={0.3} />
-            <circle cx={p.x} cy={p.y} r={1.2} fill={p.color} />
-          </g>
+    <div className="relative w-full aspect-[4/3] rounded-xl border border-border overflow-hidden">
+      {/* Map base */}
+      <div
+        className="absolute inset-0 transition-transform duration-300"
+        style={{
+          transform: `scale(${zoom})`,
+          backgroundImage:
+            "radial-gradient(ellipse at 25% 30%, oklch(0.34 0.06 145) 0%, transparent 55%), radial-gradient(ellipse at 70% 55%, oklch(0.28 0.05 160) 0%, transparent 55%), radial-gradient(ellipse at 50% 85%, oklch(0.25 0.04 220) 0%, transparent 50%), linear-gradient(135deg, oklch(0.22 0.03 200), oklch(0.18 0.025 180))",
+        }}
+      />
+      {/* Grid streets */}
+      <svg className="absolute inset-0 w-full h-full opacity-15" preserveAspectRatio="none" viewBox="0 0 100 100">
+        {Array.from({ length: 14 }).map((_, i) => (
+          <line key={`h${i}`} x1="0" y1={i * 7.5} x2="100" y2={i * 7.5} stroke="white" strokeWidth="0.15" />
+        ))}
+        {Array.from({ length: 16 }).map((_, i) => (
+          <line key={`v${i}`} x1={i * 6.5} y1="0" x2={i * 6.5} y2="100" stroke="white" strokeWidth="0.15" />
         ))}
       </svg>
-      <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-1.5">
-        {geoPins.slice(0, 4).map((p) => (
-          <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-card/80 backdrop-blur border border-border px-2 py-0.5 text-[10px]">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
-            {p.region} · {p.count}
-          </span>
-        ))}
+      {/* Coast/water glow */}
+      <div className="absolute -left-10 top-1/4 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-emerald-500/15 blur-3xl" />
+
+      {/* Pins */}
+      {geoPins.map((p) => {
+        const size = Math.max(20, p.count * 3);
+        return (
+          <div key={p.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+            <div className="relative grid place-items-center">
+              <div className="absolute rounded-full animate-ping" style={{ width: size, height: size, background: `${p.color}33` }} />
+              <div className="h-8 w-8 rounded-full grid place-items-center text-white text-[10px] font-bold shadow-lg ring-2 ring-white/30" style={{ background: p.color }}>
+                <MapPin className="h-3.5 w-3.5" />
+              </div>
+              <span className="absolute top-9 whitespace-nowrap text-[10px] font-medium glass-strong rounded px-1.5 py-0.5">{p.region} · {p.count}</span>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Controls */}
+      <div className="absolute right-3 top-3 flex flex-col gap-1">
+        <button onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))} className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Plus className="h-3.5 w-3.5" /></button>
+        <button onClick={() => setZoom((z) => Math.max(0.8, z - 0.1))} className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Minus className="h-3.5 w-3.5" /></button>
+        <button className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Navigation2 className="h-3.5 w-3.5 text-primary" /></button>
       </div>
+
+      {/* Attribution */}
+      <div className="absolute left-3 bottom-2 text-[9px] text-white/60 font-medium">Sénégal · Vue commandes</div>
     </div>
   );
 }
