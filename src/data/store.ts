@@ -4,12 +4,14 @@ import {
   orders as seedOrders,
   stockMovements as seedMovements,
   withdrawals as seedWithdrawals,
+  restaurantOrders as seedRestaurantOrders,
   type Product,
   type Order,
   type OrderStatus,
   type StockMovement,
   type Withdrawal,
   type PaymentMethod,
+  type RestaurantOrder,
 } from "./mocks";
 
 type Listener = () => void;
@@ -34,6 +36,7 @@ const productsStore = createStore<Product[]>(seedProducts);
 const ordersStore = createStore<Order[]>(seedOrders);
 const movementsStore = createStore<StockMovement[]>(seedMovements);
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
+const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([]);
@@ -60,6 +63,26 @@ export function useWithdrawals() {
 export function useCart() {
   return useSyncExternalStore(cartStore.subscribe, cartStore.get, cartStore.get);
 }
+
+export function useRestaurantOrders() {
+  return useSyncExternalStore(restaurantOrdersStore.subscribe, restaurantOrdersStore.get, restaurantOrdersStore.get);
+}
+export function useRestaurantOrder(id: string) {
+  return useRestaurantOrders().find((o) => o.id === id) ?? null;
+}
+
+export const restaurantOrderActions = {
+  create: (o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status">) => {
+    const id = `ro_${Date.now()}`;
+    const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
+    const next: RestaurantOrder = { ...o, id, reference, status: "pending", createdAt: new Date().toISOString() };
+    restaurantOrdersStore.set((arr) => [next, ...arr]);
+    return id;
+  },
+  setStatus: (id: string, status: OrderStatus) => {
+    restaurantOrdersStore.set((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
+  },
+};
 
 function recomputeStatus(p: Product): Product {
   if (p.status === "draft") return p;
