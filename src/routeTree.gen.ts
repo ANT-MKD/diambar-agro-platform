@@ -20,6 +20,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
 import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
 import { Route as RestaurantOrdersRouteImport } from './routes/restaurant.orders'
+import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
+import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
@@ -102,6 +104,16 @@ const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
 const RestaurantOrdersRoute = RestaurantOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantNotificationsRoute = RestaurantNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantMessagesRoute = RestaurantMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
@@ -273,6 +285,8 @@ export interface FileRoutesByFullPath {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/messages': typeof RestaurantMessagesRoute
+  '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
@@ -314,6 +328,8 @@ export interface FileRoutesByTo {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/messages': typeof RestaurantMessagesRoute
+  '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
@@ -356,6 +372,8 @@ export interface FileRoutesById {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/messages': typeof RestaurantMessagesRoute
+  '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRoute
@@ -399,6 +417,8 @@ export interface FileRouteTypes {
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
+    | '/restaurant/messages'
+    | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
     | '/restaurant/suppliers'
@@ -440,6 +460,8 @@ export interface FileRouteTypes {
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
+    | '/restaurant/messages'
+    | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
     | '/restaurant/suppliers'
@@ -481,6 +503,8 @@ export interface FileRouteTypes {
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
+    | '/restaurant/messages'
+    | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
     | '/restaurant/suppliers'
@@ -589,6 +613,20 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/restaurant/orders'
       preLoaderRoute: typeof RestaurantOrdersRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/notifications': {
+      id: '/restaurant/notifications'
+      path: '/notifications'
+      fullPath: '/restaurant/notifications'
+      preLoaderRoute: typeof RestaurantNotificationsRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/messages': {
+      id: '/restaurant/messages'
+      path: '/messages'
+      fullPath: '/restaurant/messages'
+      preLoaderRoute: typeof RestaurantMessagesRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/marketplace': {
@@ -933,6 +971,8 @@ interface RestaurantRouteChildren {
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
+  RestaurantMessagesRoute: typeof RestaurantMessagesRoute
+  RestaurantNotificationsRoute: typeof RestaurantNotificationsRoute
   RestaurantOrdersRoute: typeof RestaurantOrdersRouteWithChildren
   RestaurantRecurringRoute: typeof RestaurantRecurringRoute
   RestaurantSuppliersRoute: typeof RestaurantSuppliersRoute
@@ -943,6 +983,8 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
+  RestaurantMessagesRoute: RestaurantMessagesRoute,
+  RestaurantNotificationsRoute: RestaurantNotificationsRoute,
   RestaurantOrdersRoute: RestaurantOrdersRouteWithChildren,
   RestaurantRecurringRoute: RestaurantRecurringRoute,
   RestaurantSuppliersRoute: RestaurantSuppliersRoute,
@@ -965,3 +1007,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
