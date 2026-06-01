@@ -19,6 +19,7 @@ import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
+import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
@@ -91,6 +92,11 @@ const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
 const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCartRoute = RestaurantCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const FarmerStockRoute = FarmerStockRouteImport.update({
@@ -233,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -268,6 +275,7 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -304,6 +312,7 @@ export interface FileRoutesById {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/restaurant/cart'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -376,6 +386,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/restaurant/cart'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/restaurant/cart'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
@@ -510,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/restaurant/dashboard'
       preLoaderRoute: typeof RestaurantDashboardRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/cart': {
+      id: '/restaurant/cart'
+      path: '/cart'
+      fullPath: '/restaurant/cart'
+      preLoaderRoute: typeof RestaurantCartRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/farmer/stock': {
@@ -804,11 +823,13 @@ const RestaurantMarketplaceRouteWithChildren =
   )
 
 interface RestaurantRouteChildren {
+  RestaurantCartRoute: typeof RestaurantCartRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
+  RestaurantCartRoute: RestaurantCartRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
 }
