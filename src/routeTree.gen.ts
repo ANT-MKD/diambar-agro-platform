@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
@@ -80,6 +81,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
   id: '/dashboard',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/dashboard'
+    | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/dashboard'
+    | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/farmer/stock'
     | '/restaurant/dashboard'
+    | '/restaurant/marketplace'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -472,6 +484,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/restaurant/marketplace': {
+      id: '/restaurant/marketplace'
+      path: '/marketplace'
+      fullPath: '/restaurant/marketplace'
+      preLoaderRoute: typeof RestaurantMarketplaceRouteImport
+      parentRoute: typeof RestaurantRoute
     }
     '/restaurant/dashboard': {
       id: '/restaurant/dashboard'
@@ -753,10 +772,12 @@ const FarmerRouteWithChildren =
 
 interface RestaurantRouteChildren {
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
+  RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRoute
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantDashboardRoute: RestaurantDashboardRoute,
+  RestaurantMarketplaceRoute: RestaurantMarketplaceRoute,
 }
 
 const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
