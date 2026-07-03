@@ -39,6 +39,7 @@ import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
+import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
 import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
 import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
 import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
@@ -204,6 +205,12 @@ const RestaurantMarketplaceProductIdRoute =
     path: '/$productId',
     getParentRoute: () => RestaurantMarketplaceRoute,
   } as any)
+const RestaurantInvoicesInvoiceIdRoute =
+  RestaurantInvoicesInvoiceIdRouteImport.update({
+    id: '/$invoiceId',
+    path: '/$invoiceId',
+    getParentRoute: () => RestaurantInvoicesRoute,
+  } as any)
 const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -296,7 +303,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/invoices': typeof RestaurantInvoicesRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
@@ -341,7 +349,7 @@ export interface FileRoutesByTo {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/invoices': typeof RestaurantInvoicesRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -357,6 +365,7 @@ export interface FileRoutesByTo {
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
@@ -387,7 +396,7 @@ export interface FileRoutesById {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/invoices': typeof RestaurantInvoicesRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -403,6 +412,7 @@ export interface FileRoutesById {
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/stock/inventory'
+    | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/farmer/orders/$orderId/refuse'
@@ -495,6 +506,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/stock/inventory'
+    | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/farmer/orders/$orderId/refuse'
@@ -540,6 +552,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/stock/inventory'
+    | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/farmer/orders/$orderId/refuse'
@@ -772,6 +785,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantMarketplaceProductIdRouteImport
       parentRoute: typeof RestaurantMarketplaceRoute
     }
+    '/restaurant/invoices/$invoiceId': {
+      id: '/restaurant/invoices/$invoiceId'
+      path: '/$invoiceId'
+      fullPath: '/restaurant/invoices/$invoiceId'
+      preLoaderRoute: typeof RestaurantInvoicesInvoiceIdRouteImport
+      parentRoute: typeof RestaurantInvoicesRoute
+    }
     '/farmer/stock/inventory': {
       id: '/farmer/stock/inventory'
       path: '/inventory'
@@ -980,6 +1000,17 @@ const FarmerRouteChildren: FarmerRouteChildren = {
 const FarmerRouteWithChildren =
   FarmerRoute._addFileChildren(FarmerRouteChildren)
 
+interface RestaurantInvoicesRouteChildren {
+  RestaurantInvoicesInvoiceIdRoute: typeof RestaurantInvoicesInvoiceIdRoute
+}
+
+const RestaurantInvoicesRouteChildren: RestaurantInvoicesRouteChildren = {
+  RestaurantInvoicesInvoiceIdRoute: RestaurantInvoicesInvoiceIdRoute,
+}
+
+const RestaurantInvoicesRouteWithChildren =
+  RestaurantInvoicesRoute._addFileChildren(RestaurantInvoicesRouteChildren)
+
 interface RestaurantMarketplaceRouteChildren {
   RestaurantMarketplaceProductIdRoute: typeof RestaurantMarketplaceProductIdRoute
 }
@@ -1008,7 +1039,7 @@ interface RestaurantRouteChildren {
   RestaurantCartRoute: typeof RestaurantCartRoute
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
-  RestaurantInvoicesRoute: typeof RestaurantInvoicesRoute
+  RestaurantInvoicesRoute: typeof RestaurantInvoicesRouteWithChildren
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
   RestaurantMessagesRoute: typeof RestaurantMessagesRoute
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRoute
@@ -1022,7 +1053,7 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCartRoute: RestaurantCartRoute,
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
-  RestaurantInvoicesRoute: RestaurantInvoicesRoute,
+  RestaurantInvoicesRoute: RestaurantInvoicesRouteWithChildren,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
   RestaurantMessagesRoute: RestaurantMessagesRoute,
   RestaurantNotificationsRoute: RestaurantNotificationsRoute,
