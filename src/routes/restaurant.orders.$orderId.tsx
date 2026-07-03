@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Phone, MessageSquare, Package } from "lucide-react";
+import { ArrowLeft, Phone, MessageSquare, Package, Share2, Copy, Clock, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
@@ -23,12 +24,38 @@ function OrderDetail() {
   const farmer = farmers.find((f) => f.id === order.farmerId);
   const driver = drivers[0];
   const showMap = ["delivering", "preparing"].includes(order.status);
+  const publicId = `TRK-${order.id.replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase()}`;
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/track/${publicId}` : `/track/${publicId}`;
+  const etaMinutes = Math.max(1, Math.round((1 - liveProgress) * 30));
+
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: `Suivi ${order.reference}`, url: shareUrl });
+      else { await navigator.clipboard.writeText(shareUrl); toast.success("Lien copié"); }
+    } catch { /* ignore */ }
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
       <PageHeader title={order.reference} subtitle={`Commandé ${relativeTime(order.createdAt)}`} actions={
-        <Button asChild variant="outline" className="gap-2"><Link to="/restaurant/orders"><ArrowLeft className="h-4 w-4" />Retour</Link></Button>
+        <>
+          <Button asChild variant="outline" className="gap-2"><Link to="/restaurant/orders"><ArrowLeft className="h-4 w-4" />Retour</Link></Button>
+          <Button variant="outline" className="gap-2" onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success("Lien copié"); }}><Copy className="h-4 w-4" />Copier le lien</Button>
+          <Button className="gap-2" onClick={share}><Share2 className="h-4 w-4" />Partager le suivi</Button>
+        </>
       } />
+
+      {showMap && (
+        <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /><span className="text-muted-foreground">ETA</span><b>{etaMinutes} min</b></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-amber-500" /><span className="text-muted-foreground">Position</span><b>{Math.round(liveProgress * 100)}%</b></div>
+          <div className="ml-auto flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Lien public :</span>
+            <code className="font-mono px-2 py-0.5 rounded bg-muted text-[11px]">/track/{publicId}</code>
+            <Link to="/track/$publicId" params={{ publicId }} target="_blank" className="text-primary hover:underline">Ouvrir</Link>
+          </div>
+        </div>
+      )}
 
       {showMap && (
         <LiveMap

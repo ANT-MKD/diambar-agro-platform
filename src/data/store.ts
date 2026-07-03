@@ -5,6 +5,7 @@ import {
   stockMovements as seedMovements,
   withdrawals as seedWithdrawals,
   restaurantOrders as seedRestaurantOrders,
+  suppliers as seedSuppliers,
   type Product,
   type Order,
   type OrderStatus,
@@ -12,6 +13,7 @@ import {
   type Withdrawal,
   type PaymentMethod,
   type RestaurantOrder,
+  type Supplier,
 } from "./mocks";
 
 type Listener = () => void;
@@ -37,6 +39,7 @@ const ordersStore = createStore<Order[]>(seedOrders);
 const movementsStore = createStore<StockMovement[]>(seedMovements);
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
+const suppliersStore = createStore<Supplier[]>(seedSuppliers);
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([]);
@@ -70,6 +73,34 @@ export function useRestaurantOrders() {
 export function useRestaurantOrder(id: string) {
   return useRestaurantOrders().find((o) => o.id === id) ?? null;
 }
+
+export function useSuppliers() {
+  return useSyncExternalStore(suppliersStore.subscribe, suppliersStore.get, suppliersStore.get);
+}
+export function useSupplier(id: string) {
+  return useSuppliers().find((s) => s.id === id) ?? null;
+}
+
+export const supplierActions = {
+  create: (s: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & { suspended?: boolean }) => {
+    const id = `sup_${Date.now()}`;
+    const next: Supplier = { ...s, id, suspended: s.suspended ?? false, lastOrder: "—", totalOrders: 0, totalSpent: 0 };
+    suppliersStore.set((arr) => [next, ...arr]);
+    return id;
+  },
+  update: (id: string, patch: Partial<Supplier>) => {
+    suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  },
+  toggleSuspend: (id: string) => {
+    suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, suspended: !s.suspended } : s)));
+  },
+  toggleFavorite: (id: string) => {
+    suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, favorite: !s.favorite } : s)));
+  },
+  remove: (id: string) => {
+    suppliersStore.set((arr) => arr.filter((s) => s.id !== id));
+  },
+};
 
 export const restaurantOrderActions = {
   create: (o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status">) => {

@@ -282,10 +282,26 @@ export const restaurantOrders: RestaurantOrder[] = [
 ];
 
 export const suppliers = [
-  { id: "f1", favorite: true, lastOrder: "2025-05-15", totalOrders: 24, totalSpent: 845000 },
-  { id: "f2", favorite: true, lastOrder: "2025-05-14", totalOrders: 18, totalSpent: 612000 },
-  { id: "f3", favorite: false, lastOrder: "2025-05-13", totalOrders: 11, totalSpent: 423000 },
-];
+  { id: "f1", farmerId: "f1", name: "Ferme Diallo", contact: "Mamadou Diallo", phone: "+221 77 123 45 67", email: "mamadou@ferme-diallo.sn", city: "Thiès", notes: "Fournisseur principal légumes.", favorite: true, suspended: false, lastOrder: "2025-05-15", totalOrders: 24, totalSpent: 845000 },
+  { id: "f2", farmerId: "f2", name: "Coopérative Sow", contact: "Fatou Sow", phone: "+221 78 200 33 44", email: "contact@coop-sow.sn", city: "Dakar-Pikine", notes: "Volaille et bissap de qualité.", favorite: true, suspended: false, lastOrder: "2025-05-14", totalOrders: 18, totalSpent: 612000 },
+  { id: "f3", farmerId: "f3", name: "Niayes Ndoye", contact: "Ibrahima Ndoye", phone: "+221 76 555 11 22", email: "ibrahima@niayes.sn", city: "Mbour", notes: "Spécialiste fruits & tubercules.", favorite: false, suspended: false, lastOrder: "2025-05-13", totalOrders: 11, totalSpent: 423000 },
+] as Supplier[];
+
+export type Supplier = {
+  id: string;
+  farmerId?: string;
+  name: string;
+  contact: string;
+  phone: string;
+  email: string;
+  city: string;
+  notes?: string;
+  favorite: boolean;
+  suspended: boolean;
+  lastOrder: string;
+  totalOrders: number;
+  totalSpent: number;
+};
 
 export const restaurantNotifications: AppNotification[] = [
   { id: "rn1", type: "order", title: "Commande en livraison", body: "CMD-3051 · ETA 18 min", at: "2025-05-15T11:30:00Z", read: false },
