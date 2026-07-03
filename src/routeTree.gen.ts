@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
 import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
 import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
@@ -95,6 +96,11 @@ const FarmerRoute = FarmerRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
+  id: '/track/$publicId',
+  path: '/track/$publicId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RestaurantSuppliersRoute = RestaurantSuppliersRouteImport.update({
@@ -331,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
+  '/track/$publicId': typeof TrackPublicIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -380,6 +387,7 @@ export interface FileRoutesByTo {
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
+  '/track/$publicId': typeof TrackPublicIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -430,6 +438,7 @@ export interface FileRoutesById {
   '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
+  '/track/$publicId': typeof TrackPublicIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -481,6 +490,7 @@ export interface FileRouteTypes {
     | '/restaurant/recurring'
     | '/restaurant/settings'
     | '/restaurant/suppliers'
+    | '/track/$publicId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -530,6 +540,7 @@ export interface FileRouteTypes {
     | '/restaurant/recurring'
     | '/restaurant/settings'
     | '/restaurant/suppliers'
+    | '/track/$publicId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -579,6 +590,7 @@ export interface FileRouteTypes {
     | '/restaurant/recurring'
     | '/restaurant/settings'
     | '/restaurant/suppliers'
+    | '/track/$publicId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -609,6 +621,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
+  TrackPublicIdRoute: typeof TrackPublicIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -667,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track/$publicId': {
+      id: '/track/$publicId'
+      path: '/track/$publicId'
+      fullPath: '/track/$publicId'
+      preLoaderRoute: typeof TrackPublicIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/restaurant/suppliers': {
@@ -1164,6 +1184,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
+  TrackPublicIdRoute: TrackPublicIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
