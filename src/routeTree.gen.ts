@@ -24,6 +24,7 @@ import { Route as RestaurantOrdersRouteImport } from './routes/restaurant.orders
 import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
 import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
+import { Route as RestaurantInvoicesRouteImport } from './routes/restaurant.invoices'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
@@ -125,6 +126,11 @@ const RestaurantMessagesRoute = RestaurantMessagesRouteImport.update({
 const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantInvoicesRoute = RestaurantInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -334,6 +341,7 @@ export interface FileRoutesByTo {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
+  '/restaurant/invoices': typeof RestaurantInvoicesRoute
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
   '/restaurant/messages': typeof RestaurantMessagesRoute
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
+    | '/restaurant/invoices'
     | '/restaurant/marketplace'
     | '/restaurant/messages'
     | '/restaurant/notifications'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
+    | '/restaurant/invoices'
     | '/restaurant/marketplace'
     | '/restaurant/messages'
     | '/restaurant/notifications'
@@ -513,6 +524,7 @@ export interface FileRouteTypes {
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
+    | '/restaurant/invoices'
     | '/restaurant/marketplace'
     | '/restaurant/messages'
     | '/restaurant/notifications'
@@ -653,6 +665,13 @@ declare module '@tanstack/react-router' {
       path: '/marketplace'
       fullPath: '/restaurant/marketplace'
       preLoaderRoute: typeof RestaurantMarketplaceRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/invoices': {
+      id: '/restaurant/invoices'
+      path: '/invoices'
+      fullPath: '/restaurant/invoices'
+      preLoaderRoute: typeof RestaurantInvoicesRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/dashboard': {
@@ -989,6 +1008,7 @@ interface RestaurantRouteChildren {
   RestaurantCartRoute: typeof RestaurantCartRoute
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
+  RestaurantInvoicesRoute: typeof RestaurantInvoicesRoute
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
   RestaurantMessagesRoute: typeof RestaurantMessagesRoute
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRoute
@@ -1002,6 +1022,7 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCartRoute: RestaurantCartRoute,
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
+  RestaurantInvoicesRoute: RestaurantInvoicesRoute,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
   RestaurantMessagesRoute: RestaurantMessagesRoute,
   RestaurantNotificationsRoute: RestaurantNotificationsRoute,
