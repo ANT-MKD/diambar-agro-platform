@@ -38,6 +38,7 @@ import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
+import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
@@ -49,6 +50,7 @@ import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.
 import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
 import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
 import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
+import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
 import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
 import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
 import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products.$productId.edit'
@@ -200,6 +202,12 @@ const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
   path: '/new',
   getParentRoute: () => RestaurantSuppliersRoute,
 } as any)
+const RestaurantSuppliersSupplierIdRoute =
+  RestaurantSuppliersSupplierIdRouteImport.update({
+    id: '/$supplierId',
+    path: '/$supplierId',
+    getParentRoute: () => RestaurantSuppliersRoute,
+  } as any)
 const RestaurantOrdersOrderIdRoute = RestaurantOrdersOrderIdRouteImport.update({
   id: '/$orderId',
   path: '/$orderId',
@@ -258,6 +266,12 @@ const FarmerOrdersOrderIdRoute = FarmerOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => FarmerOrdersRoute,
 } as any)
+const RestaurantSuppliersSupplierIdEditRoute =
+  RestaurantSuppliersSupplierIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => RestaurantSuppliersSupplierIdRoute,
+  } as any)
 const FarmerStockMovementNewRoute = FarmerStockMovementNewRouteImport.update({
   id: '/movement/new',
   path: '/movement/new',
@@ -328,12 +342,14 @@ export interface FileRoutesByFullPath {
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -375,12 +391,14 @@ export interface FileRoutesByTo {
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -423,12 +441,14 @@ export interface FileRoutesById {
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -472,12 +492,14 @@ export interface FileRouteTypes {
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/suppliers/$supplierId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -519,12 +541,14 @@ export interface FileRouteTypes {
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/suppliers/$supplierId/edit'
   id:
     | '__root__'
     | '/'
@@ -566,12 +590,14 @@ export interface FileRouteTypes {
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/suppliers/$supplierId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -790,6 +816,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantSuppliersNewRouteImport
       parentRoute: typeof RestaurantSuppliersRoute
     }
+    '/restaurant/suppliers/$supplierId': {
+      id: '/restaurant/suppliers/$supplierId'
+      path: '/$supplierId'
+      fullPath: '/restaurant/suppliers/$supplierId'
+      preLoaderRoute: typeof RestaurantSuppliersSupplierIdRouteImport
+      parentRoute: typeof RestaurantSuppliersRoute
+    }
     '/restaurant/orders/$orderId': {
       id: '/restaurant/orders/$orderId'
       path: '/$orderId'
@@ -866,6 +899,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/farmer/orders/$orderId'
       preLoaderRoute: typeof FarmerOrdersOrderIdRouteImport
       parentRoute: typeof FarmerOrdersRoute
+    }
+    '/restaurant/suppliers/$supplierId/edit': {
+      id: '/restaurant/suppliers/$supplierId/edit'
+      path: '/edit'
+      fullPath: '/restaurant/suppliers/$supplierId/edit'
+      preLoaderRoute: typeof RestaurantSuppliersSupplierIdEditRouteImport
+      parentRoute: typeof RestaurantSuppliersSupplierIdRoute
     }
     '/farmer/stock/movement/new': {
       id: '/farmer/stock/movement/new'
@@ -1054,11 +1094,29 @@ const RestaurantOrdersRouteChildren: RestaurantOrdersRouteChildren = {
 const RestaurantOrdersRouteWithChildren =
   RestaurantOrdersRoute._addFileChildren(RestaurantOrdersRouteChildren)
 
+interface RestaurantSuppliersSupplierIdRouteChildren {
+  RestaurantSuppliersSupplierIdEditRoute: typeof RestaurantSuppliersSupplierIdEditRoute
+}
+
+const RestaurantSuppliersSupplierIdRouteChildren: RestaurantSuppliersSupplierIdRouteChildren =
+  {
+    RestaurantSuppliersSupplierIdEditRoute:
+      RestaurantSuppliersSupplierIdEditRoute,
+  }
+
+const RestaurantSuppliersSupplierIdRouteWithChildren =
+  RestaurantSuppliersSupplierIdRoute._addFileChildren(
+    RestaurantSuppliersSupplierIdRouteChildren,
+  )
+
 interface RestaurantSuppliersRouteChildren {
+  RestaurantSuppliersSupplierIdRoute: typeof RestaurantSuppliersSupplierIdRouteWithChildren
   RestaurantSuppliersNewRoute: typeof RestaurantSuppliersNewRoute
 }
 
 const RestaurantSuppliersRouteChildren: RestaurantSuppliersRouteChildren = {
+  RestaurantSuppliersSupplierIdRoute:
+    RestaurantSuppliersSupplierIdRouteWithChildren,
   RestaurantSuppliersNewRoute: RestaurantSuppliersNewRoute,
 }
 
@@ -1110,3 +1168,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
