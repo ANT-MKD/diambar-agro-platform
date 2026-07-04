@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useRestaurantOrders } from "@/data/store";
-import { farmers } from "@/data/mocks";
+import { farmers, products } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { downloadInvoicePdf } from "@/lib/invoice-pdf";
+import { downloadDiambarInvoice, type InvoiceData } from "@/lib/invoice-pdf";
 
 export const Route = createFileRoute("/restaurant/invoices")({
   head: () => ({ meta: [{ title: "Factures · Restaurant" }] }),
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/restaurant/invoices")({
 });
 
 function invoiceNumberFor(id: string) {
-  return `FCT-${id.slice(-4).toUpperCase()}`;
+  return `FAC-2025-${id.slice(-3).toUpperCase().padStart(3, "0")}`;
 }
 
 function InvoicesList() {
@@ -87,26 +87,28 @@ function InvoicesList() {
               </span>
               <div className="flex items-center justify-end gap-1">
                 <Button asChild variant="ghost" size="sm"><Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: o.id }}><FileText className="h-3.5 w-3.5" /></Link></Button>
-                <Button variant="ghost" size="sm" onClick={() => downloadInvoicePdf(
-                  `${invoiceNumberFor(o.id)}.pdf`,
-                  [
-                    "DIAMBAR AGRO — FACTURE",
-                    "",
-                    `N° Facture : ${invoiceNumberFor(o.id)}`,
-                    `Commande   : ${o.reference}`,
-                    `Date       : ${new Date(o.createdAt).toLocaleDateString("fr-FR")}`,
-                    `Fournisseur: ${f?.farm ?? ""}`,
-                    `Livraison  : ${o.deliveryAddress}`,
-                    `Paiement   : ${o.paymentMethod}`,
-                    "",
-                    "----- Articles -----",
-                    ...o.items.map((it) => `- Produit ${it.productId}  x${it.qty}  @ ${it.price} FCFA`),
-                    "",
-                    `TOTAL : ${o.total} FCFA`,
-                    "",
-                    "Merci pour votre confiance.",
-                  ],
-                )}><Download className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => {
+                  const subtotal = o.items.reduce((s, i) => s + i.qty * i.price, 0);
+                  const vat = Math.round(subtotal * 0.18);
+                  const total = subtotal + vat;
+                  const isPaid = o.status === "delivered" || o.status === "delivering";
+                  const issued = new Date(o.createdAt);
+                  const data: InvoiceData = {
+                    number: invoiceNumberFor(o.id),
+                    issuedAt: issued,
+                    dueAt: new Date(issued.getTime() + 14 * 86400_000),
+                    orderRef: o.reference,
+                    seller: { name: "DIAMBAR AGRO SARL", addressLines: ["Immeuble Plateau, Avenue Léopold Sédar Senghor,", "Dakar, Sénégal"], email: "contact@diambar.sn", legal: "NINEA 008772341 · RC DKR-2024-B-12847" },
+                    buyer: { label: "Destinataire", name: "Le Baobab SARL", addressLines: ["12 Avenue Léopold Sédar Senghor, Dakar Plateau,", "Sénégal"], email: "baobab@diambar.sn" },
+                    paidBanner: isPaid ? `${new Intl.NumberFormat("fr-FR").format(total)} FCFA payés` : `${new Intl.NumberFormat("fr-FR").format(total)} FCFA à payer`,
+                    items: o.items.map((it) => {
+                      const p = products.find((x) => x.id === it.productId);
+                      return { name: p?.name ?? it.productId, sub: `Commande ${o.reference} · ${f?.name ?? ""}`, qty: String(it.qty), qtyUnit: p?.unit, unitPrice: it.price, amount: it.qty * it.price };
+                    }),
+                    subtotalHT: subtotal, vat, vatRate: 18, totalTTC: total, amountDue: isPaid ? 0 : total,
+                  };
+                  downloadDiambarInvoice(`${data.number}.pdf`, data);
+                }}><Download className="h-3.5 w-3.5" /></Button>
               </div>
             </div>
           );
