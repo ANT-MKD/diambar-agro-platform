@@ -35,8 +35,20 @@ export type InvoiceData = {
 function stripAccents(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
+// Force the string into pure printable ASCII so the raw PDF bytes stay one-byte-per-char.
+function toAscii(s: string): string {
+  return stripAccents(s)
+    .replace(/[\u00A0\u202F\u2007\u2009\u200A]/g, " ") // NBSP + narrow NBSPs → space
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2022/g, "*")
+    .replace(/\u00B7/g, "-") // middle dot
+    .replace(/[\u2026]/g, "...")
+    .replace(/[^\x20-\x7E]/g, ""); // drop anything else non-ASCII
+}
 function pdfEscape(s: string): string {
-  return stripAccents(s).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  return toAscii(s).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
 
 // Rough Helvetica widths (units of 1/1000 em) — good enough for right-alignment of short numeric strings.
@@ -46,7 +58,7 @@ const WIDE = new Set("MW");
 const XWIDE = new Set("mw");
 function textWidth(s: string, size: number, bold = false): number {
   let w = 0;
-  for (const c of stripAccents(s)) {
+  for (const c of toAscii(s)) {
     if (NARROW.has(c)) w += 278;
     else if (MED.has(c)) w += 333;
     else if (XWIDE.has(c)) w += 889;
