@@ -40,7 +40,6 @@ const bottomNav = [
 function FarmerLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
-  const [paletteHint, setPaletteHint] = useState(false);
   const notifs = useFarmerNotifications();
   const unread = notifs.filter((n) => !n.read).length;
   return (
@@ -109,7 +108,6 @@ function FarmerLayout() {
           <button className="lg:hidden p-2 rounded-lg hover:bg-accent" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
           <Breadcrumb />
           <button
-            onClick={() => setPaletteHint((v) => !v)}
             onMouseDown={(e) => {
               // Dispatch a fake ⌘K to open the palette
               e.preventDefault();
