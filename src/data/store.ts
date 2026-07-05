@@ -6,6 +6,8 @@ import {
   withdrawals as seedWithdrawals,
   restaurantOrders as seedRestaurantOrders,
   suppliers as seedSuppliers,
+  notifications as seedFarmerNotifs,
+  restaurantNotifications as seedRestoNotifs,
   type Product,
   type Order,
   type OrderStatus,
@@ -14,6 +16,7 @@ import {
   type PaymentMethod,
   type RestaurantOrder,
   type Supplier,
+  type AppNotification,
 } from "./mocks";
 
 type Listener = () => void;
@@ -40,6 +43,8 @@ const movementsStore = createStore<StockMovement[]>(seedMovements);
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers);
+const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
+const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([]);
@@ -80,6 +85,37 @@ export function useSuppliers() {
 export function useSupplier(id: string) {
   return useSuppliers().find((s) => s.id === id) ?? null;
 }
+
+export function useFarmerNotifications() {
+  return useSyncExternalStore(farmerNotifsStore.subscribe, farmerNotifsStore.get, farmerNotifsStore.get);
+}
+export function useRestaurantNotifications() {
+  return useSyncExternalStore(restoNotifsStore.subscribe, restoNotifsStore.get, restoNotifsStore.get);
+}
+
+function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
+  return {
+    markRead: (id: string) =>
+      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n))),
+    markAllRead: () => store.set((arr) => arr.map((n) => ({ ...n, read: true }))),
+    remove: (id: string) => store.set((arr) => arr.filter((n) => n.id !== id)),
+    add: (n: Omit<AppNotification, "id" | "at" | "read"> & { id?: string; at?: string; read?: boolean }) => {
+      const id = n.id ?? `n_${Date.now()}`;
+      store.set((arr) => [{
+        id,
+        at: n.at ?? new Date().toISOString(),
+        read: n.read ?? false,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+      }, ...arr]);
+      return id;
+    },
+  };
+}
+
+export const farmerNotifActions = makeNotifActions(farmerNotifsStore);
+export const restaurantNotifActions = makeNotifActions(restoNotifsStore);
 
 export const supplierActions = {
   create: (s: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & { suspended?: boolean }) => {
