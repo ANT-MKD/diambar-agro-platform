@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bell, Package, CreditCard, Warehouse, Info, MessageSquare, CheckCheck } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { notifications as seed, type AppNotification } from "@/data/mocks";
+import { type AppNotification } from "@/data/mocks";
+import { useFarmerNotifications, farmerNotifActions } from "@/data/store";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -35,7 +36,7 @@ function group(list: AppNotification[]) {
 }
 
 function NotificationsPage() {
-  const [items, setItems] = useState<AppNotification[]>(seed);
+  const items = useFarmerNotifications();
   const [filter, setFilter] = useState<string>("all");
   const [prefs, setPrefs] = useState({
     order: { email: true, sms: true, push: true },
@@ -44,12 +45,21 @@ function NotificationsPage() {
     message: { email: false, sms: false, push: true },
     system: { email: true, sms: false, push: false },
   });
+  const navigate = useNavigate();
 
   const list = items.filter((n) => filter === "all" || n.type === filter);
   const g = group(list);
   const unread = items.filter((n) => !n.read).length;
 
-  const markAll = () => setItems((arr) => arr.map((n) => ({ ...n, read: true })));
+  const markAll = () => farmerNotifActions.markAllRead();
+
+  const deepLink = (n: AppNotification) => {
+    farmerNotifActions.markRead(n.id);
+    if (n.type === "order") navigate({ to: "/farmer/orders" });
+    else if (n.type === "payment") navigate({ to: "/farmer/revenue" });
+    else if (n.type === "stock") navigate({ to: "/farmer/stock" });
+    else if (n.type === "message") navigate({ to: "/farmer/messages" });
+  };
 
   const Section = ({ title, list }: { title: string; list: AppNotification[] }) => list.length === 0 ? null : (
     <div>
@@ -58,7 +68,7 @@ function NotificationsPage() {
         {list.map((n) => {
           const Icon = ICONS[n.type];
           return (
-            <div key={n.id} className={`p-4 flex items-start gap-3 ${!n.read ? "bg-primary/5" : ""}`}>
+            <button key={n.id} onClick={() => deepLink(n)} className={`w-full text-left p-4 flex items-start gap-3 hover:bg-accent/30 transition ${!n.read ? "bg-primary/5" : ""}`}>
               <div className={`grid h-10 w-10 place-items-center rounded-xl ${TONES[n.type]}`}><Icon className="h-5 w-5" /></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -68,7 +78,7 @@ function NotificationsPage() {
                 <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>
               </div>
               {!n.read && <span className="h-2 w-2 rounded-full bg-primary mt-2" />}
-            </div>
+            </button>
           );
         })}
       </div>

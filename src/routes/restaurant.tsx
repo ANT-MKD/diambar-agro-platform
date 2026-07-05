@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
-import { useCart } from "@/data/store";
+import { useCart, useRestaurantNotifications } from "@/data/store";
+import { CommandPalette } from "@/components/common/command-palette";
 
 export const Route = createFileRoute("/restaurant")({ component: RestaurantLayout });
 
@@ -39,6 +40,8 @@ function RestaurantLayout() {
   const cart = useCart();
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);
   const [open, setOpen] = useState(false);
+  const notifs = useRestaurantNotifications();
+  const unread = notifs.filter((n) => !n.read).length;
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar">
@@ -103,11 +106,22 @@ function RestaurantLayout() {
         <header className="sticky top-0 z-30 glass-strong border-b border-border flex items-center gap-3 px-4 lg:px-6 h-14">
           <button className="lg:hidden p-2 rounded-lg hover:bg-accent" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></button>
           <Breadcrumb />
-          <div className="flex-1 max-w-xs ml-auto hidden md:flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 h-8 text-xs text-muted-foreground">
+          <button
+            onMouseDown={(e) => {
+              e.preventDefault();
+              window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+            }}
+            className="flex-1 max-w-xs ml-auto hidden md:flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 h-8 text-xs text-muted-foreground hover:bg-muted transition"
+          >
             <Search className="h-3.5 w-3.5" />
-            <span className="flex-1">Rechercher un produit…</span>
-          </div>
+            <span className="flex-1">Rechercher…</span>
+            <kbd className="text-[10px] font-mono rounded border border-border px-1.5 py-0.5">⌘K</kbd>
+          </button>
           <ThemeToggle />
+          <Link to="/restaurant/notifications" className="relative grid h-9 w-9 place-items-center rounded-xl hover:bg-accent">
+            <Bell className="h-4 w-4" />
+            {unread > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground grid place-items-center">{unread}</span>}
+          </Link>
           <Link to="/restaurant/cart" className="relative grid h-9 w-9 place-items-center rounded-xl hover:bg-accent">
             <ShoppingCart className="h-4 w-4" />
             {cartCount > 0 && <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[10px] font-bold rounded-full bg-destructive text-destructive-foreground grid place-items-center">{cartCount}</span>}
@@ -117,6 +131,7 @@ function RestaurantLayout() {
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
           <Outlet />
         </main>
+        <CommandPalette scope="restaurant" />
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">
           {bottomNav.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
