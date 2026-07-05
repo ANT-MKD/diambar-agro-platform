@@ -1,110 +1,177 @@
-## Objectif
+# Plan — Professionnalisation SaaS complète
 
-Terminer la **Phase 3 Agriculteur** (Stock, Orders Kanban, Revenue, Analytics, Messages, Settings éclatées), démarrer la **Phase 4 Restaurant** (dashboard + marketplace + cart + checkout + orders), et ajouter des **comptes de démo** sur la page login pour se connecter en 1 clic à chaque rôle.
-
-**Contraintes respectées** : aucun changement au design system (tokens, glass, palette emerald, Sora/Inter), aucun modal CRUD (toutes pages dédiées), code clean/scalable.
+Objectif : appliquer les 10 piliers SaaS pro et les décisions d'audit sur chaque page Agriculteur et Restaurant, sans casser l'existant. Découpage en 5 phases livrables, exécutées dans l'ordre.
 
 ---
 
-## 1. Auth démo — connexion 1 clic par rôle
+## Phase 1 — Fondations invisibles (primitives partagées)
 
-`**src/data/demo-accounts.ts**` (nouveau) — comptes mockés :
+Créer les briques réutilisées partout **avant** de toucher aux pages.
 
-```
-agriculteur@diambar.sn / demo1234 → /farmer/dashboard
-restaurant@diambar.sn  / demo1234 → /restaurant/dashboard
-livreur@diambar.sn     / demo1234 → /driver/dashboard
-admin@diambar.sn       / demo1234 → /admin/dashboard
-```
+**Composants UX**
 
-`**src/routes/login.tsx**` — ajouter sous le formulaire une carte "Comptes de démo" : 4 boutons (Agriculteur 🌾 / Restaurant 🍽️ / Livreur 🚚 / Admin 🛡️). Au clic : remplit email+password + redirige vers le dashboard du rôle. Stocke `{role, email}` dans `localStorage` (clé `diambar.session`) pour usage futur.
+- `src/components/common/data-state.tsx` — `<DataState loading empty error>` (skeleton / illustration + CTA / retry / loaded).
+- `src/components/common/confirm-dialog.tsx` — wrapper AlertDialog (destructif rouge, titre + description + action).
+- `src/components/common/status-badge.tsx` — normalisation stricte (pending/confirmed/preparing/shipped/delivered/cancelled + variantes stock/paiement).
+- `src/components/common/empty-state.tsx` — illustration SVG + titre + description + CTA + lien doc.
+- `src/components/common/page-error.tsx` — écran d'erreur avec retry.
+- `src/components/common/unsaved-guard.tsx` — hook + dialog "modifications non enregistrées".
 
----
+**Hooks & utils**
 
-## 2. Phase 3 — Agriculteur (suite)
+- `src/hooks/use-url-filters.ts` — wrapper `useSearch` + `useNavigate` (typé) pour filtres/tri/pagination/tabs.
+- `src/hooks/use-optimistic-toast.ts` — pattern optimistic + undo 5s + rollback.
+- `src/hooks/use-autosave-draft.ts` — persistance localStorage pour formulaires longs.
+- `src/lib/motion.ts` — durations 150/250/400 + easing `[0.4, 0, 0.2, 1]`.
+- `src/lib/toast.ts` — helpers `toast.success/error/undo` unifiés.
 
-dans ajouter produit quand j'appuie dessus il n'affiche rien regle ca aussi
+**Store notifications**
 
-### Stock (4 routes)
+- Migrer `restaurantNotifications` + `notifications` (farmer) vers `src/data/store.ts` avec actions `markRead`, `markAllRead`, `add`.
+- Badge non-lu réel dans les 2 sidebars.
 
-- `**farmer.stock.tsx**` : refonte — KPI bento (4), table avec ligne cliquable ouvrant `SidePanel` détail, toolbar (filtres statut/catégorie, recherche, export CSV). Suppression du `AdjustDialog` modal.
-- `**farmer.stock.movement.new.tsx**` : formulaire mouvement (type: récolte/perte/casse/transfert, produit, quantité, motif, photo optionnelle). Query params `?productId&type` pré-remplissent.
-- `**farmer.stock.$productId.history.tsx**` : timeline des mouvements du produit + KPI (entrées, sorties, solde).
-- `**farmer.stock.inventory.tsx**` : page inventaire (table réel vs théorique, écarts auto, validation, export).
+**Design system audit**
 
-### Orders (4 routes)
-
-- `**farmer.orders.tsx**` : refonte avec **toggle Kanban / Liste**. Kanban 4 colonnes (Nouvelle → Confirmée → Préparation → Livrée) avec drag & drop Framer Motion (`Reorder.Group`). Liste = table actuelle.
-- `**farmer.orders.$orderId.tsx**` : détail commande (timeline, articles, client, livraison, actions accept/refuse/report).
-- `**farmer.orders.$orderId.refuse.tsx**` : formulaire de refus (motif obligatoire, notification client).
-- `**farmer.orders.$orderId.report.tsx**` : signalement problème (catégorie, description, photos).
-
-Composant partagé : `**src/components/farmer/order-kanban.tsx**` + `**src/components/farmer/order-card.tsx**`.
-
-### Revenue (3 routes)
-
-- `**farmer.revenue.tsx**` : ajouter widget **Wallet** (solde dispo, en attente, total retiré) + bouton "Retirer". Garder KPI + chart + table.
-- `**farmer.revenue.$txId.tsx**` : détail transaction (facture, commission breakdown, lien commande).
-- `**farmer.revenue.withdraw.tsx**` : wizard 3 étapes (montant → méthode Wave/Orange Money/Virement → confirmation).
-- `**farmer.revenue.withdrawals.tsx**` : historique des retraits.
-
-### Analytics (enrichissement)
-
-- `**farmer.analytics.tsx**` : ajouter `SenegalMap` (pins commandes par région), radar par catégorie, prédictions ruptures, top 5 clients fidèles.
-
-### Messages
-
-- `**farmer.messages.tsx**` : split list/conversation déjà présent — refacto en route imbriquée.
-- `**farmer.messages.$conversationId.tsx**` : vue dédiée conversation (deep-linkable, mobile-first).
-
-### Settings éclatées (6 sous-routes)
-
-- `**farmer.settings.tsx**` : devient layout avec tabs verticaux + `<Outlet />`.
-- `**farmer.settings.profile.tsx**` — profil
-- `**farmer.settings.farm.tsx**` — exploitation, certifications, zones
-- `**farmer.settings.payments.tsx**` — Wave/OM/banque
-- `**farmer.settings.notifications.tsx**` — préférences canaux
-- `**farmer.settings.security.tsx**` — mot de passe, 2FA, sessions
-- `**farmer.settings.subscription.tsx**` — plan/facturation
+- Sweep grep : plus aucun `text-white`, `bg-black`, `#hex` en dur dans `src/components/**` et `src/routes/**`. Remplacer par tokens sémantiques.
+- Icônes : uniquement Lucide, `h-4 w-4` ou `h-5 w-5`.
 
 ---
 
-## 3. Phase 4 — Restaurant (démarrage)
+## Phase 2 — Command Palette + Notifications pro
 
-Layout `**src/routes/restaurant.tsx**` (sidebar miroir agriculteur, badge "🍽️ Restaurant").
+**Command Palette (⌘K)**
 
-**Routes initiales** :
+- `src/components/common/command-palette.tsx` monté dans `__root.tsx`.
+- Raccourci ⌘K / Ctrl+K global.
+- Recherche cross-entités : produits, commandes, fournisseurs, factures, conversations.
+- Groupes : Navigation · Actions rapides · Recherche.
+- Actions : "Nouveau produit", "Nouveau retrait", "Voir facture…", etc.
 
-- `**restaurant.dashboard.tsx**` : bento KPI (commandes mois, panier moyen, fournisseurs actifs, économies), sparklines, alertes stock fournisseurs préférés, raccourcis.
-- `**restaurant.marketplace.tsx**` : grille produits multi-fermes, filtres (catégorie, région, bio, prix, dispo), recherche, tri.
-- `**restaurant.marketplace.$productId.tsx**` : fiche produit + fiche ferme + bouton "Ajouter au panier".
-- `**restaurant.cart.tsx**` : panier groupé par ferme, ajustement quantités, sous-totaux, livraison estimée.
-- `**restaurant.checkout.tsx**` : wizard 3 étapes (adresse/créneau → paiement Wave/OM/à la livraison → confirmation).
-- `**restaurant.orders.tsx**` : liste + toggle Kanban (En cours / Livrée / Annulée).
-- `**restaurant.orders.$orderId.tsx**` : détail + tracking SVG (étapes).
+**Notifications centre pro**
 
-**Data** : étendre `src/data/mocks.ts` avec `cartItems`, `restaurantOrders`, `suppliers` favoris. Store `cartStore` dans `src/data/store.ts` (add/remove/clear/quantity).
-
----
-
-## 4. Détails techniques
-
-- **Store** : étendre `productActions` (déjà OK), ajouter `stockMovementActions`, `withdrawalActions`, `cartActions`.
-- **Composants partagés nouveaux** :
-  - `src/components/farmer/order-kanban.tsx`
-  - `src/components/farmer/order-card.tsx`
-  - `src/components/farmer/wallet-widget.tsx`
-  - `src/components/restaurant/product-card.tsx`
-  - `src/components/restaurant/cart-item.tsx`
-  - `src/components/restaurant/order-tracker.tsx`
-- **Routing** : TanStack file-based, conventions dot-separated déjà en place. `routeTree.gen.ts` régénéré automatiquement.
-- **Aucun changement** à `styles.css`, landing, auth UI (sauf ajout démo accounts dans login).
+- `farmer.notifications` et `restaurant.notifications` refactor :
+  - Badge non-lu réel branché au store.
+  - Groupement par jour (Aujourd'hui / Hier / Cette semaine / Plus ancien).
+  - Filtres onglets (Toutes / Commandes / Stock / Paiements / Messages).
+  - Clic → deep-link vers l'entité + `markRead(id)`.
+  - Préférences par canal (in-app, email, SMS, WhatsApp) branchées au store local.
 
 ---
 
-## 5. Récapitulatif fichiers
+## Phase 3 — Tables & formulaires industrialisés
 
-**Nouveaux (~22)** : 4 stock + 4 orders + 3 revenue + 6 settings + 2 messages + 7 restaurant + 6 composants + 1 demo-accounts.
-**Édités (~6)** : `login.tsx`, `farmer.orders.tsx`, `farmer.revenue.tsx`, `farmer.analytics.tsx`, `farmer.settings.tsx`, `data/mocks.ts`, `data/store.ts`.
+**DataTable pro**
 
-Confirme et je lance l'implémentation en un seul batch.
+- `src/components/common/data-table.tsx` (TanStack Table v8) :
+  - Header sticky, tri par colonne, sélection multiple, bulk actions.
+  - Density switcher (compact/normal/comfortable).
+  - Column visibility toggle.
+  - Filtres URL via `useUrlFilters`.
+  - Export CSV/XLSX/PDF réel (XLSX via `xlsx` skill si dispo, sinon CSV natif + PDF via `invoice-pdf.ts`).
+  - Virtualisation `@tanstack/react-virtual` au-delà de 100 lignes.
+- Appliquée à : `farmer.products`, `farmer.orders` (vue table), `farmer.revenue.withdrawals`, `restaurant.orders`, `restaurant.suppliers`, `restaurant.invoices`.
+
+**Formulaires unifiés**
+
+- Migration progressive vers `react-hook-form` + `zod` + shadcn `<Form>`.
+- Erreurs inline sous chaque champ.
+- Autosave draft sur : `farmer.products.new/edit`, `restaurant.recurring`, `restaurant.suppliers.new/edit`.
+- Guard "unsaved changes" sur toutes les routes de formulaire.
+
+**Drawer pattern**
+
+- `src/components/common/entity-drawer.tsx` (shadcn Sheet côté droit).
+- Utilisé sur `farmer.products` et `farmer.orders` : clic ligne → preview drawer, bouton "Voir en plein écran" → route dédiée.
+
+---
+
+## Phase 4 — Décisions d'audit Agriculteur
+
+
+| Page          | Changement                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| Dashboard     | Period selector (7j/30j/90j) + delta % vs période précédente sur chaque KPI                                 |
+| Produits      | DataTable pro + drawer + filtres URL (catégorie, statut) + bulk publish/unpublish/delete                    |
+| Stock         | Fusion avec produit dans drawer (onglets : Détails / Stock / Historique / Mouvements)                       |
+| Commandes     | Kanban + timer SLA (countdown) + drag & drop entre colonnes (`@dnd-kit`)                                    |
+| Revenus       | Reçu PDF par transaction (réutilise `invoice-pdf.ts`) + relevé mensuel PDF                                  |
+| Analytics     | Tooltip prédiction ("basé sur X commandes, confiance Y%") + bouton "Exporter rapport PDF"                   |
+| Messages      | **Vraie route `$conversationId**` avec UI chat (bulles, input, historique store)                            |
+| Notifications | Voir Phase 2                                                                                                |
+| Settings      | Éclater en 6 sous-routes : `settings.profile`, `.farm`, `.payments`, `.notifications`, `.security`, `.team` |
+
+
+**Onboarding**
+
+- `farmer.dashboard` : checklist "Complétez votre profil (3/7)" persistée localStorage, dismissible.
+
+---
+
+## Phase 5 — Décisions d'audit Restaurant
+
+
+| Page           | Changement                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Dashboard      | Widget "Récurrentes à valider aujourd'hui" en tête + widgets configurables (ordre localStorage) |
+| Marketplace    | Comparateur 2-3 produits (route `/restaurant/compare?ids=`) + wishlist (store) + filtres URL    |
+| Produit détail | Section avis mockés (étoiles + commentaires) + carrousel "Produits similaires"                  |
+| Panier         | Persist localStorage + banner "Reprendre votre panier" sur marketplace                          |
+| Checkout       | Sidebar récap sticky + validation Zod stricte par étape                                         |
+| Commandes      | Chat direct livreur intégré dans `restaurant.orders.$orderId` (mock temps réel)                 |
+| Récurrentes    | Calendrier visuel mensuel + pause/reprise + "skip prochaine livraison"                          |
+| Fournisseurs   | Scoring qualité auto (calcul basé sur historique commandes + ponctualité)                       |
+| Factures       | Relance auto impayées (badge + CTA) + filtre période fiscale (T1/T2/T3/T4/Année)                |
+| Messages       | Vraie route `$conversationId` (idem farmer)                                                     |
+| Settings       | Éclater en sous-routes + gestion équipe/rôles (`settings.team` avec invite mock)                |
+
+
+**Onboarding**
+
+- `restaurant.dashboard` : checklist "Configurez votre restaurant (2/6)".
+
+---
+
+## Section technique
+
+**Dépendances à installer**
+
+- `@tanstack/react-table` — tables pro
+- `@tanstack/react-virtual` — virtualisation
+- `@dnd-kit/core` + `@dnd-kit/sortable` — drag & drop Kanban
+- `date-fns` (si absent) — période selectors
+- `cmdk` (déjà via shadcn command) — Command Palette
+
+**Fichiers créés (~40)**
+
+- 8 primitives `src/components/common/*`
+- 5 hooks `src/hooks/*`
+- 6 sous-routes settings farmer
+- 6 sous-routes settings restaurant
+- 2 routes `messages.$conversationId` (farmer + restaurant)
+- 1 route `restaurant.compare`
+- 1 composant SLA timer + 1 composant Kanban drag
+- ~10 refactors de routes existantes
+
+**Fichiers modifiés (~25)**
+
+- `src/routes/__root.tsx` (Command Palette + toaster undo)
+- `src/data/store.ts` (notifications actions, wishlist, cart persist, drafts, team members, scoring)
+- `src/data/mocks.ts` (avis produits, équipe, plus de notifications)
+- Toutes les pages listées dans les tableaux audit
+
+**Compatibilité**
+
+- Aucun breaking change sur les mocks existants — extensions uniquement.
+- Migration progressive : Phase 1 seule est déjà utilisable (primitives dispo pour tout le monde).
+
+---
+
+## Ordre d'exécution recommandé
+
+1. **Phase 1** (fondations) — 1 tour, invisible mais critique.
+2. **Phase 2** (⌘K + notifs) — 1 tour, effet "waouh" immédiat.
+3. **Phase 3** (tables + forms + drawer) — 1-2 tours, gros refactor mais standardisé.
+4. **Phase 4** (audit Agriculteur) — 1-2 tours.
+5. **Phase 5** (audit Restaurant) — 1-2 tours.
+
+Après validation, je démarre par la Phase 1 et la phase 2 (au complet). Confirme "go" pour lancer, ou dis-moi si tu veux réorganiser l'ordre / retirer un item.
