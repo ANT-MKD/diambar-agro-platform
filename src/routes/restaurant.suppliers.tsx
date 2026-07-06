@@ -8,6 +8,14 @@ import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+function qualityScore(totalOrders: number, favorite: boolean, suspended: boolean): { score: number; label: string; tone: string } {
+  if (suspended) return { score: 0, label: "Suspendu", tone: "bg-rose-500/10 text-rose-500" };
+  const base = Math.min(100, 55 + totalOrders * 2 + (favorite ? 15 : 0));
+  const label = base >= 90 ? "Excellent" : base >= 75 ? "Fiable" : base >= 60 ? "Correct" : "À surveiller";
+  const tone = base >= 90 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : base >= 75 ? "bg-blue-500/10 text-blue-500" : base >= 60 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-rose-500/10 text-rose-500";
+  return { score: base, label, tone };
+}
+
 export const Route = createFileRoute("/restaurant/suppliers")({
   head: () => ({ meta: [{ title: "Fournisseurs · Restaurant" }] }),
   component: SuppliersLayout,
@@ -79,6 +87,15 @@ function SuppliersList() {
                 <div><div className="text-lg font-bold text-primary">{formatFCFA(s.totalSpent).replace(" FCFA", "")}</div><div className="text-[10px] text-muted-foreground">Dépensé</div></div>
                 <div><div className="text-lg font-bold">{s.lastOrder.slice(5)}</div><div className="text-[10px] text-muted-foreground">Dernière</div></div>
               </div>
+              {(() => {
+                const q = qualityScore(s.totalOrders, s.favorite, s.suspended);
+                return (
+                  <div className={`rounded-lg px-3 py-2 flex items-center justify-between text-xs font-semibold ${q.tone}`}>
+                    <span>Score qualité · {q.label}</span>
+                    <span className="font-bold">{q.score}/100</span>
+                  </div>
+                );
+              })()}
               {offer.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {offer.slice(0, 4).map((p) => <span key={p.id} className="text-[10px] rounded-full bg-muted px-2 py-0.5">{p.name}</span>)}
