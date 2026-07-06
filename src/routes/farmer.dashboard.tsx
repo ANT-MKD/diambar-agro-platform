@@ -9,6 +9,7 @@ import { useOrders, useProducts, orderActions } from "@/data/store";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
 import { LiveFeed } from "@/components/farmer/live-feed";
+import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/farmer/dashboard")({
@@ -34,6 +35,19 @@ function Dashboard() {
           <Plus className="h-4 w-4" /> Nouveau produit
         </Link>
       </div>
+
+      <OnboardingChecklist
+        storageKey="farmer"
+        title="Complétez votre profil producteur"
+        items={[
+          { key: "farmer_photo", label: "Ajouter une photo de profil" },
+          { key: "farmer_farm", label: "Renseigner votre exploitation" },
+          { key: "farmer_payment", label: "Connecter un compte Wave/Orange" },
+          { key: "farmer_products", label: "Publier vos 3 premiers produits" },
+          { key: "farmer_verify", label: "Vérifier votre identité" },
+          { key: "farmer_notifs", label: "Activer les notifications" },
+        ]}
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[

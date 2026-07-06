@@ -8,6 +8,8 @@ import {
   suppliers as seedSuppliers,
   notifications as seedFarmerNotifs,
   restaurantNotifications as seedRestoNotifs,
+  conversations as seedConversations,
+  recurringOrders as seedRecurring,
   type Product,
   type Order,
   type OrderStatus,
@@ -17,17 +19,28 @@ import {
   type RestaurantOrder,
   type Supplier,
   type AppNotification,
+  type Conversation,
+  type RecurringOrder,
 } from "./mocks";
 
 type Listener = () => void;
 
-function createStore<T>(initial: T) {
+function createStore<T>(initial: T, persistKey?: string) {
   let state = initial;
+  if (persistKey && typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem(persistKey);
+      if (raw) state = JSON.parse(raw) as T;
+    } catch { /* ignore */ }
+  }
   const listeners = new Set<Listener>();
   return {
     get: () => state,
     set: (next: T | ((prev: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
+      if (persistKey && typeof window !== "undefined") {
+        try { window.localStorage.setItem(persistKey, JSON.stringify(state)); } catch { /* ignore */ }
+      }
       listeners.forEach((l) => l());
     },
     subscribe: (l: Listener) => {
@@ -47,7 +60,12 @@ const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
 const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
 
 export type CartLine = { productId: string; qty: number };
-const cartStore = createStore<CartLine[]>([]);
+const cartStore = createStore<CartLine[]>([], "diambar:cart");
+
+const wishlistStore = createStore<string[]>([], "diambar:wishlist");
+const conversationsStore = createStore<Conversation[]>(seedConversations, "diambar:conversations");
+const recurringStore = createStore<RecurringOrder[]>(seedRecurring, "diambar:recurring");
+const onboardingStore = createStore<Record<string, boolean>>({}, "diambar:onboarding");
 
 export function useProducts() {
   return useSyncExternalStore(productsStore.subscribe, productsStore.get, productsStore.get);
@@ -70,6 +88,22 @@ export function useWithdrawals() {
 }
 export function useCart() {
   return useSyncExternalStore(cartStore.subscribe, cartStore.get, cartStore.get);
+}
+
+export function useWishlist() {
+  return useSyncExternalStore(wishlistStore.subscribe, wishlistStore.get, wishlistStore.get);
+}
+export function useConversations() {
+  return useSyncExternalStore(conversationsStore.subscribe, conversationsStore.get, conversationsStore.get);
+}
+export function useConversation(id: string) {
+  return useConversations().find((c) => c.id === id) ?? null;
+}
+export function useRecurring() {
+  return useSyncExternalStore(recurringStore.subscribe, recurringStore.get, recurringStore.get);
+}
+export function useOnboarding() {
+  return useSyncExternalStore(onboardingStore.subscribe, onboardingStore.get, onboardingStore.get);
 }
 
 export function useRestaurantOrders() {
@@ -235,4 +269,40 @@ export const cartActions = {
     cartStore.set((arr) => arr.filter((l) => l.productId !== productId));
   },
   clear: () => cartStore.set([]),
+};
+
+export const wishlistActions = {
+  toggle: (productId: string) => {
+    wishlistStore.set((arr) => arr.includes(productId) ? arr.filter((x) => x !== productId) : [...arr, productId]);
+  },
+  remove: (productId: string) => wishlistStore.set((arr) => arr.filter((x) => x !== productId)),
+  clear: () => wishlistStore.set([]),
+};
+
+export const conversationActions = {
+  send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
+    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
+    conversationsStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at } : c));
+  },
+  markRead: (conversationId: string) => {
+    conversationsStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+  },
+};
+
+export const recurringActions = {
+  toggle: (id: string) => recurringStore.set((arr) => arr.map((r) => r.id === id ? { ...r, active: !r.active } : r)),
+  skipNext: (id: string) => recurringStore.set((arr) => arr.map((r) => {
+    if (r.id !== id) return r;
+    const d = new Date(r.nextDelivery === "—" ? Date.now() : r.nextDelivery);
+    const days = r.frequency === "weekly" ? 7 : r.frequency === "biweekly" ? 14 : 30;
+    d.setDate(d.getDate() + days);
+    return { ...r, nextDelivery: d.toISOString().slice(0, 10) };
+  })),
+  remove: (id: string) => recurringStore.set((arr) => arr.filter((r) => r.id !== id)),
+};
+
+export const onboardingActions = {
+  toggle: (key: string) => onboardingStore.set((m) => ({ ...m, [key]: !m[key] })),
+  set: (key: string, done: boolean) => onboardingStore.set((m) => ({ ...m, [key]: done })),
+  dismiss: (key: string) => onboardingStore.set((m) => ({ ...m, [`__dismiss_${key}`]: true })),
 };

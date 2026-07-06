@@ -1,20 +1,29 @@
 import { Link } from "@tanstack/react-router";
-import { Plus, Star, MapPin } from "lucide-react";
+import { Plus, Star, MapPin, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { type Product, farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { cartActions } from "@/data/store";
+import { cartActions, useWishlist, wishlistActions } from "@/data/store";
 
 export function RestaurantProductCard({ product }: { product: Product }) {
   const farmer = farmers.find((f) => f.id === product.farmerId);
   const out = product.stock === 0;
+  const wishlist = useWishlist();
+  const liked = wishlist.includes(product.id);
   return (
-    <div className="group glass rounded-2xl overflow-hidden hover:shadow-xl transition flex flex-col">
+    <div className="group glass rounded-2xl overflow-hidden hover:shadow-xl transition flex flex-col relative">
       <Link to="/restaurant/marketplace/$productId" params={{ productId: product.id }} className="relative block aspect-[4/3] overflow-hidden">
         <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
         <span className="absolute top-2 left-2 text-[10px] font-semibold rounded-full bg-background/85 backdrop-blur px-2 py-0.5">{product.category}</span>
-        {out && <span className="absolute top-2 right-2 text-[10px] font-semibold rounded-full bg-rose-500 text-white px-2 py-0.5">Rupture</span>}
+        {out && <span className="absolute top-2 right-12 text-[10px] font-semibold rounded-full bg-rose-500 text-white px-2 py-0.5">Rupture</span>}
       </Link>
+      <button
+        aria-label={liked ? "Retirer des favoris" : "Ajouter aux favoris"}
+        onClick={(e) => { e.preventDefault(); wishlistActions.toggle(product.id); toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris"); }}
+        className="absolute top-2 right-2 h-8 w-8 grid place-items-center rounded-full bg-background/85 backdrop-blur hover:bg-background transition z-10"
+      >
+        <Heart className={`h-4 w-4 ${liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`} />
+      </button>
       <div className="p-4 flex-1 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <Link to="/restaurant/marketplace/$productId" params={{ productId: product.id }} className="font-semibold text-sm leading-tight hover:text-primary line-clamp-1">{product.name}</Link>
