@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Star, MapPin, ShieldCheck, Truck, Minus, Plus, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Star, MapPin, ShieldCheck, Truck, Minus, Plus, ShoppingCart, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useProduct } from "@/data/store";
+import { useProduct, useProducts, cartActions } from "@/data/store";
 import { farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { cartActions } from "@/data/store";
+import { RestaurantProductCard } from "@/components/restaurant/product-card";
 
 export const Route = createFileRoute("/restaurant/marketplace/$productId")({
   head: () => ({ meta: [{ title: "Produit · Marketplace" }] }),
@@ -16,10 +16,18 @@ export const Route = createFileRoute("/restaurant/marketplace/$productId")({
 function ProductDetail() {
   const { productId } = Route.useParams();
   const product = useProduct(productId);
+  const all = useProducts();
   const [qty, setQty] = useState(1);
   if (!product) return <div className="glass rounded-2xl p-12 text-center text-muted-foreground">Produit introuvable</div>;
   const farmer = farmers.find((f) => f.id === product.farmerId);
   const out = product.stock === 0;
+  const similar = all.filter((p) => p.id !== product.id && p.category === product.category && p.status !== "draft").slice(0, 4);
+  const reviews = [
+    { id: "r1", author: "Chef Aminata", rating: 5, at: "Il y a 3j", text: "Produit toujours frais et bien calibré. Livraison ponctuelle." },
+    { id: "r2", author: "Restaurant Téranga", rating: 5, at: "La semaine dernière", text: "Excellente qualité, nous commandons chaque semaine." },
+    { id: "r3", author: "Le Baobab", rating: 4, at: "Il y a 2 sem.", text: "Bon rapport qualité-prix. À recommander." },
+  ];
+  const avg = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -81,6 +89,39 @@ function ProductDetail() {
           </div>
         </div>
       </div>
+
+      <section className="glass rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-display text-xl font-bold">Avis clients</h2>
+          <div className="flex items-center gap-2">
+            <div className="flex">{[1, 2, 3, 4, 5].map((s) => <Star key={s} className={`h-4 w-4 ${s <= Math.round(Number(avg)) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />)}</div>
+            <span className="font-bold">{avg}</span>
+            <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-3 gap-3">
+          {reviews.map((r) => (
+            <div key={r.id} className="rounded-xl border border-border p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">{r.author}</span>
+                <span className="text-[11px] text-muted-foreground">{r.at}</span>
+              </div>
+              <div className="flex">{[1, 2, 3, 4, 5].map((s) => <Star key={s} className={`h-3.5 w-3.5 ${s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`} />)}</div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>
+            </div>
+          ))}
+        </div>
+        <Button variant="outline" size="sm" className="gap-1"><MessageSquare className="h-3.5 w-3.5" />Laisser un avis</Button>
+      </section>
+
+      {similar.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="font-display text-xl font-bold">Produits similaires</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {similar.map((p) => <RestaurantProductCard key={p.id} product={p} />)}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
