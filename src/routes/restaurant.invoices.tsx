@@ -119,7 +119,10 @@ function InvoicesList() {
           const paid = o.status === "delivered" || o.status === "delivering";
           return (
             <div key={o.id} className="grid grid-cols-[1fr_1.2fr_1fr_1fr_120px_140px] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-accent/40 transition text-sm">
-              <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: o.id }} className="font-mono font-semibold text-primary">{invoiceNumberFor(o.id)}</Link>
+              <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: o.id }} className="font-mono font-semibold text-primary inline-flex items-center gap-2">
+                {invoiceNumberFor(o.id)}
+                {isOverdue(o) && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">Retard</span>}
+              </Link>
               <span className="truncate">{f?.farm ?? "—"}</span>
               <span className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("fr-FR")}</span>
               <span className="font-bold">{formatFCFA(o.total)}</span>
