@@ -3,7 +3,8 @@ import { ShoppingBag, Wallet, Users, TrendingDown, Plus, ArrowRight, Sparkles } 
 import { motion } from "framer-motion";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
-import { useRestaurantOrders } from "@/data/store";
+import { useRestaurantOrders, useRecurring } from "@/data/store";
+import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { products, farmers, suppliers, sparklineOrders, sparklineRevenue } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
@@ -14,10 +15,13 @@ export const Route = createFileRoute("/restaurant/dashboard")({
 
 function Dashboard() {
   const orders = useRestaurantOrders();
+  const recurring = useRecurring();
   const active = orders.filter((o) => ["pending", "confirmed", "preparing", "delivering"].includes(o.status));
   const monthSpend = orders.reduce((s, o) => s + o.total, 0);
   const avg = Math.round(monthSpend / Math.max(1, orders.length));
   const lowStockProducts = products.filter((p) => p.status === "low" || p.status === "out").slice(0, 4);
+  const today = new Date().toISOString().slice(0, 10);
+  const todaysRecurring = recurring.filter((r) => r.active && r.nextDelivery === today);
 
   return (
     <div className="space-y-6">
@@ -58,6 +62,27 @@ function Dashboard() {
           </div>
         </motion.div>
       </div>
+
+      {todaysRecurring.length > 0 && (
+        <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-primary/30 bg-primary/5">
+          <Sparkles className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 text-sm"><b>{todaysRecurring.length} commande(s) récurrente(s) à valider aujourd'hui</b></div>
+          <Link to="/restaurant/recurring" className="text-sm font-semibold text-primary inline-flex items-center gap-1">Voir <ArrowRight className="h-3.5 w-3.5" /></Link>
+        </div>
+      )}
+
+      <OnboardingChecklist
+        storageKey="restaurant"
+        title="Configurez votre restaurant"
+        items={[
+          { key: "resto_profile", label: "Compléter le profil du restaurant" },
+          { key: "resto_address", label: "Ajouter l'adresse de livraison" },
+          { key: "resto_payment", label: "Configurer un moyen de paiement" },
+          { key: "resto_first_order", label: "Passer votre première commande" },
+          { key: "resto_team", label: "Inviter votre équipe" },
+          { key: "resto_recurring", label: "Programmer une commande récurrente" },
+        ]}
+      />
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 glass rounded-2xl p-5 space-y-3">
