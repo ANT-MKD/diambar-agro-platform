@@ -39,6 +39,8 @@ import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notific
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
+import { Route as DriverMissionsRouteImport } from './routes/driver.missions'
+import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
 import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
 import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
@@ -209,6 +211,16 @@ const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => FarmerRoute,
 } as any)
+const DriverMissionsRoute = DriverMissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverDashboardRoute = DriverDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => DriverRoute,
+} as any)
 const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -316,7 +328,7 @@ const FarmerOrdersOrderIdRefuseRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/driver': typeof DriverRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -324,6 +336,8 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/missions': typeof DriverMissionsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -367,7 +381,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/driver': typeof DriverRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -375,6 +389,8 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/missions': typeof DriverMissionsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -419,7 +435,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/driver': typeof DriverRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -427,6 +443,8 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/missions': typeof DriverMissionsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -480,6 +498,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -531,6 +551,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -582,6 +604,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -626,7 +650,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DriverRoute: typeof DriverRoute
+  DriverRoute: typeof DriverRouteWithChildren
   FarmerRoute: typeof FarmerRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -849,6 +873,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerAnalyticsRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/driver/missions': {
+      id: '/driver/missions'
+      path: '/missions'
+      fullPath: '/driver/missions'
+      preLoaderRoute: typeof DriverMissionsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/dashboard': {
+      id: '/driver/dashboard'
+      path: '/dashboard'
+      fullPath: '/driver/dashboard'
+      preLoaderRoute: typeof DriverDashboardRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/restaurant/suppliers/new': {
       id: '/restaurant/suppliers/new'
       path: '/new'
@@ -984,6 +1022,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DriverRouteChildren {
+  DriverDashboardRoute: typeof DriverDashboardRoute
+  DriverMissionsRoute: typeof DriverMissionsRoute
+}
+
+const DriverRouteChildren: DriverRouteChildren = {
+  DriverDashboardRoute: DriverDashboardRoute,
+  DriverMissionsRoute: DriverMissionsRoute,
+}
+
+const DriverRouteWithChildren =
+  DriverRoute._addFileChildren(DriverRouteChildren)
 
 interface FarmerOrdersOrderIdRouteChildren {
   FarmerOrdersOrderIdRefuseRoute: typeof FarmerOrdersOrderIdRefuseRoute
@@ -1197,7 +1248,7 @@ const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DriverRoute: DriverRoute,
+  DriverRoute: DriverRouteWithChildren,
   FarmerRoute: FarmerRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
