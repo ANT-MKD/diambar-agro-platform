@@ -309,3 +309,161 @@ export const restaurantNotifications: AppNotification[] = [
   { id: "rn3", type: "stock", title: "Stock faible chez fournisseur", body: "Oignons rouges (Mamadou)", at: "2025-05-14T16:00:00Z", read: true },
   { id: "rn4", type: "message", title: "Réponse de Mamadou", body: "OK pour demain 8h", at: "2025-05-15T10:42:00Z", read: true },
 ];
+
+// === Driver module ===
+export type MissionStatus =
+  | "available"    // proposée, pas encore acceptée
+  | "accepted"     // acceptée par le livreur, pas encore commencée
+  | "pickup"       // en route vers l'agriculteur
+  | "loaded"       // marchandises récupérées, en route vers restaurant
+  | "delivered"    // livrée, en attente de confirmation paiement
+  | "cancelled";
+
+export type Mission = {
+  id: string;
+  reference: string;
+  orderRef: string;
+  farmerId: string;
+  restaurantId: string;
+  driverId?: string;
+  status: MissionStatus;
+  pickup: { address: string; city: string; lat: number; lng: number; contactPhone: string };
+  dropoff: { address: string; city: string; lat: number; lng: number; contactPhone: string };
+  distanceKm: number;
+  estimatedMinutes: number;
+  payout: number;      // FCFA reçus par le livreur
+  weightKg: number;
+  itemsCount: number;
+  scheduledFor: string; // ISO
+  createdAt: string;
+  vehicleType: "Moto" | "Camionnette" | "Camion" | "Tricycle";
+  urgency: "standard" | "priority" | "express";
+};
+
+export const missions: Mission[] = [
+  // Missions disponibles (marketplace)
+  { id: "mi1", reference: "MIS-4210", orderRef: "CMD-3055", farmerId: "f1", restaurantId: "r1", status: "available", pickup: { address: "Route de Khombole km 3, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 123 45 67" }, dropoff: { address: "Place de l'Indépendance, Dakar Plateau", city: "Dakar", lat: 14.67, lng: -17.43, contactPhone: "+221 78 900 11 22" }, distanceKm: 72, estimatedMinutes: 95, payout: 8500, weightKg: 45, itemsCount: 3, scheduledFor: "2025-05-16T08:00:00Z", createdAt: "2025-05-15T11:00:00Z", vehicleType: "Camionnette", urgency: "standard" },
+  { id: "mi2", reference: "MIS-4211", orderRef: "CMD-3056", farmerId: "f2", restaurantId: "r2", status: "available", pickup: { address: "Zone maraîchère, Dakar-Pikine", city: "Dakar", lat: 14.75, lng: -17.39, contactPhone: "+221 78 200 33 44" }, dropoff: { address: "Chez Aminata, Thiès centre", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 555 22 88" }, distanceKm: 68, estimatedMinutes: 85, payout: 7500, weightKg: 22, itemsCount: 2, scheduledFor: "2025-05-16T10:00:00Z", createdAt: "2025-05-15T10:30:00Z", vehicleType: "Moto", urgency: "priority" },
+  { id: "mi3", reference: "MIS-4212", orderRef: "CMD-3057", farmerId: "f3", restaurantId: "r3", status: "available", pickup: { address: "Ferme Niayes, Mbour", city: "Mbour", lat: 14.42, lng: -16.97, contactPhone: "+221 76 555 11 22" }, dropoff: { address: "Hôtel Téranga, Dakar", city: "Dakar", lat: 14.67, lng: -17.44, contactPhone: "+221 77 444 88 99" }, distanceKm: 84, estimatedMinutes: 110, payout: 12000, weightKg: 120, itemsCount: 4, scheduledFor: "2025-05-16T06:30:00Z", createdAt: "2025-05-15T09:45:00Z", vehicleType: "Camion", urgency: "express" },
+
+  // Missions en cours (assignées à d1 = Oumar Ba)
+  { id: "mi4", reference: "MIS-4200", orderRef: "CMD-2851", farmerId: "f1", restaurantId: "r1", driverId: "d1", status: "loaded", pickup: { address: "Route de Khombole km 3, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 123 45 67" }, dropoff: { address: "Le Baobab, Dakar Plateau", city: "Dakar", lat: 14.67, lng: -17.43, contactPhone: "+221 78 900 11 22" }, distanceKm: 72, estimatedMinutes: 95, payout: 8500, weightKg: 80, itemsCount: 2, scheduledFor: "2025-05-15T08:00:00Z", createdAt: "2025-05-15T07:30:00Z", vehicleType: "Camionnette", urgency: "standard" },
+  { id: "mi5", reference: "MIS-4201", orderRef: "CMD-2852", farmerId: "f2", restaurantId: "r2", driverId: "d1", status: "accepted", pickup: { address: "Zone maraîchère, Dakar-Pikine", city: "Dakar", lat: 14.75, lng: -17.39, contactPhone: "+221 78 200 33 44" }, dropoff: { address: "Chez Aminata, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 555 22 88" }, distanceKm: 68, estimatedMinutes: 85, payout: 7500, weightKg: 24, itemsCount: 1, scheduledFor: "2025-05-15T14:00:00Z", createdAt: "2025-05-15T09:00:00Z", vehicleType: "Camionnette", urgency: "standard" },
+
+  // Missions historiques (livrées)
+  { id: "mi6", reference: "MIS-4180", orderRef: "CMD-2847", farmerId: "f1", restaurantId: "r2", driverId: "d1", status: "delivered", pickup: { address: "Route de Khombole km 3, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 123 45 67" }, dropoff: { address: "Chez Aminata, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 555 22 88" }, distanceKm: 5, estimatedMinutes: 15, payout: 3500, weightKg: 80, itemsCount: 2, scheduledFor: "2025-05-14T11:00:00Z", createdAt: "2025-05-14T10:30:00Z", vehicleType: "Camionnette", urgency: "standard" },
+  { id: "mi7", reference: "MIS-4178", orderRef: "CMD-2844", farmerId: "f3", restaurantId: "r1", driverId: "d1", status: "delivered", pickup: { address: "Ferme Niayes, Mbour", city: "Mbour", lat: 14.42, lng: -16.97, contactPhone: "+221 76 555 11 22" }, dropoff: { address: "Le Baobab, Dakar", city: "Dakar", lat: 14.67, lng: -17.43, contactPhone: "+221 78 900 11 22" }, distanceKm: 84, estimatedMinutes: 110, payout: 12000, weightKg: 60, itemsCount: 3, scheduledFor: "2025-05-13T07:00:00Z", createdAt: "2025-05-13T06:30:00Z", vehicleType: "Camionnette", urgency: "priority" },
+  { id: "mi8", reference: "MIS-4175", orderRef: "CMD-2838", farmerId: "f1", restaurantId: "r3", driverId: "d1", status: "delivered", pickup: { address: "Route de Khombole km 3, Thiès", city: "Thiès", lat: 14.79, lng: -16.93, contactPhone: "+221 77 123 45 67" }, dropoff: { address: "Hôtel Téranga, Dakar", city: "Dakar", lat: 14.67, lng: -17.44, contactPhone: "+221 77 444 88 99" }, distanceKm: 72, estimatedMinutes: 95, payout: 8500, weightKg: 55, itemsCount: 2, scheduledFor: "2025-05-12T08:00:00Z", createdAt: "2025-05-12T07:30:00Z", vehicleType: "Camionnette", urgency: "standard" },
+  { id: "mi9", reference: "MIS-4170", orderRef: "CMD-2830", farmerId: "f2", restaurantId: "r1", driverId: "d1", status: "delivered", pickup: { address: "Zone maraîchère, Dakar-Pikine", city: "Dakar", lat: 14.75, lng: -17.39, contactPhone: "+221 78 200 33 44" }, dropoff: { address: "Le Baobab, Dakar", city: "Dakar", lat: 14.67, lng: -17.43, contactPhone: "+221 78 900 11 22" }, distanceKm: 12, estimatedMinutes: 25, payout: 4500, weightKg: 32, itemsCount: 1, scheduledFor: "2025-05-11T09:00:00Z", createdAt: "2025-05-11T08:30:00Z", vehicleType: "Moto", urgency: "standard" },
+];
+
+export type DriverVehicle = {
+  type: "Moto" | "Camionnette" | "Camion" | "Tricycle";
+  brand: string;
+  model: string;
+  year: number;
+  plate: string;
+  color: string;
+  capacityKg: number;
+  insuranceExpiry: string;
+  inspectionExpiry: string;
+  photo: string;
+};
+
+export const driverProfile = {
+  id: "d1",
+  name: "Oumar Ba",
+  avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
+  phone: "+221 77 888 99 00",
+  email: "oumar@diambar.sn",
+  city: "Dakar",
+  rating: 4.9,
+  totalMissions: 234,
+  totalDistanceKm: 12480,
+  memberSince: "2024-01-15",
+  balance: 187500,
+  todayEarnings: 24500,
+  todayMissions: 4,
+  todayKm: 128,
+  todayHours: 6.5,
+  online: true,
+  documents: {
+    permitVerified: true,
+    idVerified: true,
+    insuranceVerified: true,
+  },
+};
+
+export const driverVehicle: DriverVehicle = {
+  type: "Camionnette",
+  brand: "Toyota",
+  model: "Hilux",
+  year: 2019,
+  plate: "DK 4587 AB",
+  color: "Blanc",
+  capacityKg: 800,
+  insuranceExpiry: "2026-03-15",
+  inspectionExpiry: "2025-11-20",
+  photo: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800",
+};
+
+export type DriverEarning = {
+  id: string;
+  date: string;
+  missionRef: string;
+  orderRef: string;
+  restaurantName: string;
+  gross: number;
+  bonus: number;
+  fee: number;
+  net: number;
+  method: PaymentMethod;
+  status: "Payé" | "En attente" | "Programmé";
+};
+
+export const driverEarnings: DriverEarning[] = [
+  { id: "de1", date: "2025-05-15", missionRef: "MIS-4200", orderRef: "CMD-2851", restaurantName: "Le Baobab", gross: 8500, bonus: 500, fee: 425, net: 8575, method: "Wave", status: "Programmé" },
+  { id: "de2", date: "2025-05-14", missionRef: "MIS-4180", orderRef: "CMD-2847", restaurantName: "Chez Aminata", gross: 3500, bonus: 0, fee: 175, net: 3325, method: "Wave", status: "Payé" },
+  { id: "de3", date: "2025-05-13", missionRef: "MIS-4178", orderRef: "CMD-2844", restaurantName: "Le Baobab", gross: 12000, bonus: 1500, fee: 600, net: 12900, method: "Wave", status: "Payé" },
+  { id: "de4", date: "2025-05-12", missionRef: "MIS-4175", orderRef: "CMD-2838", restaurantName: "Hôtel Téranga", gross: 8500, bonus: 0, fee: 425, net: 8075, method: "Orange Money", status: "Payé" },
+  { id: "de5", date: "2025-05-11", missionRef: "MIS-4170", orderRef: "CMD-2830", restaurantName: "Le Baobab", gross: 4500, bonus: 0, fee: 225, net: 4275, method: "Wave", status: "Payé" },
+  { id: "de6", date: "2025-05-10", missionRef: "MIS-4165", orderRef: "CMD-2825", restaurantName: "Chez Aminata", gross: 6000, bonus: 500, fee: 300, net: 6200, method: "Wave", status: "Payé" },
+  { id: "de7", date: "2025-05-09", missionRef: "MIS-4160", orderRef: "CMD-2820", restaurantName: "Hôtel Téranga", gross: 11000, bonus: 1000, fee: 550, net: 11450, method: "Wave", status: "Payé" },
+];
+
+export const driverEarningsChart = [
+  { day: "Lun", amount: 18000, missions: 3 },
+  { day: "Mar", amount: 24500, missions: 4 },
+  { day: "Mer", amount: 15000, missions: 2 },
+  { day: "Jeu", amount: 32000, missions: 5 },
+  { day: "Ven", amount: 28500, missions: 4 },
+  { day: "Sam", amount: 41000, missions: 6 },
+  { day: "Dim", amount: 22000, missions: 3 },
+];
+
+export const driverNotifications: AppNotification[] = [
+  { id: "dn1", type: "order", title: "Nouvelle mission proposée", body: "MIS-4212 · Mbour → Dakar · 12 000 FCFA", at: "2025-05-15T09:45:00Z", read: false },
+  { id: "dn2", type: "payment", title: "Paiement reçu", body: "Wave · +8 575 FCFA (MIS-4200)", at: "2025-05-15T11:30:00Z", read: false },
+  { id: "dn3", type: "message", title: "Message de Le Baobab", body: "Merci pour la livraison !", at: "2025-05-15T11:40:00Z", read: false },
+  { id: "dn4", type: "system", title: "Bonus objectif", body: "Complétez 2 missions de plus aujourd'hui pour +2 000 FCFA", at: "2025-05-15T08:00:00Z", read: true },
+  { id: "dn5", type: "order", title: "Mission acceptée", body: "MIS-4201 confirmée · pickup 14h", at: "2025-05-15T09:15:00Z", read: true },
+];
+
+export const driverConversations: Conversation[] = [
+  {
+    id: "dc1", restaurantId: "r1", lastMessage: "Merci pour la livraison !", lastAt: "2025-05-15T11:40:00Z", unread: 1,
+    messages: [
+      { id: "m1", from: "them", text: "Bonjour Oumar, vous êtes loin ?", at: "2025-05-15T09:15:00Z" },
+      { id: "m2", from: "me", text: "Bonjour, je suis à 20 min.", at: "2025-05-15T09:17:00Z" },
+      { id: "m3", from: "them", text: "Parfait 👌", at: "2025-05-15T09:18:00Z" },
+      { id: "m4", from: "them", text: "Merci pour la livraison !", at: "2025-05-15T11:40:00Z" },
+    ],
+  },
+  {
+    id: "dc2", restaurantId: "r2", lastMessage: "Rdv à 14h devant la ferme.", lastAt: "2025-05-15T10:00:00Z", unread: 0,
+    messages: [
+      { id: "m1", from: "me", text: "Bonjour, à quelle heure je passe ?", at: "2025-05-15T09:50:00Z" },
+      { id: "m2", from: "them", text: "Rdv à 14h devant la ferme.", at: "2025-05-15T10:00:00Z" },
+    ],
+  },
+];
