@@ -6,7 +6,7 @@ import { LayoutGrid, List as ListIcon, Clock } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
 import { useRestaurantOrders, restaurantOrderActions } from "@/data/store";
-import { farmers, type OrderStatus, type Order } from "@/data/mocks";
+import { farmers, type OrderStatus, type RestaurantOrder } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/orders")({
@@ -19,12 +19,12 @@ const COLS: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", 
 function OrdersPage() {
   const orders = useRestaurantOrders();
   const [view, setView] = useState<"list" | "kanban">("list");
-  const [cols, setCols] = useState<Record<OrderStatus, Order[]>>({} as Record<OrderStatus, Order[]>);
+  const [cols, setCols] = useState<Record<OrderStatus, RestaurantOrder[]>>({} as Record<OrderStatus, RestaurantOrder[]>);
 
   useEffect(() => {
-    const next: Record<string, Order[]> = {};
+    const next: Record<string, RestaurantOrder[]> = {};
     COLS.forEach((c) => { next[c] = orders.filter((o) => o.status === c); });
-    setCols(next as Record<OrderStatus, Order[]>);
+    setCols(next as Record<OrderStatus, RestaurantOrder[]>);
   }, [orders]);
 
   return (
