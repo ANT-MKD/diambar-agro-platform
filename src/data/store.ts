@@ -10,6 +10,9 @@ import {
   restaurantNotifications as seedRestoNotifs,
   conversations as seedConversations,
   recurringOrders as seedRecurring,
+  missions as seedMissions,
+  driverNotifications as seedDriverNotifs,
+  driverConversations as seedDriverConvos,
   type Product,
   type Order,
   type OrderStatus,
@@ -21,6 +24,8 @@ import {
   type AppNotification,
   type Conversation,
   type RecurringOrder,
+  type Mission,
+  type MissionStatus,
 } from "./mocks";
 
 type Listener = () => void;
@@ -58,6 +63,10 @@ const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrder
 const suppliersStore = createStore<Supplier[]>(seedSuppliers);
 const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
 const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
+const driverNotifsStore = createStore<AppNotification[]>(seedDriverNotifs);
+const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
+const driverConvosStore = createStore<Conversation[]>(seedDriverConvos, "diambar:driver-convos");
+const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([], "diambar:cart");
@@ -126,6 +135,24 @@ export function useFarmerNotifications() {
 export function useRestaurantNotifications() {
   return useSyncExternalStore(restoNotifsStore.subscribe, restoNotifsStore.get, restoNotifsStore.get);
 }
+export function useDriverNotifications() {
+  return useSyncExternalStore(driverNotifsStore.subscribe, driverNotifsStore.get, driverNotifsStore.get);
+}
+export function useMissions() {
+  return useSyncExternalStore(missionsStore.subscribe, missionsStore.get, missionsStore.get);
+}
+export function useMission(id: string) {
+  return useMissions().find((m) => m.id === id) ?? null;
+}
+export function useDriverConversations() {
+  return useSyncExternalStore(driverConvosStore.subscribe, driverConvosStore.get, driverConvosStore.get);
+}
+export function useDriverConversation(id: string) {
+  return useDriverConversations().find((c) => c.id === id) ?? null;
+}
+export function useDriverOnline() {
+  return useSyncExternalStore(driverOnlineStore.subscribe, driverOnlineStore.get, driverOnlineStore.get);
+}
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
   return {
@@ -150,6 +177,34 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
 
 export const farmerNotifActions = makeNotifActions(farmerNotifsStore);
 export const restaurantNotifActions = makeNotifActions(restoNotifsStore);
+export const driverNotifActions = makeNotifActions(driverNotifsStore);
+
+export const missionActions = {
+  setStatus: (id: string, status: MissionStatus) => {
+    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status } : m)));
+  },
+  accept: (id: string, driverId = "d1") => {
+    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)));
+  },
+  cancel: (id: string) => {
+    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
+  },
+};
+
+export const driverConversationActions = {
+  send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
+    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
+    driverConvosStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at } : c));
+  },
+  markRead: (conversationId: string) => {
+    driverConvosStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+  },
+};
+
+export const driverOnlineActions = {
+  toggle: () => driverOnlineStore.set((v) => !v),
+  set: (v: boolean) => driverOnlineStore.set(v),
+};
 
 export const supplierActions = {
   create: (s: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & { suspended?: boolean }) => {

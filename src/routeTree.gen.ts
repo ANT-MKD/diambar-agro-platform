@@ -16,6 +16,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
+import { Route as DriverRouteImport } from './routes/driver'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
@@ -38,6 +39,10 @@ import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notific
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
+import { Route as DriverMissionsRouteImport } from './routes/driver.missions'
+import { Route as DriverHistoryRouteImport } from './routes/driver.history'
+import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
+import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
 import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
 import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
@@ -51,6 +56,7 @@ import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.
 import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
 import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
 import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
+import { Route as DriverMissionsMissionIdRouteImport } from './routes/driver.missions.$missionId'
 import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
 import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
 import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
@@ -91,6 +97,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const FarmerRoute = FarmerRouteImport.update({
   id: '/farmer',
   path: '/farmer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -203,6 +214,26 @@ const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => FarmerRoute,
 } as any)
+const DriverMissionsRoute = DriverMissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverHistoryRoute = DriverHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverEarningsRoute = DriverEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverDashboardRoute = DriverDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => DriverRoute,
+} as any)
 const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -272,6 +303,11 @@ const FarmerOrdersOrderIdRoute = FarmerOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => FarmerOrdersRoute,
 } as any)
+const DriverMissionsMissionIdRoute = DriverMissionsMissionIdRouteImport.update({
+  id: '/$missionId',
+  path: '/$missionId',
+  getParentRoute: () => DriverMissionsRoute,
+} as any)
 const RestaurantSuppliersSupplierIdEditRoute =
   RestaurantSuppliersSupplierIdEditRouteImport.update({
     id: '/edit',
@@ -310,6 +346,7 @@ const FarmerOrdersOrderIdRefuseRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -317,6 +354,10 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/earnings': typeof DriverEarningsRoute
+  '/driver/history': typeof DriverHistoryRoute
+  '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -338,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -360,6 +402,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -367,6 +410,10 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/earnings': typeof DriverEarningsRoute
+  '/driver/history': typeof DriverHistoryRoute
+  '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -388,6 +435,7 @@ export interface FileRoutesByTo {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -411,6 +459,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/driver': typeof DriverRouteWithChildren
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -418,6 +467,10 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/driver/dashboard': typeof DriverDashboardRoute
+  '/driver/earnings': typeof DriverEarningsRoute
+  '/driver/history': typeof DriverHistoryRoute
+  '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -439,6 +492,7 @@ export interface FileRoutesById {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -463,6 +517,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/driver'
     | '/farmer'
     | '/forgot-password'
     | '/login'
@@ -470,6 +525,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/earnings'
+    | '/driver/history'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -491,6 +550,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/driver/missions/$missionId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -513,6 +573,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/driver'
     | '/farmer'
     | '/forgot-password'
     | '/login'
@@ -520,6 +581,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/earnings'
+    | '/driver/history'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -541,6 +606,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/driver/missions/$missionId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -563,6 +629,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/driver'
     | '/farmer'
     | '/forgot-password'
     | '/login'
@@ -570,6 +637,10 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/driver/dashboard'
+    | '/driver/earnings'
+    | '/driver/history'
+    | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -591,6 +662,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/driver/missions/$missionId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -614,6 +686,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DriverRoute: typeof DriverRouteWithChildren
   FarmerRoute: typeof FarmerRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -673,6 +746,13 @@ declare module '@tanstack/react-router' {
       path: '/farmer'
       fullPath: '/farmer'
       preLoaderRoute: typeof FarmerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -829,6 +909,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerAnalyticsRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/driver/missions': {
+      id: '/driver/missions'
+      path: '/missions'
+      fullPath: '/driver/missions'
+      preLoaderRoute: typeof DriverMissionsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/history': {
+      id: '/driver/history'
+      path: '/history'
+      fullPath: '/driver/history'
+      preLoaderRoute: typeof DriverHistoryRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/earnings': {
+      id: '/driver/earnings'
+      path: '/earnings'
+      fullPath: '/driver/earnings'
+      preLoaderRoute: typeof DriverEarningsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/dashboard': {
+      id: '/driver/dashboard'
+      path: '/dashboard'
+      fullPath: '/driver/dashboard'
+      preLoaderRoute: typeof DriverDashboardRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/restaurant/suppliers/new': {
       id: '/restaurant/suppliers/new'
       path: '/new'
@@ -920,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerOrdersOrderIdRouteImport
       parentRoute: typeof FarmerOrdersRoute
     }
+    '/driver/missions/$missionId': {
+      id: '/driver/missions/$missionId'
+      path: '/$missionId'
+      fullPath: '/driver/missions/$missionId'
+      preLoaderRoute: typeof DriverMissionsMissionIdRouteImport
+      parentRoute: typeof DriverMissionsRoute
+    }
     '/restaurant/suppliers/$supplierId/edit': {
       id: '/restaurant/suppliers/$supplierId/edit'
       path: '/edit'
@@ -964,6 +1079,35 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface DriverMissionsRouteChildren {
+  DriverMissionsMissionIdRoute: typeof DriverMissionsMissionIdRoute
+}
+
+const DriverMissionsRouteChildren: DriverMissionsRouteChildren = {
+  DriverMissionsMissionIdRoute: DriverMissionsMissionIdRoute,
+}
+
+const DriverMissionsRouteWithChildren = DriverMissionsRoute._addFileChildren(
+  DriverMissionsRouteChildren,
+)
+
+interface DriverRouteChildren {
+  DriverDashboardRoute: typeof DriverDashboardRoute
+  DriverEarningsRoute: typeof DriverEarningsRoute
+  DriverHistoryRoute: typeof DriverHistoryRoute
+  DriverMissionsRoute: typeof DriverMissionsRouteWithChildren
+}
+
+const DriverRouteChildren: DriverRouteChildren = {
+  DriverDashboardRoute: DriverDashboardRoute,
+  DriverEarningsRoute: DriverEarningsRoute,
+  DriverHistoryRoute: DriverHistoryRoute,
+  DriverMissionsRoute: DriverMissionsRouteWithChildren,
+}
+
+const DriverRouteWithChildren =
+  DriverRoute._addFileChildren(DriverRouteChildren)
 
 interface FarmerOrdersOrderIdRouteChildren {
   FarmerOrdersOrderIdRefuseRoute: typeof FarmerOrdersOrderIdRefuseRoute
@@ -1177,6 +1321,7 @@ const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DriverRoute: DriverRouteWithChildren,
   FarmerRoute: FarmerRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,

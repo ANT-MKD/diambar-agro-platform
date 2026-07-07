@@ -36,6 +36,12 @@ const LABELS: Record<string, string> = {
   farmers: "Agriculteurs",
   expenses: "Dépenses",
   review: "Avis",
+  driver: "Espace",
+  missions: "Missions",
+  earnings: "Revenus",
+  vehicle: "Véhicule",
+  suppliers: "Fournisseurs",
+  invoices: "Factures",
 };
 
 export function Breadcrumb() {
