@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { LayoutGrid, List as ListIcon, Clock } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
-import { useRestaurantOrders } from "@/data/store";
-import { farmers, type OrderStatus } from "@/data/mocks";
+import { useRestaurantOrders, restaurantOrderActions } from "@/data/store";
+import { farmers, type OrderStatus, type RestaurantOrder } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/orders")({
@@ -17,6 +19,13 @@ const COLS: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", 
 function OrdersPage() {
   const orders = useRestaurantOrders();
   const [view, setView] = useState<"list" | "kanban">("list");
+  const [cols, setCols] = useState<Record<OrderStatus, RestaurantOrder[]>>({} as Record<OrderStatus, RestaurantOrder[]>);
+
+  useEffect(() => {
+    const next: Record<string, RestaurantOrder[]> = {};
+    COLS.forEach((c) => { next[c] = orders.filter((o) => o.status === c); });
+    setCols(next as Record<OrderStatus, RestaurantOrder[]>);
+  }, [orders]);
 
   return (
     <div className="space-y-6">
@@ -53,9 +62,9 @@ function OrdersPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
           {COLS.map((col) => {
-            const cards = orders.filter((o) => o.status === col);
+            const cards = cols[col] ?? [];
             return (
-              <div key={col} className="glass rounded-2xl p-3 space-y-2">
+              <div key={col} className="glass rounded-2xl p-3 space-y-2 min-h-[300px]">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="text-xs font-bold uppercase tracking-wider">{ORDER_LABEL[col]}</h3>
                   <span className="text-[10px] rounded-full bg-muted px-2 py-0.5 font-bold">{cards.length}</span>
@@ -63,16 +72,36 @@ function OrdersPage() {
                 {cards.map((o) => {
                   const f = farmers.find((x) => x.id === o.farmerId);
                   return (
-                    <Link key={o.id} to="/restaurant/orders/$orderId" params={{ orderId: o.id }} className="block bg-card rounded-xl p-3 border border-border hover:scale-[1.01] transition">
-                      <div className="flex items-center gap-2"><img src={f?.avatar} alt="" className="h-7 w-7 rounded-full object-cover" /><span className="text-xs font-semibold">{f?.farm}</span></div>
-                      <div className="mt-2 text-[11px] text-muted-foreground">{o.reference} · {o.items.length} art.</div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{relativeTime(o.createdAt)}</span>
-                        <span className="font-bold text-sm text-primary">{formatFCFA(o.total)}</span>
-                      </div>
-                    </Link>
+                    <motion.div
+                      key={o.id}
+                      layout
+                      drag
+                      dragSnapToOrigin
+                      whileDrag={{ scale: 1.04, zIndex: 50 }}
+                      onDragEnd={(_, info) => {
+                        if (Math.abs(info.offset.x) < 80) return;
+                        const idx = COLS.indexOf(col);
+                        const dir = info.offset.x > 0 ? 1 : -1;
+                        const next = COLS[idx + dir];
+                        if (next) {
+                          restaurantOrderActions.setStatus(o.id, next);
+                          toast.success(`Statut → ${ORDER_LABEL[next]}`);
+                        }
+                      }}
+                      className="block bg-card rounded-xl p-3 border border-border cursor-grab active:cursor-grabbing"
+                    >
+                      <Link to="/restaurant/orders/$orderId" params={{ orderId: o.id }} onClick={(e) => e.stopPropagation()} className="block">
+                        <div className="flex items-center gap-2"><img src={f?.avatar} alt="" className="h-7 w-7 rounded-full object-cover" /><span className="text-xs font-semibold">{f?.farm}</span></div>
+                        <div className="mt-2 text-[11px] text-muted-foreground">{o.reference} · {o.items.length} art.</div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{relativeTime(o.createdAt)}</span>
+                          <span className="font-bold text-sm text-primary">{formatFCFA(o.total)}</span>
+                        </div>
+                      </Link>
+                    </motion.div>
                   );
                 })}
+                {cards.length === 0 && <div className="text-center text-[11px] text-muted-foreground/60 py-8">Vide</div>}
               </div>
             );
           })}
