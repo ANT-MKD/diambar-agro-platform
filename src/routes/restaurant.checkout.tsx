@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Check, MapPin, CreditCard, Calendar } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, MapPin, CreditCard, Calendar, AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useCart, useProducts, cartActions, restaurantOrderActions } from "@/data/store";
 import { farmers, type PaymentMethod } from "@/data/mocks";
@@ -17,6 +18,11 @@ export const Route = createFileRoute("/restaurant/checkout")({
 
 const PAY: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 
+const step1Schema = z.object({
+  address: z.string().trim().min(10, "Adresse trop courte (min 10 caractères)"),
+  slot: z.string().min(1, "Choisissez un créneau"),
+});
+
 function Checkout() {
   const navigate = useNavigate();
   const cart = useCart();
@@ -30,12 +36,26 @@ function Checkout() {
   const [address, setAddress] = useState("Le Baobab, Dakar Plateau");
   const [slot, setSlot] = useState("Demain · 08:00 – 10:00");
   const [method, setMethod] = useState<PaymentMethod>("Wave");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const farmerGroups = useMemo(() => farmers.filter((f) => lines.some((l) => l.product.farmerId === f.id)), [lines]);
 
   if (lines.length === 0 && step !== 3) {
     return <div className="glass rounded-2xl p-12 text-center text-muted-foreground">Votre panier est vide.</div>;
   }
+
+  const goStep2 = () => {
+    const parsed = step1Schema.safeParse({ address, slot });
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.issues.forEach((i) => { errs[i.path[0] as string] = i.message; });
+      setErrors(errs);
+      toast.error("Corrigez les erreurs du formulaire");
+      return;
+    }
+    setErrors({});
+    setStep(2);
+  };
 
   const confirm = () => {
     farmerGroups.forEach((f) => {
@@ -56,7 +76,7 @@ function Checkout() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <PageHeader title="Finaliser la commande" subtitle={`Étape ${step} sur 3`} />
 
       <div className="flex items-center gap-2">
@@ -69,18 +89,23 @@ function Checkout() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 glass rounded-2xl p-6 space-y-4">
           {step === 1 && (
             <>
               <h3 className="font-display text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />Adresse de livraison</h3>
-              <div className="space-y-2"><Label>Adresse complète</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+              <div className="space-y-2">
+                <Label>Adresse complète</Label>
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} aria-invalid={!!errors.address} />
+                {errors.address && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.address}</p>}
+              </div>
               <h3 className="font-display text-lg font-bold flex items-center gap-2 pt-3"><Calendar className="h-5 w-5 text-primary" />Créneau souhaité</h3>
               <div className="grid sm:grid-cols-2 gap-2">
                 {["Aujourd'hui · 14:00 – 16:00", "Aujourd'hui · 17:00 – 19:00", "Demain · 08:00 – 10:00", "Demain · 14:00 – 16:00"].map((s) => (
                   <button key={s} onClick={() => setSlot(s)} className={`text-left p-3 rounded-xl border text-sm transition ${slot === s ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}>{s}</button>
                 ))}
               </div>
+              {errors.slot && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{errors.slot}</p>}
             </>
           )}
           {step === 2 && (
@@ -106,7 +131,7 @@ function Checkout() {
           )}
         </div>
 
-        <div className="glass rounded-2xl p-5 h-fit space-y-3">
+        <div className="glass rounded-2xl p-5 space-y-3 lg:sticky lg:top-4">
           <h3 className="font-display text-lg font-bold">Récapitulatif</h3>
           <div className="space-y-2 text-sm max-h-48 overflow-auto">
             {lines.map((l) => (
@@ -125,7 +150,7 @@ function Checkout() {
           {step !== 3 && (
             <div className="flex gap-2 pt-2">
               {step > 1 && <Button variant="outline" onClick={() => setStep((step - 1) as 1 | 2)} className="gap-1"><ArrowLeft className="h-4 w-4" />Retour</Button>}
-              {step < 2 && <Button onClick={() => setStep(2)} className="flex-1 gap-1">Continuer <ArrowRight className="h-4 w-4" /></Button>}
+              {step < 2 && <Button onClick={goStep2} className="flex-1 gap-1">Continuer <ArrowRight className="h-4 w-4" /></Button>}
               {step === 2 && <Button onClick={confirm} className="flex-1 gap-1">Confirmer <Check className="h-4 w-4" /></Button>}
             </div>
           )}
