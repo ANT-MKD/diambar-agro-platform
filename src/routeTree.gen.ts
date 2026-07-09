@@ -39,6 +39,7 @@ import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notific
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
+import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
 import { Route as DriverMissionsRouteImport } from './routes/driver.missions'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
@@ -215,6 +216,11 @@ const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => FarmerRoute,
 } as any)
+const DriverNotificationsRoute = DriverNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => DriverRoute,
+} as any)
 const DriverMissionsRoute = DriverMissionsRouteImport.update({
   id: '/missions',
   path: '/missions',
@@ -365,6 +371,7 @@ export interface FileRoutesByFullPath {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
+  '/driver/notifications': typeof DriverNotificationsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -422,6 +429,7 @@ export interface FileRoutesByTo {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
+  '/driver/notifications': typeof DriverNotificationsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -480,6 +488,7 @@ export interface FileRoutesById {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
+  '/driver/notifications': typeof DriverNotificationsRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRoute
@@ -539,6 +548,7 @@ export interface FileRouteTypes {
     | '/driver/history'
     | '/driver/messages'
     | '/driver/missions'
+    | '/driver/notifications'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -596,6 +606,7 @@ export interface FileRouteTypes {
     | '/driver/history'
     | '/driver/messages'
     | '/driver/missions'
+    | '/driver/notifications'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -653,6 +664,7 @@ export interface FileRouteTypes {
     | '/driver/history'
     | '/driver/messages'
     | '/driver/missions'
+    | '/driver/notifications'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
@@ -921,6 +933,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerAnalyticsRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/driver/notifications': {
+      id: '/driver/notifications'
+      path: '/notifications'
+      fullPath: '/driver/notifications'
+      preLoaderRoute: typeof DriverNotificationsRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/driver/missions': {
       id: '/driver/missions'
       path: '/missions'
@@ -1117,6 +1136,7 @@ interface DriverRouteChildren {
   DriverHistoryRoute: typeof DriverHistoryRoute
   DriverMessagesRoute: typeof DriverMessagesRoute
   DriverMissionsRoute: typeof DriverMissionsRouteWithChildren
+  DriverNotificationsRoute: typeof DriverNotificationsRoute
 }
 
 const DriverRouteChildren: DriverRouteChildren = {
@@ -1125,6 +1145,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverHistoryRoute: DriverHistoryRoute,
   DriverMessagesRoute: DriverMessagesRoute,
   DriverMissionsRoute: DriverMissionsRouteWithChildren,
+  DriverNotificationsRoute: DriverNotificationsRoute,
 }
 
 const DriverRouteWithChildren =
