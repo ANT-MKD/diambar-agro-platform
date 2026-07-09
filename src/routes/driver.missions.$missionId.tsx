@@ -8,7 +8,6 @@ import { useMission, missionActions, driverNotifActions } from "@/data/store";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/driver/missions/$missionId")({
@@ -213,15 +212,20 @@ function MissionDetail() {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={refuseOpen}
-        onOpenChange={setRefuseOpen}
-        title="Refuser cette mission ?"
-        description={`${mission.reference} · ${formatFCFA(mission.payout)}. Elle sera renvoyée à un autre livreur.`}
-        confirmLabel="Refuser"
-        variant="destructive"
-        onConfirm={refuse}
-      />
+      <AlertDialog open={refuseOpen} onOpenChange={setRefuseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refuser cette mission ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mission.reference} · {formatFCFA(mission.payout)}. Elle sera renvoyée à un autre livreur.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={refuse} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Refuser</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={proofOpen} onOpenChange={setProofOpen}>
         <AlertDialogContent>
