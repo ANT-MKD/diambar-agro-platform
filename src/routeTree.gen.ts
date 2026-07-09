@@ -40,6 +40,7 @@ import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as DriverMissionsRouteImport } from './routes/driver.missions'
+import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
@@ -219,6 +220,11 @@ const DriverMissionsRoute = DriverMissionsRouteImport.update({
   path: '/missions',
   getParentRoute: () => DriverRoute,
 } as any)
+const DriverMessagesRoute = DriverMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => DriverRoute,
+} as any)
 const DriverHistoryRoute = DriverHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -357,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
@@ -470,6 +478,7 @@ export interface FileRoutesById {
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/messages': typeof DriverMessagesRoute
   '/driver/missions': typeof DriverMissionsRouteWithChildren
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
@@ -528,6 +537,7 @@ export interface FileRouteTypes {
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
+    | '/driver/messages'
     | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
@@ -584,6 +594,7 @@ export interface FileRouteTypes {
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
+    | '/driver/messages'
     | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
@@ -640,6 +651,7 @@ export interface FileRouteTypes {
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
+    | '/driver/messages'
     | '/driver/missions'
     | '/farmer/analytics'
     | '/farmer/dashboard'
@@ -916,6 +928,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DriverMissionsRouteImport
       parentRoute: typeof DriverRoute
     }
+    '/driver/messages': {
+      id: '/driver/messages'
+      path: '/messages'
+      fullPath: '/driver/messages'
+      preLoaderRoute: typeof DriverMessagesRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/driver/history': {
       id: '/driver/history'
       path: '/history'
@@ -1096,6 +1115,7 @@ interface DriverRouteChildren {
   DriverDashboardRoute: typeof DriverDashboardRoute
   DriverEarningsRoute: typeof DriverEarningsRoute
   DriverHistoryRoute: typeof DriverHistoryRoute
+  DriverMessagesRoute: typeof DriverMessagesRoute
   DriverMissionsRoute: typeof DriverMissionsRouteWithChildren
 }
 
@@ -1103,6 +1123,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverDashboardRoute: DriverDashboardRoute,
   DriverEarningsRoute: DriverEarningsRoute,
   DriverHistoryRoute: DriverHistoryRoute,
+  DriverMessagesRoute: DriverMessagesRoute,
   DriverMissionsRoute: DriverMissionsRouteWithChildren,
 }
 

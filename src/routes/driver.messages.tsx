@@ -47,7 +47,7 @@ function DriverMessages() {
               const isActive = c.id === activeId;
               return (
                 <button key={c.id} onClick={() => open(c.id)} className={`w-full p-3 flex items-center gap-3 border-b border-border text-left hover:bg-accent transition ${isActive ? "bg-accent" : ""}`}>
-                  <img src={c.resto.avatar ?? c.resto.cover} alt="" className="h-10 w-10 rounded-full object-cover" />
+                  <img src={c.resto.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-sm truncate">{c.resto.name}</span>
@@ -68,7 +68,7 @@ function DriverMessages() {
         {active ? (
           <div className="flex flex-col">
             <div className="p-4 border-b border-border flex items-center gap-3">
-              <img src={active.resto.avatar ?? active.resto.cover} alt="" className="h-10 w-10 rounded-full object-cover" />
+              <img src={active.resto.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
               <div className="flex-1">
                 <div className="font-semibold">{active.resto.name}</div>
                 <div className="text-xs text-muted-foreground">{active.resto.city} · Restaurant client</div>
