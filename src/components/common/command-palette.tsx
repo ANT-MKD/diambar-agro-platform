@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useProducts, useOrders, useSuppliers, useRestaurantOrders } from "@/data/store";
 
-type Scope = "farmer" | "restaurant" | "all";
+type Scope = "farmer" | "restaurant" | "admin" | "all";
 
 export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
   const [open, setOpen] = useState(false);
@@ -54,6 +54,7 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
 
   const showFarmer = scope === "farmer" || scope === "all";
   const showResto = scope === "restaurant" || scope === "all";
+  const showAdmin = scope === "admin" || scope === "all";
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -82,6 +83,17 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
             <CommandItem onSelect={() => go("/restaurant/recurring")}><Repeat className="mr-2 h-4 w-4" />Récurrentes</CommandItem>
             <CommandItem onSelect={() => go("/restaurant/suppliers")}><Users className="mr-2 h-4 w-4" />Fournisseurs</CommandItem>
             <CommandItem onSelect={() => go("/restaurant/invoices")}><FileText className="mr-2 h-4 w-4" />Factures</CommandItem>
+          </CommandGroup>
+        )}
+
+        {showAdmin && (
+          <CommandGroup heading="Administration">
+            <CommandItem onSelect={() => go("/admin/dashboard")}><LayoutDashboard className="mr-2 h-4 w-4" />Vue d'ensemble</CommandItem>
+            <CommandItem onSelect={() => go("/admin/users")}><Users className="mr-2 h-4 w-4" />Utilisateurs</CommandItem>
+            <CommandItem onSelect={() => go("/admin/validations")}><Package className="mr-2 h-4 w-4" />Validations</CommandItem>
+            <CommandItem onSelect={() => go("/admin/disputes")}><FileText className="mr-2 h-4 w-4" />Litiges</CommandItem>
+            <CommandItem onSelect={() => go("/admin/finance")}><TrendingUp className="mr-2 h-4 w-4" />Finance</CommandItem>
+            <CommandItem onSelect={() => go("/admin/settings")}><Settings className="mr-2 h-4 w-4" />Paramètres plateforme</CommandItem>
           </CommandGroup>
         )}
 
