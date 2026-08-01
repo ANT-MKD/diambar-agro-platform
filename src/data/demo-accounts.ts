@@ -48,7 +48,7 @@ export const demoAccounts: DemoAccount[] = [
     password: "demo1234",
     name: "Admin Diambar",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120",
-    redirect: "/farmer/dashboard",
+    redirect: "/admin/dashboard",
     emoji: "🛡️",
     tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
   },
