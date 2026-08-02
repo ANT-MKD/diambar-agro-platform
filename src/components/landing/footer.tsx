@@ -1,4 +1,5 @@
 import { Logo } from "@/components/common/logo";
+import { Link } from "@tanstack/react-router";
 import { Facebook, Instagram, Linkedin, MessageCircle, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
@@ -20,21 +21,21 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Plateforme</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground">Agriculteurs</a></li>
-              <li><a href="#" className="hover:text-foreground">Restaurants</a></li>
-              <li><a href="#" className="hover:text-foreground">Livreurs</a></li>
-              <li><a href="#" className="hover:text-foreground">Tarifs</a></li>
-              <li><a href="#" className="hover:text-foreground">API</a></li>
+              <li><Link to="/for-farmers" className="hover:text-foreground">Agriculteurs</Link></li>
+              <li><Link to="/for-restaurants" className="hover:text-foreground">Restaurants</Link></li>
+              <li><Link to="/for-drivers" className="hover:text-foreground">Livreurs</Link></li>
+              <li><Link to="/pricing" className="hover:text-foreground">Tarifs</Link></li>
+              <li><Link to="/about" className="hover:text-foreground">À propos</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground">Centre d'aide</a></li>
-              <li><a href="#" className="hover:text-foreground">Nous contacter</a></li>
-              <li><a href="#" className="hover:text-foreground">Signaler un problème</a></li>
-              <li><a href="#" className="hover:text-foreground">Conditions d'utilisation</a></li>
-              <li><a href="#" className="hover:text-foreground">Confidentialité</a></li>
+              <li><Link to="/help" className="hover:text-foreground">Centre d'aide</Link></li>
+              <li><Link to="/contact" className="hover:text-foreground">Nous contacter</Link></li>
+              <li><Link to="/faq" className="hover:text-foreground">Questions fréquentes</Link></li>
+              <li><Link to="/legal/terms" className="hover:text-foreground">Conditions d'utilisation</Link></li>
+              <li><Link to="/legal/privacy" className="hover:text-foreground">Confidentialité</Link></li>
             </ul>
           </div>
           <div>
