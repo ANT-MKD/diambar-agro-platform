@@ -41,6 +41,7 @@ import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.das
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
@@ -250,6 +251,11 @@ const RestaurantCartRoute = RestaurantCartRouteImport.update({
 const LegalTermsRoute = LegalTermsRouteImport.update({
   id: '/legal/terms',
   path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerStockRoute = FarmerStockRouteImport.update({
@@ -559,6 +565,7 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
@@ -643,6 +650,7 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
@@ -728,6 +736,7 @@ export interface FileRoutesById {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
@@ -814,6 +823,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
@@ -898,6 +908,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
@@ -982,6 +993,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
@@ -1041,6 +1053,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
   BlogSlugRoute: typeof BlogSlugRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
   TrackPublicIdRoute: typeof TrackPublicIdRoute
   BlogIndexRoute: typeof BlogIndexRoute
@@ -1270,6 +1283,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/terms'
       fullPath: '/legal/terms'
       preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer/stock': {
@@ -1953,6 +1973,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
   BlogSlugRoute: BlogSlugRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
   TrackPublicIdRoute: TrackPublicIdRoute,
   BlogIndexRoute: BlogIndexRoute,
