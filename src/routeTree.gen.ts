@@ -15,6 +15,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -113,6 +114,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -480,6 +486,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -557,6 +564,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -635,6 +643,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -714,6 +723,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -791,6 +801,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -868,6 +879,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -946,6 +958,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   FarmerRoute: typeof FarmerRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
@@ -997,6 +1010,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1802,6 +1822,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   FarmerRoute: FarmerRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
