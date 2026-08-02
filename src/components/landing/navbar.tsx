@@ -5,11 +5,13 @@ import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const links = [
-  { label: "Comment ça marche", href: "#how" },
-  { label: "Fonctionnalités", href: "#features" },
-  { label: "Écosystème", href: "#ecosystem" },
-  { label: "FAQ", href: "#faq" },
-];
+  { label: "Agriculteurs", to: "/for-farmers" },
+  { label: "Restaurants", to: "/for-restaurants" },
+  { label: "Livreurs", to: "/for-drivers" },
+  { label: "Tarifs", to: "/pricing" },
+  { label: "Blog", to: "/blog" },
+  { label: "FAQ", to: "/faq" },
+] as const;
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -26,11 +28,11 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4">
         <div className={`flex items-center justify-between rounded-2xl px-4 py-2.5 transition-all ${scrolled ? "glass-strong shadow-xl" : ""}`}>
           <Logo />
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-6">
             {links.map((l) => (
-              <a key={l.href} href={l.href} className="text-sm font-medium text-foreground/70 hover:text-foreground transition">
+              <Link key={l.to} to={l.to} activeProps={{ className: "text-foreground" }} className="text-sm font-medium text-foreground/70 hover:text-foreground transition">
                 {l.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
@@ -49,7 +51,7 @@ export function Navbar() {
         {open && (
           <div className="lg:hidden mt-2 glass-strong rounded-2xl p-4 flex flex-col gap-2">
             {links.map((l) => (
-              <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent">{l.label}</a>
+              <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent">{l.label}</Link>
             ))}
             <div className="flex gap-2 pt-2 border-t border-border">
               <Link to="/login" className="flex-1 text-center px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent">Connexion</Link>

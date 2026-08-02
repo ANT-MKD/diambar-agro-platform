@@ -12,13 +12,22 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
+import { Route as ForFarmersRouteImport } from './routes/for-farmers'
+import { Route as ForDriversRouteImport } from './routes/for-drivers'
 import { Route as FarmerRouteImport } from './routes/farmer'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DriverRouteImport } from './routes/driver'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
 import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
@@ -31,6 +40,8 @@ import { Route as RestaurantInvoicesRouteImport } from './routes/restaurant.invo
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
@@ -48,6 +59,7 @@ import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as AdminValidationsRouteImport } from './routes/admin.validations'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -96,6 +108,11 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -106,9 +123,29 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForRestaurantsRoute = ForRestaurantsRouteImport.update({
+  id: '/for-restaurants',
+  path: '/for-restaurants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForFarmersRoute = ForFarmersRouteImport.update({
+  id: '/for-farmers',
+  path: '/for-farmers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDriversRoute = ForDriversRouteImport.update({
+  id: '/for-drivers',
+  path: '/for-drivers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerRoute = FarmerRouteImport.update({
@@ -116,9 +153,19 @@ const FarmerRoute = FarmerRouteImport.update({
   path: '/farmer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -126,9 +173,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
@@ -190,6 +247,16 @@ const RestaurantCartRoute = RestaurantCartRouteImport.update({
   id: '/cart',
   path: '/cart',
   getParentRoute: () => RestaurantRoute,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerStockRoute = FarmerStockRouteImport.update({
   id: '/stock',
@@ -275,6 +342,11 @@ const DriverDashboardRoute = DriverDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => DriverRoute,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminValidationsRoute = AdminValidationsRouteImport.update({
   id: '/validations',
@@ -449,12 +521,20 @@ const FarmerOrdersOrderIdRefuseRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/driver': typeof DriverRouteWithChildren
+  '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/for-drivers': typeof ForDriversRoute
+  '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
@@ -467,6 +547,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -484,6 +565,8 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -496,6 +579,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -522,12 +606,20 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/driver': typeof DriverRouteWithChildren
+  '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/for-drivers': typeof ForDriversRoute
+  '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
@@ -540,6 +632,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -557,6 +650,8 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -569,6 +664,7 @@ export interface FileRoutesByTo {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -596,12 +692,20 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/driver': typeof DriverRouteWithChildren
+  '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
+  '/for-drivers': typeof ForDriversRoute
+  '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/help': typeof HelpRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
@@ -614,6 +718,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -631,6 +736,8 @@ export interface FileRoutesById {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -643,6 +750,7 @@ export interface FileRoutesById {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -671,12 +779,20 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/driver'
+    | '/faq'
     | '/farmer'
+    | '/for-drivers'
+    | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
+    | '/pricing'
     | '/register'
     | '/reset-password'
     | '/restaurant'
@@ -689,6 +805,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -706,6 +823,8 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -718,6 +837,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -744,12 +864,20 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/driver'
+    | '/faq'
     | '/farmer'
+    | '/for-drivers'
+    | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
+    | '/pricing'
     | '/register'
     | '/reset-password'
     | '/restaurant'
@@ -762,6 +890,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -779,6 +908,8 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -791,6 +922,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -817,12 +949,20 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/driver'
+    | '/faq'
     | '/farmer'
+    | '/for-drivers'
+    | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
+    | '/help'
     | '/login'
     | '/onboarding'
+    | '/pricing'
     | '/register'
     | '/reset-password'
     | '/restaurant'
@@ -835,6 +975,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -852,6 +993,8 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -864,6 +1007,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -891,16 +1035,28 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRouteWithChildren
+  FaqRoute: typeof FaqRoute
   FarmerRoute: typeof FarmerRouteWithChildren
+  ForDriversRoute: typeof ForDriversRoute
+  ForFarmersRoute: typeof ForFarmersRoute
+  ForRestaurantsRoute: typeof ForRestaurantsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  PricingRoute: typeof PricingRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
+  BlogSlugRoute: typeof BlogSlugRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
   TrackPublicIdRoute: typeof TrackPublicIdRoute
+  BlogIndexRoute: typeof BlogIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -926,6 +1082,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -940,11 +1103,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/forgot-password': {
       id: '/forgot-password'
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-restaurants': {
+      id: '/for-restaurants'
+      path: '/for-restaurants'
+      fullPath: '/for-restaurants'
+      preLoaderRoute: typeof ForRestaurantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-farmers': {
+      id: '/for-farmers'
+      path: '/for-farmers'
+      fullPath: '/for-farmers'
+      preLoaderRoute: typeof ForFarmersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-drivers': {
+      id: '/for-drivers'
+      path: '/for-drivers'
+      fullPath: '/for-drivers'
+      preLoaderRoute: typeof ForDriversRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/farmer': {
@@ -954,11 +1145,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/driver': {
       id: '/driver'
       path: '/driver'
       fullPath: '/driver'
       preLoaderRoute: typeof DriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -968,11 +1173,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track/$publicId': {
@@ -1058,6 +1277,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant/cart'
       preLoaderRoute: typeof RestaurantCartRouteImport
       parentRoute: typeof RestaurantRoute
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/farmer/stock': {
       id: '/farmer/stock'
@@ -1177,6 +1410,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/driver/dashboard'
       preLoaderRoute: typeof DriverDashboardRouteImport
       parentRoute: typeof DriverRoute
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/validations': {
       id: '/admin/validations'
@@ -1715,17 +1955,39 @@ const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
+  ContactRoute: ContactRoute,
   DriverRoute: DriverRouteWithChildren,
+  FaqRoute: FaqRoute,
   FarmerRoute: FarmerRouteWithChildren,
+  ForDriversRoute: ForDriversRoute,
+  ForFarmersRoute: ForFarmersRoute,
+  ForRestaurantsRoute: ForRestaurantsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  PricingRoute: PricingRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
+  BlogSlugRoute: BlogSlugRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
   TrackPublicIdRoute: TrackPublicIdRoute,
+  BlogIndexRoute: BlogIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
