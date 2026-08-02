@@ -40,6 +40,7 @@ import { Route as RestaurantInvoicesRouteImport } from './routes/restaurant.invo
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as FarmerStockRouteImport } from './routes/farmer.stock'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
@@ -245,6 +246,11 @@ const RestaurantCartRoute = RestaurantCartRouteImport.update({
   id: '/cart',
   path: '/cart',
   getParentRoute: () => RestaurantRoute,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const FarmerStockRoute = FarmerStockRouteImport.update({
   id: '/stock',
@@ -553,6 +559,7 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -636,6 +643,7 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -720,6 +728,7 @@ export interface FileRoutesById {
   '/farmer/revenue': typeof FarmerRevenueRouteWithChildren
   '/farmer/settings': typeof FarmerSettingsRoute
   '/farmer/stock': typeof FarmerStockRouteWithChildren
+  '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
@@ -805,6 +814,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -888,6 +898,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -971,6 +982,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/dashboard'
@@ -1029,6 +1041,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
   BlogSlugRoute: typeof BlogSlugRoute
+  LegalTermsRoute: typeof LegalTermsRoute
   TrackPublicIdRoute: typeof TrackPublicIdRoute
   BlogIndexRoute: typeof BlogIndexRoute
 }
@@ -1251,6 +1264,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant/cart'
       preLoaderRoute: typeof RestaurantCartRouteImport
       parentRoute: typeof RestaurantRoute
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/farmer/stock': {
       id: '/farmer/stock'
@@ -1933,6 +1953,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
   BlogSlugRoute: BlogSlugRoute,
+  LegalTermsRoute: LegalTermsRoute,
   TrackPublicIdRoute: TrackPublicIdRoute,
   BlogIndexRoute: BlogIndexRoute,
 }
