@@ -54,6 +54,7 @@ import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as AdminValidationsRouteImport } from './routes/admin.validations'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -312,6 +313,11 @@ const DriverDashboardRoute = DriverDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => DriverRoute,
 } as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminValidationsRoute = AdminValidationsRouteImport.update({
   id: '/validations',
   path: '/validations',
@@ -508,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -587,6 +594,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -667,6 +675,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/validations': typeof AdminValidationsRouteWithChildren
+  '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -748,6 +757,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -827,6 +837,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -906,6 +917,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/users'
     | '/admin/validations'
+    | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
@@ -977,6 +989,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
+  BlogSlugRoute: typeof BlogSlugRoute
   TrackPublicIdRoute: typeof TrackPublicIdRoute
   BlogIndexRoute: typeof BlogIndexRoute
 }
@@ -1297,6 +1310,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/driver/dashboard'
       preLoaderRoute: typeof DriverDashboardRouteImport
       parentRoute: typeof DriverRoute
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/validations': {
       id: '/admin/validations'
@@ -1849,6 +1869,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
+  BlogSlugRoute: BlogSlugRoute,
   TrackPublicIdRoute: TrackPublicIdRoute,
   BlogIndexRoute: BlogIndexRoute,
 }
