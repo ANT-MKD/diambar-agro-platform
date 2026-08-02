@@ -24,6 +24,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
 import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
@@ -159,6 +160,11 @@ const AboutRoute = AboutRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
@@ -531,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -609,6 +616,7 @@ export interface FileRoutesByTo {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -688,6 +696,7 @@ export interface FileRoutesById {
   '/restaurant/settings': typeof RestaurantSettingsRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
@@ -768,6 +777,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -846,6 +856,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -924,6 +935,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
+    | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
@@ -966,6 +978,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
   TrackPublicIdRoute: typeof TrackPublicIdRoute
+  BlogIndexRoute: typeof BlogIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1073,6 +1086,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track/$publicId': {
@@ -1830,6 +1850,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
   TrackPublicIdRoute: TrackPublicIdRoute,
+  BlogIndexRoute: BlogIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
