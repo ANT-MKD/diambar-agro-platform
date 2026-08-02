@@ -17,6 +17,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
 import { Route as ForFarmersRouteImport } from './routes/for-farmers'
 import { Route as FarmerRouteImport } from './routes/farmer'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -127,6 +128,11 @@ const HelpRoute = HelpRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForRestaurantsRoute = ForRestaurantsRouteImport.update({
+  id: '/for-restaurants',
+  path: '/for-restaurants',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForFarmersRoute = ForFarmersRouteImport.update({
@@ -504,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
@@ -585,6 +592,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
@@ -667,6 +675,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
   '/for-farmers': typeof ForFarmersRoute
+  '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
   '/login': typeof LoginRoute
@@ -750,6 +759,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
     | '/help'
     | '/login'
@@ -831,6 +841,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
     | '/help'
     | '/login'
@@ -912,6 +923,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/farmer'
     | '/for-farmers'
+    | '/for-restaurants'
     | '/forgot-password'
     | '/help'
     | '/login'
@@ -994,6 +1006,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   FarmerRoute: typeof FarmerRouteWithChildren
   ForFarmersRoute: typeof ForFarmersRoute
+  ForRestaurantsRoute: typeof ForRestaurantsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HelpRoute: typeof HelpRoute
   LoginRoute: typeof LoginRoute
@@ -1063,6 +1076,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-restaurants': {
+      id: '/for-restaurants'
+      path: '/for-restaurants'
+      fullPath: '/for-restaurants'
+      preLoaderRoute: typeof ForRestaurantsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/for-farmers': {
@@ -1882,6 +1902,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   FarmerRoute: FarmerRouteWithChildren,
   ForFarmersRoute: ForFarmersRoute,
+  ForRestaurantsRoute: ForRestaurantsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   HelpRoute: HelpRoute,
   LoginRoute: LoginRoute,
