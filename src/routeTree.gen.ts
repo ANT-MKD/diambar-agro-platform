@@ -82,6 +82,7 @@ import { Route as RestaurantSettingsPaymentsRouteImport } from './routes/restaur
 import { Route as RestaurantSettingsNotificationsRouteImport } from './routes/restaurant.settings.notifications'
 import { Route as RestaurantSettingsEstablishmentRouteImport } from './routes/restaurant.settings.establishment'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
+import { Route as RestaurantMessagesConversationIdRouteImport } from './routes/restaurant.messages.$conversationId'
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
 import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
@@ -481,6 +482,12 @@ const RestaurantOrdersOrderIdRoute = RestaurantOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => RestaurantOrdersRoute,
 } as any)
+const RestaurantMessagesConversationIdRoute =
+  RestaurantMessagesConversationIdRouteImport.update({
+    id: '/$conversationId',
+    path: '/$conversationId',
+    getParentRoute: () => RestaurantMessagesRoute,
+  } as any)
 const RestaurantMarketplaceProductIdRoute =
   RestaurantMarketplaceProductIdRouteImport.update({
     id: '/$productId',
@@ -710,6 +717,7 @@ export interface FileRoutesByFullPath {
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
+  '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
@@ -808,6 +816,7 @@ export interface FileRoutesByTo {
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
+  '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
@@ -911,6 +920,7 @@ export interface FileRoutesById {
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
+  '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
@@ -1015,6 +1025,7 @@ export interface FileRouteTypes {
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
+    | '/restaurant/messages/$conversationId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
@@ -1113,6 +1124,7 @@ export interface FileRouteTypes {
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
+    | '/restaurant/messages/$conversationId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
@@ -1215,6 +1227,7 @@ export interface FileRouteTypes {
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
+    | '/restaurant/messages/$conversationId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
@@ -1775,6 +1788,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantOrdersOrderIdRouteImport
       parentRoute: typeof RestaurantOrdersRoute
     }
+    '/restaurant/messages/$conversationId': {
+      id: '/restaurant/messages/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/restaurant/messages/$conversationId'
+      preLoaderRoute: typeof RestaurantMessagesConversationIdRouteImport
+      parentRoute: typeof RestaurantMessagesRoute
+    }
     '/restaurant/marketplace/$productId': {
       id: '/restaurant/marketplace/$productId'
       path: '/$productId'
@@ -2242,10 +2262,12 @@ const RestaurantMarketplaceRouteWithChildren =
   )
 
 interface RestaurantMessagesRouteChildren {
+  RestaurantMessagesConversationIdRoute: typeof RestaurantMessagesConversationIdRoute
   RestaurantMessagesIndexRoute: typeof RestaurantMessagesIndexRoute
 }
 
 const RestaurantMessagesRouteChildren: RestaurantMessagesRouteChildren = {
+  RestaurantMessagesConversationIdRoute: RestaurantMessagesConversationIdRoute,
   RestaurantMessagesIndexRoute: RestaurantMessagesIndexRoute,
 }
 
