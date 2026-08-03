@@ -30,6 +30,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as RestaurantSuppliersRouteImport } from './routes/restaurant.suppliers'
+import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
 import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
 import { Route as RestaurantOrdersRouteImport } from './routes/restaurant.orders'
 import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
@@ -203,6 +204,11 @@ const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
 const RestaurantSuppliersRoute = RestaurantSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantSettingsRoute = RestaurantSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
@@ -386,9 +392,9 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   getParentRoute: () => AdminRoute,
 } as any)
 const RestaurantSettingsIndexRoute = RestaurantSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => RestaurantRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => RestaurantSettingsRoute,
 } as any)
 const RestaurantMessagesIndexRoute = RestaurantMessagesIndexRouteImport.update({
   id: '/messages/',
@@ -617,6 +623,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
+  '/restaurant/settings': typeof RestaurantSettingsRouteWithChildren
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
   '/blog/': typeof BlogIndexRoute
@@ -801,6 +808,7 @@ export interface FileRoutesById {
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
+  '/restaurant/settings': typeof RestaurantSettingsRouteWithChildren
   '/restaurant/suppliers': typeof RestaurantSuppliersRouteWithChildren
   '/track/$publicId': typeof TrackPublicIdRoute
   '/blog/': typeof BlogIndexRoute
@@ -895,6 +903,7 @@ export interface FileRouteTypes {
     | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
+    | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
     | '/blog/'
@@ -1078,6 +1087,7 @@ export interface FileRouteTypes {
     | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
+    | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/track/$publicId'
     | '/blog/'
@@ -1289,6 +1299,13 @@ declare module '@tanstack/react-router' {
       path: '/suppliers'
       fullPath: '/restaurant/suppliers'
       preLoaderRoute: typeof RestaurantSuppliersRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/settings': {
+      id: '/restaurant/settings'
+      path: '/settings'
+      fullPath: '/restaurant/settings'
+      preLoaderRoute: typeof RestaurantSettingsRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/recurring': {
@@ -1545,10 +1562,10 @@ declare module '@tanstack/react-router' {
     }
     '/restaurant/settings/': {
       id: '/restaurant/settings/'
-      path: '/settings'
+      path: '/'
       fullPath: '/restaurant/settings/'
       preLoaderRoute: typeof RestaurantSettingsIndexRouteImport
-      parentRoute: typeof RestaurantRoute
+      parentRoute: typeof RestaurantSettingsRoute
     }
     '/restaurant/messages/': {
       id: '/restaurant/messages/'
@@ -2048,6 +2065,17 @@ const RestaurantOrdersRouteChildren: RestaurantOrdersRouteChildren = {
 const RestaurantOrdersRouteWithChildren =
   RestaurantOrdersRoute._addFileChildren(RestaurantOrdersRouteChildren)
 
+interface RestaurantSettingsRouteChildren {
+  RestaurantSettingsIndexRoute: typeof RestaurantSettingsIndexRoute
+}
+
+const RestaurantSettingsRouteChildren: RestaurantSettingsRouteChildren = {
+  RestaurantSettingsIndexRoute: RestaurantSettingsIndexRoute,
+}
+
+const RestaurantSettingsRouteWithChildren =
+  RestaurantSettingsRoute._addFileChildren(RestaurantSettingsRouteChildren)
+
 interface RestaurantSuppliersSupplierIdRouteChildren {
   RestaurantSuppliersSupplierIdEditRoute: typeof RestaurantSuppliersSupplierIdEditRoute
 }
@@ -2086,9 +2114,9 @@ interface RestaurantRouteChildren {
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRoute
   RestaurantOrdersRoute: typeof RestaurantOrdersRouteWithChildren
   RestaurantRecurringRoute: typeof RestaurantRecurringRoute
+  RestaurantSettingsRoute: typeof RestaurantSettingsRouteWithChildren
   RestaurantSuppliersRoute: typeof RestaurantSuppliersRouteWithChildren
   RestaurantMessagesIndexRoute: typeof RestaurantMessagesIndexRoute
-  RestaurantSettingsIndexRoute: typeof RestaurantSettingsIndexRoute
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
@@ -2100,9 +2128,9 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantNotificationsRoute: RestaurantNotificationsRoute,
   RestaurantOrdersRoute: RestaurantOrdersRouteWithChildren,
   RestaurantRecurringRoute: RestaurantRecurringRoute,
+  RestaurantSettingsRoute: RestaurantSettingsRouteWithChildren,
   RestaurantSuppliersRoute: RestaurantSuppliersRouteWithChildren,
   RestaurantMessagesIndexRoute: RestaurantMessagesIndexRoute,
-  RestaurantSettingsIndexRoute: RestaurantSettingsIndexRoute,
 }
 
 const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
