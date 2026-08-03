@@ -73,6 +73,7 @@ import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.setting
 import { Route as FarmerMessagesIndexRouteImport } from './routes/farmer.messages.index'
 import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
 import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
+import { Route as RestaurantSettingsTeamRouteImport } from './routes/restaurant.settings.team'
 import { Route as RestaurantSettingsSecurityRouteImport } from './routes/restaurant.settings.security'
 import { Route as RestaurantSettingsProfileRouteImport } from './routes/restaurant.settings.profile'
 import { Route as RestaurantSettingsPaymentsRouteImport } from './routes/restaurant.settings.payments'
@@ -427,6 +428,11 @@ const RestaurantSuppliersSupplierIdRoute =
     path: '/$supplierId',
     getParentRoute: () => RestaurantSuppliersRoute,
   } as any)
+const RestaurantSettingsTeamRoute = RestaurantSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => RestaurantSettingsRoute,
+} as any)
 const RestaurantSettingsSecurityRoute =
   RestaurantSettingsSecurityRouteImport.update({
     id: '/security',
@@ -688,6 +694,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
+  '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
@@ -784,6 +791,7 @@ export interface FileRoutesByTo {
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
+  '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/messages': typeof FarmerMessagesIndexRoute
@@ -883,6 +891,7 @@ export interface FileRoutesById {
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
+  '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
@@ -983,6 +992,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/settings/security'
+    | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/messages/'
@@ -1079,6 +1089,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/settings/security'
+    | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/messages'
@@ -1177,6 +1188,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/settings/security'
+    | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/new'
     | '/farmer/messages/'
@@ -1666,6 +1678,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant/suppliers/$supplierId'
       preLoaderRoute: typeof RestaurantSuppliersSupplierIdRouteImport
       parentRoute: typeof RestaurantSuppliersRoute
+    }
+    '/restaurant/settings/team': {
+      id: '/restaurant/settings/team'
+      path: '/team'
+      fullPath: '/restaurant/settings/team'
+      preLoaderRoute: typeof RestaurantSettingsTeamRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
     }
     '/restaurant/settings/security': {
       id: '/restaurant/settings/security'
@@ -2171,6 +2190,7 @@ interface RestaurantSettingsRouteChildren {
   RestaurantSettingsPaymentsRoute: typeof RestaurantSettingsPaymentsRoute
   RestaurantSettingsProfileRoute: typeof RestaurantSettingsProfileRoute
   RestaurantSettingsSecurityRoute: typeof RestaurantSettingsSecurityRoute
+  RestaurantSettingsTeamRoute: typeof RestaurantSettingsTeamRoute
   RestaurantSettingsIndexRoute: typeof RestaurantSettingsIndexRoute
 }
 
@@ -2180,6 +2200,7 @@ const RestaurantSettingsRouteChildren: RestaurantSettingsRouteChildren = {
   RestaurantSettingsPaymentsRoute: RestaurantSettingsPaymentsRoute,
   RestaurantSettingsProfileRoute: RestaurantSettingsProfileRoute,
   RestaurantSettingsSecurityRoute: RestaurantSettingsSecurityRoute,
+  RestaurantSettingsTeamRoute: RestaurantSettingsTeamRoute,
   RestaurantSettingsIndexRoute: RestaurantSettingsIndexRoute,
 }
 
