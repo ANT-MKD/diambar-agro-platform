@@ -38,6 +38,7 @@ import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.mess
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantInvoicesRouteImport } from './routes/restaurant.invoices'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
+import { Route as RestaurantCompareRouteImport } from './routes/restaurant.compare'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
@@ -254,6 +255,11 @@ const RestaurantInvoicesRoute = RestaurantInvoicesRouteImport.update({
 const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCompareRoute = RestaurantCompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantCheckoutRoute = RestaurantCheckoutRouteImport.update({
@@ -685,6 +691,7 @@ export interface FileRoutesByFullPath {
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
+  '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
@@ -786,6 +793,7 @@ export interface FileRoutesByTo {
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
+  '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
@@ -888,6 +896,7 @@ export interface FileRoutesById {
   '/legal/terms': typeof LegalTermsRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
+  '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
@@ -993,6 +1002,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
+    | '/restaurant/compare'
     | '/restaurant/dashboard'
     | '/restaurant/invoices'
     | '/restaurant/marketplace'
@@ -1094,6 +1104,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
+    | '/restaurant/compare'
     | '/restaurant/dashboard'
     | '/restaurant/invoices'
     | '/restaurant/marketplace'
@@ -1195,6 +1206,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/restaurant/cart'
     | '/restaurant/checkout'
+    | '/restaurant/compare'
     | '/restaurant/dashboard'
     | '/restaurant/invoices'
     | '/restaurant/marketplace'
@@ -1478,6 +1490,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/restaurant/dashboard'
       preLoaderRoute: typeof RestaurantDashboardRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/compare': {
+      id: '/restaurant/compare'
+      path: '/compare'
+      fullPath: '/restaurant/compare'
+      preLoaderRoute: typeof RestaurantCompareRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/checkout': {
@@ -2340,6 +2359,7 @@ const RestaurantSuppliersRouteWithChildren =
 interface RestaurantRouteChildren {
   RestaurantCartRoute: typeof RestaurantCartRoute
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
+  RestaurantCompareRoute: typeof RestaurantCompareRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantInvoicesRoute: typeof RestaurantInvoicesRouteWithChildren
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
@@ -2354,6 +2374,7 @@ interface RestaurantRouteChildren {
 const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCartRoute: RestaurantCartRoute,
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
+  RestaurantCompareRoute: RestaurantCompareRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantInvoicesRoute: RestaurantInvoicesRouteWithChildren,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,

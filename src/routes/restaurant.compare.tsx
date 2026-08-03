@@ -27,11 +27,11 @@ function ComparePage() {
   const { ids } = Route.useSearch();
   const navigate = useNavigate();
   const products = useProducts();
-  const selected = (ids ?? "").split(",").filter(Boolean).slice(0, 3);
+  const selected: string[] = String(ids ?? "").split(",").filter(Boolean).slice(0, 3);
   const rows = products.filter((p) => selected.includes(p.id));
 
   const remove = (id: string) => {
-    const next = selected.filter((x) => x !== id);
+    const next = selected.filter((x: string) => x !== id);
     navigate({ to: "/restaurant/compare", search: { ids: next.join(",") || undefined } });
   };
 
