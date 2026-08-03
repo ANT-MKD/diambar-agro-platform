@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/format";
 
-export const Route = createFileRoute("/farmer/messages")({
+export const Route = createFileRoute("/farmer/messages/")({
   head: () => ({ meta: [{ title: "Messages · Diambar Agro" }] }),
   component: MessagesPage,
 });

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 
-export const Route = createFileRoute("/restaurant/settings")({
+export const Route = createFileRoute("/restaurant/settings/")({
   head: () => ({ meta: [{ title: "Paramètres · Restaurant" }] }),
   component: Settings,
 });

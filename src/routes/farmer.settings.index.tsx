@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { cities } from "@/data/mocks";
 
-export const Route = createFileRoute("/farmer/settings")({
+export const Route = createFileRoute("/farmer/settings/")({
   head: () => ({ meta: [{ title: "Paramètres · Diambar Agro" }] }),
   component: SettingsPage,
 });
