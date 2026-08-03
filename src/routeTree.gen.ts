@@ -76,6 +76,7 @@ import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
 import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
+import { Route as FarmerSettingsTeamRouteImport } from './routes/farmer.settings.team'
 import { Route as FarmerSettingsSecurityRouteImport } from './routes/farmer.settings.security'
 import { Route as FarmerSettingsProfileRouteImport } from './routes/farmer.settings.profile'
 import { Route as FarmerSettingsPaymentsRouteImport } from './routes/farmer.settings.payments'
@@ -437,6 +438,11 @@ const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => FarmerStockRoute,
 } as any)
+const FarmerSettingsTeamRoute = FarmerSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => FarmerSettingsRoute,
+} as any)
 const FarmerSettingsSecurityRoute = FarmerSettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -630,6 +636,7 @@ export interface FileRoutesByFullPath {
   '/farmer/settings/payments': typeof FarmerSettingsPaymentsRoute
   '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
+  '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -720,6 +727,7 @@ export interface FileRoutesByTo {
   '/farmer/settings/payments': typeof FarmerSettingsPaymentsRoute
   '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
+  '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -812,6 +820,7 @@ export interface FileRoutesById {
   '/farmer/settings/payments': typeof FarmerSettingsPaymentsRoute
   '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
+  '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -905,6 +914,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/payments'
     | '/farmer/settings/profile'
     | '/farmer/settings/security'
+    | '/farmer/settings/team'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -995,6 +1005,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/payments'
     | '/farmer/settings/profile'
     | '/farmer/settings/security'
+    | '/farmer/settings/team'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -1086,6 +1097,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/payments'
     | '/farmer/settings/profile'
     | '/farmer/settings/security'
+    | '/farmer/settings/team'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -1601,6 +1613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerStockInventoryRouteImport
       parentRoute: typeof FarmerStockRoute
     }
+    '/farmer/settings/team': {
+      id: '/farmer/settings/team'
+      path: '/team'
+      fullPath: '/farmer/settings/team'
+      preLoaderRoute: typeof FarmerSettingsTeamRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
     '/farmer/settings/security': {
       id: '/farmer/settings/security'
       path: '/security'
@@ -1933,6 +1952,7 @@ interface FarmerSettingsRouteChildren {
   FarmerSettingsPaymentsRoute: typeof FarmerSettingsPaymentsRoute
   FarmerSettingsProfileRoute: typeof FarmerSettingsProfileRoute
   FarmerSettingsSecurityRoute: typeof FarmerSettingsSecurityRoute
+  FarmerSettingsTeamRoute: typeof FarmerSettingsTeamRoute
   FarmerSettingsIndexRoute: typeof FarmerSettingsIndexRoute
 }
 
@@ -1942,6 +1962,7 @@ const FarmerSettingsRouteChildren: FarmerSettingsRouteChildren = {
   FarmerSettingsPaymentsRoute: FarmerSettingsPaymentsRoute,
   FarmerSettingsProfileRoute: FarmerSettingsProfileRoute,
   FarmerSettingsSecurityRoute: FarmerSettingsSecurityRoute,
+  FarmerSettingsTeamRoute: FarmerSettingsTeamRoute,
   FarmerSettingsIndexRoute: FarmerSettingsIndexRoute,
 }
 
