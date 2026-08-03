@@ -34,6 +34,7 @@ import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.sett
 import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
 import { Route as RestaurantOrdersRouteImport } from './routes/restaurant.orders'
 import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
+import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantInvoicesRouteImport } from './routes/restaurant.invoices'
 import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
@@ -233,6 +234,11 @@ const RestaurantNotificationsRoute = RestaurantNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => RestaurantRoute,
 } as any)
+const RestaurantMessagesRoute = RestaurantMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => RestaurantRoute,
+} as any)
 const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
@@ -409,9 +415,9 @@ const RestaurantSettingsIndexRoute = RestaurantSettingsIndexRouteImport.update({
   getParentRoute: () => RestaurantSettingsRoute,
 } as any)
 const RestaurantMessagesIndexRoute = RestaurantMessagesIndexRouteImport.update({
-  id: '/messages/',
-  path: '/messages/',
-  getParentRoute: () => RestaurantRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => RestaurantMessagesRoute,
 } as any)
 const FarmerSettingsIndexRoute = FarmerSettingsIndexRouteImport.update({
   id: '/',
@@ -668,6 +674,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/messages': typeof RestaurantMessagesRouteWithChildren
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
@@ -866,6 +873,7 @@ export interface FileRoutesById {
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
   '/restaurant/invoices': typeof RestaurantInvoicesRouteWithChildren
   '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/messages': typeof RestaurantMessagesRouteWithChildren
   '/restaurant/notifications': typeof RestaurantNotificationsRoute
   '/restaurant/orders': typeof RestaurantOrdersRouteWithChildren
   '/restaurant/recurring': typeof RestaurantRecurringRoute
@@ -968,6 +976,7 @@ export interface FileRouteTypes {
     | '/restaurant/dashboard'
     | '/restaurant/invoices'
     | '/restaurant/marketplace'
+    | '/restaurant/messages'
     | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
@@ -1165,6 +1174,7 @@ export interface FileRouteTypes {
     | '/restaurant/dashboard'
     | '/restaurant/invoices'
     | '/restaurant/marketplace'
+    | '/restaurant/messages'
     | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/recurring'
@@ -1416,6 +1426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantNotificationsRouteImport
       parentRoute: typeof RestaurantRoute
     }
+    '/restaurant/messages': {
+      id: '/restaurant/messages'
+      path: '/messages'
+      fullPath: '/restaurant/messages'
+      preLoaderRoute: typeof RestaurantMessagesRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
     '/restaurant/marketplace': {
       id: '/restaurant/marketplace'
       path: '/marketplace'
@@ -1663,10 +1680,10 @@ declare module '@tanstack/react-router' {
     }
     '/restaurant/messages/': {
       id: '/restaurant/messages/'
-      path: '/messages'
+      path: '/'
       fullPath: '/restaurant/messages/'
       preLoaderRoute: typeof RestaurantMessagesIndexRouteImport
-      parentRoute: typeof RestaurantRoute
+      parentRoute: typeof RestaurantMessagesRoute
     }
     '/farmer/settings/': {
       id: '/farmer/settings/'
@@ -2202,6 +2219,17 @@ const RestaurantMarketplaceRouteWithChildren =
     RestaurantMarketplaceRouteChildren,
   )
 
+interface RestaurantMessagesRouteChildren {
+  RestaurantMessagesIndexRoute: typeof RestaurantMessagesIndexRoute
+}
+
+const RestaurantMessagesRouteChildren: RestaurantMessagesRouteChildren = {
+  RestaurantMessagesIndexRoute: RestaurantMessagesIndexRoute,
+}
+
+const RestaurantMessagesRouteWithChildren =
+  RestaurantMessagesRoute._addFileChildren(RestaurantMessagesRouteChildren)
+
 interface RestaurantOrdersRouteChildren {
   RestaurantOrdersOrderIdRoute: typeof RestaurantOrdersOrderIdRoute
 }
@@ -2271,12 +2299,12 @@ interface RestaurantRouteChildren {
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
   RestaurantInvoicesRoute: typeof RestaurantInvoicesRouteWithChildren
   RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
+  RestaurantMessagesRoute: typeof RestaurantMessagesRouteWithChildren
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRoute
   RestaurantOrdersRoute: typeof RestaurantOrdersRouteWithChildren
   RestaurantRecurringRoute: typeof RestaurantRecurringRoute
   RestaurantSettingsRoute: typeof RestaurantSettingsRouteWithChildren
   RestaurantSuppliersRoute: typeof RestaurantSuppliersRouteWithChildren
-  RestaurantMessagesIndexRoute: typeof RestaurantMessagesIndexRoute
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
@@ -2285,12 +2313,12 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantDashboardRoute: RestaurantDashboardRoute,
   RestaurantInvoicesRoute: RestaurantInvoicesRouteWithChildren,
   RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
+  RestaurantMessagesRoute: RestaurantMessagesRouteWithChildren,
   RestaurantNotificationsRoute: RestaurantNotificationsRoute,
   RestaurantOrdersRoute: RestaurantOrdersRouteWithChildren,
   RestaurantRecurringRoute: RestaurantRecurringRoute,
   RestaurantSettingsRoute: RestaurantSettingsRouteWithChildren,
   RestaurantSuppliersRoute: RestaurantSuppliersRouteWithChildren,
-  RestaurantMessagesIndexRoute: RestaurantMessagesIndexRoute,
 }
 
 const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(
