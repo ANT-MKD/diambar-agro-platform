@@ -47,6 +47,7 @@ import { Route as FarmerRevenueRouteImport } from './routes/farmer.revenue'
 import { Route as FarmerProductsRouteImport } from './routes/farmer.products'
 import { Route as FarmerOrdersRouteImport } from './routes/farmer.orders'
 import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
+import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
@@ -297,6 +298,11 @@ const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => FarmerRoute,
 } as any)
+const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => FarmerRoute,
+} as any)
 const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -413,9 +419,9 @@ const FarmerSettingsIndexRoute = FarmerSettingsIndexRouteImport.update({
   getParentRoute: () => FarmerSettingsRoute,
 } as any)
 const FarmerMessagesIndexRoute = FarmerMessagesIndexRouteImport.update({
-  id: '/messages/',
-  path: '/messages/',
-  getParentRoute: () => FarmerRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => FarmerMessagesRoute,
 } as any)
 const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
   id: '/new',
@@ -648,6 +654,7 @@ export interface FileRoutesByFullPath {
   '/driver/vehicle': typeof DriverVehicleRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRoute
   '/farmer/orders': typeof FarmerOrdersRouteWithChildren
   '/farmer/products': typeof FarmerProductsRouteWithChildren
@@ -845,6 +852,7 @@ export interface FileRoutesById {
   '/driver/vehicle': typeof DriverVehicleRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRoute
   '/farmer/orders': typeof FarmerOrdersRouteWithChildren
   '/farmer/products': typeof FarmerProductsRouteWithChildren
@@ -946,6 +954,7 @@ export interface FileRouteTypes {
     | '/driver/vehicle'
     | '/farmer/analytics'
     | '/farmer/dashboard'
+    | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
     | '/farmer/products'
@@ -1142,6 +1151,7 @@ export interface FileRouteTypes {
     | '/driver/vehicle'
     | '/farmer/analytics'
     | '/farmer/dashboard'
+    | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
     | '/farmer/products'
@@ -1497,6 +1507,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerNotificationsRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/farmer/messages': {
+      id: '/farmer/messages'
+      path: '/messages'
+      fullPath: '/farmer/messages'
+      preLoaderRoute: typeof FarmerMessagesRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/farmer/dashboard': {
       id: '/farmer/dashboard'
       path: '/dashboard'
@@ -1660,10 +1677,10 @@ declare module '@tanstack/react-router' {
     }
     '/farmer/messages/': {
       id: '/farmer/messages/'
-      path: '/messages'
+      path: '/'
       fullPath: '/farmer/messages/'
       preLoaderRoute: typeof FarmerMessagesIndexRouteImport
-      parentRoute: typeof FarmerRoute
+      parentRoute: typeof FarmerMessagesRoute
     }
     '/restaurant/suppliers/new': {
       id: '/restaurant/suppliers/new'
@@ -2011,6 +2028,18 @@ const DriverRouteChildren: DriverRouteChildren = {
 const DriverRouteWithChildren =
   DriverRoute._addFileChildren(DriverRouteChildren)
 
+interface FarmerMessagesRouteChildren {
+  FarmerMessagesIndexRoute: typeof FarmerMessagesIndexRoute
+}
+
+const FarmerMessagesRouteChildren: FarmerMessagesRouteChildren = {
+  FarmerMessagesIndexRoute: FarmerMessagesIndexRoute,
+}
+
+const FarmerMessagesRouteWithChildren = FarmerMessagesRoute._addFileChildren(
+  FarmerMessagesRouteChildren,
+)
+
 interface FarmerOrdersOrderIdRouteChildren {
   FarmerOrdersOrderIdRefuseRoute: typeof FarmerOrdersOrderIdRefuseRoute
   FarmerOrdersOrderIdReportRoute: typeof FarmerOrdersOrderIdReportRoute
@@ -2125,25 +2154,25 @@ const FarmerStockRouteWithChildren = FarmerStockRoute._addFileChildren(
 interface FarmerRouteChildren {
   FarmerAnalyticsRoute: typeof FarmerAnalyticsRoute
   FarmerDashboardRoute: typeof FarmerDashboardRoute
+  FarmerMessagesRoute: typeof FarmerMessagesRouteWithChildren
   FarmerNotificationsRoute: typeof FarmerNotificationsRoute
   FarmerOrdersRoute: typeof FarmerOrdersRouteWithChildren
   FarmerProductsRoute: typeof FarmerProductsRouteWithChildren
   FarmerRevenueRoute: typeof FarmerRevenueRouteWithChildren
   FarmerSettingsRoute: typeof FarmerSettingsRouteWithChildren
   FarmerStockRoute: typeof FarmerStockRouteWithChildren
-  FarmerMessagesIndexRoute: typeof FarmerMessagesIndexRoute
 }
 
 const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerAnalyticsRoute: FarmerAnalyticsRoute,
   FarmerDashboardRoute: FarmerDashboardRoute,
+  FarmerMessagesRoute: FarmerMessagesRouteWithChildren,
   FarmerNotificationsRoute: FarmerNotificationsRoute,
   FarmerOrdersRoute: FarmerOrdersRouteWithChildren,
   FarmerProductsRoute: FarmerProductsRouteWithChildren,
   FarmerRevenueRoute: FarmerRevenueRouteWithChildren,
   FarmerSettingsRoute: FarmerSettingsRouteWithChildren,
   FarmerStockRoute: FarmerStockRouteWithChildren,
-  FarmerMessagesIndexRoute: FarmerMessagesIndexRoute,
 }
 
 const FarmerRouteWithChildren =
