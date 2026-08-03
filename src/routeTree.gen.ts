@@ -76,6 +76,7 @@ import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
 import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
+import { Route as FarmerSettingsProfileRouteImport } from './routes/farmer.settings.profile'
 import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
 import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
 import { Route as FarmerRevenueTxIdRouteImport } from './routes/farmer.revenue.$txId'
@@ -432,6 +433,11 @@ const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => FarmerStockRoute,
 } as any)
+const FarmerSettingsProfileRoute = FarmerSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => FarmerSettingsRoute,
+} as any)
 const FarmerRevenueWithdrawalsRoute =
   FarmerRevenueWithdrawalsRouteImport.update({
     id: '/withdrawals',
@@ -594,6 +600,7 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
+  '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -679,6 +686,7 @@ export interface FileRoutesByTo {
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
+  '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -766,6 +774,7 @@ export interface FileRoutesById {
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
+  '/farmer/settings/profile': typeof FarmerSettingsProfileRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
@@ -854,6 +863,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/$txId'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
+    | '/farmer/settings/profile'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -939,6 +949,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/$txId'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
+    | '/farmer/settings/profile'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -1025,6 +1036,7 @@ export interface FileRouteTypes {
     | '/farmer/revenue/$txId'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
+    | '/farmer/settings/profile'
     | '/farmer/stock/inventory'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
@@ -1540,6 +1552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerStockInventoryRouteImport
       parentRoute: typeof FarmerStockRoute
     }
+    '/farmer/settings/profile': {
+      id: '/farmer/settings/profile'
+      path: '/profile'
+      fullPath: '/farmer/settings/profile'
+      preLoaderRoute: typeof FarmerSettingsProfileRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
     '/farmer/revenue/withdrawals': {
       id: '/farmer/revenue/withdrawals'
       path: '/withdrawals'
@@ -1832,10 +1851,12 @@ const FarmerRevenueRouteWithChildren = FarmerRevenueRoute._addFileChildren(
 )
 
 interface FarmerSettingsRouteChildren {
+  FarmerSettingsProfileRoute: typeof FarmerSettingsProfileRoute
   FarmerSettingsIndexRoute: typeof FarmerSettingsIndexRoute
 }
 
 const FarmerSettingsRouteChildren: FarmerSettingsRouteChildren = {
+  FarmerSettingsProfileRoute: FarmerSettingsProfileRoute,
   FarmerSettingsIndexRoute: FarmerSettingsIndexRoute,
 }
 
