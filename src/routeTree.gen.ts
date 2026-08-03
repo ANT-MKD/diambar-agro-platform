@@ -75,6 +75,7 @@ import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.
 import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
 import { Route as RestaurantSettingsProfileRouteImport } from './routes/restaurant.settings.profile'
 import { Route as RestaurantSettingsPaymentsRouteImport } from './routes/restaurant.settings.payments'
+import { Route as RestaurantSettingsNotificationsRouteImport } from './routes/restaurant.settings.notifications'
 import { Route as RestaurantSettingsEstablishmentRouteImport } from './routes/restaurant.settings.establishment'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
@@ -437,6 +438,12 @@ const RestaurantSettingsPaymentsRoute =
     path: '/payments',
     getParentRoute: () => RestaurantSettingsRoute,
   } as any)
+const RestaurantSettingsNotificationsRoute =
+  RestaurantSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => RestaurantSettingsRoute,
+  } as any)
 const RestaurantSettingsEstablishmentRoute =
   RestaurantSettingsEstablishmentRouteImport.update({
     id: '/establishment',
@@ -670,6 +677,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
+  '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
@@ -764,6 +772,7 @@ export interface FileRoutesByTo {
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
+  '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
@@ -861,6 +870,7 @@ export interface FileRoutesById {
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
+  '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
   '/restaurant/settings/profile': typeof RestaurantSettingsProfileRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
@@ -959,6 +969,7 @@ export interface FileRouteTypes {
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
+    | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/suppliers/$supplierId'
@@ -1053,6 +1064,7 @@ export interface FileRouteTypes {
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
+    | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/suppliers/$supplierId'
@@ -1149,6 +1161,7 @@ export interface FileRouteTypes {
     | '/restaurant/marketplace/$productId'
     | '/restaurant/orders/$orderId'
     | '/restaurant/settings/establishment'
+    | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
     | '/restaurant/settings/profile'
     | '/restaurant/suppliers/$supplierId'
@@ -1655,6 +1668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantSettingsPaymentsRouteImport
       parentRoute: typeof RestaurantSettingsRoute
     }
+    '/restaurant/settings/notifications': {
+      id: '/restaurant/settings/notifications'
+      path: '/notifications'
+      fullPath: '/restaurant/settings/notifications'
+      preLoaderRoute: typeof RestaurantSettingsNotificationsRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
     '/restaurant/settings/establishment': {
       id: '/restaurant/settings/establishment'
       path: '/establishment'
@@ -2127,6 +2147,7 @@ const RestaurantOrdersRouteWithChildren =
 
 interface RestaurantSettingsRouteChildren {
   RestaurantSettingsEstablishmentRoute: typeof RestaurantSettingsEstablishmentRoute
+  RestaurantSettingsNotificationsRoute: typeof RestaurantSettingsNotificationsRoute
   RestaurantSettingsPaymentsRoute: typeof RestaurantSettingsPaymentsRoute
   RestaurantSettingsProfileRoute: typeof RestaurantSettingsProfileRoute
   RestaurantSettingsIndexRoute: typeof RestaurantSettingsIndexRoute
@@ -2134,6 +2155,7 @@ interface RestaurantSettingsRouteChildren {
 
 const RestaurantSettingsRouteChildren: RestaurantSettingsRouteChildren = {
   RestaurantSettingsEstablishmentRoute: RestaurantSettingsEstablishmentRoute,
+  RestaurantSettingsNotificationsRoute: RestaurantSettingsNotificationsRoute,
   RestaurantSettingsPaymentsRoute: RestaurantSettingsPaymentsRoute,
   RestaurantSettingsProfileRoute: RestaurantSettingsProfileRoute,
   RestaurantSettingsIndexRoute: RestaurantSettingsIndexRoute,
