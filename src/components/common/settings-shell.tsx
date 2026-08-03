@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/farmer/page-header";
 
@@ -115,14 +116,7 @@ export function ToggleRow({
         <div className="text-sm font-medium">{label}</div>
         {description && <div className="text-xs text-muted-foreground">{description}</div>}
       </div>
-      {children ?? (
-        <input
-          type="checkbox"
-          checked={!!checked}
-          onChange={(e) => onChange?.(e.target.checked)}
-          className="h-4 w-4 rounded accent-[hsl(var(--primary))]"
-        />
-      )}
+      {children ?? <Switch checked={!!checked} onCheckedChange={(v) => onChange?.(v)} />}
     </div>
   );
 }
