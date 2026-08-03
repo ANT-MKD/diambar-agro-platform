@@ -98,6 +98,7 @@ import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.
 import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
 import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
 import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
+import { Route as FarmerMessagesConversationIdRouteImport } from './routes/farmer.messages.$conversationId'
 import { Route as DriverMissionsMissionIdRouteImport } from './routes/driver.missions.$missionId'
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
@@ -564,6 +565,12 @@ const FarmerOrdersOrderIdRoute = FarmerOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => FarmerOrdersRoute,
 } as any)
+const FarmerMessagesConversationIdRoute =
+  FarmerMessagesConversationIdRouteImport.update({
+    id: '/$conversationId',
+    path: '/$conversationId',
+    getParentRoute: () => FarmerMessagesRoute,
+  } as any)
 const DriverMissionsMissionIdRoute = DriverMissionsMissionIdRouteImport.update({
   id: '/$missionId',
   path: '/$missionId',
@@ -686,6 +693,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -783,6 +791,7 @@ export interface FileRoutesByTo {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -885,6 +894,7 @@ export interface FileRoutesById {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
   '/farmer/products/$productId': typeof FarmerProductsProductIdRouteWithChildren
   '/farmer/products/import': typeof FarmerProductsImportRoute
@@ -988,6 +998,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/missions/$missionId'
+    | '/farmer/messages/$conversationId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -1085,6 +1096,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/missions/$missionId'
+    | '/farmer/messages/$conversationId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -1186,6 +1198,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/missions/$missionId'
+    | '/farmer/messages/$conversationId'
     | '/farmer/orders/$orderId'
     | '/farmer/products/$productId'
     | '/farmer/products/import'
@@ -1874,6 +1887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerOrdersOrderIdRouteImport
       parentRoute: typeof FarmerOrdersRoute
     }
+    '/farmer/messages/$conversationId': {
+      id: '/farmer/messages/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/farmer/messages/$conversationId'
+      preLoaderRoute: typeof FarmerMessagesConversationIdRouteImport
+      parentRoute: typeof FarmerMessagesRoute
+    }
     '/driver/missions/$missionId': {
       id: '/driver/missions/$missionId'
       path: '/$missionId'
@@ -2046,10 +2066,12 @@ const DriverRouteWithChildren =
   DriverRoute._addFileChildren(DriverRouteChildren)
 
 interface FarmerMessagesRouteChildren {
+  FarmerMessagesConversationIdRoute: typeof FarmerMessagesConversationIdRoute
   FarmerMessagesIndexRoute: typeof FarmerMessagesIndexRoute
 }
 
 const FarmerMessagesRouteChildren: FarmerMessagesRouteChildren = {
+  FarmerMessagesConversationIdRoute: FarmerMessagesConversationIdRoute,
   FarmerMessagesIndexRoute: FarmerMessagesIndexRoute,
 }
 
