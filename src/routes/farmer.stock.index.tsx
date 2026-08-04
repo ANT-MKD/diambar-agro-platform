@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const Route = createFileRoute("/farmer/stock")({
+export const Route = createFileRoute("/farmer/stock/")({
   head: () => ({ meta: [{ title: "Stock · Diambar Agro" }] }),
   component: StockPage,
 });

@@ -10,7 +10,7 @@ import { farmers, products } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { downloadDiambarInvoice, type InvoiceData } from "@/lib/invoice-pdf";
 
-export const Route = createFileRoute("/restaurant/invoices")({
+export const Route = createFileRoute("/restaurant/invoices/")({
   head: () => ({ meta: [{ title: "Factures · Restaurant" }] }),
   component: InvoicesList,
 });

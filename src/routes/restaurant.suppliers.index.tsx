@@ -16,7 +16,7 @@ function qualityScore(totalOrders: number, favorite: boolean, suspended: boolean
   return { score: base, label, tone };
 }
 
-export const Route = createFileRoute("/restaurant/suppliers")({
+export const Route = createFileRoute("/restaurant/suppliers/")({
   head: () => ({ meta: [{ title: "Fournisseurs · Restaurant" }] }),
   component: SuppliersLayout,
 });

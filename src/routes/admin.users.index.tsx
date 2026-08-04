@@ -5,7 +5,7 @@ import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { usePlatformUsers } from "@/data/admin-store";
 
-export const Route = createFileRoute("/admin/users")({
+export const Route = createFileRoute("/admin/users/")({
   head: () => ({ meta: [{ title: "Utilisateurs — Administration Diambar Agro" }, { name: "description", content: "Gestion des comptes agriculteurs, restaurants et livreurs." }, { name: "robots", content: "noindex" }] }),
   component: AdminUsers,
 });

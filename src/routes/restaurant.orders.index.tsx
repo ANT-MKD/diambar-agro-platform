@@ -9,7 +9,7 @@ import { useRestaurantOrders, restaurantOrderActions } from "@/data/store";
 import { farmers, type OrderStatus, type RestaurantOrder } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
-export const Route = createFileRoute("/restaurant/orders")({
+export const Route = createFileRoute("/restaurant/orders/")({
   head: () => ({ meta: [{ title: "Mes Commandes · Restaurant" }] }),
   component: OrdersPage,
 });

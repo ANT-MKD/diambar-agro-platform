@@ -5,7 +5,7 @@ import { AdminBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { useDisputes } from "@/data/admin-store";
 
-export const Route = createFileRoute("/admin/disputes")({
+export const Route = createFileRoute("/admin/disputes/")({
   head: () => ({ meta: [{ title: "Litiges — Administration Diambar Agro" }, { name: "description", content: "Centre de résolution des litiges entre producteurs, restaurants et livreurs." }, { name: "robots", content: "noindex" }] }),
   component: AdminDisputes,
 });

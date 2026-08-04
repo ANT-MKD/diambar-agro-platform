@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const Route = createFileRoute("/driver/missions")({
+export const Route = createFileRoute("/driver/missions/")({
   head: () => ({ meta: [{ title: "Missions · Livreur Diambar" }] }),
   component: MissionsPage,
 });
