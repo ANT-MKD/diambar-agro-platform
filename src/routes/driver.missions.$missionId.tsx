@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Phone, MessageSquare, Truck, Clock, Package, Route as RouteIcon, Check, X, Navigation, Camera, User, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useMission, missionActions, driverNotifActions } from "@/data/store";
+import { GpsPanel } from "@/components/driver/gps-panel";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -126,32 +127,16 @@ function MissionDetail() {
             </div>
           </div>
 
-          {/* Mock map placeholder */}
-          <div className="glass rounded-2xl overflow-hidden">
-            <div className="relative h-64 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-blue-500/10">
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="text-center">
-                  <MapPin className="h-8 w-8 mx-auto text-primary" />
-                  <p className="mt-2 text-sm font-medium">{mission.pickup.city} → {mission.dropoff.city}</p>
-                  <p className="text-xs text-muted-foreground">{mission.distanceKm} km · environ {mission.estimatedMinutes} min</p>
-                </div>
-              </div>
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="rt" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
-                  </linearGradient>
-                </defs>
-                <path d="M40,150 Q150,20 360,80" stroke="url(#rt)" strokeWidth="3" strokeDasharray="6 6" fill="none" />
-                <circle cx="40" cy="150" r="6" fill="hsl(var(--primary))" />
-                <circle cx="360" cy="80" r="6" fill="hsl(var(--primary))" />
-              </svg>
-            </div>
-            <div className="p-4 border-t border-border">
-              <Button variant="outline" className="w-full gap-2"><Navigation className="h-4 w-4" />Ouvrir dans Google Maps (mock)</Button>
-            </div>
-          </div>
+          {/* Live GPS (simulé) */}
+          <GpsPanel
+            pickupCity={mission.pickup.city}
+            dropoffCity={mission.dropoff.city}
+            distanceKm={mission.distanceKm}
+            estimatedMinutes={mission.estimatedMinutes}
+            driverName="Vous"
+            live={mission.status === "pickup" || mission.status === "loaded"}
+            startProgress={mission.status === "loaded" ? 0.45 : mission.status === "delivered" ? 1 : 0.05}
+          />
 
           {/* Récap commande */}
           <div className="glass rounded-2xl p-5">

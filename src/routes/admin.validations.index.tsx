@@ -5,7 +5,7 @@ import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { relativeTime } from "@/lib/format";
 import { usePlatformUsers, useValidations } from "@/data/admin-store";
 
-export const Route = createFileRoute("/admin/validations")({
+export const Route = createFileRoute("/admin/validations/")({
   head: () => ({ meta: [{ title: "Validations de comptes — Administration Diambar Agro" }, { name: "description", content: "File de validation des agriculteurs et livreurs : documents, identité, décision." }, { name: "robots", content: "noindex" }] }),
   component: AdminValidations,
 });

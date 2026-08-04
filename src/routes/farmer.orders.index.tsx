@@ -11,7 +11,7 @@ import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const Route = createFileRoute("/farmer/orders")({
+export const Route = createFileRoute("/farmer/orders/")({
   head: () => ({ meta: [{ title: "Commandes · Diambar Agro" }] }),
   component: OrdersPage,
 });

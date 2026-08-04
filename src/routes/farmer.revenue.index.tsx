@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-export const Route = createFileRoute("/farmer/revenue")({
+export const Route = createFileRoute("/farmer/revenue/")({
   head: () => ({ meta: [{ title: "Revenus · Diambar Agro" }] }),
   component: RevenuePage,
 });

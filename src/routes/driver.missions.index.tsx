@@ -1,16 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Truck, MapPin, Clock, Package, Search, Zap, Filter } from "lucide-react";
+import { Truck, MapPin, Clock, Package, Search, Zap, Filter, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { useMissions } from "@/data/store";
+import { useMissions, missionActions, driverNotifActions } from "@/data/store";
 import { restaurants, farmers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const Route = createFileRoute("/driver/missions")({
+export const Route = createFileRoute("/driver/missions/")({
   head: () => ({ meta: [{ title: "Missions · Livreur Diambar" }] }),
   component: MissionsPage,
 });
@@ -38,6 +40,16 @@ function MissionsPage() {
   }, [all, tab, q, city]);
 
   const cities = Array.from(new Set(all.flatMap((m) => [m.pickup.city, m.dropoff.city])));
+
+  const accept = (id: string, ref: string) => {
+    missionActions.accept(id);
+    driverNotifActions.add({ type: "order", title: "Mission acceptée", body: `${ref} ajoutée à vos missions en cours` });
+    toast.success(`Mission ${ref} acceptée`);
+  };
+  const refuse = (id: string, ref: string) => {
+    missionActions.cancel(id);
+    toast.success(`Mission ${ref} refusée`);
+  };
 
   const count = (t: typeof tab) => all.filter((m) => {
     if (t === "available") return m.status === "available";
@@ -110,6 +122,26 @@ function MissionsPage() {
                   <div className="text-[10px] text-muted-foreground">Rémunération</div>
                   <div className="font-display font-bold text-primary text-lg">{formatFCFA(m.payout)}</div>
                 </div>
+
+                {m.status === "available" && (
+                  <div className="flex items-center gap-2 md:flex-col md:w-32">
+                    <Button
+                      size="sm"
+                      className="flex-1 md:w-full gap-1"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); accept(m.id, m.reference); }}
+                    >
+                      <Check className="h-3.5 w-3.5" />Accepter
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 md:w-full gap-1 text-rose-500 hover:text-rose-600"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); refuse(m.id, m.reference); }}
+                    >
+                      <X className="h-3.5 w-3.5" />Refuser
+                    </Button>
+                  </div>
+                )}
               </Link>
             );
           })}
