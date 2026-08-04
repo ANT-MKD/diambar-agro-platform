@@ -1,18 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Send, Search, MessageSquare, Paperclip, Phone } from "lucide-react";
-import { useState } from "react";
-import { PageHeader } from "@/components/farmer/page-header";
-import { EmptyState } from "@/components/farmer/empty-state";
-import { restaurants } from "@/data/mocks";
-import { useDriverConversations, driverConversationActions } from "@/data/store";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { relativeTime } from "@/lib/format";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/driver/messages")({
-  head: () => ({ meta: [{ title: "Messages · Livreur" }] }),
-  component: DriverMessages,
-});
+export const Route = createFileRoute("/driver/messages")({ component: () => <Outlet /> });
 
 function DriverMessages() {
   const convs = useDriverConversations();
