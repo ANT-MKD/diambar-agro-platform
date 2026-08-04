@@ -10,6 +10,22 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
+import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
+
+const DRIVER_EVENTS = [
+  { key: "missions", label: "Nouvelles missions", description: "Propositions correspondant à vos critères" },
+  { key: "assigned", label: "Mission assignée", description: "Une mission vous est directement attribuée" },
+  { key: "payments", label: "Paiements", description: "Virements et confirmations wallet" },
+  { key: "messages", label: "Messages", description: "Restaurants et producteurs" },
+  { key: "docs", label: "Documents véhicule", description: "Assurance ou visite technique à renouveler" },
+] as const;
+
+const DRIVER_RULES = [
+  { key: "nearby", label: "Mission proche", condition: "mission à moins de 10 km de ma position", channel: "Push + WhatsApp immédiat", firedThisMonth: 17 },
+  { key: "express", label: "Mission express", condition: "urgence = express et rémunération > 8 000 FCFA", channel: "Push prioritaire + SMS", firedThisMonth: 6 },
+  { key: "payout", label: "Virement effectué", condition: "paiement Wave crédité", channel: "SMS + in-app", firedThisMonth: 4 },
+  { key: "docs", label: "Document expirant", condition: "document véhicule expire dans 30 jours", channel: "Email + in-app hebdomadaire", firedThisMonth: 2 },
+] as const;
 
 export const Route = createFileRoute("/driver/settings")({
   head: () => ({ meta: [{ title: "Paramètres · Livreur" }] }),
@@ -76,6 +92,14 @@ function DriverSettings() {
         </TabsContent>
 
         <TabsContent value="notif" className="space-y-4">
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Matrice événements × canaux</div>
+            <ChannelMatrix events={DRIVER_EVENTS} />
+          </div>
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Règles de déclenchement</div>
+            <TriggerRules rules={DRIVER_RULES} />
+          </div>
           <div className="glass rounded-2xl p-5 space-y-3">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Canaux</div>
             <Row label="Push mobile" description="Notifications en temps réel" value={notif.push} onChange={(v) => setNotif({ ...notif, push: v })} />
