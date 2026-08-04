@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Star, MapPin, Heart, Plus, Search, Pencil, Ban, PlayCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -18,14 +18,8 @@ function qualityScore(totalOrders: number, favorite: boolean, suspended: boolean
 
 export const Route = createFileRoute("/restaurant/suppliers/")({
   head: () => ({ meta: [{ title: "Fournisseurs · Restaurant" }] }),
-  component: SuppliersLayout,
+  component: SuppliersList,
 });
-
-function SuppliersLayout() {
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  if (path !== "/restaurant/suppliers") return <Outlet />;
-  return <SuppliersList />;
-}
 
 function SuppliersList() {
   const suppliers = useSuppliers();
