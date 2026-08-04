@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Phone, MessageSquare, Truck, Clock, Package, Route as RouteIcon, Check, X, Navigation, Camera, User, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useMission, missionActions, driverNotifActions } from "@/data/store";
+import { GpsPanel } from "@/components/driver/gps-panel";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
