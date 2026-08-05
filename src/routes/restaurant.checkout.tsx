@@ -58,10 +58,11 @@ function Checkout() {
   };
 
   const confirm = () => {
+    const created: string[] = [];
     farmerGroups.forEach((f) => {
       const items = lines.filter((l) => l.product.farmerId === f.id).map((l) => ({ productId: l.productId, qty: l.qty, price: l.product.pricePerKg }));
       const fSubtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
-      restaurantOrderActions.create({
+      const id = restaurantOrderActions.create({
         farmerId: f.id,
         items,
         total: fSubtotal,
@@ -69,7 +70,9 @@ function Checkout() {
         paymentMethod: method,
         eta: "24h",
       });
+      created.push(id);
     });
+    setOrderIds(created);
     cartActions.clear();
     toast.success("Commande passée avec succès");
     setStep(3);
@@ -126,7 +129,15 @@ function Checkout() {
               <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center mx-auto"><Check className="h-8 w-8" /></div>
               <h3 className="font-display text-2xl font-bold">Commande confirmée 🎉</h3>
               <p className="text-sm text-muted-foreground">{farmerGroups.length} commande(s) envoyée(s) à vos producteurs. Vous recevrez une notification de confirmation.</p>
-              <Button onClick={() => navigate({ to: "/restaurant/orders" })} className="mt-4">Voir mes commandes</Button>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {orderIds[0] && (
+                  <Button onClick={() => navigate({ to: "/restaurant/orders/$orderId", params: { orderId: orderIds[0] } })}>
+                    Suivre la livraison
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => navigate({ to: "/restaurant/orders" })}>Mes commandes</Button>
+                <Button variant="outline" onClick={() => navigate({ to: "/restaurant/invoices" })}>Mes factures</Button>
+              </div>
             </div>
           )}
         </div>
