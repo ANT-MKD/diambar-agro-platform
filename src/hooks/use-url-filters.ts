@@ -6,7 +6,7 @@ import { useCallback } from "react";
  * les filtres/tri/pagination via l'URL de manière typée.
  */
 export function useUrlFilters<T extends Record<string, unknown>>() {
-  const search = useSearch({ strict: false }) as T;
+  const search = useSearch({ strict: false } as never) as T;
   const navigate = useNavigate();
 
   const set = useCallback(

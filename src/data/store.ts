@@ -13,6 +13,7 @@ import {
   missions as seedMissions,
   driverNotifications as seedDriverNotifs,
   driverConversations as seedDriverConvos,
+  driverWallet as seedDriverWallet,
   type Product,
   type Order,
   type OrderStatus,
@@ -26,6 +27,9 @@ import {
   type RecurringOrder,
   type Mission,
   type MissionStatus,
+  type DriverWallet,
+  type DriverTx,
+  type PaymentMethod as PayMethod,
 } from "./mocks";
 
 type Listener = () => void;
@@ -67,6 +71,7 @@ const driverNotifsStore = createStore<AppNotification[]>(seedDriverNotifs);
 const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
 const driverConvosStore = createStore<Conversation[]>(seedDriverConvos, "diambar:driver-convos");
 const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
+const driverWalletStore = createStore<DriverWallet>(seedDriverWallet, "diambar:driver-wallet");
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([], "diambar:cart");
@@ -153,12 +158,49 @@ export function useDriverConversation(id: string) {
 export function useDriverOnline() {
   return useSyncExternalStore(driverOnlineStore.subscribe, driverOnlineStore.get, driverOnlineStore.get);
 }
+export function useDriverWallet() {
+  return useSyncExternalStore(driverWalletStore.subscribe, driverWalletStore.get, driverWalletStore.get);
+}
+
+export const driverWalletActions = {
+  withdraw: (amount: number, method: PayMethod) => {
+    const tx: DriverTx = {
+      id: `dtx_${Date.now()}`,
+      at: new Date().toISOString(),
+      label: `Retrait ${method}`,
+      kind: "withdrawal",
+      amount: -Math.abs(amount),
+      method,
+      status: "En attente",
+    };
+    driverWalletStore.set((w) => ({
+      ...w,
+      balance: Math.max(0, w.balance - Math.abs(amount)),
+      pending: w.pending + Math.abs(amount),
+      transactions: [tx, ...w.transactions],
+    }));
+    return tx.id;
+  },
+  credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission") => {
+    driverWalletStore.set((w) => ({
+      ...w,
+      balance: w.balance + amount,
+      transactions: [{ id: `dtx_${Date.now()}`, at: new Date().toISOString(), label, kind, amount, status: "Complété" }, ...w.transactions],
+    }));
+  },
+  reset: () => driverWalletStore.set(seedDriverWallet),
+};
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
   return {
     markRead: (id: string) =>
       store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n))),
     markAllRead: () => store.set((arr) => arr.map((n) => ({ ...n, read: true }))),
+    markUnread: (id: string) =>
+      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: false } : n))),
+    toggleRead: (id: string) =>
+      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: !n.read } : n))),
+    clearRead: () => store.set((arr) => arr.filter((n) => !n.read)),
     remove: (id: string) => store.set((arr) => arr.filter((n) => n.id !== id)),
     add: (n: Omit<AppNotification, "id" | "at" | "read"> & { id?: string; at?: string; read?: boolean }) => {
       const id = n.id ?? `n_${Date.now()}`;
