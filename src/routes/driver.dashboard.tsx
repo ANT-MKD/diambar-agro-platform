@@ -158,13 +158,38 @@ function DriverDashboard() {
             <p className="mt-3 text-[11px] text-muted-foreground">Complétez {6 - driverProfile.todayMissions} mission(s) de plus pour débloquer le bonus.</p>
           </div>
 
-          {/* Solde */}
-          <div className="glass rounded-2xl p-5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Solde disponible</div>
-            <div className="mt-1 font-display text-3xl font-bold text-primary">{formatFCFA(driverProfile.balance)}</div>
-            <Button asChild className="mt-3 w-full">
-              <Link to="/driver/earnings">Voir mes revenus</Link>
-            </Button>
+          {/* Portefeuille */}
+          <div className="glass rounded-2xl p-5 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Portefeuille</div>
+              <Wallet className="h-4 w-4 text-primary" />
+            </div>
+            <div className="mt-1 font-display text-3xl font-bold text-primary">{formatFCFA(wallet.balance)}</div>
+            <div className="text-[11px] text-muted-foreground">disponible · {formatFCFA(wallet.pending)} en attente</div>
+
+            <div className="mt-4 space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dernières transactions</div>
+              {wallet.transactions.slice(0, 3).map((t) => (
+                <div key={t.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate text-muted-foreground">{t.label}</span>
+                  <span className={`font-semibold shrink-0 ${t.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
+                    {t.amount > 0 ? "+" : "−"}{formatFCFA(Math.abs(t.amount))}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-border p-3 text-xs space-y-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Commission</div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Gains bruts</span><span className="font-medium">{formatFCFA(grossMissions)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Diambar ({commissionRate}%)</span><span className="font-medium text-rose-500">− {formatFCFA(Math.abs(commissionTotal))}</span></div>
+              <div className="flex justify-between border-t border-border pt-1.5"><span className="text-muted-foreground">Net</span><span className="font-bold text-primary">{formatFCFA(grossMissions + bonusTotal + commissionTotal)}</span></div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button asChild size="sm"><Link to="/driver/wallet">Portefeuille</Link></Button>
+              <Button asChild size="sm" variant="outline"><Link to="/driver/earnings">Revenus</Link></Button>
+            </div>
           </div>
 
           {/* Graph semaine */}
