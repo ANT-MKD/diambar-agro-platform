@@ -467,3 +467,36 @@ export const driverConversations: Conversation[] = [
     ],
   },
 ];
+
+/* ---------------- Portefeuille livreur ---------------- */
+
+export type DriverTx = {
+  id: string;
+  at: string;
+  label: string;
+  ref?: string;
+  kind: "mission" | "bonus" | "commission" | "withdrawal" | "adjustment";
+  amount: number; // positif = crédit, négatif = débit
+  method?: PaymentMethod;
+  status: "Complété" | "En attente" | "Programmé";
+};
+
+export const driverTransactions: DriverTx[] = [
+  { id: "dtx1", at: "2025-05-15T11:30:00Z", label: "Mission MIS-4200 · Le Baobab", ref: "MIS-4200", kind: "mission", amount: 9000, status: "Complété" },
+  { id: "dtx2", at: "2025-05-15T11:30:00Z", label: "Commission plateforme (5%)", ref: "MIS-4200", kind: "commission", amount: -425, status: "Complété" },
+  { id: "dtx3", at: "2025-05-14T18:05:00Z", label: "Mission MIS-4180 · Chez Aminata", ref: "MIS-4180", kind: "mission", amount: 3500, status: "Complété" },
+  { id: "dtx4", at: "2025-05-14T18:05:00Z", label: "Commission plateforme (5%)", ref: "MIS-4180", kind: "commission", amount: -175, status: "Complété" },
+  { id: "dtx5", at: "2025-05-13T20:12:00Z", label: "Bonus 5 missions / jour", kind: "bonus", amount: 1500, status: "Complété" },
+  { id: "dtx6", at: "2025-05-12T09:00:00Z", label: "Retrait Wave", kind: "withdrawal", amount: -45000, method: "Wave", status: "Complété" },
+  { id: "dtx7", at: "2025-05-11T16:40:00Z", label: "Mission MIS-4170 · Le Baobab", ref: "MIS-4170", kind: "mission", amount: 4500, status: "Complété" },
+  { id: "dtx8", at: "2025-05-10T14:20:00Z", label: "Retrait Orange Money", kind: "withdrawal", amount: -30000, method: "Orange Money", status: "En attente" },
+];
+
+export type DriverWallet = { balance: number; pending: number; withdrawn: number; transactions: DriverTx[] };
+
+export const driverWallet: DriverWallet = {
+  balance: 187500,
+  pending: 8575,
+  withdrawn: 412000,
+  transactions: driverTransactions,
+};
