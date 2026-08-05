@@ -10,7 +10,7 @@ import { PasswordStrength, passwordScore } from "@/components/auth/password-stre
 import { cities } from "@/data/mocks";
 
 export const Route = createFileRoute("/register")({
-  validateSearch: (s: Record<string, unknown>) => ({ role: (s.role as string) || "" }),
+  validateSearch: (s: Record<string, unknown>): { role?: string } => ({ role: (s.role as string) || undefined }),
   head: () => ({ meta: [{ title: "Inscription · Diambar Agro" }] }),
   component: RegisterPage,
 });
