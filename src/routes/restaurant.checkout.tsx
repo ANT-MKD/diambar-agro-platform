@@ -33,6 +33,7 @@ function Checkout() {
   const total = subtotal + delivery;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [orderIds, setOrderIds] = useState<string[]>([]);
   const [address, setAddress] = useState("Le Baobab, Dakar Plateau");
   const [slot, setSlot] = useState("Demain · 08:00 – 10:00");
   const [method, setMethod] = useState<PaymentMethod>("Wave");
