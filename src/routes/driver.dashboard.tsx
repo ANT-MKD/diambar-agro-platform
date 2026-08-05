@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Truck, Wallet, Route as RouteIcon, Star, Zap, ArrowRight, Clock, MapPin, TrendingUp, Package, ZapOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useMissions, useDriverOnline, driverOnlineActions } from "@/data/store";
+import { useMissions, useDriverOnline, driverOnlineActions, useDriverWallet } from "@/data/store";
 import { driverProfile, restaurants, farmers, driverEarningsChart } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,11 @@ export const Route = createFileRoute("/driver/dashboard")({
 function DriverDashboard() {
   const missions = useMissions();
   const online = useDriverOnline();
+  const wallet = useDriverWallet();
+  const grossMissions = wallet.transactions.filter((t) => t.kind === "mission").reduce((s, t) => s + t.amount, 0);
+  const bonusTotal = wallet.transactions.filter((t) => t.kind === "bonus").reduce((s, t) => s + t.amount, 0);
+  const commissionTotal = wallet.transactions.filter((t) => t.kind === "commission").reduce((s, t) => s + t.amount, 0);
+  const commissionRate = grossMissions ? Math.round((Math.abs(commissionTotal) / grossMissions) * 1000) / 10 : 0;
   const available = missions.filter((m) => m.status === "available");
   const active = missions.filter((m) => m.driverId === "d1" && (m.status === "accepted" || m.status === "pickup" || m.status === "loaded"));
   const nextMission = active[0] ?? null;
