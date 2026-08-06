@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Truck, Wallet, History, MessageSquare, Bell, Settings, LogOut, Menu, X, Search, Zap, ZapOff, Car } from "lucide-react";
+import { LayoutDashboard, Truck, Wallet, History, MessageSquare, Bell, Settings, LogOut, Menu, X, Search, Zap, ZapOff, Car, Scale } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, Repeat, Users, MessageSquare, Bell, Settings, LogOut, Menu, X, UtensilsCrossed, Search, FileText } from "lucide-react";
+import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, Repeat, Users, MessageSquare, Bell, Settings, LogOut, Menu, X, UtensilsCrossed, Search, FileText, Scale } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
