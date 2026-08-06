@@ -388,7 +388,7 @@ export const disputeActions = {
         status: "issued",
       }, ...arr]);
       if (decision.liableParty === "driver") {
-        driverWalletActions.credit(`Retenue litige ${d.reference}`, -Math.abs(decision.grantedAmount), "adjustment" as never);
+        driverWalletActions.credit(`Retenue litige ${d.reference}`, -Math.abs(decision.grantedAmount), "adjustment");
       }
     }
   },
