@@ -20,6 +20,7 @@ const navSections = [
       { to: "/restaurant/recurring", label: "Commandes récurrentes", icon: Repeat },
       { to: "/restaurant/suppliers", label: "Fournisseurs", icon: Users },
       { to: "/restaurant/invoices", label: "Factures", icon: FileText },
+      { to: "/restaurant/disputes", label: "Litiges", icon: Scale },
       { to: "/restaurant/messages", label: "Messages", icon: MessageSquare, badge: 1 },
       { to: "/restaurant/notifications", label: "Notifications", icon: Bell },
     ],

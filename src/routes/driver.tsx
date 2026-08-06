@@ -19,6 +19,7 @@ const navSections = [
       { to: "/driver/history", label: "Historique", icon: History },
       { to: "/driver/earnings", label: "Mes Revenus", icon: Wallet },
       { to: "/driver/wallet", label: "Portefeuille", icon: Wallet },
+      { to: "/driver/disputes", label: "Litiges", icon: Scale },
       { to: "/driver/messages", label: "Messages", icon: MessageSquare, badge: 1 },
       { to: "/driver/notifications", label: "Notifications", icon: Bell },
     ],
