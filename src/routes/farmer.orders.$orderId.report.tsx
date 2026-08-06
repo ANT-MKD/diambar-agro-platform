@@ -4,6 +4,7 @@ import { ArrowLeft, Flag, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useOrder } from "@/data/store";
+import { disputeActions } from "@/data/disputes";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,26 @@ function ReportPage() {
 
   const submit = () => {
     if (!description.trim()) { toast.error("Veuillez décrire le problème"); return; }
-    toast.success(`Signalement envoyé · ticket #${Math.floor(Math.random() * 9000 + 1000)}`);
-    navigate({ to: "/farmer/orders/$orderId", params: { orderId } });
+    const map: Record<string, [string, string]> = {
+      no_show: ["delivery", "Client absent"],
+      payment: ["payment", "Paiement non reçu"],
+      behavior: ["behaviour", "Comportement inapproprié"],
+      address: ["delivery", "Adresse incorrecte"],
+      driver: ["delivery", "Retard important"],
+      other: ["other", "Autre motif"],
+    };
+    const [category, subcategory] = map[issue] ?? ["other", "Autre motif"];
+    const id = disputeActions.open({
+      category, subcategory, description: description.trim(),
+      orderRef: order.reference, orderId: order.id,
+      hasGpsTrack: Boolean(order.driverId),
+      openedByRole: "farmer", openedByName: "Coopérative Sow",
+      againstRole: issue === "driver" ? "driver" : issue === "payment" ? "platform" : "restaurant",
+      againstName: issue === "driver" ? "Livreur assigné" : issue === "payment" ? "Plateforme Diambar" : (r?.name ?? "Restaurant"),
+      claimedAmount: order.total, priority: severity, channel: "app",
+    });
+    toast.success("Signalement enregistré · dossier de litige créé");
+    navigate({ to: "/farmer/disputes/$disputeId", params: { disputeId: id } });
   };
 
   return (

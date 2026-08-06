@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, Warehouse, ShoppingBag, TrendingUp, BarChart3, MessageSquare, Bell, Settings, LogOut, Menu, X, Sprout, Search } from "lucide-react";
+import { LayoutDashboard, Package, Warehouse, ShoppingBag, TrendingUp, BarChart3, MessageSquare, Bell, Settings, LogOut, Menu, X, Sprout, Search, Scale } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -14,6 +14,7 @@ const navSections = [
     label: "NAVIGATION",
     items: [
       { to: "/farmer/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+      { to: "/farmer/disputes", label: "Litiges", icon: Scale },
       { to: "/farmer/products", label: "Mes Produits", icon: Package },
       { to: "/farmer/stock", label: "Gestion du Stock", icon: Warehouse },
       { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag, badge: 5 },

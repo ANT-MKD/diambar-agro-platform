@@ -66,6 +66,7 @@ import { Route as RestaurantOrdersIndexRouteImport } from './routes/restaurant.o
 import { Route as RestaurantNotificationsIndexRouteImport } from './routes/restaurant.notifications.index'
 import { Route as RestaurantMessagesIndexRouteImport } from './routes/restaurant.messages.index'
 import { Route as RestaurantInvoicesIndexRouteImport } from './routes/restaurant.invoices.index'
+import { Route as RestaurantDisputesIndexRouteImport } from './routes/restaurant.disputes.index'
 import { Route as FarmerStockIndexRouteImport } from './routes/farmer.stock.index'
 import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.settings.index'
 import { Route as FarmerRevenueIndexRouteImport } from './routes/farmer.revenue.index'
@@ -73,9 +74,11 @@ import { Route as FarmerProductsIndexRouteImport } from './routes/farmer.product
 import { Route as FarmerOrdersIndexRouteImport } from './routes/farmer.orders.index'
 import { Route as FarmerNotificationsIndexRouteImport } from './routes/farmer.notifications.index'
 import { Route as FarmerMessagesIndexRouteImport } from './routes/farmer.messages.index'
+import { Route as FarmerDisputesIndexRouteImport } from './routes/farmer.disputes.index'
 import { Route as DriverNotificationsIndexRouteImport } from './routes/driver.notifications.index'
 import { Route as DriverMissionsIndexRouteImport } from './routes/driver.missions.index'
 import { Route as DriverMessagesIndexRouteImport } from './routes/driver.messages.index'
+import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
 import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
 import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.index'
@@ -92,6 +95,7 @@ import { Route as RestaurantNotificationsRulesRouteImport } from './routes/resta
 import { Route as RestaurantMessagesConversationIdRouteImport } from './routes/restaurant.messages.$conversationId'
 import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
+import { Route as RestaurantDisputesDisputeIdRouteImport } from './routes/restaurant.disputes.$disputeId'
 import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
 import { Route as FarmerSettingsTeamRouteImport } from './routes/farmer.settings.team'
 import { Route as FarmerSettingsSecurityRouteImport } from './routes/farmer.settings.security'
@@ -108,18 +112,23 @@ import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.pro
 import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
 import { Route as FarmerNotificationsRulesRouteImport } from './routes/farmer.notifications.rules'
 import { Route as FarmerMessagesConversationIdRouteImport } from './routes/farmer.messages.$conversationId'
+import { Route as FarmerDisputesDisputeIdRouteImport } from './routes/farmer.disputes.$disputeId'
 import { Route as DriverNotificationsRulesRouteImport } from './routes/driver.notifications.rules'
 import { Route as DriverMissionsMissionIdRouteImport } from './routes/driver.missions.$missionId'
 import { Route as DriverMessagesConversationIdRouteImport } from './routes/driver.messages.$conversationId'
+import { Route as DriverDisputesDisputeIdRouteImport } from './routes/driver.disputes.$disputeId'
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
 import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
+import { Route as RestaurantOrdersOrderIdDisputeRouteImport } from './routes/restaurant.orders.$orderId.dispute'
 import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
 import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
 import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products.$productId.edit'
 import { Route as FarmerOrdersOrderIdReportRouteImport } from './routes/farmer.orders.$orderId.report'
 import { Route as FarmerOrdersOrderIdRefuseRouteImport } from './routes/farmer.orders.$orderId.refuse'
+import { Route as FarmerOrdersOrderIdDisputeRouteImport } from './routes/farmer.orders.$orderId.dispute'
+import { Route as DriverMissionsMissionIdDisputeRouteImport } from './routes/driver.missions.$missionId.dispute'
 
 const RestaurantRoute = RestaurantRouteImport.update({
   id: '/restaurant',
@@ -408,6 +417,11 @@ const RestaurantInvoicesIndexRoute = RestaurantInvoicesIndexRouteImport.update({
   path: '/invoices/',
   getParentRoute: () => RestaurantRoute,
 } as any)
+const RestaurantDisputesIndexRoute = RestaurantDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => RestaurantRoute,
+} as any)
 const FarmerStockIndexRoute = FarmerStockIndexRouteImport.update({
   id: '/stock/',
   path: '/stock/',
@@ -444,6 +458,11 @@ const FarmerMessagesIndexRoute = FarmerMessagesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => FarmerMessagesRoute,
 } as any)
+const FarmerDisputesIndexRoute = FarmerDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => FarmerRoute,
+} as any)
 const DriverNotificationsIndexRoute =
   DriverNotificationsIndexRouteImport.update({
     id: '/',
@@ -459,6 +478,11 @@ const DriverMessagesIndexRoute = DriverMessagesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DriverMessagesRoute,
+} as any)
+const DriverDisputesIndexRoute = DriverDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => DriverRoute,
 } as any)
 const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
   id: '/validations/',
@@ -550,6 +574,12 @@ const RestaurantInvoicesInvoiceIdRoute =
     path: '/invoices/$invoiceId',
     getParentRoute: () => RestaurantRoute,
   } as any)
+const RestaurantDisputesDisputeIdRoute =
+  RestaurantDisputesDisputeIdRouteImport.update({
+    id: '/disputes/$disputeId',
+    path: '/disputes/$disputeId',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
 const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
   id: '/stock/inventory',
   path: '/stock/inventory',
@@ -634,6 +664,11 @@ const FarmerMessagesConversationIdRoute =
     path: '/$conversationId',
     getParentRoute: () => FarmerMessagesRoute,
   } as any)
+const FarmerDisputesDisputeIdRoute = FarmerDisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => FarmerRoute,
+} as any)
 const DriverNotificationsRulesRoute =
   DriverNotificationsRulesRouteImport.update({
     id: '/rules',
@@ -651,6 +686,11 @@ const DriverMessagesConversationIdRoute =
     path: '/$conversationId',
     getParentRoute: () => DriverMessagesRoute,
   } as any)
+const DriverDisputesDisputeIdRoute = DriverDisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => DriverRoute,
+} as any)
 const AdminValidationsValidationIdRoute =
   AdminValidationsValidationIdRouteImport.update({
     id: '/validations/$validationId',
@@ -672,6 +712,12 @@ const RestaurantSuppliersSupplierIdEditRoute =
     id: '/edit',
     path: '/edit',
     getParentRoute: () => RestaurantSuppliersSupplierIdRoute,
+  } as any)
+const RestaurantOrdersOrderIdDisputeRoute =
+  RestaurantOrdersOrderIdDisputeRouteImport.update({
+    id: '/dispute',
+    path: '/dispute',
+    getParentRoute: () => RestaurantOrdersOrderIdRoute,
   } as any)
 const FarmerStockMovementNewRoute = FarmerStockMovementNewRouteImport.update({
   id: '/stock/movement/new',
@@ -701,6 +747,18 @@ const FarmerOrdersOrderIdRefuseRoute =
     id: '/refuse',
     path: '/refuse',
     getParentRoute: () => FarmerOrdersOrderIdRoute,
+  } as any)
+const FarmerOrdersOrderIdDisputeRoute =
+  FarmerOrdersOrderIdDisputeRouteImport.update({
+    id: '/dispute',
+    path: '/dispute',
+    getParentRoute: () => FarmerOrdersOrderIdRoute,
+  } as any)
+const DriverMissionsMissionIdDisputeRoute =
+  DriverMissionsMissionIdDisputeRouteImport.update({
+    id: '/dispute',
+    path: '/dispute',
+    getParentRoute: () => DriverMissionsMissionIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -758,9 +816,11 @@ export interface FileRoutesByFullPath {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
+  '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
-  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
+  '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -777,11 +837,12 @@ export interface FileRoutesByFullPath {
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
   '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/disputes/$disputeId': typeof RestaurantDisputesDisputeIdRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -793,9 +854,11 @@ export interface FileRoutesByFullPath {
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
+  '/driver/disputes/': typeof DriverDisputesIndexRoute
   '/driver/messages/': typeof DriverMessagesIndexRoute
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
+  '/farmer/disputes/': typeof FarmerDisputesIndexRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
   '/farmer/notifications/': typeof FarmerNotificationsIndexRoute
   '/farmer/orders/': typeof FarmerOrdersIndexRoute
@@ -803,17 +866,21 @@ export interface FileRoutesByFullPath {
   '/farmer/revenue/': typeof FarmerRevenueIndexRoute
   '/farmer/settings/': typeof FarmerSettingsIndexRoute
   '/farmer/stock/': typeof FarmerStockIndexRoute
+  '/restaurant/disputes/': typeof RestaurantDisputesIndexRoute
   '/restaurant/invoices/': typeof RestaurantInvoicesIndexRoute
   '/restaurant/messages/': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications/': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders/': typeof RestaurantOrdersIndexRoute
   '/restaurant/settings/': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers/': typeof RestaurantSuppliersIndexRoute
+  '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
+  '/farmer/orders/$orderId/dispute': typeof FarmerOrdersOrderIdDisputeRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/orders/$orderId/dispute': typeof RestaurantOrdersOrderIdDisputeRoute
   '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -863,9 +930,11 @@ export interface FileRoutesByTo {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
+  '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
-  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
+  '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -882,11 +951,12 @@ export interface FileRoutesByTo {
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
   '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/disputes/$disputeId': typeof RestaurantDisputesDisputeIdRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -898,9 +968,11 @@ export interface FileRoutesByTo {
   '/admin/disputes': typeof AdminDisputesIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/admin/validations': typeof AdminValidationsIndexRoute
+  '/driver/disputes': typeof DriverDisputesIndexRoute
   '/driver/messages': typeof DriverMessagesIndexRoute
   '/driver/missions': typeof DriverMissionsIndexRoute
   '/driver/notifications': typeof DriverNotificationsIndexRoute
+  '/farmer/disputes': typeof FarmerDisputesIndexRoute
   '/farmer/messages': typeof FarmerMessagesIndexRoute
   '/farmer/notifications': typeof FarmerNotificationsIndexRoute
   '/farmer/orders': typeof FarmerOrdersIndexRoute
@@ -908,17 +980,21 @@ export interface FileRoutesByTo {
   '/farmer/revenue': typeof FarmerRevenueIndexRoute
   '/farmer/settings': typeof FarmerSettingsIndexRoute
   '/farmer/stock': typeof FarmerStockIndexRoute
+  '/restaurant/disputes': typeof RestaurantDisputesIndexRoute
   '/restaurant/invoices': typeof RestaurantInvoicesIndexRoute
   '/restaurant/messages': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders': typeof RestaurantOrdersIndexRoute
   '/restaurant/settings': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersIndexRoute
+  '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
+  '/farmer/orders/$orderId/dispute': typeof FarmerOrdersOrderIdDisputeRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/orders/$orderId/dispute': typeof RestaurantOrdersOrderIdDisputeRoute
   '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRoutesById {
@@ -977,9 +1053,11 @@ export interface FileRoutesById {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
+  '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
-  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRoute
+  '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
+  '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
   '/farmer/orders/$orderId': typeof FarmerOrdersOrderIdRouteWithChildren
@@ -996,11 +1074,12 @@ export interface FileRoutesById {
   '/farmer/settings/security': typeof FarmerSettingsSecurityRoute
   '/farmer/settings/team': typeof FarmerSettingsTeamRoute
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
+  '/restaurant/disputes/$disputeId': typeof RestaurantDisputesDisputeIdRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -1012,9 +1091,11 @@ export interface FileRoutesById {
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
+  '/driver/disputes/': typeof DriverDisputesIndexRoute
   '/driver/messages/': typeof DriverMessagesIndexRoute
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
+  '/farmer/disputes/': typeof FarmerDisputesIndexRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
   '/farmer/notifications/': typeof FarmerNotificationsIndexRoute
   '/farmer/orders/': typeof FarmerOrdersIndexRoute
@@ -1022,17 +1103,21 @@ export interface FileRoutesById {
   '/farmer/revenue/': typeof FarmerRevenueIndexRoute
   '/farmer/settings/': typeof FarmerSettingsIndexRoute
   '/farmer/stock/': typeof FarmerStockIndexRoute
+  '/restaurant/disputes/': typeof RestaurantDisputesIndexRoute
   '/restaurant/invoices/': typeof RestaurantInvoicesIndexRoute
   '/restaurant/messages/': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications/': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders/': typeof RestaurantOrdersIndexRoute
   '/restaurant/settings/': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers/': typeof RestaurantSuppliersIndexRoute
+  '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
+  '/farmer/orders/$orderId/dispute': typeof FarmerOrdersOrderIdDisputeRoute
   '/farmer/orders/$orderId/refuse': typeof FarmerOrdersOrderIdRefuseRoute
   '/farmer/orders/$orderId/report': typeof FarmerOrdersOrderIdReportRoute
   '/farmer/products/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
+  '/restaurant/orders/$orderId/dispute': typeof RestaurantOrdersOrderIdDisputeRoute
   '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRouteTypes {
@@ -1092,9 +1177,11 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
+    | '/driver/disputes/$disputeId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
+    | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
     | '/farmer/orders/$orderId'
@@ -1111,6 +1198,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/security'
     | '/farmer/settings/team'
     | '/farmer/stock/inventory'
+    | '/restaurant/disputes/$disputeId'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/messages/$conversationId'
@@ -1127,9 +1215,11 @@ export interface FileRouteTypes {
     | '/admin/disputes/'
     | '/admin/users/'
     | '/admin/validations/'
+    | '/driver/disputes/'
     | '/driver/messages/'
     | '/driver/missions/'
     | '/driver/notifications/'
+    | '/farmer/disputes/'
     | '/farmer/messages/'
     | '/farmer/notifications/'
     | '/farmer/orders/'
@@ -1137,17 +1227,21 @@ export interface FileRouteTypes {
     | '/farmer/revenue/'
     | '/farmer/settings/'
     | '/farmer/stock/'
+    | '/restaurant/disputes/'
     | '/restaurant/invoices/'
     | '/restaurant/messages/'
     | '/restaurant/notifications/'
     | '/restaurant/orders/'
     | '/restaurant/settings/'
     | '/restaurant/suppliers/'
+    | '/driver/missions/$missionId/dispute'
+    | '/farmer/orders/$orderId/dispute'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/orders/$orderId/dispute'
     | '/restaurant/suppliers/$supplierId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1197,9 +1291,11 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
+    | '/driver/disputes/$disputeId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
+    | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
     | '/farmer/orders/$orderId'
@@ -1216,6 +1312,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/security'
     | '/farmer/settings/team'
     | '/farmer/stock/inventory'
+    | '/restaurant/disputes/$disputeId'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/messages/$conversationId'
@@ -1232,9 +1329,11 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/admin/users'
     | '/admin/validations'
+    | '/driver/disputes'
     | '/driver/messages'
     | '/driver/missions'
     | '/driver/notifications'
+    | '/farmer/disputes'
     | '/farmer/messages'
     | '/farmer/notifications'
     | '/farmer/orders'
@@ -1242,17 +1341,21 @@ export interface FileRouteTypes {
     | '/farmer/revenue'
     | '/farmer/settings'
     | '/farmer/stock'
+    | '/restaurant/disputes'
     | '/restaurant/invoices'
     | '/restaurant/messages'
     | '/restaurant/notifications'
     | '/restaurant/orders'
     | '/restaurant/settings'
     | '/restaurant/suppliers'
+    | '/driver/missions/$missionId/dispute'
+    | '/farmer/orders/$orderId/dispute'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/orders/$orderId/dispute'
     | '/restaurant/suppliers/$supplierId/edit'
   id:
     | '__root__'
@@ -1310,9 +1413,11 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
+    | '/driver/disputes/$disputeId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
+    | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
     | '/farmer/orders/$orderId'
@@ -1329,6 +1434,7 @@ export interface FileRouteTypes {
     | '/farmer/settings/security'
     | '/farmer/settings/team'
     | '/farmer/stock/inventory'
+    | '/restaurant/disputes/$disputeId'
     | '/restaurant/invoices/$invoiceId'
     | '/restaurant/marketplace/$productId'
     | '/restaurant/messages/$conversationId'
@@ -1345,9 +1451,11 @@ export interface FileRouteTypes {
     | '/admin/disputes/'
     | '/admin/users/'
     | '/admin/validations/'
+    | '/driver/disputes/'
     | '/driver/messages/'
     | '/driver/missions/'
     | '/driver/notifications/'
+    | '/farmer/disputes/'
     | '/farmer/messages/'
     | '/farmer/notifications/'
     | '/farmer/orders/'
@@ -1355,17 +1463,21 @@ export interface FileRouteTypes {
     | '/farmer/revenue/'
     | '/farmer/settings/'
     | '/farmer/stock/'
+    | '/restaurant/disputes/'
     | '/restaurant/invoices/'
     | '/restaurant/messages/'
     | '/restaurant/notifications/'
     | '/restaurant/orders/'
     | '/restaurant/settings/'
     | '/restaurant/suppliers/'
+    | '/driver/missions/$missionId/dispute'
+    | '/farmer/orders/$orderId/dispute'
     | '/farmer/orders/$orderId/refuse'
     | '/farmer/orders/$orderId/report'
     | '/farmer/products/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
+    | '/restaurant/orders/$orderId/dispute'
     | '/restaurant/suppliers/$supplierId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -1796,6 +1908,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantInvoicesIndexRouteImport
       parentRoute: typeof RestaurantRoute
     }
+    '/restaurant/disputes/': {
+      id: '/restaurant/disputes/'
+      path: '/disputes'
+      fullPath: '/restaurant/disputes/'
+      preLoaderRoute: typeof RestaurantDisputesIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
     '/farmer/stock/': {
       id: '/farmer/stock/'
       path: '/stock'
@@ -1845,6 +1964,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerMessagesIndexRouteImport
       parentRoute: typeof FarmerMessagesRoute
     }
+    '/farmer/disputes/': {
+      id: '/farmer/disputes/'
+      path: '/disputes'
+      fullPath: '/farmer/disputes/'
+      preLoaderRoute: typeof FarmerDisputesIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/driver/notifications/': {
       id: '/driver/notifications/'
       path: '/'
@@ -1865,6 +1991,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/driver/messages/'
       preLoaderRoute: typeof DriverMessagesIndexRouteImport
       parentRoute: typeof DriverMessagesRoute
+    }
+    '/driver/disputes/': {
+      id: '/driver/disputes/'
+      path: '/disputes'
+      fullPath: '/driver/disputes/'
+      preLoaderRoute: typeof DriverDisputesIndexRouteImport
+      parentRoute: typeof DriverRoute
     }
     '/admin/validations/': {
       id: '/admin/validations/'
@@ -1976,6 +2109,13 @@ declare module '@tanstack/react-router' {
       path: '/invoices/$invoiceId'
       fullPath: '/restaurant/invoices/$invoiceId'
       preLoaderRoute: typeof RestaurantInvoicesInvoiceIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/disputes/$disputeId': {
+      id: '/restaurant/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/restaurant/disputes/$disputeId'
+      preLoaderRoute: typeof RestaurantDisputesDisputeIdRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/farmer/stock/inventory': {
@@ -2090,6 +2230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerMessagesConversationIdRouteImport
       parentRoute: typeof FarmerMessagesRoute
     }
+    '/farmer/disputes/$disputeId': {
+      id: '/farmer/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/farmer/disputes/$disputeId'
+      preLoaderRoute: typeof FarmerDisputesDisputeIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/driver/notifications/rules': {
       id: '/driver/notifications/rules'
       path: '/rules'
@@ -2110,6 +2257,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/driver/messages/$conversationId'
       preLoaderRoute: typeof DriverMessagesConversationIdRouteImport
       parentRoute: typeof DriverMessagesRoute
+    }
+    '/driver/disputes/$disputeId': {
+      id: '/driver/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/driver/disputes/$disputeId'
+      preLoaderRoute: typeof DriverDisputesDisputeIdRouteImport
+      parentRoute: typeof DriverRoute
     }
     '/admin/validations/$validationId': {
       id: '/admin/validations/$validationId'
@@ -2138,6 +2292,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant/suppliers/$supplierId/edit'
       preLoaderRoute: typeof RestaurantSuppliersSupplierIdEditRouteImport
       parentRoute: typeof RestaurantSuppliersSupplierIdRoute
+    }
+    '/restaurant/orders/$orderId/dispute': {
+      id: '/restaurant/orders/$orderId/dispute'
+      path: '/dispute'
+      fullPath: '/restaurant/orders/$orderId/dispute'
+      preLoaderRoute: typeof RestaurantOrdersOrderIdDisputeRouteImport
+      parentRoute: typeof RestaurantOrdersOrderIdRoute
     }
     '/farmer/stock/movement/new': {
       id: '/farmer/stock/movement/new'
@@ -2173,6 +2334,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/farmer/orders/$orderId/refuse'
       preLoaderRoute: typeof FarmerOrdersOrderIdRefuseRouteImport
       parentRoute: typeof FarmerOrdersOrderIdRoute
+    }
+    '/farmer/orders/$orderId/dispute': {
+      id: '/farmer/orders/$orderId/dispute'
+      path: '/dispute'
+      fullPath: '/farmer/orders/$orderId/dispute'
+      preLoaderRoute: typeof FarmerOrdersOrderIdDisputeRouteImport
+      parentRoute: typeof FarmerOrdersOrderIdRoute
+    }
+    '/driver/missions/$missionId/dispute': {
+      id: '/driver/missions/$missionId/dispute'
+      path: '/dispute'
+      fullPath: '/driver/missions/$missionId/dispute'
+      preLoaderRoute: typeof DriverMissionsMissionIdDisputeRouteImport
+      parentRoute: typeof DriverMissionsMissionIdRoute
     }
   }
 }
@@ -2236,6 +2411,20 @@ const DriverNotificationsRouteChildren: DriverNotificationsRouteChildren = {
 const DriverNotificationsRouteWithChildren =
   DriverNotificationsRoute._addFileChildren(DriverNotificationsRouteChildren)
 
+interface DriverMissionsMissionIdRouteChildren {
+  DriverMissionsMissionIdDisputeRoute: typeof DriverMissionsMissionIdDisputeRoute
+}
+
+const DriverMissionsMissionIdRouteChildren: DriverMissionsMissionIdRouteChildren =
+  {
+    DriverMissionsMissionIdDisputeRoute: DriverMissionsMissionIdDisputeRoute,
+  }
+
+const DriverMissionsMissionIdRouteWithChildren =
+  DriverMissionsMissionIdRoute._addFileChildren(
+    DriverMissionsMissionIdRouteChildren,
+  )
+
 interface DriverRouteChildren {
   DriverDashboardRoute: typeof DriverDashboardRoute
   DriverEarningsRoute: typeof DriverEarningsRoute
@@ -2245,7 +2434,9 @@ interface DriverRouteChildren {
   DriverSettingsRoute: typeof DriverSettingsRoute
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
-  DriverMissionsMissionIdRoute: typeof DriverMissionsMissionIdRoute
+  DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
+  DriverMissionsMissionIdRoute: typeof DriverMissionsMissionIdRouteWithChildren
+  DriverDisputesIndexRoute: typeof DriverDisputesIndexRoute
   DriverMissionsIndexRoute: typeof DriverMissionsIndexRoute
 }
 
@@ -2258,7 +2449,9 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverSettingsRoute: DriverSettingsRoute,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
-  DriverMissionsMissionIdRoute: DriverMissionsMissionIdRoute,
+  DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
+  DriverMissionsMissionIdRoute: DriverMissionsMissionIdRouteWithChildren,
+  DriverDisputesIndexRoute: DriverDisputesIndexRoute,
   DriverMissionsIndexRoute: DriverMissionsIndexRoute,
 }
 
@@ -2317,11 +2510,13 @@ const FarmerSettingsRouteWithChildren = FarmerSettingsRoute._addFileChildren(
 )
 
 interface FarmerOrdersOrderIdRouteChildren {
+  FarmerOrdersOrderIdDisputeRoute: typeof FarmerOrdersOrderIdDisputeRoute
   FarmerOrdersOrderIdRefuseRoute: typeof FarmerOrdersOrderIdRefuseRoute
   FarmerOrdersOrderIdReportRoute: typeof FarmerOrdersOrderIdReportRoute
 }
 
 const FarmerOrdersOrderIdRouteChildren: FarmerOrdersOrderIdRouteChildren = {
+  FarmerOrdersOrderIdDisputeRoute: FarmerOrdersOrderIdDisputeRoute,
   FarmerOrdersOrderIdRefuseRoute: FarmerOrdersOrderIdRefuseRoute,
   FarmerOrdersOrderIdReportRoute: FarmerOrdersOrderIdReportRoute,
 }
@@ -2349,6 +2544,7 @@ interface FarmerRouteChildren {
   FarmerMessagesRoute: typeof FarmerMessagesRouteWithChildren
   FarmerNotificationsRoute: typeof FarmerNotificationsRouteWithChildren
   FarmerSettingsRoute: typeof FarmerSettingsRouteWithChildren
+  FarmerDisputesDisputeIdRoute: typeof FarmerDisputesDisputeIdRoute
   FarmerOrdersOrderIdRoute: typeof FarmerOrdersOrderIdRouteWithChildren
   FarmerProductsProductIdRoute: typeof FarmerProductsProductIdRouteWithChildren
   FarmerProductsImportRoute: typeof FarmerProductsImportRoute
@@ -2357,6 +2553,7 @@ interface FarmerRouteChildren {
   FarmerRevenueWithdrawRoute: typeof FarmerRevenueWithdrawRoute
   FarmerRevenueWithdrawalsRoute: typeof FarmerRevenueWithdrawalsRoute
   FarmerStockInventoryRoute: typeof FarmerStockInventoryRoute
+  FarmerDisputesIndexRoute: typeof FarmerDisputesIndexRoute
   FarmerOrdersIndexRoute: typeof FarmerOrdersIndexRoute
   FarmerProductsIndexRoute: typeof FarmerProductsIndexRoute
   FarmerRevenueIndexRoute: typeof FarmerRevenueIndexRoute
@@ -2371,6 +2568,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerMessagesRoute: FarmerMessagesRouteWithChildren,
   FarmerNotificationsRoute: FarmerNotificationsRouteWithChildren,
   FarmerSettingsRoute: FarmerSettingsRouteWithChildren,
+  FarmerDisputesDisputeIdRoute: FarmerDisputesDisputeIdRoute,
   FarmerOrdersOrderIdRoute: FarmerOrdersOrderIdRouteWithChildren,
   FarmerProductsProductIdRoute: FarmerProductsProductIdRouteWithChildren,
   FarmerProductsImportRoute: FarmerProductsImportRoute,
@@ -2379,6 +2577,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerRevenueWithdrawRoute: FarmerRevenueWithdrawRoute,
   FarmerRevenueWithdrawalsRoute: FarmerRevenueWithdrawalsRoute,
   FarmerStockInventoryRoute: FarmerStockInventoryRoute,
+  FarmerDisputesIndexRoute: FarmerDisputesIndexRoute,
   FarmerOrdersIndexRoute: FarmerOrdersIndexRoute,
   FarmerProductsIndexRoute: FarmerProductsIndexRoute,
   FarmerRevenueIndexRoute: FarmerRevenueIndexRoute,
@@ -2455,6 +2654,20 @@ const RestaurantSettingsRouteChildren: RestaurantSettingsRouteChildren = {
 const RestaurantSettingsRouteWithChildren =
   RestaurantSettingsRoute._addFileChildren(RestaurantSettingsRouteChildren)
 
+interface RestaurantOrdersOrderIdRouteChildren {
+  RestaurantOrdersOrderIdDisputeRoute: typeof RestaurantOrdersOrderIdDisputeRoute
+}
+
+const RestaurantOrdersOrderIdRouteChildren: RestaurantOrdersOrderIdRouteChildren =
+  {
+    RestaurantOrdersOrderIdDisputeRoute: RestaurantOrdersOrderIdDisputeRoute,
+  }
+
+const RestaurantOrdersOrderIdRouteWithChildren =
+  RestaurantOrdersOrderIdRoute._addFileChildren(
+    RestaurantOrdersOrderIdRouteChildren,
+  )
+
 interface RestaurantSuppliersSupplierIdRouteChildren {
   RestaurantSuppliersSupplierIdEditRoute: typeof RestaurantSuppliersSupplierIdEditRoute
 }
@@ -2480,10 +2693,12 @@ interface RestaurantRouteChildren {
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRouteWithChildren
   RestaurantRecurringRoute: typeof RestaurantRecurringRoute
   RestaurantSettingsRoute: typeof RestaurantSettingsRouteWithChildren
+  RestaurantDisputesDisputeIdRoute: typeof RestaurantDisputesDisputeIdRoute
   RestaurantInvoicesInvoiceIdRoute: typeof RestaurantInvoicesInvoiceIdRoute
-  RestaurantOrdersOrderIdRoute: typeof RestaurantOrdersOrderIdRoute
+  RestaurantOrdersOrderIdRoute: typeof RestaurantOrdersOrderIdRouteWithChildren
   RestaurantSuppliersSupplierIdRoute: typeof RestaurantSuppliersSupplierIdRouteWithChildren
   RestaurantSuppliersNewRoute: typeof RestaurantSuppliersNewRoute
+  RestaurantDisputesIndexRoute: typeof RestaurantDisputesIndexRoute
   RestaurantInvoicesIndexRoute: typeof RestaurantInvoicesIndexRoute
   RestaurantOrdersIndexRoute: typeof RestaurantOrdersIndexRoute
   RestaurantSuppliersIndexRoute: typeof RestaurantSuppliersIndexRoute
@@ -2499,11 +2714,13 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantNotificationsRoute: RestaurantNotificationsRouteWithChildren,
   RestaurantRecurringRoute: RestaurantRecurringRoute,
   RestaurantSettingsRoute: RestaurantSettingsRouteWithChildren,
+  RestaurantDisputesDisputeIdRoute: RestaurantDisputesDisputeIdRoute,
   RestaurantInvoicesInvoiceIdRoute: RestaurantInvoicesInvoiceIdRoute,
-  RestaurantOrdersOrderIdRoute: RestaurantOrdersOrderIdRoute,
+  RestaurantOrdersOrderIdRoute: RestaurantOrdersOrderIdRouteWithChildren,
   RestaurantSuppliersSupplierIdRoute:
     RestaurantSuppliersSupplierIdRouteWithChildren,
   RestaurantSuppliersNewRoute: RestaurantSuppliersNewRoute,
+  RestaurantDisputesIndexRoute: RestaurantDisputesIndexRoute,
   RestaurantInvoicesIndexRoute: RestaurantInvoicesIndexRoute,
   RestaurantOrdersIndexRoute: RestaurantOrdersIndexRoute,
   RestaurantSuppliersIndexRoute: RestaurantSuppliersIndexRoute,
