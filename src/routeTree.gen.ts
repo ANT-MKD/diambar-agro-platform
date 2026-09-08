@@ -38,6 +38,7 @@ import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.das
 import { Route as RestaurantCompareRouteImport } from './routes/restaurant.compare'
 import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
 import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
+import { Route as RestaurantBudgetRouteImport } from './routes/restaurant.budget'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
@@ -48,6 +49,7 @@ import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
 import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
+import { Route as DriverRoutesRouteImport } from './routes/driver.routes'
 import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
@@ -275,6 +277,11 @@ const RestaurantCartRoute = RestaurantCartRouteImport.update({
   path: '/cart',
   getParentRoute: () => RestaurantRoute,
 } as any)
+const RestaurantBudgetRoute = RestaurantBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => RestaurantRoute,
+} as any)
 const LegalTermsRoute = LegalTermsRouteImport.update({
   id: '/legal/terms',
   path: '/legal/terms',
@@ -323,6 +330,11 @@ const DriverVehicleRoute = DriverVehicleRouteImport.update({
 const DriverSettingsRoute = DriverSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverRoutesRoute = DriverRoutesRouteImport.update({
+  id: '/routes',
+  path: '/routes',
   getParentRoute: () => DriverRoute,
 } as any)
 const DriverNotificationsRoute = DriverNotificationsRouteImport.update({
@@ -792,6 +804,7 @@ export interface FileRoutesByFullPath {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
+  '/driver/routes': typeof DriverRoutesRoute
   '/driver/settings': typeof DriverSettingsRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
@@ -802,6 +815,7 @@ export interface FileRoutesByFullPath {
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/restaurant/budget': typeof RestaurantBudgetRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
@@ -912,6 +926,7 @@ export interface FileRoutesByTo {
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/routes': typeof DriverRoutesRoute
   '/driver/settings': typeof DriverSettingsRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
@@ -919,6 +934,7 @@ export interface FileRoutesByTo {
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/restaurant/budget': typeof RestaurantBudgetRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
@@ -1029,6 +1045,7 @@ export interface FileRoutesById {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
+  '/driver/routes': typeof DriverRoutesRoute
   '/driver/settings': typeof DriverSettingsRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
@@ -1039,6 +1056,7 @@ export interface FileRoutesById {
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
+  '/restaurant/budget': typeof RestaurantBudgetRoute
   '/restaurant/cart': typeof RestaurantCartRoute
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
@@ -1153,6 +1171,7 @@ export interface FileRouteTypes {
     | '/driver/history'
     | '/driver/messages'
     | '/driver/notifications'
+    | '/driver/routes'
     | '/driver/settings'
     | '/driver/vehicle'
     | '/driver/wallet'
@@ -1163,6 +1182,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/restaurant/budget'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/compare'
@@ -1273,6 +1293,7 @@ export interface FileRouteTypes {
     | '/driver/dashboard'
     | '/driver/earnings'
     | '/driver/history'
+    | '/driver/routes'
     | '/driver/settings'
     | '/driver/vehicle'
     | '/driver/wallet'
@@ -1280,6 +1301,7 @@ export interface FileRouteTypes {
     | '/farmer/dashboard'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/restaurant/budget'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/compare'
@@ -1389,6 +1411,7 @@ export interface FileRouteTypes {
     | '/driver/history'
     | '/driver/messages'
     | '/driver/notifications'
+    | '/driver/routes'
     | '/driver/settings'
     | '/driver/vehicle'
     | '/driver/wallet'
@@ -1399,6 +1422,7 @@ export interface FileRouteTypes {
     | '/farmer/settings'
     | '/legal/privacy'
     | '/legal/terms'
+    | '/restaurant/budget'
     | '/restaurant/cart'
     | '/restaurant/checkout'
     | '/restaurant/compare'
@@ -1712,6 +1736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantCartRouteImport
       parentRoute: typeof RestaurantRoute
     }
+    '/restaurant/budget': {
+      id: '/restaurant/budget'
+      path: '/budget'
+      fullPath: '/restaurant/budget'
+      preLoaderRoute: typeof RestaurantBudgetRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
     '/legal/terms': {
       id: '/legal/terms'
       path: '/legal/terms'
@@ -1780,6 +1811,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/driver/settings'
       preLoaderRoute: typeof DriverSettingsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/routes': {
+      id: '/driver/routes'
+      path: '/routes'
+      fullPath: '/driver/routes'
+      preLoaderRoute: typeof DriverRoutesRouteImport
       parentRoute: typeof DriverRoute
     }
     '/driver/notifications': {
@@ -2431,6 +2469,7 @@ interface DriverRouteChildren {
   DriverHistoryRoute: typeof DriverHistoryRoute
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
   DriverNotificationsRoute: typeof DriverNotificationsRouteWithChildren
+  DriverRoutesRoute: typeof DriverRoutesRoute
   DriverSettingsRoute: typeof DriverSettingsRoute
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
@@ -2446,6 +2485,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverHistoryRoute: DriverHistoryRoute,
   DriverMessagesRoute: DriverMessagesRouteWithChildren,
   DriverNotificationsRoute: DriverNotificationsRouteWithChildren,
+  DriverRoutesRoute: DriverRoutesRoute,
   DriverSettingsRoute: DriverSettingsRoute,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
@@ -2684,6 +2724,7 @@ const RestaurantSuppliersSupplierIdRouteWithChildren =
   )
 
 interface RestaurantRouteChildren {
+  RestaurantBudgetRoute: typeof RestaurantBudgetRoute
   RestaurantCartRoute: typeof RestaurantCartRoute
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantCompareRoute: typeof RestaurantCompareRoute
@@ -2705,6 +2746,7 @@ interface RestaurantRouteChildren {
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
+  RestaurantBudgetRoute: RestaurantBudgetRoute,
   RestaurantCartRoute: RestaurantCartRoute,
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantCompareRoute: RestaurantCompareRoute,
