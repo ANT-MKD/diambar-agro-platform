@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { driverEarnings, driverEarningsChart, driverProfile } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { downloadCsv } from "@/lib/export";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -31,7 +32,7 @@ function EarningsPage() {
         subtitle={`Solde disponible · ${formatFCFA(driverProfile.balance)}`}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2"><Download className="h-4 w-4" />Exporter</Button>
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("revenus-livreur", ["Date", "Mission", "Commande", "Restaurant", "Brut", "Bonus", "Frais", "Net", "Méthode", "Statut"], items.map((e) => [e.date, e.missionRef, e.orderRef, e.restaurantName, e.gross, e.bonus, e.fee, e.net, e.method, e.status]))}><Download className="h-4 w-4" />Exporter</Button>
             <Button className="gap-2"><ArrowDown className="h-4 w-4" />Retirer</Button>
           </div>
         }

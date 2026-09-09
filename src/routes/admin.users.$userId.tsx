@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Ban, CheckCircle2, Trash2 } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { Button } from "@/components/ui/button";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { adminUserActions, auditActions, usePlatformUser } from "@/data/admin-store";
+import { impersonationActions } from "@/data/impersonation";
 
 export const Route = createFileRoute("/admin/users/$userId")({
   head: () => ({ meta: [{ title: "Fiche utilisateur — Administration Diambar Agro" }, { name: "description", content: "Détail d'un compte : activité, volume, statut et actions de modération." }, { name: "robots", content: "noindex" }] }),
@@ -33,6 +34,9 @@ function AdminUserDetail() {
         subtitle={`${user.email} · ${user.phone}`}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => { impersonationActions.start(user.id, user.name, user.role); auditActions.log("Impersonation démarrée", user.name, "critical"); toast.success(`Vous naviguez en tant que ${user.name}`); }}>
+              <Eye className="h-4 w-4" />Voir en tant que
+            </Button>
             {user.status !== "active" && (
               <Button size="sm" className="gap-2" onClick={() => { adminUserActions.setStatus(user.id, "active"); auditActions.log("Compte réactivé", user.name); toast.success("Compte activé"); }}>
                 <CheckCircle2 className="h-4 w-4" />Activer

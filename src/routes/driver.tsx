@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Truck, Wallet, History, MessageSquare, Bell, Settings, LogOut, Menu, X, Search, Zap, ZapOff, Car, Scale } from "lucide-react";
+import { LayoutDashboard, Truck, Wallet, History, MessageSquare, Bell, Settings, LogOut, Menu, X, Search, Zap, ZapOff, Car, Scale, Navigation } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";
@@ -16,6 +16,7 @@ const navSections = [
     items: [
       { to: "/driver/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
       { to: "/driver/missions", label: "Missions", icon: Truck, badge: 3 },
+      { to: "/driver/routes", label: "Tournées", icon: Navigation },
       { to: "/driver/history", label: "Historique", icon: History },
       { to: "/driver/earnings", label: "Mes Revenus", icon: Wallet },
       { to: "/driver/wallet", label: "Portefeuille", icon: Wallet },

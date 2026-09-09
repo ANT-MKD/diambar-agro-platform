@@ -6,6 +6,9 @@ import { KpiCard } from "@/components/farmer/kpi-card";
 import { SenegalMap } from "@/components/farmer/senegal-map";
 import { products, revenueChart, restaurants, topClients } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { downloadCsv } from "@/lib/export";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/farmer/analytics")({
   head: () => ({ meta: [{ title: "Analytics · Diambar Agro" }] }),
@@ -44,7 +47,16 @@ function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics" subtitle="Performance et tendances de votre exploitation" />
+      <PageHeader
+        title="Analytics"
+        subtitle="Performance et tendances de votre exploitation"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("analytics-produits", ["Produit", "Commandes du mois"], topProducts.map((p) => [p.name, p.cmd]))}><Download className="h-4 w-4" />Export produits</Button>
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("previsions-revenus", ["Jour", "Revenu prévu FCFA"], predictions.map((p) => [p.day, p.forecast]))}><Download className="h-4 w-4" />Export prévisions</Button>
+          </div>
+        }
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Award} label="Top produit" value="Poulet fermier" change="22 cmd" tone="emerald" />
