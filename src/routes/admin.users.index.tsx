@@ -4,6 +4,9 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { usePlatformUsers } from "@/data/admin-store";
+import { downloadCsv } from "@/lib/export";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/")({
   head: () => ({ meta: [{ title: "Utilisateurs — Administration Diambar Agro" }, { name: "description", content: "Gestion des comptes agriculteurs, restaurants et livreurs." }, { name: "robots", content: "noindex" }] }),
@@ -27,7 +30,11 @@ function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Utilisateurs" subtitle={`${users.length} comptes sur la plateforme`} />
+      <PageHeader
+        title="Utilisateurs"
+        subtitle={`${users.length} comptes sur la plateforme`}
+        actions={<Button variant="outline" className="gap-2" onClick={() => downloadCsv("utilisateurs-diambar", ["Nom", "Email", "Téléphone", "Rôle", "Ville", "Statut", "Volume FCFA", "Commandes"], rows.map((u) => [u.name, u.email, u.phone, u.role, u.city, u.status, u.gmv, u.orders]))}><Download className="h-4 w-4" />Exporter CSV</Button>}
+      />
       <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un nom, email, ville…" className="flex-1 min-w-52 h-9 rounded-xl border border-border bg-background px-3 text-sm" />
         <select value={role} onChange={(e) => setRole(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-3 text-sm">

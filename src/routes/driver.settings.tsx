@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
+import { SecurityPanel } from "@/components/common/security-panel";
 
 const DRIVER_EVENTS = [
   { key: "missions", label: "Nouvelles missions", description: "Propositions correspondant à vos critères" },
@@ -139,10 +140,7 @@ function DriverSettings() {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-4">
-          <div className="glass rounded-2xl p-5 space-y-3">
-            <Row label="Vérification en 2 étapes" description="Recommandé pour protéger vos gains" value onChange={() => toast.info("Mock")} />
-            <Row label="Notifications de connexion" description="Alerte à chaque nouvelle connexion" value onChange={() => toast.info("Mock")} />
-          </div>
+          <SecurityPanel description="Protégez vos gains et votre compte livreur." />
           <div className="glass rounded-2xl p-5">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Zone dangereuse</div>
             <div className="mt-3 flex flex-col gap-2">

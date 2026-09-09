@@ -6,6 +6,9 @@ import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA } from "@/lib/format";
 import { payouts, platformGmv } from "@/data/admin-mocks";
+import { downloadCsv } from "@/lib/export";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin/finance")({
   head: () => ({ meta: [{ title: "Finance — Administration Diambar Agro" }, { name: "description", content: "Commissions encaissées, versements aux partenaires et trésorerie de la plateforme." }, { name: "robots", content: "noindex" }] }),
@@ -21,7 +24,16 @@ function AdminFinance() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Finance" subtitle="Commissions, versements et trésorerie" />
+      <PageHeader
+        title="Finance"
+        subtitle="Commissions, versements et trésorerie"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("commissions-mensuelles", ["Mois", "GMV FCFA", "Commission FCFA"], platformGmv.map((m) => [m.month, m.gmv, Math.round(m.gmv * 0.11)]))}><Download className="h-4 w-4" />Export comptable</Button>
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("versements", ["Bénéficiaire", "Rôle", "Montant FCFA", "Statut"], payouts.map((p) => [p.name, p.role, p.amount, p.status]))}><Download className="h-4 w-4" />Versements CSV</Button>
+          </div>
+        }
+      />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Commissions du mois" value={formatFCFA(commission)} delta={19} icon={TrendingUp} />
         <StatCard label="Versements effectués" value={formatFCFA(paid)} icon={Wallet} hint="Semaine en cours" />
