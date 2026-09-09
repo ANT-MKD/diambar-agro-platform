@@ -30,7 +30,7 @@ function AdminFinance() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="gap-2" onClick={() => downloadCsv("commissions-mensuelles", ["Mois", "GMV FCFA", "Commission FCFA"], platformGmv.map((m) => [m.month, m.gmv, Math.round(m.gmv * 0.11)]))}><Download className="h-4 w-4" />Export comptable</Button>
-            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("versements", ["Bénéficiaire", "Rôle", "Montant FCFA", "Statut"], payouts.map((p) => [p.name, p.role, p.amount, p.status]))}><Download className="h-4 w-4" />Versements CSV</Button>
+            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("versements", ["Référence", "Bénéficiaire", "Rôle", "Montant FCFA", "Méthode", "Statut", "Date"], payouts.map((p) => [p.reference, p.beneficiary, p.role, p.amount, p.method, p.status, p.date]))}><Download className="h-4 w-4" />Versements CSV</Button>
           </div>
         }
       />
