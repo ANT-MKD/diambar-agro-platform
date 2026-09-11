@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, Repeat, Users, MessageSquare, Bell, Settings, LogOut, Menu, X, UtensilsCrossed, Search, FileText, Scale, PiggyBank } from "lucide-react";
+import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, Repeat, Users, MessageSquare, Bell, Settings, LogOut, Menu, X, UtensilsCrossed, Search, FileText, Scale, PiggyBank, RotateCcw, Star } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -21,6 +21,8 @@ const navSections = [
       { to: "/restaurant/suppliers", label: "Fournisseurs", icon: Users },
       { to: "/restaurant/invoices", label: "Factures", icon: FileText },
       { to: "/restaurant/budget", label: "Budget d'achat", icon: PiggyBank },
+      { to: "/restaurant/returns", label: "Retours & avoirs", icon: RotateCcw },
+      { to: "/restaurant/reviews", label: "Évaluations", icon: Star },
       { to: "/restaurant/disputes", label: "Litiges", icon: Scale },
       { to: "/restaurant/messages", label: "Messages", icon: MessageSquare, badge: 1 },
       { to: "/restaurant/notifications", label: "Notifications", icon: Bell },

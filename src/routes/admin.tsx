@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, ShieldCheck, PackageSearch, ShoppingBag, Scale, Wallet, ScrollText, Settings, LogOut, Menu, X, Shield, Search, Bell } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, PackageSearch, ShoppingBag, Scale, Wallet, ScrollText, Settings, LogOut, Menu, X, Shield, Search, Bell, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -33,6 +33,7 @@ function AdminLayout() {
         { to: "/admin/orders", label: "Commandes", icon: ShoppingBag, badge: 0 },
         { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
+        { to: "/admin/refunds", label: "Remboursements", icon: Undo2, badge: 0 },
       ],
     },
     {
