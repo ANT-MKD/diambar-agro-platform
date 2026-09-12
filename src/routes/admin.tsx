@@ -16,6 +16,8 @@ import {
   Bell,
   Undo2,
   LifeBuoy,
+  Truck,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -23,7 +25,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useDisputes, useValidations } from "@/data/admin-store";
+import { useAdminNotifications, useDisputes, useValidations } from "@/data/admin-store";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
 
@@ -39,17 +41,20 @@ function AdminLayout() {
   const validations = useValidations();
   const disputes = useDisputes();
   const supportTickets = useSupportTickets();
+  const notifications = useAdminNotifications();
   const pendingValidations = validations.filter((v) => v.status === "pending").length;
   const openDisputes = disputes.filter(
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;
+  const unreadNotifications = notifications.filter((n) => !n.read).length;
 
   const navSections = [
     {
       label: "PILOTAGE",
       items: [
         { to: "/admin/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard, badge: 0 },
+        { to: "/admin/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
         { to: "/admin/users", label: "Utilisateurs", icon: Users, badge: 0 },
         {
           to: "/admin/validations",
@@ -64,10 +69,17 @@ function AdminLayout() {
       label: "OPÉRATIONS",
       items: [
         { to: "/admin/orders", label: "Commandes", icon: ShoppingBag, badge: 0 },
+        { to: "/admin/deliveries", label: "Livraisons", icon: Truck, badge: 0 },
         { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
         { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
         { to: "/admin/refunds", label: "Remboursements", icon: Undo2, badge: 0 },
+        {
+          to: "/admin/notifications",
+          label: "Notifications",
+          icon: Bell,
+          badge: unreadNotifications,
+        },
       ],
     },
     {
@@ -196,13 +208,13 @@ function AdminLayout() {
           </button>
           <ThemeToggle />
           <Link
-            to="/admin/validations"
+            to="/admin/notifications"
             className="grid h-9 w-9 place-items-center rounded-xl hover:bg-accent relative"
           >
             <Bell className="h-4 w-4" />
-            {pendingValidations + openDisputes > 0 && (
+            {unreadNotifications > 0 && (
               <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground grid place-items-center">
-                {pendingValidations + openDisputes}
+                {unreadNotifications}
               </span>
             )}
           </Link>

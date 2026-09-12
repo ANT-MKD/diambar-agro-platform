@@ -27,10 +27,13 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminDeliveriesRouteImport } from './routes/admin.deliveries'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminRefundsRouteImport } from './routes/admin.refunds'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -230,9 +233,19 @@ const RestaurantRoute = RestaurantRouteImport.update({
   path: '/restaurant',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDeliveriesRoute = AdminDeliveriesRouteImport.update({
+  id: '/deliveries',
+  path: '/deliveries',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
@@ -248,6 +261,11 @@ const AdminLogsRoute = AdminLogsRouteImport.update({
 const AdminModerationRoute = AdminModerationRouteImport.update({
   id: '/moderation',
   path: '/moderation',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
@@ -840,10 +858,13 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/moderation': typeof AdminModerationRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -972,10 +993,13 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/moderation': typeof AdminModerationRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -1097,10 +1121,13 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/moderation': typeof AdminModerationRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -1231,10 +1258,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/deliveries'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/moderation'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/refunds'
     | '/admin/settings'
@@ -1363,10 +1393,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/deliveries'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/moderation'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/refunds'
     | '/admin/settings'
@@ -1487,10 +1520,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/deliveries'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/moderation'
+    | '/admin/notifications'
     | '/admin/orders'
     | '/admin/refunds'
     | '/admin/settings'
@@ -1755,11 +1791,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/dashboard': {
       id: '/admin/dashboard'
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/deliveries': {
+      id: '/admin/deliveries'
+      path: '/deliveries'
+      fullPath: '/admin/deliveries'
+      preLoaderRoute: typeof AdminDeliveriesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/finance': {
@@ -1781,6 +1831,13 @@ declare module '@tanstack/react-router' {
       path: '/moderation'
       fullPath: '/admin/moderation'
       preLoaderRoute: typeof AdminModerationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/orders': {
@@ -2543,10 +2600,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDeliveriesRoute: typeof AdminDeliveriesRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminModerationRoute: typeof AdminModerationRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -2560,10 +2620,13 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDeliveriesRoute: AdminDeliveriesRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminModerationRoute: AdminModerationRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
