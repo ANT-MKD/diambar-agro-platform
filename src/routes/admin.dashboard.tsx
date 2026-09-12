@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { Users, ShoppingBag, Wallet, Scale, ShieldCheck, ArrowRight } from "lucide-react";
 import {
   Area,
@@ -16,8 +17,9 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { platformGmv, platformRoleSplit } from "@/data/admin-mocks";
 import { useAuditLogs, useDisputes, usePlatformUsers, useValidations } from "@/data/admin-store";
+import { useOrders } from "@/data/store";
+import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -39,47 +41,62 @@ function AdminDashboard() {
   const validations = useValidations();
   const disputes = useDisputes();
   const logs = useAuditLogs();
+  const orders = useOrders();
 
   const active = users.filter((u) => u.status === "active").length;
-  const gmv = platformGmv[platformGmv.length - 1].gmv;
-  const orders = platformGmv[platformGmv.length - 1].orders;
+  const delivered = orders.filter((o) => o.status === "delivered");
+  const gmv = delivered.reduce((s, o) => s + o.total, 0);
   const commission = Math.round(gmv * 0.11);
   const pendingValidations = validations.filter((v) => v.status === "pending");
   const openDisputes = disputes.filter((d) => d.status === "open" || d.status === "investigating");
+
+  // Les commandes de démo couvrent quelques jours (pas plusieurs mois), donc
+  // le graphique montre le GMV réel par jour plutôt qu'une tendance mensuelle
+  // fictive.
+  const gmvByDay = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const o of orders) {
+      const day = o.createdAt.slice(0, 10);
+      totals.set(day, (totals.get(day) ?? 0) + o.total);
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, total]) => ({
+        day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        total,
+      }));
+  }, [orders]);
+
+  const roleSplit = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const u of users) counts.set(u.role, (counts.get(u.role) ?? 0) + 1);
+    return Array.from(counts.entries()).map(([role, value]) => ({ role, value }));
+  }, [users]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Vue d'ensemble"
-        subtitle="Santé de la plateforme Diambar Agro — mai 2025"
+        subtitle="Santé de la plateforme Diambar Agro — calculée en direct"
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Volume d'affaires (mois)"
+          label="Volume d'affaires (livré)"
           value={formatFCFA(gmv)}
-          delta={24}
           icon={Wallet}
-          hint="GMV brut toutes commandes livrées"
+          hint={`${delivered.length} commande(s) livrée(s)`}
         />
-        <StatCard
-          label="Commandes du mois"
-          value={String(orders)}
-          delta={22}
-          icon={ShoppingBag}
-          hint="Moyenne 20 / jour"
-        />
+        <StatCard label="Commandes totales" value={String(orders.length)} icon={ShoppingBag} />
         <StatCard
           label="Comptes actifs"
           value={String(active)}
-          delta={18}
           icon={Users}
           hint={`${users.length} comptes au total`}
         />
         <StatCard
           label="Revenu commissions"
           value={formatFCFA(commission)}
-          delta={19}
           icon={Scale}
           hint="Taux moyen 11 %"
         />
@@ -87,36 +104,36 @@ function AdminDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="glass rounded-2xl p-5 lg:col-span-2">
-          <h2 className="font-semibold">Croissance du volume</h2>
-          <p className="text-xs text-muted-foreground">GMV mensuel et nombre de commandes</p>
+          <h2 className="font-semibold">Volume d'affaires par jour</h2>
+          <p className="text-xs text-muted-foreground">GMV de toutes les commandes, tous statuts</p>
           <div className="h-64 mt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={platformGmv}>
+              <AreaChart data={gmvByDay}>
                 <defs>
                   <linearGradient id="gmvGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis
-                  dataKey="month"
-                  stroke="hsl(var(--muted-foreground))"
+                  dataKey="day"
+                  stroke="var(--muted-foreground)"
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  stroke="hsl(var(--muted-foreground))"
+                  stroke="var(--muted-foreground)"
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) => `${v / 1000000}M`}
+                  tickFormatter={(v) => `${v / 1000}k`}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
                     borderRadius: 12,
                     fontSize: 12,
                   }}
@@ -124,8 +141,8 @@ function AdminDashboard() {
                 />
                 <Area
                   type="monotone"
-                  dataKey="gmv"
-                  stroke="hsl(var(--primary))"
+                  dataKey="total"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   fill="url(#gmvGrad)"
                 />
@@ -141,21 +158,21 @@ function AdminDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={platformRoleSplit}
+                  data={roleSplit}
                   dataKey="value"
                   nameKey="role"
                   innerRadius={45}
                   outerRadius={70}
                   paddingAngle={3}
                 >
-                  {platformRoleSplit.map((s) => (
-                    <Cell key={s.role} fill={s.color} />
+                  {roleSplit.map((s) => (
+                    <Cell key={s.role} fill={ROLE_COLOR[s.role] ?? "#94a3b8"} />
                   ))}
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
                     borderRadius: 12,
                     fontSize: 12,
                   }}
@@ -164,10 +181,13 @@ function AdminDashboard() {
             </ResponsiveContainer>
           </div>
           <ul className="space-y-2 mt-2">
-            {platformRoleSplit.map((s) => (
+            {roleSplit.map((s) => (
               <li key={s.role} className="flex items-center gap-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                <span className="flex-1">{s.role}</span>
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: ROLE_COLOR[s.role] ?? "#94a3b8" }}
+                />
+                <span className="flex-1">{ROLE_LABEL[s.role] ?? s.role}</span>
                 <span className="font-semibold">{s.value}</span>
               </li>
             ))}

@@ -450,22 +450,6 @@ export const auditLogs: AuditLog[] = [
   },
 ];
 
-export const platformGmv = [
-  { month: "Nov", gmv: 3200000, orders: 180, users: 42 },
-  { month: "Déc", gmv: 4100000, orders: 232, users: 68 },
-  { month: "Jan", gmv: 5400000, orders: 301, users: 94 },
-  { month: "Fév", gmv: 6100000, orders: 348, users: 118 },
-  { month: "Mar", gmv: 7800000, orders: 421, users: 149 },
-  { month: "Avr", gmv: 9200000, orders: 505, users: 186 },
-  { month: "Mai", gmv: 11400000, orders: 618, users: 227 },
-];
-
-export const platformRoleSplit = [
-  { role: "Agriculteurs", value: 84, color: "#10b981" },
-  { role: "Restaurants", value: 96, color: "#f59e0b" },
-  { role: "Livreurs", value: 47, color: "#3b82f6" },
-];
-
 export const commissionTiers = [
   { id: "ct1", label: "Standard", range: "0 – 250 000 FCFA / mois", rate: 15 },
   { id: "ct2", label: "Volume", range: "250 001 – 500 000 FCFA / mois", rate: 12 },
