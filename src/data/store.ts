@@ -14,6 +14,8 @@ import {
   driverNotifications as seedDriverNotifs,
   driverConversations as seedDriverConvos,
   driverWallet as seedDriverWallet,
+  driverVehicle as seedDriverVehicle,
+  driverSettings as seedDriverSettings,
   type Product,
   type Order,
   type OrderStatus,
@@ -26,10 +28,15 @@ import {
   type Conversation,
   type RecurringOrder,
   type Mission,
+  type MissionProofPhoto,
   type MissionStatus,
   type DriverWallet,
   type DriverTx,
   type PaymentMethod as PayMethod,
+  type DriverVehicle,
+  type VehicleIssue,
+  type DriverSettings,
+  type DriverPaymentMethod,
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
 
@@ -79,6 +86,12 @@ const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
 const driverConvosStore = createStore<Conversation[]>(seedDriverConvos, "diambar:driver-convos");
 const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
 const driverWalletStore = createStore<DriverWallet>(seedDriverWallet, "diambar:driver-wallet");
+const driverVehicleStore = createStore<DriverVehicle>(seedDriverVehicle, "diambar:driver-vehicle");
+const vehicleIssuesStore = createStore<VehicleIssue[]>([], "diambar:driver-vehicle-issues");
+const driverSettingsStore = createStore<DriverSettings>(
+  seedDriverSettings,
+  "diambar:driver-settings",
+);
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([], "diambar:cart");
@@ -180,6 +193,9 @@ export function useMissions() {
 export function useMission(id: string) {
   return useMissions().find((m) => m.id === id) ?? null;
 }
+export function getMissionSnapshot(id: string) {
+  return missionsStore.get().find((m) => m.id === id) ?? null;
+}
 export function useDriverConversations() {
   return useSyncExternalStore(
     driverConvosStore.subscribe,
@@ -242,6 +258,74 @@ export const driverWalletActions = {
     }));
   },
   reset: () => driverWalletStore.set(seedDriverWallet),
+};
+
+export function useDriverVehicle() {
+  return useSyncExternalStore(
+    driverVehicleStore.subscribe,
+    driverVehicleStore.get,
+    driverVehicleStore.get,
+  );
+}
+
+export function useVehicleIssues() {
+  return useSyncExternalStore(
+    vehicleIssuesStore.subscribe,
+    vehicleIssuesStore.get,
+    vehicleIssuesStore.get,
+  );
+}
+
+export const vehicleActions = {
+  update: (patch: Partial<DriverVehicle>) => driverVehicleStore.set((v) => ({ ...v, ...patch })),
+  setPhoto: (dataUrl: string) => driverVehicleStore.set((v) => ({ ...v, photo: dataUrl })),
+  scheduleMaintenance: (date: string) =>
+    driverVehicleStore.set((v) => ({ ...v, nextMaintenanceAt: date })),
+  reportIssue: (description: string) => {
+    const issue: VehicleIssue = {
+      id: `vi_${Date.now()}`,
+      description,
+      at: new Date().toISOString(),
+      status: "reported",
+    };
+    vehicleIssuesStore.set((arr) => [issue, ...arr]);
+    return issue.id;
+  },
+};
+
+export function useDriverSettings() {
+  return useSyncExternalStore(
+    driverSettingsStore.subscribe,
+    driverSettingsStore.get,
+    driverSettingsStore.get,
+  );
+}
+
+export const driverSettingsActions = {
+  updateProfile: (patch: Partial<DriverSettings["profile"]>) =>
+    driverSettingsStore.set((s) => ({ ...s, profile: { ...s.profile, ...patch } })),
+  setWorkPrefs: (patch: { radius?: number; autoAccept?: boolean }) =>
+    driverSettingsStore.set((s) => ({ ...s, ...patch })),
+  setNotif: (patch: Partial<DriverSettings["notif"]>) =>
+    driverSettingsStore.set((s) => ({ ...s, notif: { ...s.notif, ...patch } })),
+  setPayoutFrequency: (frequency: DriverSettings["payoutFrequency"]) =>
+    driverSettingsStore.set((s) => ({ ...s, payoutFrequency: frequency })),
+  addPaymentMethod: (method: DriverPaymentMethod["method"], label: string) => {
+    const id = `pm_${Date.now()}`;
+    driverSettingsStore.set((s) => ({
+      ...s,
+      paymentMethods: [
+        ...s.paymentMethods.map((m) => ({ ...m, active: false })),
+        { id, method, label, active: true },
+      ],
+    }));
+    return id;
+  },
+  setActivePaymentMethod: (id: string) =>
+    driverSettingsStore.set((s) => ({
+      ...s,
+      paymentMethods: s.paymentMethods.map((m) => ({ ...m, active: m.id === id })),
+    })),
 };
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
@@ -325,6 +409,9 @@ export const missionActions = {
   },
   cancel: (id: string) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
+  },
+  attachProof: (id: string, photos: MissionProofPhoto[]) => {
+    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));
   },
 };
 

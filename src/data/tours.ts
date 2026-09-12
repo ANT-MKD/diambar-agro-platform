@@ -1,4 +1,7 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import { haversineKm } from "@/lib/tracking/geo-math";
+import { farmers, restaurants, type Mission } from "./mocks";
+import { getMissionSnapshot, missionActions, useDriverVehicle, useMissions } from "./store";
 
 export type TourStop = {
   id: string;
@@ -7,10 +10,12 @@ export type TourStop = {
   address: string;
   city: string;
   contactPhone: string;
-  windowStart: string;
-  windowEnd: string;
+  lat: number;
+  lng: number;
   weightKg: number;
   missionRef: string;
+  missionId: string;
+  scheduledFor: string;
   done: boolean;
 };
 
@@ -25,210 +30,220 @@ export type Tour = {
   payout: number;
 };
 
-type Listener = () => void;
-const KEY = "diambar:driver-tours";
+const ORDER_KEY = "diambar:driver-tour-order";
+type OrderMap = Record<string, string[]>;
 
-const seed: Tour[] = [
-  {
-    id: "t1",
-    reference: "TRN-118",
-    date: "2025-05-16",
-    status: "planned",
-    vehicle: "Camionnette · DK-4821-B",
-    distanceKm: 96,
-    payout: 21500,
-    stops: [
-      {
-        id: "t1s1",
-        kind: "pickup",
-        label: "Ferme Diallo",
-        address: "Route de Khombole km 3",
-        city: "Thiès",
-        contactPhone: "+221 77 123 45 67",
-        windowStart: "06:30",
-        windowEnd: "07:15",
-        weightKg: 45,
-        missionRef: "MIS-4210",
-        done: false,
-      },
-      {
-        id: "t1s2",
-        kind: "pickup",
-        label: "Coopérative Sow",
-        address: "Zone maraîchère",
-        city: "Pikine",
-        contactPhone: "+221 78 200 33 44",
-        windowStart: "08:00",
-        windowEnd: "08:30",
-        weightKg: 22,
-        missionRef: "MIS-4211",
-        done: false,
-      },
-      {
-        id: "t1s3",
-        kind: "dropoff",
-        label: "Le Baobab",
-        address: "Place de l'Indépendance",
-        city: "Dakar",
-        contactPhone: "+221 78 900 11 22",
-        windowStart: "09:15",
-        windowEnd: "10:00",
-        weightKg: 45,
-        missionRef: "MIS-4210",
-        done: false,
-      },
-      {
-        id: "t1s4",
-        kind: "dropoff",
-        label: "Hôtel Téranga",
-        address: "Corniche Ouest",
-        city: "Dakar",
-        contactPhone: "+221 77 444 88 99",
-        windowStart: "10:15",
-        windowEnd: "11:00",
-        weightKg: 22,
-        missionRef: "MIS-4211",
-        done: false,
-      },
-    ],
-  },
-  {
-    id: "t2",
-    reference: "TRN-117",
-    date: "2025-05-15",
-    status: "running",
-    vehicle: "Camionnette · DK-4821-B",
-    distanceKm: 61,
-    payout: 16000,
-    stops: [
-      {
-        id: "t2s1",
-        kind: "pickup",
-        label: "Niayes Ndoye",
-        address: "Ferme Niayes",
-        city: "Mbour",
-        contactPhone: "+221 76 555 11 22",
-        windowStart: "07:00",
-        windowEnd: "07:45",
-        weightKg: 120,
-        missionRef: "MIS-4212",
-        done: true,
-      },
-      {
-        id: "t2s2",
-        kind: "dropoff",
-        label: "Chez Aminata",
-        address: "Thiès centre",
-        city: "Thiès",
-        contactPhone: "+221 77 555 22 88",
-        windowStart: "09:00",
-        windowEnd: "09:45",
-        weightKg: 60,
-        missionRef: "MIS-4212",
-        done: true,
-      },
-      {
-        id: "t2s3",
-        kind: "dropoff",
-        label: "Le Baobab",
-        address: "Dakar Plateau",
-        city: "Dakar",
-        contactPhone: "+221 78 900 11 22",
-        windowStart: "11:00",
-        windowEnd: "11:45",
-        weightKg: 60,
-        missionRef: "MIS-4212",
-        done: false,
-      },
-    ],
-  },
-];
-
-let state: Tour[] = seed;
+let orderState: OrderMap = {};
 if (typeof window !== "undefined") {
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (raw) state = JSON.parse(raw) as Tour[];
+    const raw = window.localStorage.getItem(ORDER_KEY);
+    if (raw) orderState = JSON.parse(raw) as OrderMap;
   } catch {
     /* ignore */
   }
 }
-
-const listeners = new Set<Listener>();
-function set(next: (p: Tour[]) => Tour[]) {
-  state = next(state);
+const orderListeners = new Set<() => void>();
+function setOrder(tourId: string, ids: string[]) {
+  orderState = { ...orderState, [tourId]: ids };
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(KEY, JSON.stringify(state));
+      window.localStorage.setItem(ORDER_KEY, JSON.stringify(orderState));
     } catch {
       /* ignore */
     }
   }
-  listeners.forEach((l) => l());
+  orderListeners.forEach((l) => l());
 }
-
-export function useTours() {
+function useOrderMap() {
   return useSyncExternalStore(
     (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
+      orderListeners.add(l);
+      return () => orderListeners.delete(l);
     },
-    () => state,
-    () => state,
+    () => orderState,
+    () => orderState,
   );
 }
 
-function reorder<T>(arr: T[], from: number, to: number) {
-  const copy = [...arr];
-  const [item] = copy.splice(from, 1);
-  copy.splice(to, 0, item);
-  return copy;
+function buildStops(mission: Mission): TourStop[] {
+  const farmer = farmers.find((f) => f.id === mission.farmerId);
+  const restaurant = restaurants.find((r) => r.id === mission.restaurantId);
+  return [
+    {
+      id: `${mission.id}-pickup`,
+      kind: "pickup",
+      label: farmer?.farm ?? mission.pickup.city,
+      address: mission.pickup.address,
+      city: mission.pickup.city,
+      contactPhone: mission.pickup.contactPhone,
+      lat: mission.pickup.lat,
+      lng: mission.pickup.lng,
+      weightKg: mission.weightKg,
+      missionRef: mission.reference,
+      missionId: mission.id,
+      scheduledFor: mission.scheduledFor,
+      done: mission.status === "loaded" || mission.status === "delivered",
+    },
+    {
+      id: `${mission.id}-dropoff`,
+      kind: "dropoff",
+      label: restaurant?.name ?? mission.dropoff.city,
+      address: mission.dropoff.address,
+      city: mission.dropoff.city,
+      contactPhone: mission.dropoff.contactPhone,
+      lat: mission.dropoff.lat,
+      lng: mission.dropoff.lng,
+      weightKg: mission.weightKg,
+      missionRef: mission.reference,
+      missionId: mission.id,
+      scheduledFor: mission.scheduledFor,
+      done: mission.status === "delivered",
+    },
+  ];
+}
+
+/** Réordonne les arrêts par plus proche voisin (coordonnées réelles), en
+ * respectant la contrainte : une livraison ne peut être visitée qu'après
+ * la collecte de la même mission. */
+function nearestNeighborOrder(stops: TourStop[]): TourStop[] {
+  const remaining = [...stops];
+  const pickedUp = new Set(
+    stops.filter((s) => s.kind === "pickup" && s.done).map((s) => s.missionId),
+  );
+  const ordered: TourStop[] = [];
+  let current: { lat: number; lng: number } | null = null;
+
+  while (remaining.length > 0) {
+    const eligible = remaining.filter((s) => s.kind === "pickup" || pickedUp.has(s.missionId));
+    const pool = eligible.length > 0 ? eligible : remaining;
+    let bestIdx = 0;
+    if (current) {
+      let bestDist = Infinity;
+      pool.forEach((s, i) => {
+        const d = haversineKm(current!, s);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      });
+    }
+    const next = pool[bestIdx];
+    ordered.push(next);
+    current = { lat: next.lat, lng: next.lng };
+    if (next.kind === "pickup") pickedUp.add(next.missionId);
+    remaining.splice(
+      remaining.findIndex((s) => s.id === next.id),
+      1,
+    );
+  }
+  return ordered;
+}
+
+export function useTours(): Tour[] {
+  const missions = useMissions();
+  const vehicle = useDriverVehicle();
+  const orderMap = useOrderMap();
+
+  return useMemo(() => {
+    const mine = missions.filter(
+      (m) => m.driverId === "d1" && m.status !== "available" && m.status !== "cancelled",
+    );
+    const byDate = new Map<string, Mission[]>();
+    for (const m of mine) {
+      const day = m.scheduledFor.slice(0, 10);
+      const arr = byDate.get(day);
+      if (arr) arr.push(m);
+      else byDate.set(day, [m]);
+    }
+
+    const vehicleLabel = `${vehicle.type} · ${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`;
+
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([day, ms]) => {
+        const sorted = [...ms].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
+        const defaultStops = sorted.flatMap(buildStops);
+        const order = orderMap[day];
+        const stops = order
+          ? [
+              ...order
+                .map((id) => defaultStops.find((s) => s.id === id))
+                .filter((s): s is TourStop => Boolean(s)),
+              ...defaultStops.filter((s) => !order.includes(s.id)),
+            ]
+          : defaultStops;
+
+        const distanceKm = stops.reduce(
+          (sum, s, i) => (i === 0 ? 0 : sum + haversineKm(stops[i - 1], s)),
+          0,
+        );
+        const payout = sorted.reduce((s, m) => s + m.payout, 0);
+        const allDelivered = sorted.every((m) => m.status === "delivered");
+        const anyStarted = sorted.some((m) => m.status !== "accepted");
+
+        return {
+          id: day,
+          reference: `TRN-${day.slice(5).replace("-", "")}`,
+          date: day,
+          status: allDelivered ? "done" : anyStarted ? "running" : "planned",
+          vehicle: vehicleLabel,
+          stops,
+          distanceKm: Math.round(distanceKm * 10) / 10,
+          payout,
+        } satisfies Tour;
+      });
+  }, [missions, vehicle, orderMap]);
 }
 
 export const tourActions = {
-  move: (tourId: string, index: number, dir: -1 | 1) =>
-    set((tours) =>
-      tours.map((t) => {
-        if (t.id !== tourId) return t;
-        const to = index + dir;
-        if (to < 0 || to >= t.stops.length) return t;
-        return { ...t, stops: reorder(t.stops, index, to) };
-      }),
-    ),
-  toggleStop: (tourId: string, stopId: string) =>
-    set((tours) =>
-      tours.map((t) =>
-        t.id === tourId
-          ? { ...t, stops: t.stops.map((s) => (s.id === stopId ? { ...s, done: !s.done } : s)) }
-          : t,
-      ),
-    ),
-  start: (tourId: string) =>
-    set((tours) => tours.map((t) => (t.id === tourId ? { ...t, status: "running" } : t))),
-  finish: (tourId: string) =>
-    set((tours) =>
-      tours.map((t) =>
-        t.id === tourId
-          ? { ...t, status: "done", stops: t.stops.map((s) => ({ ...s, done: true })) }
-          : t,
-      ),
-    ),
-  optimize: (tourId: string) =>
-    set((tours) =>
-      tours.map((t) => {
-        if (t.id !== tourId) return t;
-        const pickups = t.stops
-          .filter((s) => s.kind === "pickup")
-          .sort((a, b) => a.windowStart.localeCompare(b.windowStart));
-        const drops = t.stops
-          .filter((s) => s.kind === "dropoff")
-          .sort((a, b) => a.windowStart.localeCompare(b.windowStart));
-        return {
-          ...t,
-          stops: [...pickups, ...drops],
-          distanceKm: Math.max(20, Math.round(t.distanceKm * 0.92)),
-        };
-      }),
-    ),
-  reset: () => set(() => seed),
+  move: (tourId: string, stops: TourStop[], index: number, dir: -1 | 1) => {
+    const to = index + dir;
+    if (to < 0 || to >= stops.length) return;
+    const ids = stops.map((s) => s.id);
+    const copy = [...ids];
+    const [item] = copy.splice(index, 1);
+    copy.splice(to, 0, item);
+    setOrder(tourId, copy);
+  },
+  toggleStop: (stop: TourStop): "ok" | "blocked" => {
+    const mission = getMissionSnapshot(stop.missionId);
+    if (!mission) return "blocked";
+    if (stop.kind === "pickup") {
+      if (mission.status === "accepted" || mission.status === "pickup") {
+        missionActions.setStatus(stop.missionId, "loaded");
+        return "ok";
+      }
+      if (mission.status === "loaded") {
+        missionActions.setStatus(stop.missionId, "accepted");
+        return "ok";
+      }
+      return "blocked";
+    }
+    if (mission.status === "loaded") {
+      missionActions.setStatus(stop.missionId, "delivered");
+      return "ok";
+    }
+    if (mission.status === "delivered") {
+      missionActions.setStatus(stop.missionId, "loaded");
+      return "ok";
+    }
+    return "blocked";
+  },
+  start: (stops: TourStop[]) => {
+    const missionIds = new Set(
+      stops.filter((s) => s.kind === "pickup" && !s.done).map((s) => s.missionId),
+    );
+    missionIds.forEach((id) => missionActions.setStatus(id, "pickup"));
+  },
+  finish: (stops: TourStop[]) => {
+    const missionIds = new Set(stops.map((s) => s.missionId));
+    missionIds.forEach((id) => missionActions.setStatus(id, "delivered"));
+  },
+  optimize: (tourId: string, stops: TourStop[]) => {
+    const ordered = nearestNeighborOrder(stops);
+    setOrder(
+      tourId,
+      ordered.map((s) => s.id),
+    );
+  },
 };

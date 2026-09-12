@@ -14,13 +14,14 @@ import {
   Check,
   X,
   Navigation,
-  Camera,
   User,
   Building2,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useMission, missionActions } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
+import { FileDrop } from "@/components/disputes/file-drop";
+import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ function MissionDetail() {
   const mission = useMission(missionId);
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
+  const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
 
   if (!mission) {
     return (
@@ -91,6 +93,7 @@ function MissionDetail() {
     toast.success("Marchandise chargée · direction restaurant");
   };
   const markDelivered = () => {
+    if (proofPhotos.length > 0) missionActions.attachProof(mission.id, proofPhotos);
     missionActions.setStatus(mission.id, "delivered");
     toast.success("Livraison confirmée · paiement en cours");
     setProofOpen(false);
@@ -167,6 +170,8 @@ function MissionDetail() {
                 address={mission.pickup.address}
                 city={mission.pickup.city}
                 phone={mission.pickup.contactPhone}
+                lat={mission.pickup.lat}
+                lng={mission.pickup.lng}
               />
               <AddressCard
                 variant="dropoff"
@@ -175,6 +180,8 @@ function MissionDetail() {
                 address={mission.dropoff.address}
                 city={mission.dropoff.city}
                 phone={mission.dropoff.contactPhone}
+                lat={mission.dropoff.lat}
+                lng={mission.dropoff.lng}
               />
             </div>
           </div>
@@ -252,9 +259,25 @@ function MissionDetail() {
                 </Button>
               )}
               {mission.status === "delivered" && (
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
-                  <Check className="h-4 w-4" />
-                  Livraison terminée · paiement programmé
+                <div className="space-y-2">
+                  <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
+                    <Check className="h-4 w-4" />
+                    Livraison terminée · paiement programmé
+                  </div>
+                  {mission.proof && mission.proof.length > 0 && (
+                    <div className="flex gap-2">
+                      {mission.proof.map((p) =>
+                        p.dataUrl ? (
+                          <img
+                            key={p.id}
+                            src={p.dataUrl}
+                            alt="Preuve de livraison"
+                            className="h-16 w-16 rounded-lg object-cover border border-border"
+                          />
+                        ) : null,
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {mission.status === "cancelled" && (
@@ -331,14 +354,19 @@ function MissionDetail() {
           <AlertDialogHeader>
             <AlertDialogTitle>Preuve de livraison</AlertDialogTitle>
             <AlertDialogDescription>
-              Prenez une photo (mock) et confirmez la remise. Le paiement de{" "}
+              Ajoutez une photo (facultatif) et confirmez la remise. Le paiement de{" "}
               {formatFCFA(mission.payout)} sera programmé sous 24h.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="rounded-xl border-2 border-dashed border-border p-8 grid place-items-center text-center">
-            <Camera className="h-8 w-8 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground mt-2">Ajouter une photo (facultatif)</p>
-          </div>
+          <FileDrop
+            value={proofPhotos}
+            onChange={setProofPhotos}
+            by="Vous"
+            kind="photo"
+            label="Photo de livraison"
+            accept="image/*"
+            max={3}
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={markDelivered}>Confirmer la livraison</AlertDialogAction>
@@ -356,6 +384,8 @@ function AddressCard({
   address,
   city,
   phone,
+  lat,
+  lng,
 }: {
   variant: "pickup" | "dropoff";
   title: string;
@@ -363,6 +393,8 @@ function AddressCard({
   address: string;
   city: string;
   phone: string;
+  lat: number;
+  lng: number;
 }) {
   return (
     <div
@@ -382,6 +414,24 @@ function AddressCard({
       <div className="mt-1 text-xs flex items-center gap-1.5 text-muted-foreground">
         <Phone className="h-3.5 w-3.5" />
         {phone}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+        >
+          Google Maps
+        </a>
+        <a
+          href={`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+        >
+          Waze
+        </a>
       </div>
     </div>
   );

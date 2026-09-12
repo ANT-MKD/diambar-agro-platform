@@ -998,6 +998,16 @@ export type Mission = {
   createdAt: string;
   vehicleType: "Moto" | "Camionnette" | "Camion" | "Tricycle";
   urgency: "standard" | "priority" | "express";
+  proof?: MissionProofPhoto[];
+};
+
+export type MissionProofPhoto = {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  dataUrl?: string;
+  at: string;
 };
 
 export const missions: Mission[] = [
@@ -1304,6 +1314,14 @@ export type DriverVehicle = {
   insuranceExpiry: string;
   inspectionExpiry: string;
   photo: string;
+  nextMaintenanceAt?: string;
+};
+
+export type VehicleIssue = {
+  id: string;
+  description: string;
+  at: string;
+  status: "reported" | "resolved";
 };
 
 export const driverProfile = {
@@ -1317,12 +1335,6 @@ export const driverProfile = {
   totalMissions: 234,
   totalDistanceKm: 12480,
   memberSince: "2024-01-15",
-  balance: 187500,
-  todayEarnings: 24500,
-  todayMissions: 4,
-  todayKm: 128,
-  todayHours: 6.5,
-  online: true,
   documents: {
     permitVerified: true,
     idVerified: true,
@@ -1342,124 +1354,6 @@ export const driverVehicle: DriverVehicle = {
   inspectionExpiry: "2025-11-20",
   photo: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800",
 };
-
-export type DriverEarning = {
-  id: string;
-  date: string;
-  missionRef: string;
-  orderRef: string;
-  restaurantName: string;
-  gross: number;
-  bonus: number;
-  fee: number;
-  net: number;
-  method: PaymentMethod;
-  status: "Payé" | "En attente" | "Programmé";
-};
-
-export const driverEarnings: DriverEarning[] = [
-  {
-    id: "de1",
-    date: "2025-05-15",
-    missionRef: "MIS-4200",
-    orderRef: "CMD-2851",
-    restaurantName: "Le Baobab",
-    gross: 8500,
-    bonus: 500,
-    fee: 425,
-    net: 8575,
-    method: "Wave",
-    status: "Programmé",
-  },
-  {
-    id: "de2",
-    date: "2025-05-14",
-    missionRef: "MIS-4180",
-    orderRef: "CMD-2847",
-    restaurantName: "Chez Aminata",
-    gross: 3500,
-    bonus: 0,
-    fee: 175,
-    net: 3325,
-    method: "Wave",
-    status: "Payé",
-  },
-  {
-    id: "de3",
-    date: "2025-05-13",
-    missionRef: "MIS-4178",
-    orderRef: "CMD-2844",
-    restaurantName: "Le Baobab",
-    gross: 12000,
-    bonus: 1500,
-    fee: 600,
-    net: 12900,
-    method: "Wave",
-    status: "Payé",
-  },
-  {
-    id: "de4",
-    date: "2025-05-12",
-    missionRef: "MIS-4175",
-    orderRef: "CMD-2838",
-    restaurantName: "Hôtel Téranga",
-    gross: 8500,
-    bonus: 0,
-    fee: 425,
-    net: 8075,
-    method: "Orange Money",
-    status: "Payé",
-  },
-  {
-    id: "de5",
-    date: "2025-05-11",
-    missionRef: "MIS-4170",
-    orderRef: "CMD-2830",
-    restaurantName: "Le Baobab",
-    gross: 4500,
-    bonus: 0,
-    fee: 225,
-    net: 4275,
-    method: "Wave",
-    status: "Payé",
-  },
-  {
-    id: "de6",
-    date: "2025-05-10",
-    missionRef: "MIS-4165",
-    orderRef: "CMD-2825",
-    restaurantName: "Chez Aminata",
-    gross: 6000,
-    bonus: 500,
-    fee: 300,
-    net: 6200,
-    method: "Wave",
-    status: "Payé",
-  },
-  {
-    id: "de7",
-    date: "2025-05-09",
-    missionRef: "MIS-4160",
-    orderRef: "CMD-2820",
-    restaurantName: "Hôtel Téranga",
-    gross: 11000,
-    bonus: 1000,
-    fee: 550,
-    net: 11450,
-    method: "Wave",
-    status: "Payé",
-  },
-];
-
-export const driverEarningsChart = [
-  { day: "Lun", amount: 18000, missions: 3 },
-  { day: "Mar", amount: 24500, missions: 4 },
-  { day: "Mer", amount: 15000, missions: 2 },
-  { day: "Jeu", amount: 32000, missions: 5 },
-  { day: "Ven", amount: 28500, missions: 4 },
-  { day: "Sam", amount: 41000, missions: 6 },
-  { day: "Dim", amount: 22000, missions: 3 },
-];
 
 export const driverNotifications: AppNotification[] = [
   {
@@ -1640,4 +1534,42 @@ export const driverWallet: DriverWallet = {
   pending: 8575,
   withdrawn: 412000,
   transactions: driverTransactions,
+};
+
+export type DriverPaymentMethod = {
+  id: string;
+  method: PaymentMethod;
+  label: string;
+  active: boolean;
+};
+
+export type DriverSettings = {
+  profile: { name: string; phone: string; email: string; city: string; avatar: string };
+  radius: number;
+  autoAccept: boolean;
+  notif: {
+    push: boolean;
+    sms: boolean;
+    email: boolean;
+    missions: boolean;
+    payments: boolean;
+    messages: boolean;
+  };
+  payoutFrequency: "daily" | "weekly" | "manual";
+  paymentMethods: DriverPaymentMethod[];
+};
+
+export const driverSettings: DriverSettings = {
+  profile: {
+    name: driverProfile.name,
+    phone: driverProfile.phone,
+    email: driverProfile.email,
+    city: driverProfile.city,
+    avatar: driverProfile.avatar,
+  },
+  radius: 50,
+  autoAccept: false,
+  notif: { push: true, sms: true, email: false, missions: true, payments: true, messages: true },
+  payoutFrequency: "weekly",
+  paymentMethods: [{ id: "pm1", method: "Wave", label: driverProfile.phone, active: true }],
 };

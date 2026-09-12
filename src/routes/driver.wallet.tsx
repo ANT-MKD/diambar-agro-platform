@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,7 +11,6 @@ import {
   Gift,
   Truck,
   Receipt,
-  ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
@@ -76,6 +75,24 @@ function WalletPage() {
   const net = gross + bonus + commission;
   const rate = gross ? Math.round((Math.abs(commission) / gross) * 1000) / 10 : 0;
 
+  // Peu de jours couverts par les transactions de démo : graphique agrégé par
+  // jour réel plutôt qu'une semaine simulée.
+  const byDay = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of wallet.transactions) {
+      if (t.kind !== "mission" && t.kind !== "bonus") continue;
+      const day = t.at.slice(0, 10);
+      totals.set(day, (totals.get(day) ?? 0) + t.amount);
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, amount]) => ({
+        day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        amount,
+      }));
+  }, [wallet.transactions]);
+  const maxDay = Math.max(1, ...byDay.map((d) => d.amount));
+
   const submitWithdraw = (e: React.FormEvent) => {
     e.preventDefault();
     const value = Number(amount);
@@ -113,18 +130,10 @@ function WalletPage() {
         title="Mon portefeuille"
         subtitle="Solde, transactions et commissions"
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={exportCsv}>
-              <Download className="h-4 w-4" />
-              Exporter
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/driver/earnings">
-                <ArrowLeft className="h-4 w-4" />
-                Revenus
-              </Link>
-            </Button>
-          </div>
+          <Button variant="outline" className="gap-2" onClick={exportCsv}>
+            <Download className="h-4 w-4" />
+            Exporter
+          </Button>
         }
       />
 
@@ -151,6 +160,31 @@ function WalletPage() {
               </div>
             </div>
           </div>
+
+          {byDay.length > 0 && (
+            <div className="glass rounded-2xl p-5">
+              <h3 className="font-display font-bold mb-1">Gains par jour</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Missions et bonus, hors commission
+              </p>
+              <div className="flex items-end gap-3 h-40">
+                {byDay.map((d) => (
+                  <div key={d.day} className="flex-1 flex flex-col items-center gap-2 h-full">
+                    <div className="text-[10px] font-semibold text-muted-foreground">
+                      {formatFCFA(d.amount).replace(" FCFA", "")}
+                    </div>
+                    <div className="w-full flex-1 flex items-end">
+                      <div
+                        className="w-full rounded-t-lg bg-gradient-to-t from-primary via-primary/70 to-primary/30"
+                        style={{ height: `${(d.amount / maxDay) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">{d.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="glass rounded-2xl overflow-hidden">
             <div className="p-4 flex flex-wrap items-center gap-3 border-b border-border">
