@@ -1,11 +1,19 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, Loader2, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { demoAccounts, type DemoAccount } from "@/data/demo-accounts";
+import { getCurrentUserFn, loginFn } from "@/lib/auth/functions";
+import { dashboardPathForRole } from "@/lib/auth/roles";
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: async () => {
+    const user = await getCurrentUserFn();
+    if (user) {
+      throw redirect({ to: dashboardPathForRole(user.role) });
+    }
+  },
   head: () => ({ meta: [{ title: "Connexion · Diambar Agro" }] }),
   component: LoginPage,
 });
@@ -20,32 +28,27 @@ function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const account = demoAccounts.find((a) => a.email === email && a.password === password);
-    setTimeout(() => {
+    try {
+      const user = await loginFn({ data: { email, password } });
+      toast.success(`Bienvenue ${user.name}`);
+      navigate({ to: dashboardPathForRole(user.role) });
+    } catch {
+      toast.error("Email ou mot de passe incorrect");
+    } finally {
       setLoading(false);
-      if (account) {
-        window.localStorage.setItem(
-          "diambar.session",
-          JSON.stringify({ role: account.role, email: account.email }),
-        );
-        toast.success(`Bienvenue ${account.name}`);
-        navigate({ to: account.redirect });
-      } else {
-        toast.success("Connexion simulée — utilisez un compte démo ci-dessous");
-        navigate({ to: "/farmer/dashboard" });
-      }
-    }, 900);
+    }
   };
 
-  const loginAs = (account: DemoAccount) => {
+  const loginAs = async (account: DemoAccount) => {
     setEmail(account.email);
     setPassword(account.password);
-    window.localStorage.setItem(
-      "diambar.session",
-      JSON.stringify({ role: account.role, email: account.email }),
-    );
-    toast.success(`Connecté en tant que ${account.name}`);
-    setTimeout(() => navigate({ to: account.redirect }), 250);
+    try {
+      const user = await loginFn({ data: { email: account.email, password: account.password } });
+      toast.success(`Connecté en tant que ${user.name}`);
+      navigate({ to: dashboardPathForRole(user.role) });
+    } catch {
+      toast.error("Connexion impossible");
+    }
   };
 
   return (

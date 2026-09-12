@@ -9,7 +9,6 @@ import {
   MessageSquare,
   Bell,
   Settings,
-  LogOut,
   Menu,
   X,
   UtensilsCrossed,
@@ -26,8 +25,13 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { useCart, useRestaurantNotifications } from "@/data/store";
 import { CommandPalette } from "@/components/common/command-palette";
+import { LogoutButton } from "@/components/common/logout-button";
+import { requireRole } from "@/lib/auth/functions";
 
-export const Route = createFileRoute("/restaurant")({ component: RestaurantLayout });
+export const Route = createFileRoute("/restaurant")({
+  beforeLoad: () => requireRole("restaurant"),
+  component: RestaurantLayout,
+});
 
 const navSections = [
   {
@@ -60,6 +64,7 @@ const bottomNav = [
 ];
 
 function RestaurantLayout() {
+  const { user } = Route.useRouteContext();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const cart = useCart();
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);
@@ -105,21 +110,12 @@ function RestaurantLayout() {
         </nav>
         <div className="p-3 border-t border-border">
           <div className="glass rounded-xl p-3 flex items-center gap-3">
-            <img
-              src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80"
-              alt=""
-              className="h-9 w-9 rounded-full object-cover"
-            />
+            <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate">Le Baobab</div>
-              <div className="text-[11px] text-muted-foreground truncate">Restaurant · Dakar</div>
+              <div className="text-sm font-semibold truncate">{user.name}</div>
+              <div className="text-[11px] text-muted-foreground truncate">Restaurant</div>
             </div>
-            <Link
-              to="/login"
-              className="grid h-7 w-7 place-items-center rounded-lg hover:bg-accent text-muted-foreground"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </Link>
+            <LogoutButton />
           </div>
         </div>
       </aside>
@@ -207,7 +203,7 @@ function RestaurantLayout() {
             )}
           </Link>
           <img
-            src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80"
+            src={user.avatar}
             alt=""
             className="h-9 w-9 rounded-full object-cover ring-2 ring-amber-500/40"
           />
