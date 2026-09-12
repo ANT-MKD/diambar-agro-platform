@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   Truck,
   BarChart3,
+  MessageSquare,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -26,6 +27,7 @@ import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { useAdminNotifications, useDisputes, useValidations } from "@/data/admin-store";
+import { useConversations, useDriverConversations } from "@/data/store";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
 
@@ -42,12 +44,16 @@ function AdminLayout() {
   const disputes = useDisputes();
   const supportTickets = useSupportTickets();
   const notifications = useAdminNotifications();
+  const farmerConvos = useConversations();
+  const driverConvos = useDriverConversations();
   const pendingValidations = validations.filter((v) => v.status === "pending").length;
   const openDisputes = disputes.filter(
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;
   const unreadNotifications = notifications.filter((n) => !n.read).length;
+  const unreadMessages =
+    farmerConvos.reduce((s, c) => s + c.unread, 0) + driverConvos.reduce((s, c) => s + c.unread, 0);
 
   const navSections = [
     {
@@ -74,6 +80,7 @@ function AdminLayout() {
         { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
         { to: "/admin/refunds", label: "Remboursements", icon: Undo2, badge: 0 },
+        { to: "/admin/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
         {
           to: "/admin/notifications",
           label: "Notifications",

@@ -489,7 +489,10 @@ export type Conversation = {
   lastMessage: string;
   lastAt: string;
   unread: number;
-  messages: { id: string; from: "me" | "them"; text: string; at: string }[];
+  // senderName: renseigné uniquement pour les messages injectés par l'admin
+  // depuis la messagerie de supervision, pour ne pas les faire passer pour
+  // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
+  messages: { id: string; from: "me" | "them"; text: string; at: string; senderName?: string }[];
 };
 
 export const conversations: Conversation[] = [

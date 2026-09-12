@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Send, Paperclip, Phone, MessageSquare } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
+import { ChatBubble } from "@/components/common/chat-bubble";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { farmers } from "@/data/mocks";
@@ -94,21 +95,7 @@ function RestaurantConversation() {
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
           {conv.messages.map((m) => (
-            <div key={m.id} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${m.from === "me" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border border-border rounded-bl-sm"}`}
-              >
-                <div>{m.text}</div>
-                <div
-                  className={`text-[10px] mt-1 ${m.from === "me" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
-                >
-                  {new Date(m.at).toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </div>
-            </div>
+            <ChatBubble key={m.id} message={m} />
           ))}
         </div>
 
