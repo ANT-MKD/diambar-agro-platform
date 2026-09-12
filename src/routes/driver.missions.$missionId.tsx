@@ -189,17 +189,13 @@ function MissionDetail() {
             </div>
           </div>
 
-          {/* Live GPS (simulé) */}
+          {/* Live GPS */}
           <GpsPanel
-            pickupCity={mission.pickup.city}
-            dropoffCity={mission.dropoff.city}
+            trackingId={mission.reference}
             distanceKm={mission.distanceKm}
             estimatedMinutes={mission.estimatedMinutes}
             driverName="Vous"
             live={mission.status === "pickup" || mission.status === "loaded"}
-            startProgress={
-              mission.status === "loaded" ? 0.45 : mission.status === "delivered" ? 1 : 0.05
-            }
           />
 
           {/* Récap commande */}

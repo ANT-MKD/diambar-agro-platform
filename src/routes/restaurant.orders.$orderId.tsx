@@ -13,7 +13,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
-import { LiveMap, useSimulatedProgress } from "@/components/restaurant/live-map";
+import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { useLiveTracking } from "@/hooks/use-live-tracking";
 import { useRestaurantOrder } from "@/data/store";
 import { farmers, products, drivers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -26,7 +27,10 @@ export const Route = createFileRoute("/restaurant/orders/$orderId")({
 function OrderDetail() {
   const { orderId } = Route.useParams();
   const order = useRestaurantOrder(orderId);
-  const liveProgress = useSimulatedProgress(0.4, 0.01, 2000);
+  const { snapshot } = useLiveTracking({
+    trackingId: order?.reference,
+    enabled: !!order && ["preparing", "delivering"].includes(order.status),
+  });
 
   if (!order)
     return (
@@ -46,7 +50,8 @@ function OrderDetail() {
     typeof window !== "undefined"
       ? `${window.location.origin}/track/${publicId}`
       : `/track/${publicId}`;
-  const etaMinutes = Math.max(1, Math.round((1 - liveProgress) * 30));
+  const etaMinutes = snapshot?.etaMinutes ?? 30;
+  const progress = snapshot?.progress ?? 0;
 
   const share = async () => {
     try {
@@ -103,7 +108,7 @@ function OrderDetail() {
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-amber-500" />
             <span className="text-muted-foreground">Position</span>
-            <b>{Math.round(liveProgress * 100)}%</b>
+            <b>{Math.round(progress * 100)}%</b>
           </div>
           <div className="ml-auto flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Lien public :</span>
@@ -123,12 +128,10 @@ function OrderDetail() {
       )}
 
       {showMap && (
-        <LiveMap
-          origin={{ x: 22, y: 70, label: farmer?.farm ?? "" }}
-          destination={{ x: 75, y: 25, label: order.deliveryAddress }}
-          progress={liveProgress}
+        <LiveTrackingMapLazy
+          trackingId={order.reference}
           driverName={driver.name}
-          height={360}
+          minHeight={360}
         />
       )}
 

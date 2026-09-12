@@ -4,7 +4,8 @@ import { Clock, MapPin, Truck, CheckCircle2, Package, Share2, Copy } from "lucid
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";
 import { Button } from "@/components/ui/button";
-import { LiveMap, useSimulatedProgress } from "@/components/restaurant/live-map";
+import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { useLiveTracking } from "@/hooks/use-live-tracking";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
 import { useRestaurantOrders } from "@/data/store";
 import { farmers, drivers } from "@/data/mocks";
@@ -30,9 +31,16 @@ function PublicTracking() {
     () => orders.find((o) => publicIdOf(o.id) === publicId.toUpperCase()) ?? orders[0],
     [orders, publicId],
   );
-  const progress = useSimulatedProgress(0.35, 0.008, 2000);
-  const [now, setNow] = useState(() => new Date());
+  const { snapshot } = useLiveTracking({
+    trackingId: order?.reference,
+    enabled: !!order,
+  });
+  const progress = snapshot?.progress ?? 0.35;
+  // null until mounted client-side: avoids an SSR/client hydration mismatch
+  // (the server-rendered clock would otherwise never match the client's).
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const i = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(i);
   }, []);
@@ -132,12 +140,10 @@ function PublicTracking() {
           <SummaryTile icon={Truck} label="Livreur" value={driver.name} tone="blue" />
         </div>
 
-        <LiveMap
-          origin={{ x: 22, y: 70, label: farmer?.farm ?? "" }}
-          destination={{ x: 75, y: 25, label: order.deliveryAddress }}
-          progress={progress}
+        <LiveTrackingMapLazy
+          trackingId={order.reference}
           driverName={driver.name}
-          height={380}
+          minHeight={380}
         />
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -151,7 +157,7 @@ function PublicTracking() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Mis à jour</span>
-                <span className="font-medium">{now.toLocaleTimeString("fr-FR")}</span>
+                <span className="font-medium">{now ? now.toLocaleTimeString("fr-FR") : "—"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Départ</span>
