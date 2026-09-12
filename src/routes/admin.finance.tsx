@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Wallet, TrendingUp, Receipt, PiggyBank } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA } from "@/lib/format";
-import { payouts, platformGmv } from "@/data/admin-mocks";
+import { payouts } from "@/data/admin-mocks";
+import { useOrders } from "@/data/store";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -26,11 +28,29 @@ export const Route = createFileRoute("/admin/finance")({
 });
 
 function AdminFinance() {
-  const gmv = platformGmv[platformGmv.length - 1].gmv;
+  const orders = useOrders();
+  const delivered = orders.filter((o) => o.status === "delivered");
+  const gmv = delivered.reduce((s, o) => s + o.total, 0);
   const commission = Math.round(gmv * 0.11);
   const paid = payouts.filter((p) => p.status === "Payé").reduce((s, p) => s + p.amount, 0);
   const pending = payouts.filter((p) => p.status !== "Payé").reduce((s, p) => s + p.amount, 0);
-  const chart = platformGmv.map((m) => ({ month: m.month, commission: Math.round(m.gmv * 0.11) }));
+
+  // Les commandes de démo couvrent quelques jours, pas plusieurs mois : la
+  // commission encaissée est donc affichée par jour plutôt que sur une
+  // tendance mensuelle fictive.
+  const chart = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const o of delivered) {
+      const day = o.createdAt.slice(0, 10);
+      totals.set(day, (totals.get(day) ?? 0) + Math.round(o.total * 0.11));
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, commissionForDay]) => ({
+        day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        commission: commissionForDay,
+      }));
+  }, [delivered]);
 
   return (
     <div className="space-y-6">
@@ -44,9 +64,9 @@ function AdminFinance() {
               className="gap-2"
               onClick={() =>
                 downloadCsv(
-                  "commissions-mensuelles",
-                  ["Mois", "GMV FCFA", "Commission FCFA"],
-                  platformGmv.map((m) => [m.month, m.gmv, Math.round(m.gmv * 0.11)]),
+                  "commissions-par-jour",
+                  ["Jour", "Commission FCFA"],
+                  chart.map((c) => [c.day, c.commission]),
                 )
               }
             >
@@ -88,10 +108,10 @@ function AdminFinance() {
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Commissions du mois"
+          label="Commissions (livré)"
           value={formatFCFA(commission)}
-          delta={19}
           icon={TrendingUp}
+          hint={`${delivered.length} commande(s) livrée(s)`}
         />
         <StatCard
           label="Versements effectués"
@@ -108,26 +128,25 @@ function AdminFinance() {
         <StatCard
           label="Trésorerie estimée"
           value={formatFCFA(commission - pending)}
-          delta={7}
           icon={PiggyBank}
         />
       </div>
 
       <div className="glass rounded-2xl p-5">
-        <h2 className="font-semibold">Commissions encaissées</h2>
+        <h2 className="font-semibold">Commissions encaissées par jour</h2>
         <div className="h-56 mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
-                dataKey="month"
-                stroke="hsl(var(--muted-foreground))"
+                dataKey="day"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -135,14 +154,14 @@ function AdminFinance() {
               />
               <Tooltip
                 contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: 12,
                   fontSize: 12,
                 }}
                 formatter={(v: number) => formatFCFA(v)}
               />
-              <Bar dataKey="commission" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="commission" fill="var(--primary)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

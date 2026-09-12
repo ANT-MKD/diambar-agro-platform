@@ -10,10 +10,11 @@ import {
   YAxis,
 } from "recharts";
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { formatFCFA, relativeTime } from "@/lib/format";
-import { restaurants, revenueChart, sparklineOrders, sparklineRevenue } from "@/data/mocks";
+import { useMemo, useState } from "react";
+import { formatFCFA, formatNumber, relativeTime } from "@/lib/format";
+import { restaurants } from "@/data/mocks";
 import { useOrders, useProducts, orderActions } from "@/data/store";
+import { useSupplierScores } from "@/data/business";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
 import { LiveFeed } from "@/components/farmer/live-feed";
@@ -29,8 +30,29 @@ function Dashboard() {
   const products = useProducts();
   const orders = useOrders().filter((o) => o.farmerId === "f1");
   const pending = orders.filter((o) => o.status === "pending").slice(0, 3);
+  const delivered = orders.filter((o) => o.status === "delivered");
   const active = products.filter((p) => p.status === "active").length;
   const [period, setPeriod] = useState<"7" | "30" | "12">("30");
+  const score = useSupplierScores().find((s) => s.id === "f1");
+
+  // Peu de jours couverts par les commandes de démo : le graphique agrège
+  // par jour réel plutôt que de simuler une tendance sur 7/30/365 jours.
+  const revenueByDay = useMemo(() => {
+    const totals = new Map<string, { revenue: number; orders: number }>();
+    for (const o of orders) {
+      const day = o.createdAt.slice(0, 10);
+      const cur = totals.get(day) ?? { revenue: 0, orders: 0 };
+      totals.set(day, { revenue: cur.revenue + o.total, orders: cur.orders + 1 });
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, v]) => ({
+        day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        revenue: v.revenue,
+        orders: v.orders,
+      }));
+  }, [orders]);
+  const revenueThisMonth = delivered.reduce((s, o) => s + o.total, 0);
 
   return (
     <div className="space-y-6">
@@ -72,19 +94,25 @@ function Dashboard() {
           {
             icon: TrendingUp,
             label: "REVENUS CE MOIS",
-            value: "847 500",
+            value: formatNumber(revenueThisMonth),
             suffix: "FCFA",
-            trend: "↑ +12%",
+            trend: `${delivered.length} livrée(s)`,
             tone: "emerald" as const,
-            sparkline: <Sparkline data={sparklineRevenue} />,
+            sparkline: <Sparkline data={revenueByDay.map((d) => d.revenue)} />,
           },
           {
             icon: ShoppingBag,
             label: "COMMANDES REÇUES",
             value: String(orders.length),
-            trend: "↑ +5 cette sem.",
+            trend: `${pending.length} en attente`,
             tone: "amber" as const,
-            sparkline: <Sparkline data={sparklineOrders} type="bar" color="oklch(0.75 0.18 50)" />,
+            sparkline: (
+              <Sparkline
+                data={revenueByDay.map((d) => d.orders)}
+                type="bar"
+                color="oklch(0.75 0.18 50)"
+              />
+            ),
           },
         ].map((k, i) => (
           <motion.div
@@ -122,10 +150,19 @@ function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
         >
-          <BentoKpi icon={Star} label="NOTE MOYENNE" value="4.8" tone="yellow" trend="156 avis">
+          <BentoKpi
+            icon={Star}
+            label="NOTE MOYENNE"
+            value={score ? score.avg.toFixed(1) : "—"}
+            tone="yellow"
+            trend={score ? `${score.count} avis` : "Aucun avis"}
+          >
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="h-3.5 w-3.5 fill-yellow-500 text-yellow-500" />
+                <Star
+                  key={s}
+                  className={`h-3.5 w-3.5 ${score && s <= Math.round(score.avg) ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground/30"}`}
+                />
               ))}
             </div>
           </BentoKpi>
@@ -146,7 +183,7 @@ function Dashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer>
-              <AreaChart data={revenueChart}>
+              <AreaChart data={revenueByDay}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="oklch(0.7 0.17 155)" stopOpacity={0.4} />
@@ -243,36 +280,39 @@ function Dashboard() {
         <div className="lg:col-span-2 glass rounded-2xl p-6">
           <h3 className="font-semibold mb-4">Produits populaires</h3>
           <div className="grid sm:grid-cols-3 gap-4">
-            {products.slice(0, 3).map((p) => (
-              <Link
-                key={p.id}
-                to="/farmer/products/$productId"
-                params={{ productId: p.id }}
-                className="rounded-xl overflow-hidden border border-border hover:border-primary/40 transition group"
-              >
-                <div className="aspect-[4/3] overflow-hidden bg-muted">
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition"
-                  />
-                </div>
-                <div className="p-3">
-                  <div className="text-sm font-semibold truncate">{p.name}</div>
-                  <div className="text-xs text-primary font-bold mt-0.5">
-                    {formatFCFA(p.pricePerKg)}/{p.unit}
+            {[...products]
+              .sort((a, b) => b.ordersThisMonth - a.ordersThisMonth)
+              .slice(0, 3)
+              .map((p) => (
+                <Link
+                  key={p.id}
+                  to="/farmer/products/$productId"
+                  params={{ productId: p.id }}
+                  className="rounded-xl overflow-hidden border border-border hover:border-primary/40 transition group"
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-muted">
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                    />
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {p.stock} {p.unit} · {p.ordersThisMonth} cmd
-                  </div>
-                  {p.status === "low" && (
-                    <div className="mt-2 text-[10px] text-amber-500 font-medium">
-                      ⚠ Rupture proche
+                  <div className="p-3">
+                    <div className="text-sm font-semibold truncate">{p.name}</div>
+                    <div className="text-xs text-primary font-bold mt-0.5">
+                      {formatFCFA(p.pricePerKg)}/{p.unit}
                     </div>
-                  )}
-                </div>
-              </Link>
-            ))}
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {p.stock} {p.unit} · {p.ordersThisMonth} cmd
+                    </div>
+                    {p.status === "low" && (
+                      <div className="mt-2 text-[10px] text-amber-500 font-medium">
+                        ⚠ Rupture proche
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              ))}
           </div>
         </div>
 

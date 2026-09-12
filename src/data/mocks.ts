@@ -383,24 +383,6 @@ export const faq = [
   },
 ];
 
-export const revenueChart = [
-  { day: "01", revenue: 22000, orders: 3 },
-  { day: "03", revenue: 31000, orders: 4 },
-  { day: "05", revenue: 28000, orders: 4 },
-  { day: "07", revenue: 45000, orders: 6 },
-  { day: "09", revenue: 38000, orders: 5 },
-  { day: "11", revenue: 52000, orders: 7 },
-  { day: "13", revenue: 47000, orders: 6 },
-  { day: "15", revenue: 63000, orders: 8 },
-  { day: "17", revenue: 55000, orders: 7 },
-  { day: "19", revenue: 71000, orders: 9 },
-  { day: "21", revenue: 68000, orders: 9 },
-  { day: "23", revenue: 82000, orders: 11 },
-  { day: "25", revenue: 75000, orders: 10 },
-  { day: "27", revenue: 91000, orders: 12 },
-  { day: "29", revenue: 88000, orders: 11 },
-];
-
 export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
 export type Transaction = {
   id: string;
@@ -489,7 +471,10 @@ export type Conversation = {
   lastMessage: string;
   lastAt: string;
   unread: number;
-  messages: { id: string; from: "me" | "them"; text: string; at: string }[];
+  // senderName: renseigné uniquement pour les messages injectés par l'admin
+  // depuis la messagerie de supervision, pour ne pas les faire passer pour
+  // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
+  messages: { id: string; from: "me" | "them"; text: string; at: string; senderName?: string }[];
 };
 
 export const conversations: Conversation[] = [
@@ -771,9 +756,6 @@ export const geoPins = [
   { id: "g5", region: "Kaolack", x: 45, y: 52, count: 4, color: "#3b82f6" },
   { id: "g6", region: "Ziguinchor", x: 30, y: 82, count: 2, color: "#8b5cf6" },
 ];
-
-export const sparklineRevenue = [12, 19, 14, 23, 18, 28, 24, 32, 27, 38, 34, 45, 41, 52];
-export const sparklineOrders = [3, 5, 4, 7, 6, 9, 8, 11, 9, 12, 10, 14, 13, 16];
 
 export type RecurringOrder = {
   id: string;

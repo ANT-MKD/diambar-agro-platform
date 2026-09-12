@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { ShoppingBag, Wallet, Users, TrendingDown, Plus, ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
-import { useRestaurantOrders, useRecurring } from "@/data/store";
+import { useRestaurantOrders, useRecurring, useProducts, useSuppliers } from "@/data/store";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
-import { products, farmers, suppliers, sparklineOrders, sparklineRevenue } from "@/data/mocks";
+import { farmers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/dashboard")({
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/restaurant/dashboard")({
 function Dashboard() {
   const orders = useRestaurantOrders();
   const recurring = useRecurring();
+  const products = useProducts();
+  const suppliers = useSuppliers();
   const active = orders.filter((o) =>
     ["pending", "confirmed", "preparing", "delivering"].includes(o.status),
   );
@@ -26,6 +29,20 @@ function Dashboard() {
     .slice(0, 4);
   const today = new Date().toISOString().slice(0, 10);
   const todaysRecurring = recurring.filter((r) => r.active && r.nextDelivery === today);
+
+  // Peu de jours couverts par les commandes de démo : sparklines construites
+  // à partir des vraies commandes par jour plutôt que d'une série fictive.
+  const byDay = useMemo(() => {
+    const totals = new Map<string, { spend: number; count: number }>();
+    for (const o of orders) {
+      const day = o.createdAt.slice(0, 10);
+      const cur = totals.get(day) ?? { spend: 0, count: 0 };
+      totals.set(day, { spend: cur.spend + o.total, count: cur.count + 1 });
+    }
+    return Array.from(totals.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [orders]);
+  const spendSparkline = byDay.map(([, v]) => v.spend);
+  const ordersSparkline = byDay.map(([, v]) => v.count);
 
   return (
     <div className="space-y-6">
@@ -55,18 +72,18 @@ function Dashboard() {
             icon: ShoppingBag,
             label: "COMMANDES CE MOIS",
             value: String(orders.length),
-            trend: "↑ +3 vs sem. dern.",
+            trend: `${active.length} en cours`,
             tone: "amber" as const,
-            sparkline: <Sparkline data={sparklineOrders} type="bar" color="oklch(0.75 0.18 50)" />,
+            sparkline: <Sparkline data={ordersSparkline} type="bar" color="oklch(0.75 0.18 50)" />,
           },
           {
             icon: Wallet,
             label: "DÉPENSES",
             value: formatFCFA(monthSpend).replace(" FCFA", ""),
             suffix: "FCFA",
-            trend: "↓ -8% optimisé",
+            trend: `${orders.filter((o) => o.status === "delivered").length} livrée(s)`,
             tone: "emerald" as const,
-            sparkline: <Sparkline data={sparklineRevenue} />,
+            sparkline: <Sparkline data={spendSparkline} />,
           },
         ].map((k, i) => (
           <motion.div

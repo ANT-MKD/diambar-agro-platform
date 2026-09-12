@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Send, Search, MessageSquare, Paperclip } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { conversations as seed, restaurants, type Conversation } from "@/data/mocks";
+import { ChatBubble } from "@/components/common/chat-bubble";
+import { restaurants } from "@/data/mocks";
+import { useConversations, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/format";
@@ -14,8 +16,8 @@ export const Route = createFileRoute("/farmer/messages/")({
 });
 
 function MessagesPage() {
-  const [convs, setConvs] = useState<Conversation[]>(seed);
-  const [activeId, setActiveId] = useState<string | null>(seed[0]?.id || null);
+  const convs = useConversations();
+  const [activeId, setActiveId] = useState<string | null>(convs[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
 
@@ -30,25 +32,13 @@ function MessagesPage() {
 
   const send = () => {
     if (!active || !draft.trim()) return;
-    const newMsg = {
-      id: `m${Date.now()}`,
-      from: "me" as const,
-      text: draft.trim(),
-      at: new Date().toISOString(),
-    };
-    setConvs((arr) =>
-      arr.map((c) =>
-        c.id === active.id
-          ? { ...c, messages: [...c.messages, newMsg], lastMessage: newMsg.text, lastAt: newMsg.at }
-          : c,
-      ),
-    );
+    conversationActions.send(active.id, draft.trim(), "me");
     setDraft("");
   };
 
   const openConv = (id: string) => {
     setActiveId(id);
-    setConvs((arr) => arr.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+    conversationActions.markRead(id);
   };
 
   return (
@@ -118,24 +108,7 @@ function MessagesPage() {
                 </div>
                 <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
                   {active.messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${m.from === "me" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border border-border rounded-bl-sm"}`}
-                      >
-                        <div>{m.text}</div>
-                        <div
-                          className={`text-[10px] mt-1 ${m.from === "me" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
-                        >
-                          {new Date(m.at).toLocaleTimeString("fr-FR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </div>
-                    </div>
+                    <ChatBubble key={m.id} message={m} />
                   ))}
                 </div>
                 <form

@@ -329,8 +329,8 @@ export const missionActions = {
 };
 
 export const driverConversationActions = {
-  send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
-    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
+  send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
+    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
     driverConvosStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
@@ -588,8 +588,8 @@ export const wishlistActions = {
 };
 
 export const conversationActions = {
-  send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
-    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
+  send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
+    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
     conversationsStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId

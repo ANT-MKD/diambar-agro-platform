@@ -19,6 +19,7 @@ import { useOrders } from "@/data/store";
 import { usePlatformUsers } from "@/data/admin-store";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
 
 export const Route = createFileRoute("/admin/analytics")({
   head: () => ({
@@ -33,19 +34,6 @@ export const Route = createFileRoute("/admin/analytics")({
   }),
   component: AdminAnalytics,
 });
-
-const ROLE_COLOR: Record<string, string> = {
-  farmer: "#10b981",
-  restaurant: "#f59e0b",
-  driver: "#3b82f6",
-  admin: "#8b5cf6",
-};
-const ROLE_LABEL: Record<string, string> = {
-  farmer: "Agriculteurs",
-  restaurant: "Restaurants",
-  driver: "Livreurs",
-  admin: "Admins",
-};
 
 function AdminAnalytics() {
   const orders = useOrders();

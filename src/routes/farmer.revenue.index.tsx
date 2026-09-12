@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   TrendingUp,
@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
-import { revenueChart, transactions, restaurants, wallets } from "@/data/mocks";
+import { transactions, restaurants, wallets } from "@/data/mocks";
 import { useWithdrawals } from "@/data/store";
 import { WalletWidget } from "@/components/farmer/wallet-widget";
 import { formatFCFA } from "@/lib/format";
@@ -41,25 +41,39 @@ export const Route = createFileRoute("/farmer/revenue/")({
   component: RevenuePage,
 });
 
+const PERIOD_DAYS = { "7": 7, "30": 30, "90": 90 } as const;
+
 function RevenuePage() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
-  const data = useMemo(
-    () =>
-      period === "7"
-        ? revenueChart.slice(-4)
-        : period === "30"
-          ? revenueChart
-          : revenueChart.concat(revenueChart.slice(0, 10)),
-    [period],
-  );
+  const withdrawals = useWithdrawals();
+
+  // Le graphique agrège les vraies transactions par jour réel, filtrées aux
+  // N derniers jours disponibles (les dates de démo étant fixes, un filtre
+  // par date calendaire ferait disparaître toutes les données).
+  const byDay = useMemo(() => {
+    const totals = new Map<string, { revenue: number; orders: number }>();
+    for (const t of transactions) {
+      const cur = totals.get(t.date) ?? { revenue: 0, orders: 0 };
+      totals.set(t.date, { revenue: cur.revenue + t.net, orders: cur.orders + 1 });
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, v]) => ({
+        day: new Date(date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        revenue: v.revenue,
+        orders: v.orders,
+      }));
+  }, []);
+  const data = useMemo(() => byDay.slice(-PERIOD_DAYS[period]), [byDay, period]);
 
   const total = data.reduce((a, x) => a + x.revenue, 0);
   const orders = data.reduce((a, x) => a + x.orders, 0);
   const avg = orders > 0 ? Math.round(total / orders) : 0;
+  const totalAllTime = transactions.reduce((a, t) => a + t.net, 0);
   const pending = transactions
     .filter((t) => t.status === "En attente")
     .reduce((a, t) => a + t.net, 0);
-  const withdrawals = useWithdrawals();
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
     withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount + w.fee, 0);
@@ -142,14 +156,8 @@ function RevenuePage() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard
-          icon={TrendingUp}
-          label="CA période"
-          value={formatFCFA(total)}
-          change="+12%"
-          tone="emerald"
-        />
-        <KpiCard icon={Wallet} label="CA total 2025" value={formatFCFA(2_345_000)} tone="blue" />
+        <KpiCard icon={TrendingUp} label="CA période" value={formatFCFA(total)} tone="emerald" />
+        <KpiCard icon={Wallet} label="CA total" value={formatFCFA(totalAllTime)} tone="blue" />
         <KpiCard
           icon={ShoppingCart}
           label="Commandes payées"
@@ -229,7 +237,7 @@ function RevenuePage() {
                   key={t.id}
                   className="cursor-pointer hover:bg-accent/50"
                   onClick={() => {
-                    window.location.assign(`/farmer/revenue/${t.id}`);
+                    navigate({ to: "/farmer/revenue/$txId", params: { txId: t.id } });
                   }}
                 >
                   <TableCell className="text-sm">
