@@ -3,11 +3,26 @@ import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const slides = [
-  { src: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1400&q=80", caption: "Tomates fraîches · Ferme Diallo, Thiès" },
-  { src: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1400&q=80", caption: "Récolte du jour · Niayes" },
-  { src: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&q=80", caption: "Marché de Dakar · circuits courts" },
-  { src: "https://images.unsplash.com/photo-1601758174039-4ed7a4d2c0bd?w=1400&q=80", caption: "Livraison express · Oumar, livreur Wave" },
-  { src: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=1400&q=80", caption: "Cuisine sénégalaise · du champ à l'assiette" },
+  {
+    src: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1400&q=80",
+    caption: "Tomates fraîches · Ferme Diallo, Thiès",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1400&q=80",
+    caption: "Récolte du jour · Niayes",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&q=80",
+    caption: "Marché de Dakar · circuits courts",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1601758174039-4ed7a4d2c0bd?w=1400&q=80",
+    caption: "Livraison express · Oumar, livreur Wave",
+  },
+  {
+    src: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=1400&q=80",
+    caption: "Cuisine sénégalaise · du champ à l'assiette",
+  },
 ];
 
 export function AuthSplitLayout({ children }: { children: ReactNode }) {
@@ -78,8 +93,12 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
       {/* Right form */}
       <div className="relative flex flex-col">
         <div className="flex items-center justify-between p-4 lg:p-6">
-          <div className="lg:hidden"><Logo /></div>
-          <div className="ml-auto"><ThemeToggle /></div>
+          <div className="lg:hidden">
+            <Logo />
+          </div>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
           <div className="w-full max-w-md">{children}</div>

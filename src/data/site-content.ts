@@ -20,7 +20,13 @@ export const pricingPlans: PricingPlan[] = [
     price: "Gratuit",
     period: "commission 5 – 15 %",
     description: "Vendez directement aux restaurants, sans intermédiaire ni abonnement.",
-    features: ["Boutique et catalogue illimités", "Gestion du stock et alertes", "Paiement sous 24h (Wave, OM, Free)", "Analytics de ventes", "Support WhatsApp 6j/7"],
+    features: [
+      "Boutique et catalogue illimités",
+      "Gestion du stock et alertes",
+      "Paiement sous 24h (Wave, OM, Free)",
+      "Analytics de ventes",
+      "Support WhatsApp 6j/7",
+    ],
     cta: "Créer ma ferme",
   },
   {
@@ -30,7 +36,14 @@ export const pricingPlans: PricingPlan[] = [
     price: "15 000",
     period: "FCFA / mois",
     description: "L'approvisionnement piloté : récurrentes, factures et suivi temps réel.",
-    features: ["Commandes récurrentes automatiques", "Facturation et export comptable", "Suivi GPS des livraisons", "Fournisseurs favoris et scoring", "Support prioritaire 7j/7", "Multi-utilisateurs (équipe)"],
+    features: [
+      "Commandes récurrentes automatiques",
+      "Facturation et export comptable",
+      "Suivi GPS des livraisons",
+      "Fournisseurs favoris et scoring",
+      "Support prioritaire 7j/7",
+      "Multi-utilisateurs (équipe)",
+    ],
     highlighted: true,
     cta: "Essayer 30 jours",
   },
@@ -41,16 +54,34 @@ export const pricingPlans: PricingPlan[] = [
     price: "Gratuit",
     period: "80 % de la course",
     description: "Choisissez vos missions, roulez quand vous voulez, payé le jour même.",
-    features: ["Missions à la demande", "Paiement journalier", "Itinéraires optimisés", "Assurance mission incluse", "Bonus de performance"],
+    features: [
+      "Missions à la demande",
+      "Paiement journalier",
+      "Itinéraires optimisés",
+      "Assurance mission incluse",
+      "Bonus de performance",
+    ],
     cta: "Devenir livreur",
   },
 ];
 
 export const pricingFaq = [
-  { q: "Y a-t-il des frais cachés ?", a: "Non. La commission est prélevée uniquement sur les commandes livrées et confirmées. Aucun frais d'inscription, aucun engagement." },
-  { q: "Comment est calculée la commission ?", a: "Elle est dégressive selon votre volume mensuel : 15 % en dessous de 250 000 FCFA, jusqu'à 5 % au-delà de 1 500 000 FCFA." },
-  { q: "Puis-je annuler l'abonnement Restaurant Pro ?", a: "Oui, à tout moment depuis vos paramètres. L'abonnement reste actif jusqu'à la fin de la période payée." },
-  { q: "Les frais de livraison sont-ils inclus ?", a: "Non, ils sont facturés séparément selon la zone (de 1 000 à 8 500 FCFA de base) et affichés avant validation du panier." },
+  {
+    q: "Y a-t-il des frais cachés ?",
+    a: "Non. La commission est prélevée uniquement sur les commandes livrées et confirmées. Aucun frais d'inscription, aucun engagement.",
+  },
+  {
+    q: "Comment est calculée la commission ?",
+    a: "Elle est dégressive selon votre volume mensuel : 15 % en dessous de 250 000 FCFA, jusqu'à 5 % au-delà de 1 500 000 FCFA.",
+  },
+  {
+    q: "Puis-je annuler l'abonnement Restaurant Pro ?",
+    a: "Oui, à tout moment depuis vos paramètres. L'abonnement reste actif jusqu'à la fin de la période payée.",
+  },
+  {
+    q: "Les frais de livraison sont-ils inclus ?",
+    a: "Non, ils sont facturés séparément selon la zone (de 1 000 à 8 500 FCFA de base) et affichés avant validation du panier.",
+  },
 ];
 
 export type BlogPost = {
@@ -70,7 +101,8 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "reduire-pertes-post-recolte-senegal",
     title: "Réduire les pertes post-récolte au Sénégal : 5 leviers concrets",
-    excerpt: "Près de 30 % de la production maraîchère sénégalaise est perdue avant d'atteindre l'assiette. Voici ce qui change quand la vente est planifiée.",
+    excerpt:
+      "Près de 30 % de la production maraîchère sénégalaise est perdue avant d'atteindre l'assiette. Voici ce qui change quand la vente est planifiée.",
     category: "Agriculture",
     author: "Mamadou Diallo",
     authorAvatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=120",
@@ -89,7 +121,8 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "restaurant-maitriser-cout-matiere",
     title: "Restaurants : maîtriser son coût matière sans sacrifier la qualité",
-    excerpt: "Acheter en direct producteur fait baisser le coût matière de 15 à 25 %. Encore faut-il structurer ses achats.",
+    excerpt:
+      "Acheter en direct producteur fait baisser le coût matière de 15 à 25 %. Encore faut-il structurer ses achats.",
     category: "Restauration",
     author: "Aminata Ndiaye",
     authorAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120",
@@ -107,7 +140,8 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "logistique-derniere-mile-dakar",
     title: "Dernier kilomètre à Dakar : ce que nos 12 000 livraisons nous ont appris",
-    excerpt: "Créneaux, embouteillages, points de dépose : anatomie d'une livraison alimentaire réussie en zone urbaine dense.",
+    excerpt:
+      "Créneaux, embouteillages, points de dépose : anatomie d'une livraison alimentaire réussie en zone urbaine dense.",
     category: "Logistique",
     author: "Oumar Ba",
     authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120",
@@ -125,7 +159,8 @@ export const blogPosts: BlogPost[] = [
   {
     slug: "nouveautes-produit-mai-2025",
     title: "Nouveautés produit : commandes récurrentes, litiges et suivi public",
-    excerpt: "Un tour d'horizon des fonctionnalités livrées ce mois-ci sur la plateforme Diambar Agro.",
+    excerpt:
+      "Un tour d'horizon des fonctionnalités livrées ce mois-ci sur la plateforme Diambar Agro.",
     category: "Produit",
     author: "Équipe Diambar",
     authorAvatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120",
@@ -142,17 +177,53 @@ export const blogPosts: BlogPost[] = [
 ];
 
 export const teamMembers = [
-  { name: "Seynabou Faye", role: "Cofondatrice & CEO", bio: "15 ans dans l'agro-industrie ouest-africaine.", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300" },
-  { name: "Cheikh Diop", role: "Cofondateur & CTO", bio: "Ex-lead engineer fintech mobile money.", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300" },
-  { name: "Marième Thiam", role: "Directrice des opérations", bio: "Pilotage logistique et réseau producteurs.", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300" },
-  { name: "Alioune Sarr", role: "Responsable partenariats", bio: "Anciennement acheteur pour un groupe hôtelier.", avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300" },
+  {
+    name: "Seynabou Faye",
+    role: "Cofondatrice & CEO",
+    bio: "15 ans dans l'agro-industrie ouest-africaine.",
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300",
+  },
+  {
+    name: "Cheikh Diop",
+    role: "Cofondateur & CTO",
+    bio: "Ex-lead engineer fintech mobile money.",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
+  },
+  {
+    name: "Marième Thiam",
+    role: "Directrice des opérations",
+    bio: "Pilotage logistique et réseau producteurs.",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300",
+  },
+  {
+    name: "Alioune Sarr",
+    role: "Responsable partenariats",
+    bio: "Anciennement acheteur pour un groupe hôtelier.",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300",
+  },
 ];
 
 export const milestones = [
-  { year: "2023", title: "L'idée", text: "Trois marchés visités par semaine pendant six mois pour comprendre la chaîne d'approvisionnement." },
-  { year: "2024", title: "Premier pilote", text: "12 agriculteurs de Thiès et 8 restaurants dakarois testent la plateforme." },
-  { year: "2025", title: "Passage à l'échelle", text: "227 comptes actifs, 618 commandes par mois, 3 régions couvertes." },
-  { year: "2026", title: "Objectif", text: "Couvrir les 14 régions du Sénégal et ouvrir la logistique inter-régionale." },
+  {
+    year: "2023",
+    title: "L'idée",
+    text: "Trois marchés visités par semaine pendant six mois pour comprendre la chaîne d'approvisionnement.",
+  },
+  {
+    year: "2024",
+    title: "Premier pilote",
+    text: "12 agriculteurs de Thiès et 8 restaurants dakarois testent la plateforme.",
+  },
+  {
+    year: "2025",
+    title: "Passage à l'échelle",
+    text: "227 comptes actifs, 618 commandes par mois, 3 régions couvertes.",
+  },
+  {
+    year: "2026",
+    title: "Objectif",
+    text: "Couvrir les 14 régions du Sénégal et ouvrir la logistique inter-régionale.",
+  },
 ];
 
 export const impactStats = [
@@ -163,8 +234,40 @@ export const impactStats = [
 ];
 
 export const helpCategories = [
-  { title: "Démarrer", items: ["Créer un compte", "Vérifier son identité", "Configurer son profil", "Comprendre les rôles"] },
-  { title: "Commandes", items: ["Passer une commande", "Modifier ou annuler", "Commandes récurrentes", "Suivre une livraison"] },
-  { title: "Paiements", items: ["Moyens de paiement acceptés", "Délais de versement", "Retirer ses revenus", "Comprendre la commission"] },
-  { title: "Litiges", items: ["Signaler un produit non conforme", "Délais de traitement", "Demander un remboursement", "Contester une décision"] },
+  {
+    title: "Démarrer",
+    items: [
+      "Créer un compte",
+      "Vérifier son identité",
+      "Configurer son profil",
+      "Comprendre les rôles",
+    ],
+  },
+  {
+    title: "Commandes",
+    items: [
+      "Passer une commande",
+      "Modifier ou annuler",
+      "Commandes récurrentes",
+      "Suivre une livraison",
+    ],
+  },
+  {
+    title: "Paiements",
+    items: [
+      "Moyens de paiement acceptés",
+      "Délais de versement",
+      "Retirer ses revenus",
+      "Comprendre la commission",
+    ],
+  },
+  {
+    title: "Litiges",
+    items: [
+      "Signaler un produit non conforme",
+      "Délais de traitement",
+      "Demander un remboursement",
+      "Contester une décision",
+    ],
+  },
 ];

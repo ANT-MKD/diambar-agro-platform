@@ -13,7 +13,8 @@ function EditProductPage() {
   const { productId } = useParams({ from: "/farmer/products/$productId/edit" });
   const navigate = useNavigate();
   const product = useProduct(productId);
-  if (!product) return <p className="text-center text-muted-foreground py-12">Produit introuvable</p>;
+  if (!product)
+    return <p className="text-center text-muted-foreground py-12">Produit introuvable</p>;
   const { id: _id, ordersThisMonth: _o, ...rest } = product;
   return (
     <div className="space-y-6">

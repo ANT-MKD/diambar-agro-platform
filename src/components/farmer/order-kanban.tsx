@@ -13,12 +13,19 @@ const COLUMNS: { status: OrderStatus; accent: string }[] = [
 ];
 
 export function OrderKanban({ orders }: { orders: Order[] }) {
-  const [columns, setColumns] = useState<Record<OrderStatus, Order[]>>({} as any);
+  const buildColumns = (source: Order[]): Record<OrderStatus, Order[]> =>
+    COLUMNS.reduce(
+      (acc, c) => {
+        acc[c.status] = source.filter((o) => o.status === c.status);
+        return acc;
+      },
+      {} as Record<OrderStatus, Order[]>,
+    );
+
+  const [columns, setColumns] = useState<Record<OrderStatus, Order[]>>(() => buildColumns(orders));
 
   useEffect(() => {
-    const next: Record<string, Order[]> = {};
-    COLUMNS.forEach((c) => { next[c.status] = orders.filter((o) => o.status === c.status); });
-    setColumns(next as Record<OrderStatus, Order[]>);
+    setColumns(buildColumns(orders));
   }, [orders]);
 
   const move = (id: string, to: OrderStatus) => {
@@ -30,28 +37,41 @@ export function OrderKanban({ orders }: { orders: Order[] }) {
       {COLUMNS.map((col) => {
         const list = columns[col.status] ?? [];
         return (
-          <div key={col.status} className={`rounded-2xl bg-card/40 border border-border border-t-4 ${col.accent} p-3 flex flex-col min-h-[400px]`}>
+          <div
+            key={col.status}
+            className={`rounded-2xl bg-card/40 border border-border border-t-4 ${col.accent} p-3 flex flex-col min-h-[400px]`}
+          >
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="font-semibold text-sm">{ORDER_LABEL[col.status]}</h3>
-              <span className="text-xs font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">{list.length}</span>
+              <span className="text-xs font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                {list.length}
+              </span>
             </div>
             <div className="space-y-2 flex-1">
               {list.length === 0 ? (
-                <div className="text-center text-[11px] text-muted-foreground/60 py-8">Aucune commande</div>
-              ) : list.map((o) => (
-                <motion.div key={o.id} layout drag dragSnapToOrigin
-                  whileDrag={{ scale: 1.04, zIndex: 50 }}
-                  onDragEnd={(_, info) => {
-                    if (Math.abs(info.offset.x) < 80) return;
-                    const idx = COLUMNS.findIndex((c) => c.status === col.status);
-                    const dir = info.offset.x > 0 ? 1 : -1;
-                    const next = COLUMNS[idx + dir];
-                    if (next) move(o.id, next.status);
-                  }}
-                >
-                  <OrderCard order={o} compact />
-                </motion.div>
-              ))}
+                <div className="text-center text-[11px] text-muted-foreground/60 py-8">
+                  Aucune commande
+                </div>
+              ) : (
+                list.map((o) => (
+                  <motion.div
+                    key={o.id}
+                    layout
+                    drag
+                    dragSnapToOrigin
+                    whileDrag={{ scale: 1.04, zIndex: 50 }}
+                    onDragEnd={(_, info) => {
+                      if (Math.abs(info.offset.x) < 80) return;
+                      const idx = COLUMNS.findIndex((c) => c.status === col.status);
+                      const dir = info.offset.x > 0 ? 1 : -1;
+                      const next = COLUMNS[idx + dir];
+                      if (next) move(o.id, next.status);
+                    }}
+                  >
+                    <OrderCard order={o} compact />
+                  </motion.div>
+                ))
+              )}
             </div>
           </div>
         );

@@ -9,212 +9,137 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as RestaurantRouteImport } from './routes/restaurant'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as PricingRouteImport } from './routes/pricing'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as HelpRouteImport } from './routes/help'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
-import { Route as ForFarmersRouteImport } from './routes/for-farmers'
-import { Route as ForDriversRouteImport } from './routes/for-drivers'
-import { Route as FarmerRouteImport } from './routes/farmer'
-import { Route as FaqRouteImport } from './routes/faq'
-import { Route as DriverRouteImport } from './routes/driver'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BlogIndexRouteImport } from './routes/blog.index'
-import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
-import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
-import { Route as RestaurantReviewsRouteImport } from './routes/restaurant.reviews'
-import { Route as RestaurantReturnsRouteImport } from './routes/restaurant.returns'
-import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
-import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
-import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
-import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
-import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
-import { Route as RestaurantCompareRouteImport } from './routes/restaurant.compare'
-import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
-import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
-import { Route as RestaurantBudgetRouteImport } from './routes/restaurant.budget'
-import { Route as LegalTermsRouteImport } from './routes/legal.terms'
-import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
-import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
-import { Route as FarmerReturnsRouteImport } from './routes/farmer.returns'
-import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
-import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
-import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
-import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
-import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
-import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
-import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
-import { Route as DriverRoutesRouteImport } from './routes/driver.routes'
-import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
-import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
-import { Route as DriverIncidentsRouteImport } from './routes/driver.incidents'
-import { Route as DriverHistoryRouteImport } from './routes/driver.history'
-import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
-import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
-import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminRefundsRouteImport } from './routes/admin.refunds'
-import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
-import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
-import { Route as AdminLogsRouteImport } from './routes/admin.logs'
-import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DriverRouteImport } from './routes/driver'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as FarmerRouteImport } from './routes/farmer'
+import { Route as ForDriversRouteImport } from './routes/for-drivers'
+import { Route as ForFarmersRouteImport } from './routes/for-farmers'
+import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
-import { Route as RestaurantSuppliersIndexRouteImport } from './routes/restaurant.suppliers.index'
-import { Route as RestaurantSettingsIndexRouteImport } from './routes/restaurant.settings.index'
-import { Route as RestaurantOrdersIndexRouteImport } from './routes/restaurant.orders.index'
-import { Route as RestaurantNotificationsIndexRouteImport } from './routes/restaurant.notifications.index'
-import { Route as RestaurantMessagesIndexRouteImport } from './routes/restaurant.messages.index'
-import { Route as RestaurantInvoicesIndexRouteImport } from './routes/restaurant.invoices.index'
-import { Route as RestaurantDisputesIndexRouteImport } from './routes/restaurant.disputes.index'
-import { Route as FarmerStockIndexRouteImport } from './routes/farmer.stock.index'
-import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.settings.index'
-import { Route as FarmerRevenueIndexRouteImport } from './routes/farmer.revenue.index'
-import { Route as FarmerProductsIndexRouteImport } from './routes/farmer.products.index'
-import { Route as FarmerOrdersIndexRouteImport } from './routes/farmer.orders.index'
-import { Route as FarmerNotificationsIndexRouteImport } from './routes/farmer.notifications.index'
-import { Route as FarmerMessagesIndexRouteImport } from './routes/farmer.messages.index'
-import { Route as FarmerDisputesIndexRouteImport } from './routes/farmer.disputes.index'
-import { Route as DriverNotificationsIndexRouteImport } from './routes/driver.notifications.index'
-import { Route as DriverMissionsIndexRouteImport } from './routes/driver.missions.index'
-import { Route as DriverMessagesIndexRouteImport } from './routes/driver.messages.index'
-import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
-import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
-import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
+import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
+import { Route as AdminLogsRouteImport } from './routes/admin.logs'
+import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
+import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminRefundsRouteImport } from './routes/admin.refunds'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
+import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
+import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
+import { Route as DriverHistoryRouteImport } from './routes/driver.history'
+import { Route as DriverIncidentsRouteImport } from './routes/driver.incidents'
+import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
+import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
+import { Route as DriverRoutesRouteImport } from './routes/driver.routes'
+import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
+import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
+import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
+import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
+import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
+import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
+import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
+import { Route as FarmerReturnsRouteImport } from './routes/farmer.returns'
+import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as RestaurantBudgetRouteImport } from './routes/restaurant.budget'
+import { Route as RestaurantCartRouteImport } from './routes/restaurant.cart'
+import { Route as RestaurantCheckoutRouteImport } from './routes/restaurant.checkout'
+import { Route as RestaurantCompareRouteImport } from './routes/restaurant.compare'
+import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.dashboard'
+import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
+import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
+import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
+import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
+import { Route as RestaurantReturnsRouteImport } from './routes/restaurant.returns'
+import { Route as RestaurantReviewsRouteImport } from './routes/restaurant.reviews'
+import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
+import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
 import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.index'
-import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
-import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
-import { Route as RestaurantSettingsTeamRouteImport } from './routes/restaurant.settings.team'
-import { Route as RestaurantSettingsSecurityRouteImport } from './routes/restaurant.settings.security'
-import { Route as RestaurantSettingsProfileRouteImport } from './routes/restaurant.settings.profile'
-import { Route as RestaurantSettingsPaymentsRouteImport } from './routes/restaurant.settings.payments'
-import { Route as RestaurantSettingsNotificationsRouteImport } from './routes/restaurant.settings.notifications'
-import { Route as RestaurantSettingsEstablishmentRouteImport } from './routes/restaurant.settings.establishment'
-import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
-import { Route as RestaurantNotificationsRulesRouteImport } from './routes/restaurant.notifications.rules'
-import { Route as RestaurantMessagesConversationIdRouteImport } from './routes/restaurant.messages.$conversationId'
-import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
-import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
-import { Route as RestaurantDisputesDisputeIdRouteImport } from './routes/restaurant.disputes.$disputeId'
-import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
-import { Route as FarmerSettingsTeamRouteImport } from './routes/farmer.settings.team'
-import { Route as FarmerSettingsSecurityRouteImport } from './routes/farmer.settings.security'
-import { Route as FarmerSettingsProfileRouteImport } from './routes/farmer.settings.profile'
-import { Route as FarmerSettingsPaymentsRouteImport } from './routes/farmer.settings.payments'
-import { Route as FarmerSettingsNotificationsRouteImport } from './routes/farmer.settings.notifications'
-import { Route as FarmerSettingsFarmRouteImport } from './routes/farmer.settings.farm'
-import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
-import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
-import { Route as FarmerRevenueTxIdRouteImport } from './routes/farmer.revenue.$txId'
-import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.new'
-import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
-import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
-import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
-import { Route as FarmerNotificationsRulesRouteImport } from './routes/farmer.notifications.rules'
-import { Route as FarmerMessagesConversationIdRouteImport } from './routes/farmer.messages.$conversationId'
-import { Route as FarmerDisputesDisputeIdRouteImport } from './routes/farmer.disputes.$disputeId'
-import { Route as DriverNotificationsRulesRouteImport } from './routes/driver.notifications.rules'
-import { Route as DriverMissionsMissionIdRouteImport } from './routes/driver.missions.$missionId'
-import { Route as DriverMessagesConversationIdRouteImport } from './routes/driver.messages.$conversationId'
-import { Route as DriverDisputesDisputeIdRouteImport } from './routes/driver.disputes.$disputeId'
-import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
-import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
-import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
-import { Route as RestaurantOrdersOrderIdDisputeRouteImport } from './routes/restaurant.orders.$orderId.dispute'
-import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
-import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
-import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products.$productId.edit'
-import { Route as FarmerOrdersOrderIdReportRouteImport } from './routes/farmer.orders.$orderId.report'
-import { Route as FarmerOrdersOrderIdRefuseRouteImport } from './routes/farmer.orders.$orderId.refuse'
-import { Route as FarmerOrdersOrderIdDisputeRouteImport } from './routes/farmer.orders.$orderId.dispute'
+import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
+import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
+import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
+import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
+import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
+import { Route as DriverDisputesDisputeIdRouteImport } from './routes/driver.disputes.$disputeId'
+import { Route as DriverMessagesIndexRouteImport } from './routes/driver.messages.index'
+import { Route as DriverMessagesConversationIdRouteImport } from './routes/driver.messages.$conversationId'
+import { Route as DriverMissionsIndexRouteImport } from './routes/driver.missions.index'
+import { Route as DriverMissionsMissionIdRouteImport } from './routes/driver.missions.$missionId'
+import { Route as DriverNotificationsIndexRouteImport } from './routes/driver.notifications.index'
+import { Route as DriverNotificationsRulesRouteImport } from './routes/driver.notifications.rules'
+import { Route as FarmerDisputesIndexRouteImport } from './routes/farmer.disputes.index'
+import { Route as FarmerDisputesDisputeIdRouteImport } from './routes/farmer.disputes.$disputeId'
+import { Route as FarmerMessagesIndexRouteImport } from './routes/farmer.messages.index'
+import { Route as FarmerMessagesConversationIdRouteImport } from './routes/farmer.messages.$conversationId'
+import { Route as FarmerNotificationsIndexRouteImport } from './routes/farmer.notifications.index'
+import { Route as FarmerNotificationsRulesRouteImport } from './routes/farmer.notifications.rules'
+import { Route as FarmerOrdersIndexRouteImport } from './routes/farmer.orders.index'
+import { Route as FarmerOrdersOrderIdRouteImport } from './routes/farmer.orders.$orderId'
+import { Route as FarmerProductsIndexRouteImport } from './routes/farmer.products.index'
+import { Route as FarmerProductsProductIdRouteImport } from './routes/farmer.products.$productId'
+import { Route as FarmerProductsImportRouteImport } from './routes/farmer.products.import'
+import { Route as FarmerProductsNewRouteImport } from './routes/farmer.products.new'
+import { Route as FarmerRevenueIndexRouteImport } from './routes/farmer.revenue.index'
+import { Route as FarmerRevenueTxIdRouteImport } from './routes/farmer.revenue.$txId'
+import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
+import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
+import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.settings.index'
+import { Route as FarmerSettingsFarmRouteImport } from './routes/farmer.settings.farm'
+import { Route as FarmerSettingsNotificationsRouteImport } from './routes/farmer.settings.notifications'
+import { Route as FarmerSettingsPaymentsRouteImport } from './routes/farmer.settings.payments'
+import { Route as FarmerSettingsProfileRouteImport } from './routes/farmer.settings.profile'
+import { Route as FarmerSettingsSecurityRouteImport } from './routes/farmer.settings.security'
+import { Route as FarmerSettingsTeamRouteImport } from './routes/farmer.settings.team'
+import { Route as FarmerStockIndexRouteImport } from './routes/farmer.stock.index'
+import { Route as FarmerStockInventoryRouteImport } from './routes/farmer.stock.inventory'
+import { Route as RestaurantDisputesIndexRouteImport } from './routes/restaurant.disputes.index'
+import { Route as RestaurantDisputesDisputeIdRouteImport } from './routes/restaurant.disputes.$disputeId'
+import { Route as RestaurantInvoicesIndexRouteImport } from './routes/restaurant.invoices.index'
+import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
+import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
+import { Route as RestaurantMessagesIndexRouteImport } from './routes/restaurant.messages.index'
+import { Route as RestaurantMessagesConversationIdRouteImport } from './routes/restaurant.messages.$conversationId'
+import { Route as RestaurantNotificationsIndexRouteImport } from './routes/restaurant.notifications.index'
+import { Route as RestaurantNotificationsRulesRouteImport } from './routes/restaurant.notifications.rules'
+import { Route as RestaurantOrdersIndexRouteImport } from './routes/restaurant.orders.index'
+import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
+import { Route as RestaurantSettingsIndexRouteImport } from './routes/restaurant.settings.index'
+import { Route as RestaurantSettingsEstablishmentRouteImport } from './routes/restaurant.settings.establishment'
+import { Route as RestaurantSettingsNotificationsRouteImport } from './routes/restaurant.settings.notifications'
+import { Route as RestaurantSettingsPaymentsRouteImport } from './routes/restaurant.settings.payments'
+import { Route as RestaurantSettingsProfileRouteImport } from './routes/restaurant.settings.profile'
+import { Route as RestaurantSettingsSecurityRouteImport } from './routes/restaurant.settings.security'
+import { Route as RestaurantSettingsTeamRouteImport } from './routes/restaurant.settings.team'
+import { Route as RestaurantSuppliersIndexRouteImport } from './routes/restaurant.suppliers.index'
+import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
+import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
 import { Route as DriverMissionsMissionIdDisputeRouteImport } from './routes/driver.missions.$missionId.dispute'
+import { Route as FarmerOrdersOrderIdDisputeRouteImport } from './routes/farmer.orders.$orderId.dispute'
+import { Route as FarmerOrdersOrderIdRefuseRouteImport } from './routes/farmer.orders.$orderId.refuse'
+import { Route as FarmerOrdersOrderIdReportRouteImport } from './routes/farmer.orders.$orderId.report'
+import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products.$productId.edit'
+import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
+import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
+import { Route as RestaurantOrdersOrderIdDisputeRouteImport } from './routes/restaurant.orders.$orderId.dispute'
+import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
 
-const RestaurantRoute = RestaurantRouteImport.update({
-  id: '/restaurant',
-  path: '/restaurant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PricingRoute = PricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForRestaurantsRoute = ForRestaurantsRouteImport.update({
-  id: '/for-restaurants',
-  path: '/for-restaurants',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForFarmersRoute = ForFarmersRouteImport.update({
-  id: '/for-farmers',
-  path: '/for-farmers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForDriversRoute = ForDriversRouteImport.update({
-  id: '/for-drivers',
-  path: '/for-drivers',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FarmerRoute = FarmerRouteImport.update({
-  id: '/farmer',
-  path: '/farmer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqRoute = FaqRouteImport.update({
-  id: '/faq',
-  path: '/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DriverRoute = DriverRouteImport.update({
-  id: '/driver',
-  path: '/driver',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -222,199 +147,89 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BlogIndexRoute = BlogIndexRouteImport.update({
-  id: '/blog/',
-  path: '/blog/',
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
-  id: '/track/$publicId',
-  path: '/track/$publicId',
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantSettingsRoute = RestaurantSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => RestaurantRoute,
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantReviewsRoute = RestaurantReviewsRouteImport.update({
-  id: '/reviews',
-  path: '/reviews',
-  getParentRoute: () => RestaurantRoute,
+const FarmerRoute = FarmerRouteImport.update({
+  id: '/farmer',
+  path: '/farmer',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantReturnsRoute = RestaurantReturnsRouteImport.update({
-  id: '/returns',
-  path: '/returns',
-  getParentRoute: () => RestaurantRoute,
+const ForDriversRoute = ForDriversRouteImport.update({
+  id: '/for-drivers',
+  path: '/for-drivers',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
-  id: '/recurring',
-  path: '/recurring',
-  getParentRoute: () => RestaurantRoute,
+const ForFarmersRoute = ForFarmersRouteImport.update({
+  id: '/for-farmers',
+  path: '/for-farmers',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantNotificationsRoute = RestaurantNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => RestaurantRoute,
+const ForRestaurantsRoute = ForRestaurantsRouteImport.update({
+  id: '/for-restaurants',
+  path: '/for-restaurants',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantMessagesRoute = RestaurantMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => RestaurantRoute,
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
-  getParentRoute: () => RestaurantRoute,
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantRoute = RestaurantRouteImport.update({
+  id: '/restaurant',
+  path: '/restaurant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => RestaurantRoute,
-} as any)
-const RestaurantCompareRoute = RestaurantCompareRouteImport.update({
-  id: '/compare',
-  path: '/compare',
-  getParentRoute: () => RestaurantRoute,
-} as any)
-const RestaurantCheckoutRoute = RestaurantCheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => RestaurantRoute,
-} as any)
-const RestaurantCartRoute = RestaurantCartRouteImport.update({
-  id: '/cart',
-  path: '/cart',
-  getParentRoute: () => RestaurantRoute,
-} as any)
-const RestaurantBudgetRoute = RestaurantBudgetRouteImport.update({
-  id: '/budget',
-  path: '/budget',
-  getParentRoute: () => RestaurantRoute,
-} as any)
-const LegalTermsRoute = LegalTermsRouteImport.update({
-  id: '/legal/terms',
-  path: '/legal/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
-  id: '/legal/privacy',
-  path: '/legal/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FarmerSettingsRoute = FarmerSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerReturnsRoute = FarmerReturnsRouteImport.update({
-  id: '/returns',
-  path: '/returns',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const DriverWalletRoute = DriverWalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverVehicleRoute = DriverVehicleRouteImport.update({
-  id: '/vehicle',
-  path: '/vehicle',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverSettingsRoute = DriverSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverRoutesRoute = DriverRoutesRouteImport.update({
-  id: '/routes',
-  path: '/routes',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverNotificationsRoute = DriverNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverMessagesRoute = DriverMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverIncidentsRoute = DriverIncidentsRouteImport.update({
-  id: '/incidents',
-  path: '/incidents',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverHistoryRoute = DriverHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverEarningsRoute = DriverEarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverDashboardRoute = DriverDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => DriverRoute,
-} as any)
-const BlogSlugRoute = BlogSlugRouteImport.update({
-  id: '/blog/$slug',
-  path: '/blog/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRefundsRoute = AdminRefundsRouteImport.update({
-  id: '/refunds',
-  path: '/refunds',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminModerationRoute = AdminModerationRouteImport.update({
-  id: '/moderation',
-  path: '/moderation',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLogsRoute = AdminLogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
@@ -422,113 +237,204 @@ const AdminFinanceRoute = AdminFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AdminLogsRoute = AdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantSuppliersIndexRoute =
-  RestaurantSuppliersIndexRouteImport.update({
-    id: '/suppliers/',
-    path: '/suppliers/',
-    getParentRoute: () => RestaurantRoute,
-  } as any)
-const RestaurantSettingsIndexRoute = RestaurantSettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => RestaurantSettingsRoute,
+const AdminModerationRoute = AdminModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantOrdersIndexRoute = RestaurantOrdersIndexRouteImport.update({
-  id: '/orders/',
-  path: '/orders/',
-  getParentRoute: () => RestaurantRoute,
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantNotificationsIndexRoute =
-  RestaurantNotificationsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => RestaurantNotificationsRoute,
-  } as any)
-const RestaurantMessagesIndexRoute = RestaurantMessagesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => RestaurantMessagesRoute,
+const AdminRefundsRoute = AdminRefundsRouteImport.update({
+  id: '/refunds',
+  path: '/refunds',
+  getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantInvoicesIndexRoute = RestaurantInvoicesIndexRouteImport.update({
-  id: '/invoices/',
-  path: '/invoices/',
-  getParentRoute: () => RestaurantRoute,
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantDisputesIndexRoute = RestaurantDisputesIndexRouteImport.update({
-  id: '/disputes/',
-  path: '/disputes/',
-  getParentRoute: () => RestaurantRoute,
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerStockIndexRoute = FarmerStockIndexRouteImport.update({
-  id: '/stock/',
-  path: '/stock/',
-  getParentRoute: () => FarmerRoute,
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const FarmerSettingsIndexRoute = FarmerSettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => FarmerSettingsRoute,
-} as any)
-const FarmerRevenueIndexRoute = FarmerRevenueIndexRouteImport.update({
-  id: '/revenue/',
-  path: '/revenue/',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerProductsIndexRoute = FarmerProductsIndexRouteImport.update({
-  id: '/products/',
-  path: '/products/',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerOrdersIndexRoute = FarmerOrdersIndexRouteImport.update({
-  id: '/orders/',
-  path: '/orders/',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerNotificationsIndexRoute =
-  FarmerNotificationsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => FarmerNotificationsRoute,
-  } as any)
-const FarmerMessagesIndexRoute = FarmerMessagesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => FarmerMessagesRoute,
-} as any)
-const FarmerDisputesIndexRoute = FarmerDisputesIndexRouteImport.update({
-  id: '/disputes/',
-  path: '/disputes/',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const DriverNotificationsIndexRoute =
-  DriverNotificationsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => DriverNotificationsRoute,
-  } as any)
-const DriverMissionsIndexRoute = DriverMissionsIndexRouteImport.update({
-  id: '/missions/',
-  path: '/missions/',
+const DriverDashboardRoute = DriverDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => DriverRoute,
 } as any)
-const DriverMessagesIndexRoute = DriverMessagesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DriverMessagesRoute,
-} as any)
-const DriverDisputesIndexRoute = DriverDisputesIndexRouteImport.update({
-  id: '/disputes/',
-  path: '/disputes/',
+const DriverEarningsRoute = DriverEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
   getParentRoute: () => DriverRoute,
 } as any)
-const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
-  id: '/validations/',
-  path: '/validations/',
+const DriverHistoryRoute = DriverHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverIncidentsRoute = DriverIncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverMessagesRoute = DriverMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverNotificationsRoute = DriverNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverRoutesRoute = DriverRoutesRouteImport.update({
+  id: '/routes',
+  path: '/routes',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverSettingsRoute = DriverSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverVehicleRoute = DriverVehicleRouteImport.update({
+  id: '/vehicle',
+  path: '/vehicle',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverWalletRoute = DriverWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => DriverRoute,
+} as any)
+const FarmerAnalyticsRoute = FarmerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerDashboardRoute = FarmerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerReturnsRoute = FarmerReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerSettingsRoute = FarmerSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RestaurantBudgetRoute = RestaurantBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCartRoute = RestaurantCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCheckoutRoute = RestaurantCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantCompareRoute = RestaurantCompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantDashboardRoute = RestaurantDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantMarketplaceRoute = RestaurantMarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantMessagesRoute = RestaurantMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantNotificationsRoute = RestaurantNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
+  id: '/recurring',
+  path: '/recurring',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantReturnsRoute = RestaurantReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantReviewsRoute = RestaurantReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantSettingsRoute = RestaurantSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
+  id: '/track/$publicId',
+  path: '/track/$publicId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDisputesIndexRoute = AdminDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
@@ -536,115 +442,157 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminDisputesIndexRoute = AdminDisputesIndexRouteImport.update({
-  id: '/disputes/',
-  path: '/disputes/',
+const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
+  id: '/users/$userId',
+  path: '/users/$userId',
   getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
-  id: '/suppliers/new',
-  path: '/suppliers/new',
-  getParentRoute: () => RestaurantRoute,
+const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
+  id: '/validations/',
+  path: '/validations/',
+  getParentRoute: () => AdminRoute,
 } as any)
-const RestaurantSuppliersSupplierIdRoute =
-  RestaurantSuppliersSupplierIdRouteImport.update({
-    id: '/suppliers/$supplierId',
-    path: '/suppliers/$supplierId',
-    getParentRoute: () => RestaurantRoute,
+const AdminValidationsValidationIdRoute =
+  AdminValidationsValidationIdRouteImport.update({
+    id: '/validations/$validationId',
+    path: '/validations/$validationId',
+    getParentRoute: () => AdminRoute,
   } as any)
-const RestaurantSettingsTeamRoute = RestaurantSettingsTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => RestaurantSettingsRoute,
+const DriverDisputesIndexRoute = DriverDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => DriverRoute,
 } as any)
-const RestaurantSettingsSecurityRoute =
-  RestaurantSettingsSecurityRouteImport.update({
-    id: '/security',
-    path: '/security',
-    getParentRoute: () => RestaurantSettingsRoute,
-  } as any)
-const RestaurantSettingsProfileRoute =
-  RestaurantSettingsProfileRouteImport.update({
-    id: '/profile',
-    path: '/profile',
-    getParentRoute: () => RestaurantSettingsRoute,
-  } as any)
-const RestaurantSettingsPaymentsRoute =
-  RestaurantSettingsPaymentsRouteImport.update({
-    id: '/payments',
-    path: '/payments',
-    getParentRoute: () => RestaurantSettingsRoute,
-  } as any)
-const RestaurantSettingsNotificationsRoute =
-  RestaurantSettingsNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
-    getParentRoute: () => RestaurantSettingsRoute,
-  } as any)
-const RestaurantSettingsEstablishmentRoute =
-  RestaurantSettingsEstablishmentRouteImport.update({
-    id: '/establishment',
-    path: '/establishment',
-    getParentRoute: () => RestaurantSettingsRoute,
-  } as any)
-const RestaurantOrdersOrderIdRoute = RestaurantOrdersOrderIdRouteImport.update({
-  id: '/orders/$orderId',
-  path: '/orders/$orderId',
-  getParentRoute: () => RestaurantRoute,
+const DriverDisputesDisputeIdRoute = DriverDisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => DriverRoute,
 } as any)
-const RestaurantNotificationsRulesRoute =
-  RestaurantNotificationsRulesRouteImport.update({
-    id: '/rules',
-    path: '/rules',
-    getParentRoute: () => RestaurantNotificationsRoute,
-  } as any)
-const RestaurantMessagesConversationIdRoute =
-  RestaurantMessagesConversationIdRouteImport.update({
+const DriverMessagesIndexRoute = DriverMessagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DriverMessagesRoute,
+} as any)
+const DriverMessagesConversationIdRoute =
+  DriverMessagesConversationIdRouteImport.update({
     id: '/$conversationId',
     path: '/$conversationId',
-    getParentRoute: () => RestaurantMessagesRoute,
+    getParentRoute: () => DriverMessagesRoute,
   } as any)
-const RestaurantMarketplaceProductIdRoute =
-  RestaurantMarketplaceProductIdRouteImport.update({
-    id: '/$productId',
-    path: '/$productId',
-    getParentRoute: () => RestaurantMarketplaceRoute,
+const DriverMissionsIndexRoute = DriverMissionsIndexRouteImport.update({
+  id: '/missions/',
+  path: '/missions/',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverMissionsMissionIdRoute = DriverMissionsMissionIdRouteImport.update({
+  id: '/missions/$missionId',
+  path: '/missions/$missionId',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverNotificationsIndexRoute =
+  DriverNotificationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DriverNotificationsRoute,
   } as any)
-const RestaurantInvoicesInvoiceIdRoute =
-  RestaurantInvoicesInvoiceIdRouteImport.update({
-    id: '/invoices/$invoiceId',
-    path: '/invoices/$invoiceId',
-    getParentRoute: () => RestaurantRoute,
+const DriverNotificationsRulesRoute =
+  DriverNotificationsRulesRouteImport.update({
+    id: '/rules',
+    path: '/rules',
+    getParentRoute: () => DriverNotificationsRoute,
   } as any)
-const RestaurantDisputesDisputeIdRoute =
-  RestaurantDisputesDisputeIdRouteImport.update({
-    id: '/disputes/$disputeId',
-    path: '/disputes/$disputeId',
-    getParentRoute: () => RestaurantRoute,
-  } as any)
-const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
-  id: '/stock/inventory',
-  path: '/stock/inventory',
+const FarmerDisputesIndexRoute = FarmerDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
   getParentRoute: () => FarmerRoute,
 } as any)
-const FarmerSettingsTeamRoute = FarmerSettingsTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
+const FarmerDisputesDisputeIdRoute = FarmerDisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerMessagesIndexRoute = FarmerMessagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FarmerMessagesRoute,
+} as any)
+const FarmerMessagesConversationIdRoute =
+  FarmerMessagesConversationIdRouteImport.update({
+    id: '/$conversationId',
+    path: '/$conversationId',
+    getParentRoute: () => FarmerMessagesRoute,
+  } as any)
+const FarmerNotificationsIndexRoute =
+  FarmerNotificationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => FarmerNotificationsRoute,
+  } as any)
+const FarmerNotificationsRulesRoute =
+  FarmerNotificationsRulesRouteImport.update({
+    id: '/rules',
+    path: '/rules',
+    getParentRoute: () => FarmerNotificationsRoute,
+  } as any)
+const FarmerOrdersIndexRoute = FarmerOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerOrdersOrderIdRoute = FarmerOrdersOrderIdRouteImport.update({
+  id: '/orders/$orderId',
+  path: '/orders/$orderId',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsIndexRoute = FarmerProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsProductIdRoute = FarmerProductsProductIdRouteImport.update({
+  id: '/products/$productId',
+  path: '/products/$productId',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsImportRoute = FarmerProductsImportRouteImport.update({
+  id: '/products/import',
+  path: '/products/import',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerProductsNewRoute = FarmerProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueIndexRoute = FarmerRevenueIndexRouteImport.update({
+  id: '/revenue/',
+  path: '/revenue/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueTxIdRoute = FarmerRevenueTxIdRouteImport.update({
+  id: '/revenue/$txId',
+  path: '/revenue/$txId',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueWithdrawRoute = FarmerRevenueWithdrawRouteImport.update({
+  id: '/revenue/withdraw',
+  path: '/revenue/withdraw',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueWithdrawalsRoute =
+  FarmerRevenueWithdrawalsRouteImport.update({
+    id: '/revenue/withdrawals',
+    path: '/revenue/withdrawals',
+    getParentRoute: () => FarmerRoute,
+  } as any)
+const FarmerSettingsIndexRoute = FarmerSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => FarmerSettingsRoute,
 } as any)
-const FarmerSettingsSecurityRoute = FarmerSettingsSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => FarmerSettingsRoute,
-} as any)
-const FarmerSettingsProfileRoute = FarmerSettingsProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => FarmerSettingsRoute,
-} as any)
-const FarmerSettingsPaymentsRoute = FarmerSettingsPaymentsRouteImport.update({
-  id: '/payments',
-  path: '/payments',
+const FarmerSettingsFarmRoute = FarmerSettingsFarmRouteImport.update({
+  id: '/farm',
+  path: '/farm',
   getParentRoute: () => FarmerSettingsRoute,
 } as any)
 const FarmerSettingsNotificationsRoute =
@@ -653,135 +601,164 @@ const FarmerSettingsNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => FarmerSettingsRoute,
   } as any)
-const FarmerSettingsFarmRoute = FarmerSettingsFarmRouteImport.update({
-  id: '/farm',
-  path: '/farm',
+const FarmerSettingsPaymentsRoute = FarmerSettingsPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
   getParentRoute: () => FarmerSettingsRoute,
 } as any)
-const FarmerRevenueWithdrawalsRoute =
-  FarmerRevenueWithdrawalsRouteImport.update({
-    id: '/revenue/withdrawals',
-    path: '/revenue/withdrawals',
-    getParentRoute: () => FarmerRoute,
+const FarmerSettingsProfileRoute = FarmerSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => FarmerSettingsRoute,
+} as any)
+const FarmerSettingsSecurityRoute = FarmerSettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => FarmerSettingsRoute,
+} as any)
+const FarmerSettingsTeamRoute = FarmerSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => FarmerSettingsRoute,
+} as any)
+const FarmerStockIndexRoute = FarmerStockIndexRouteImport.update({
+  id: '/stock/',
+  path: '/stock/',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerStockInventoryRoute = FarmerStockInventoryRouteImport.update({
+  id: '/stock/inventory',
+  path: '/stock/inventory',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const RestaurantDisputesIndexRoute = RestaurantDisputesIndexRouteImport.update({
+  id: '/disputes/',
+  path: '/disputes/',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantDisputesDisputeIdRoute =
+  RestaurantDisputesDisputeIdRouteImport.update({
+    id: '/disputes/$disputeId',
+    path: '/disputes/$disputeId',
+    getParentRoute: () => RestaurantRoute,
   } as any)
-const FarmerRevenueWithdrawRoute = FarmerRevenueWithdrawRouteImport.update({
-  id: '/revenue/withdraw',
-  path: '/revenue/withdraw',
-  getParentRoute: () => FarmerRoute,
+const RestaurantInvoicesIndexRoute = RestaurantInvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => RestaurantRoute,
 } as any)
-const FarmerRevenueTxIdRoute = FarmerRevenueTxIdRouteImport.update({
-  id: '/revenue/$txId',
-  path: '/revenue/$txId',
-  getParentRoute: () => FarmerRoute,
+const RestaurantInvoicesInvoiceIdRoute =
+  RestaurantInvoicesInvoiceIdRouteImport.update({
+    id: '/invoices/$invoiceId',
+    path: '/invoices/$invoiceId',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
+const RestaurantMarketplaceProductIdRoute =
+  RestaurantMarketplaceProductIdRouteImport.update({
+    id: '/$productId',
+    path: '/$productId',
+    getParentRoute: () => RestaurantMarketplaceRoute,
+  } as any)
+const RestaurantMessagesIndexRoute = RestaurantMessagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RestaurantMessagesRoute,
 } as any)
-const FarmerProductsNewRoute = FarmerProductsNewRouteImport.update({
-  id: '/products/new',
-  path: '/products/new',
-  getParentRoute: () => FarmerRoute,
+const RestaurantMessagesConversationIdRoute =
+  RestaurantMessagesConversationIdRouteImport.update({
+    id: '/$conversationId',
+    path: '/$conversationId',
+    getParentRoute: () => RestaurantMessagesRoute,
+  } as any)
+const RestaurantNotificationsIndexRoute =
+  RestaurantNotificationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => RestaurantNotificationsRoute,
+  } as any)
+const RestaurantNotificationsRulesRoute =
+  RestaurantNotificationsRulesRouteImport.update({
+    id: '/rules',
+    path: '/rules',
+    getParentRoute: () => RestaurantNotificationsRoute,
+  } as any)
+const RestaurantOrdersIndexRoute = RestaurantOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => RestaurantRoute,
 } as any)
-const FarmerProductsImportRoute = FarmerProductsImportRouteImport.update({
-  id: '/products/import',
-  path: '/products/import',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerProductsProductIdRoute = FarmerProductsProductIdRouteImport.update({
-  id: '/products/$productId',
-  path: '/products/$productId',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerOrdersOrderIdRoute = FarmerOrdersOrderIdRouteImport.update({
+const RestaurantOrdersOrderIdRoute = RestaurantOrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
-  getParentRoute: () => FarmerRoute,
+  getParentRoute: () => RestaurantRoute,
 } as any)
-const FarmerNotificationsRulesRoute =
-  FarmerNotificationsRulesRouteImport.update({
-    id: '/rules',
-    path: '/rules',
-    getParentRoute: () => FarmerNotificationsRoute,
-  } as any)
-const FarmerMessagesConversationIdRoute =
-  FarmerMessagesConversationIdRouteImport.update({
-    id: '/$conversationId',
-    path: '/$conversationId',
-    getParentRoute: () => FarmerMessagesRoute,
-  } as any)
-const FarmerDisputesDisputeIdRoute = FarmerDisputesDisputeIdRouteImport.update({
-  id: '/disputes/$disputeId',
-  path: '/disputes/$disputeId',
-  getParentRoute: () => FarmerRoute,
+const RestaurantSettingsIndexRoute = RestaurantSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RestaurantSettingsRoute,
 } as any)
-const DriverNotificationsRulesRoute =
-  DriverNotificationsRulesRouteImport.update({
-    id: '/rules',
-    path: '/rules',
-    getParentRoute: () => DriverNotificationsRoute,
+const RestaurantSettingsEstablishmentRoute =
+  RestaurantSettingsEstablishmentRouteImport.update({
+    id: '/establishment',
+    path: '/establishment',
+    getParentRoute: () => RestaurantSettingsRoute,
   } as any)
-const DriverMissionsMissionIdRoute = DriverMissionsMissionIdRouteImport.update({
-  id: '/missions/$missionId',
-  path: '/missions/$missionId',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverMessagesConversationIdRoute =
-  DriverMessagesConversationIdRouteImport.update({
-    id: '/$conversationId',
-    path: '/$conversationId',
-    getParentRoute: () => DriverMessagesRoute,
+const RestaurantSettingsNotificationsRoute =
+  RestaurantSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => RestaurantSettingsRoute,
   } as any)
-const DriverDisputesDisputeIdRoute = DriverDisputesDisputeIdRouteImport.update({
-  id: '/disputes/$disputeId',
-  path: '/disputes/$disputeId',
-  getParentRoute: () => DriverRoute,
-} as any)
-const AdminValidationsValidationIdRoute =
-  AdminValidationsValidationIdRouteImport.update({
-    id: '/validations/$validationId',
-    path: '/validations/$validationId',
-    getParentRoute: () => AdminRoute,
+const RestaurantSettingsPaymentsRoute =
+  RestaurantSettingsPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => RestaurantSettingsRoute,
   } as any)
-const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
-  id: '/users/$userId',
-  path: '/users/$userId',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
-  id: '/disputes/$disputeId',
-  path: '/disputes/$disputeId',
-  getParentRoute: () => AdminRoute,
-} as any)
-const RestaurantSuppliersSupplierIdEditRoute =
-  RestaurantSuppliersSupplierIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => RestaurantSuppliersSupplierIdRoute,
+const RestaurantSettingsProfileRoute =
+  RestaurantSettingsProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => RestaurantSettingsRoute,
   } as any)
-const RestaurantOrdersOrderIdDisputeRoute =
-  RestaurantOrdersOrderIdDisputeRouteImport.update({
+const RestaurantSettingsSecurityRoute =
+  RestaurantSettingsSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => RestaurantSettingsRoute,
+  } as any)
+const RestaurantSettingsTeamRoute = RestaurantSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => RestaurantSettingsRoute,
+} as any)
+const RestaurantSuppliersIndexRoute =
+  RestaurantSuppliersIndexRouteImport.update({
+    id: '/suppliers/',
+    path: '/suppliers/',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
+const RestaurantSuppliersSupplierIdRoute =
+  RestaurantSuppliersSupplierIdRouteImport.update({
+    id: '/suppliers/$supplierId',
+    path: '/suppliers/$supplierId',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
+const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
+  id: '/suppliers/new',
+  path: '/suppliers/new',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const DriverMissionsMissionIdDisputeRoute =
+  DriverMissionsMissionIdDisputeRouteImport.update({
     id: '/dispute',
     path: '/dispute',
-    getParentRoute: () => RestaurantOrdersOrderIdRoute,
+    getParentRoute: () => DriverMissionsMissionIdRoute,
   } as any)
-const FarmerStockMovementNewRoute = FarmerStockMovementNewRouteImport.update({
-  id: '/stock/movement/new',
-  path: '/stock/movement/new',
-  getParentRoute: () => FarmerRoute,
-} as any)
-const FarmerStockProductIdHistoryRoute =
-  FarmerStockProductIdHistoryRouteImport.update({
-    id: '/stock/$productId/history',
-    path: '/stock/$productId/history',
-    getParentRoute: () => FarmerRoute,
-  } as any)
-const FarmerProductsProductIdEditRoute =
-  FarmerProductsProductIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => FarmerProductsProductIdRoute,
-  } as any)
-const FarmerOrdersOrderIdReportRoute =
-  FarmerOrdersOrderIdReportRouteImport.update({
-    id: '/report',
-    path: '/report',
+const FarmerOrdersOrderIdDisputeRoute =
+  FarmerOrdersOrderIdDisputeRouteImport.update({
+    id: '/dispute',
+    path: '/dispute',
     getParentRoute: () => FarmerOrdersOrderIdRoute,
   } as any)
 const FarmerOrdersOrderIdRefuseRoute =
@@ -790,17 +767,40 @@ const FarmerOrdersOrderIdRefuseRoute =
     path: '/refuse',
     getParentRoute: () => FarmerOrdersOrderIdRoute,
   } as any)
-const FarmerOrdersOrderIdDisputeRoute =
-  FarmerOrdersOrderIdDisputeRouteImport.update({
-    id: '/dispute',
-    path: '/dispute',
+const FarmerOrdersOrderIdReportRoute =
+  FarmerOrdersOrderIdReportRouteImport.update({
+    id: '/report',
+    path: '/report',
     getParentRoute: () => FarmerOrdersOrderIdRoute,
   } as any)
-const DriverMissionsMissionIdDisputeRoute =
-  DriverMissionsMissionIdDisputeRouteImport.update({
+const FarmerProductsProductIdEditRoute =
+  FarmerProductsProductIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => FarmerProductsProductIdRoute,
+  } as any)
+const FarmerStockProductIdHistoryRoute =
+  FarmerStockProductIdHistoryRouteImport.update({
+    id: '/stock/$productId/history',
+    path: '/stock/$productId/history',
+    getParentRoute: () => FarmerRoute,
+  } as any)
+const FarmerStockMovementNewRoute = FarmerStockMovementNewRouteImport.update({
+  id: '/stock/movement/new',
+  path: '/stock/movement/new',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const RestaurantOrdersOrderIdDisputeRoute =
+  RestaurantOrdersOrderIdDisputeRouteImport.update({
     id: '/dispute',
     path: '/dispute',
-    getParentRoute: () => DriverMissionsMissionIdRoute,
+    getParentRoute: () => RestaurantOrdersOrderIdRoute,
+  } as any)
+const RestaurantSuppliersSupplierIdEditRoute =
+  RestaurantSuppliersSupplierIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => RestaurantSuppliersSupplierIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -1593,116 +1593,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/restaurant': {
-      id: '/restaurant'
-      path: '/restaurant'
-      fullPath: '/restaurant'
-      preLoaderRoute: typeof RestaurantRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-restaurants': {
-      id: '/for-restaurants'
-      path: '/for-restaurants'
-      fullPath: '/for-restaurants'
-      preLoaderRoute: typeof ForRestaurantsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-farmers': {
-      id: '/for-farmers'
-      path: '/for-farmers'
-      fullPath: '/for-farmers'
-      preLoaderRoute: typeof ForFarmersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/for-drivers': {
-      id: '/for-drivers'
-      path: '/for-drivers'
-      fullPath: '/for-drivers'
-      preLoaderRoute: typeof ForDriversRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/farmer': {
-      id: '/farmer'
-      path: '/farmer'
-      fullPath: '/farmer'
-      preLoaderRoute: typeof FarmerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faq': {
-      id: '/faq'
-      path: '/faq'
-      fullPath: '/faq'
-      preLoaderRoute: typeof FaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/driver': {
-      id: '/driver'
-      path: '/driver'
-      fullPath: '/driver'
-      preLoaderRoute: typeof DriverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1712,277 +1607,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/blog/': {
-      id: '/blog/'
-      path: '/blog'
-      fullPath: '/blog/'
-      preLoaderRoute: typeof BlogIndexRouteImport
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/track/$publicId': {
-      id: '/track/$publicId'
-      path: '/track/$publicId'
-      fullPath: '/track/$publicId'
-      preLoaderRoute: typeof TrackPublicIdRouteImport
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/restaurant/settings': {
-      id: '/restaurant/settings'
-      path: '/settings'
-      fullPath: '/restaurant/settings'
-      preLoaderRoute: typeof RestaurantSettingsRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/reviews': {
-      id: '/restaurant/reviews'
-      path: '/reviews'
-      fullPath: '/restaurant/reviews'
-      preLoaderRoute: typeof RestaurantReviewsRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/farmer': {
+      id: '/farmer'
+      path: '/farmer'
+      fullPath: '/farmer'
+      preLoaderRoute: typeof FarmerRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/returns': {
-      id: '/restaurant/returns'
-      path: '/returns'
-      fullPath: '/restaurant/returns'
-      preLoaderRoute: typeof RestaurantReturnsRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/for-drivers': {
+      id: '/for-drivers'
+      path: '/for-drivers'
+      fullPath: '/for-drivers'
+      preLoaderRoute: typeof ForDriversRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/recurring': {
-      id: '/restaurant/recurring'
-      path: '/recurring'
-      fullPath: '/restaurant/recurring'
-      preLoaderRoute: typeof RestaurantRecurringRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/for-farmers': {
+      id: '/for-farmers'
+      path: '/for-farmers'
+      fullPath: '/for-farmers'
+      preLoaderRoute: typeof ForFarmersRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/notifications': {
-      id: '/restaurant/notifications'
-      path: '/notifications'
-      fullPath: '/restaurant/notifications'
-      preLoaderRoute: typeof RestaurantNotificationsRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/for-restaurants': {
+      id: '/for-restaurants'
+      path: '/for-restaurants'
+      fullPath: '/for-restaurants'
+      preLoaderRoute: typeof ForRestaurantsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/messages': {
-      id: '/restaurant/messages'
-      path: '/messages'
-      fullPath: '/restaurant/messages'
-      preLoaderRoute: typeof RestaurantMessagesRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/marketplace': {
-      id: '/restaurant/marketplace'
-      path: '/marketplace'
-      fullPath: '/restaurant/marketplace'
-      preLoaderRoute: typeof RestaurantMarketplaceRouteImport
-      parentRoute: typeof RestaurantRoute
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/restaurant/dashboard': {
-      id: '/restaurant/dashboard'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurant': {
+      id: '/restaurant'
+      path: '/restaurant'
+      fullPath: '/restaurant'
+      preLoaderRoute: typeof RestaurantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
       path: '/dashboard'
-      fullPath: '/restaurant/dashboard'
-      preLoaderRoute: typeof RestaurantDashboardRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/compare': {
-      id: '/restaurant/compare'
-      path: '/compare'
-      fullPath: '/restaurant/compare'
-      preLoaderRoute: typeof RestaurantCompareRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/checkout': {
-      id: '/restaurant/checkout'
-      path: '/checkout'
-      fullPath: '/restaurant/checkout'
-      preLoaderRoute: typeof RestaurantCheckoutRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/cart': {
-      id: '/restaurant/cart'
-      path: '/cart'
-      fullPath: '/restaurant/cart'
-      preLoaderRoute: typeof RestaurantCartRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/budget': {
-      id: '/restaurant/budget'
-      path: '/budget'
-      fullPath: '/restaurant/budget'
-      preLoaderRoute: typeof RestaurantBudgetRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/legal/terms': {
-      id: '/legal/terms'
-      path: '/legal/terms'
-      fullPath: '/legal/terms'
-      preLoaderRoute: typeof LegalTermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/legal/privacy': {
-      id: '/legal/privacy'
-      path: '/legal/privacy'
-      fullPath: '/legal/privacy'
-      preLoaderRoute: typeof LegalPrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/farmer/settings': {
-      id: '/farmer/settings'
-      path: '/settings'
-      fullPath: '/farmer/settings'
-      preLoaderRoute: typeof FarmerSettingsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/returns': {
-      id: '/farmer/returns'
-      path: '/returns'
-      fullPath: '/farmer/returns'
-      preLoaderRoute: typeof FarmerReturnsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/notifications': {
-      id: '/farmer/notifications'
-      path: '/notifications'
-      fullPath: '/farmer/notifications'
-      preLoaderRoute: typeof FarmerNotificationsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/messages': {
-      id: '/farmer/messages'
-      path: '/messages'
-      fullPath: '/farmer/messages'
-      preLoaderRoute: typeof FarmerMessagesRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/dashboard': {
-      id: '/farmer/dashboard'
-      path: '/dashboard'
-      fullPath: '/farmer/dashboard'
-      preLoaderRoute: typeof FarmerDashboardRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/analytics': {
-      id: '/farmer/analytics'
-      path: '/analytics'
-      fullPath: '/farmer/analytics'
-      preLoaderRoute: typeof FarmerAnalyticsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/driver/wallet': {
-      id: '/driver/wallet'
-      path: '/wallet'
-      fullPath: '/driver/wallet'
-      preLoaderRoute: typeof DriverWalletRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/vehicle': {
-      id: '/driver/vehicle'
-      path: '/vehicle'
-      fullPath: '/driver/vehicle'
-      preLoaderRoute: typeof DriverVehicleRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/settings': {
-      id: '/driver/settings'
-      path: '/settings'
-      fullPath: '/driver/settings'
-      preLoaderRoute: typeof DriverSettingsRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/routes': {
-      id: '/driver/routes'
-      path: '/routes'
-      fullPath: '/driver/routes'
-      preLoaderRoute: typeof DriverRoutesRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/notifications': {
-      id: '/driver/notifications'
-      path: '/notifications'
-      fullPath: '/driver/notifications'
-      preLoaderRoute: typeof DriverNotificationsRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/messages': {
-      id: '/driver/messages'
-      path: '/messages'
-      fullPath: '/driver/messages'
-      preLoaderRoute: typeof DriverMessagesRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/incidents': {
-      id: '/driver/incidents'
-      path: '/incidents'
-      fullPath: '/driver/incidents'
-      preLoaderRoute: typeof DriverIncidentsRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/history': {
-      id: '/driver/history'
-      path: '/history'
-      fullPath: '/driver/history'
-      preLoaderRoute: typeof DriverHistoryRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/earnings': {
-      id: '/driver/earnings'
-      path: '/earnings'
-      fullPath: '/driver/earnings'
-      preLoaderRoute: typeof DriverEarningsRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/dashboard': {
-      id: '/driver/dashboard'
-      path: '/dashboard'
-      fullPath: '/driver/dashboard'
-      preLoaderRoute: typeof DriverDashboardRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/blog/$slug': {
-      id: '/blog/$slug'
-      path: '/blog/$slug'
-      fullPath: '/blog/$slug'
-      preLoaderRoute: typeof BlogSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/refunds': {
-      id: '/admin/refunds'
-      path: '/refunds'
-      fullPath: '/admin/refunds'
-      preLoaderRoute: typeof AdminRefundsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/orders': {
-      id: '/admin/orders'
-      path: '/orders'
-      fullPath: '/admin/orders'
-      preLoaderRoute: typeof AdminOrdersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/moderation': {
-      id: '/admin/moderation'
-      path: '/moderation'
-      fullPath: '/admin/moderation'
-      preLoaderRoute: typeof AdminModerationRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/logs': {
-      id: '/admin/logs'
-      path: '/logs'
-      fullPath: '/admin/logs'
-      preLoaderRoute: typeof AdminLogsRouteImport
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/finance': {
@@ -1992,424 +1733,277 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFinanceRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
+    '/admin/logs': {
+      id: '/admin/logs'
+      path: '/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AdminLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/moderation': {
+      id: '/admin/moderation'
+      path: '/moderation'
+      fullPath: '/admin/moderation'
+      preLoaderRoute: typeof AdminModerationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/refunds': {
+      id: '/admin/refunds'
+      path: '/refunds'
+      fullPath: '/admin/refunds'
+      preLoaderRoute: typeof AdminRefundsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver/dashboard': {
+      id: '/driver/dashboard'
       path: '/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/restaurant/suppliers/': {
-      id: '/restaurant/suppliers/'
-      path: '/suppliers'
-      fullPath: '/restaurant/suppliers/'
-      preLoaderRoute: typeof RestaurantSuppliersIndexRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/settings/': {
-      id: '/restaurant/settings/'
-      path: '/'
-      fullPath: '/restaurant/settings/'
-      preLoaderRoute: typeof RestaurantSettingsIndexRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/orders/': {
-      id: '/restaurant/orders/'
-      path: '/orders'
-      fullPath: '/restaurant/orders/'
-      preLoaderRoute: typeof RestaurantOrdersIndexRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/notifications/': {
-      id: '/restaurant/notifications/'
-      path: '/'
-      fullPath: '/restaurant/notifications/'
-      preLoaderRoute: typeof RestaurantNotificationsIndexRouteImport
-      parentRoute: typeof RestaurantNotificationsRoute
-    }
-    '/restaurant/messages/': {
-      id: '/restaurant/messages/'
-      path: '/'
-      fullPath: '/restaurant/messages/'
-      preLoaderRoute: typeof RestaurantMessagesIndexRouteImport
-      parentRoute: typeof RestaurantMessagesRoute
-    }
-    '/restaurant/invoices/': {
-      id: '/restaurant/invoices/'
-      path: '/invoices'
-      fullPath: '/restaurant/invoices/'
-      preLoaderRoute: typeof RestaurantInvoicesIndexRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/disputes/': {
-      id: '/restaurant/disputes/'
-      path: '/disputes'
-      fullPath: '/restaurant/disputes/'
-      preLoaderRoute: typeof RestaurantDisputesIndexRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/farmer/stock/': {
-      id: '/farmer/stock/'
-      path: '/stock'
-      fullPath: '/farmer/stock/'
-      preLoaderRoute: typeof FarmerStockIndexRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/settings/': {
-      id: '/farmer/settings/'
-      path: '/'
-      fullPath: '/farmer/settings/'
-      preLoaderRoute: typeof FarmerSettingsIndexRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/revenue/': {
-      id: '/farmer/revenue/'
-      path: '/revenue'
-      fullPath: '/farmer/revenue/'
-      preLoaderRoute: typeof FarmerRevenueIndexRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/products/': {
-      id: '/farmer/products/'
-      path: '/products'
-      fullPath: '/farmer/products/'
-      preLoaderRoute: typeof FarmerProductsIndexRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/orders/': {
-      id: '/farmer/orders/'
-      path: '/orders'
-      fullPath: '/farmer/orders/'
-      preLoaderRoute: typeof FarmerOrdersIndexRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/notifications/': {
-      id: '/farmer/notifications/'
-      path: '/'
-      fullPath: '/farmer/notifications/'
-      preLoaderRoute: typeof FarmerNotificationsIndexRouteImport
-      parentRoute: typeof FarmerNotificationsRoute
-    }
-    '/farmer/messages/': {
-      id: '/farmer/messages/'
-      path: '/'
-      fullPath: '/farmer/messages/'
-      preLoaderRoute: typeof FarmerMessagesIndexRouteImport
-      parentRoute: typeof FarmerMessagesRoute
-    }
-    '/farmer/disputes/': {
-      id: '/farmer/disputes/'
-      path: '/disputes'
-      fullPath: '/farmer/disputes/'
-      preLoaderRoute: typeof FarmerDisputesIndexRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/driver/notifications/': {
-      id: '/driver/notifications/'
-      path: '/'
-      fullPath: '/driver/notifications/'
-      preLoaderRoute: typeof DriverNotificationsIndexRouteImport
-      parentRoute: typeof DriverNotificationsRoute
-    }
-    '/driver/missions/': {
-      id: '/driver/missions/'
-      path: '/missions'
-      fullPath: '/driver/missions/'
-      preLoaderRoute: typeof DriverMissionsIndexRouteImport
+      fullPath: '/driver/dashboard'
+      preLoaderRoute: typeof DriverDashboardRouteImport
       parentRoute: typeof DriverRoute
     }
-    '/driver/messages/': {
-      id: '/driver/messages/'
-      path: '/'
-      fullPath: '/driver/messages/'
-      preLoaderRoute: typeof DriverMessagesIndexRouteImport
-      parentRoute: typeof DriverMessagesRoute
-    }
-    '/driver/disputes/': {
-      id: '/driver/disputes/'
-      path: '/disputes'
-      fullPath: '/driver/disputes/'
-      preLoaderRoute: typeof DriverDisputesIndexRouteImport
+    '/driver/earnings': {
+      id: '/driver/earnings'
+      path: '/earnings'
+      fullPath: '/driver/earnings'
+      preLoaderRoute: typeof DriverEarningsRouteImport
       parentRoute: typeof DriverRoute
     }
-    '/admin/validations/': {
-      id: '/admin/validations/'
-      path: '/validations'
-      fullPath: '/admin/validations/'
-      preLoaderRoute: typeof AdminValidationsIndexRouteImport
-      parentRoute: typeof AdminRoute
+    '/driver/history': {
+      id: '/driver/history'
+      path: '/history'
+      fullPath: '/driver/history'
+      preLoaderRoute: typeof DriverHistoryRouteImport
+      parentRoute: typeof DriverRoute
     }
-    '/admin/users/': {
-      id: '/admin/users/'
-      path: '/users'
-      fullPath: '/admin/users/'
-      preLoaderRoute: typeof AdminUsersIndexRouteImport
-      parentRoute: typeof AdminRoute
+    '/driver/incidents': {
+      id: '/driver/incidents'
+      path: '/incidents'
+      fullPath: '/driver/incidents'
+      preLoaderRoute: typeof DriverIncidentsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/messages': {
+      id: '/driver/messages'
+      path: '/messages'
+      fullPath: '/driver/messages'
+      preLoaderRoute: typeof DriverMessagesRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/notifications': {
+      id: '/driver/notifications'
+      path: '/notifications'
+      fullPath: '/driver/notifications'
+      preLoaderRoute: typeof DriverNotificationsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/routes': {
+      id: '/driver/routes'
+      path: '/routes'
+      fullPath: '/driver/routes'
+      preLoaderRoute: typeof DriverRoutesRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/settings': {
+      id: '/driver/settings'
+      path: '/settings'
+      fullPath: '/driver/settings'
+      preLoaderRoute: typeof DriverSettingsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/vehicle': {
+      id: '/driver/vehicle'
+      path: '/vehicle'
+      fullPath: '/driver/vehicle'
+      preLoaderRoute: typeof DriverVehicleRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/wallet': {
+      id: '/driver/wallet'
+      path: '/wallet'
+      fullPath: '/driver/wallet'
+      preLoaderRoute: typeof DriverWalletRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/farmer/analytics': {
+      id: '/farmer/analytics'
+      path: '/analytics'
+      fullPath: '/farmer/analytics'
+      preLoaderRoute: typeof FarmerAnalyticsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/dashboard': {
+      id: '/farmer/dashboard'
+      path: '/dashboard'
+      fullPath: '/farmer/dashboard'
+      preLoaderRoute: typeof FarmerDashboardRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/messages': {
+      id: '/farmer/messages'
+      path: '/messages'
+      fullPath: '/farmer/messages'
+      preLoaderRoute: typeof FarmerMessagesRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/notifications': {
+      id: '/farmer/notifications'
+      path: '/notifications'
+      fullPath: '/farmer/notifications'
+      preLoaderRoute: typeof FarmerNotificationsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/returns': {
+      id: '/farmer/returns'
+      path: '/returns'
+      fullPath: '/farmer/returns'
+      preLoaderRoute: typeof FarmerReturnsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/settings': {
+      id: '/farmer/settings'
+      path: '/settings'
+      fullPath: '/farmer/settings'
+      preLoaderRoute: typeof FarmerSettingsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/restaurant/budget': {
+      id: '/restaurant/budget'
+      path: '/budget'
+      fullPath: '/restaurant/budget'
+      preLoaderRoute: typeof RestaurantBudgetRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/cart': {
+      id: '/restaurant/cart'
+      path: '/cart'
+      fullPath: '/restaurant/cart'
+      preLoaderRoute: typeof RestaurantCartRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/checkout': {
+      id: '/restaurant/checkout'
+      path: '/checkout'
+      fullPath: '/restaurant/checkout'
+      preLoaderRoute: typeof RestaurantCheckoutRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/compare': {
+      id: '/restaurant/compare'
+      path: '/compare'
+      fullPath: '/restaurant/compare'
+      preLoaderRoute: typeof RestaurantCompareRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/dashboard': {
+      id: '/restaurant/dashboard'
+      path: '/dashboard'
+      fullPath: '/restaurant/dashboard'
+      preLoaderRoute: typeof RestaurantDashboardRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/marketplace': {
+      id: '/restaurant/marketplace'
+      path: '/marketplace'
+      fullPath: '/restaurant/marketplace'
+      preLoaderRoute: typeof RestaurantMarketplaceRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/messages': {
+      id: '/restaurant/messages'
+      path: '/messages'
+      fullPath: '/restaurant/messages'
+      preLoaderRoute: typeof RestaurantMessagesRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/notifications': {
+      id: '/restaurant/notifications'
+      path: '/notifications'
+      fullPath: '/restaurant/notifications'
+      preLoaderRoute: typeof RestaurantNotificationsRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/recurring': {
+      id: '/restaurant/recurring'
+      path: '/recurring'
+      fullPath: '/restaurant/recurring'
+      preLoaderRoute: typeof RestaurantRecurringRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/returns': {
+      id: '/restaurant/returns'
+      path: '/returns'
+      fullPath: '/restaurant/returns'
+      preLoaderRoute: typeof RestaurantReturnsRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/reviews': {
+      id: '/restaurant/reviews'
+      path: '/reviews'
+      fullPath: '/restaurant/reviews'
+      preLoaderRoute: typeof RestaurantReviewsRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/settings': {
+      id: '/restaurant/settings'
+      path: '/settings'
+      fullPath: '/restaurant/settings'
+      preLoaderRoute: typeof RestaurantSettingsRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/track/$publicId': {
+      id: '/track/$publicId'
+      path: '/track/$publicId'
+      fullPath: '/track/$publicId'
+      preLoaderRoute: typeof TrackPublicIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/disputes/': {
       id: '/admin/disputes/'
       path: '/disputes'
       fullPath: '/admin/disputes/'
       preLoaderRoute: typeof AdminDisputesIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/restaurant/suppliers/new': {
-      id: '/restaurant/suppliers/new'
-      path: '/suppliers/new'
-      fullPath: '/restaurant/suppliers/new'
-      preLoaderRoute: typeof RestaurantSuppliersNewRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/suppliers/$supplierId': {
-      id: '/restaurant/suppliers/$supplierId'
-      path: '/suppliers/$supplierId'
-      fullPath: '/restaurant/suppliers/$supplierId'
-      preLoaderRoute: typeof RestaurantSuppliersSupplierIdRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/settings/team': {
-      id: '/restaurant/settings/team'
-      path: '/team'
-      fullPath: '/restaurant/settings/team'
-      preLoaderRoute: typeof RestaurantSettingsTeamRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/settings/security': {
-      id: '/restaurant/settings/security'
-      path: '/security'
-      fullPath: '/restaurant/settings/security'
-      preLoaderRoute: typeof RestaurantSettingsSecurityRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/settings/profile': {
-      id: '/restaurant/settings/profile'
-      path: '/profile'
-      fullPath: '/restaurant/settings/profile'
-      preLoaderRoute: typeof RestaurantSettingsProfileRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/settings/payments': {
-      id: '/restaurant/settings/payments'
-      path: '/payments'
-      fullPath: '/restaurant/settings/payments'
-      preLoaderRoute: typeof RestaurantSettingsPaymentsRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/settings/notifications': {
-      id: '/restaurant/settings/notifications'
-      path: '/notifications'
-      fullPath: '/restaurant/settings/notifications'
-      preLoaderRoute: typeof RestaurantSettingsNotificationsRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/settings/establishment': {
-      id: '/restaurant/settings/establishment'
-      path: '/establishment'
-      fullPath: '/restaurant/settings/establishment'
-      preLoaderRoute: typeof RestaurantSettingsEstablishmentRouteImport
-      parentRoute: typeof RestaurantSettingsRoute
-    }
-    '/restaurant/orders/$orderId': {
-      id: '/restaurant/orders/$orderId'
-      path: '/orders/$orderId'
-      fullPath: '/restaurant/orders/$orderId'
-      preLoaderRoute: typeof RestaurantOrdersOrderIdRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/notifications/rules': {
-      id: '/restaurant/notifications/rules'
-      path: '/rules'
-      fullPath: '/restaurant/notifications/rules'
-      preLoaderRoute: typeof RestaurantNotificationsRulesRouteImport
-      parentRoute: typeof RestaurantNotificationsRoute
-    }
-    '/restaurant/messages/$conversationId': {
-      id: '/restaurant/messages/$conversationId'
-      path: '/$conversationId'
-      fullPath: '/restaurant/messages/$conversationId'
-      preLoaderRoute: typeof RestaurantMessagesConversationIdRouteImport
-      parentRoute: typeof RestaurantMessagesRoute
-    }
-    '/restaurant/marketplace/$productId': {
-      id: '/restaurant/marketplace/$productId'
-      path: '/$productId'
-      fullPath: '/restaurant/marketplace/$productId'
-      preLoaderRoute: typeof RestaurantMarketplaceProductIdRouteImport
-      parentRoute: typeof RestaurantMarketplaceRoute
-    }
-    '/restaurant/invoices/$invoiceId': {
-      id: '/restaurant/invoices/$invoiceId'
-      path: '/invoices/$invoiceId'
-      fullPath: '/restaurant/invoices/$invoiceId'
-      preLoaderRoute: typeof RestaurantInvoicesInvoiceIdRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/restaurant/disputes/$disputeId': {
-      id: '/restaurant/disputes/$disputeId'
-      path: '/disputes/$disputeId'
-      fullPath: '/restaurant/disputes/$disputeId'
-      preLoaderRoute: typeof RestaurantDisputesDisputeIdRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
-    '/farmer/stock/inventory': {
-      id: '/farmer/stock/inventory'
-      path: '/stock/inventory'
-      fullPath: '/farmer/stock/inventory'
-      preLoaderRoute: typeof FarmerStockInventoryRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/settings/team': {
-      id: '/farmer/settings/team'
-      path: '/team'
-      fullPath: '/farmer/settings/team'
-      preLoaderRoute: typeof FarmerSettingsTeamRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/settings/security': {
-      id: '/farmer/settings/security'
-      path: '/security'
-      fullPath: '/farmer/settings/security'
-      preLoaderRoute: typeof FarmerSettingsSecurityRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/settings/profile': {
-      id: '/farmer/settings/profile'
-      path: '/profile'
-      fullPath: '/farmer/settings/profile'
-      preLoaderRoute: typeof FarmerSettingsProfileRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/settings/payments': {
-      id: '/farmer/settings/payments'
-      path: '/payments'
-      fullPath: '/farmer/settings/payments'
-      preLoaderRoute: typeof FarmerSettingsPaymentsRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/settings/notifications': {
-      id: '/farmer/settings/notifications'
-      path: '/notifications'
-      fullPath: '/farmer/settings/notifications'
-      preLoaderRoute: typeof FarmerSettingsNotificationsRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/settings/farm': {
-      id: '/farmer/settings/farm'
-      path: '/farm'
-      fullPath: '/farmer/settings/farm'
-      preLoaderRoute: typeof FarmerSettingsFarmRouteImport
-      parentRoute: typeof FarmerSettingsRoute
-    }
-    '/farmer/revenue/withdrawals': {
-      id: '/farmer/revenue/withdrawals'
-      path: '/revenue/withdrawals'
-      fullPath: '/farmer/revenue/withdrawals'
-      preLoaderRoute: typeof FarmerRevenueWithdrawalsRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/revenue/withdraw': {
-      id: '/farmer/revenue/withdraw'
-      path: '/revenue/withdraw'
-      fullPath: '/farmer/revenue/withdraw'
-      preLoaderRoute: typeof FarmerRevenueWithdrawRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/revenue/$txId': {
-      id: '/farmer/revenue/$txId'
-      path: '/revenue/$txId'
-      fullPath: '/farmer/revenue/$txId'
-      preLoaderRoute: typeof FarmerRevenueTxIdRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/products/new': {
-      id: '/farmer/products/new'
-      path: '/products/new'
-      fullPath: '/farmer/products/new'
-      preLoaderRoute: typeof FarmerProductsNewRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/products/import': {
-      id: '/farmer/products/import'
-      path: '/products/import'
-      fullPath: '/farmer/products/import'
-      preLoaderRoute: typeof FarmerProductsImportRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/products/$productId': {
-      id: '/farmer/products/$productId'
-      path: '/products/$productId'
-      fullPath: '/farmer/products/$productId'
-      preLoaderRoute: typeof FarmerProductsProductIdRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/orders/$orderId': {
-      id: '/farmer/orders/$orderId'
-      path: '/orders/$orderId'
-      fullPath: '/farmer/orders/$orderId'
-      preLoaderRoute: typeof FarmerOrdersOrderIdRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/notifications/rules': {
-      id: '/farmer/notifications/rules'
-      path: '/rules'
-      fullPath: '/farmer/notifications/rules'
-      preLoaderRoute: typeof FarmerNotificationsRulesRouteImport
-      parentRoute: typeof FarmerNotificationsRoute
-    }
-    '/farmer/messages/$conversationId': {
-      id: '/farmer/messages/$conversationId'
-      path: '/$conversationId'
-      fullPath: '/farmer/messages/$conversationId'
-      preLoaderRoute: typeof FarmerMessagesConversationIdRouteImport
-      parentRoute: typeof FarmerMessagesRoute
-    }
-    '/farmer/disputes/$disputeId': {
-      id: '/farmer/disputes/$disputeId'
-      path: '/disputes/$disputeId'
-      fullPath: '/farmer/disputes/$disputeId'
-      preLoaderRoute: typeof FarmerDisputesDisputeIdRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/driver/notifications/rules': {
-      id: '/driver/notifications/rules'
-      path: '/rules'
-      fullPath: '/driver/notifications/rules'
-      preLoaderRoute: typeof DriverNotificationsRulesRouteImport
-      parentRoute: typeof DriverNotificationsRoute
-    }
-    '/driver/missions/$missionId': {
-      id: '/driver/missions/$missionId'
-      path: '/missions/$missionId'
-      fullPath: '/driver/missions/$missionId'
-      preLoaderRoute: typeof DriverMissionsMissionIdRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/messages/$conversationId': {
-      id: '/driver/messages/$conversationId'
-      path: '/$conversationId'
-      fullPath: '/driver/messages/$conversationId'
-      preLoaderRoute: typeof DriverMessagesConversationIdRouteImport
-      parentRoute: typeof DriverMessagesRoute
-    }
-    '/driver/disputes/$disputeId': {
-      id: '/driver/disputes/$disputeId'
-      path: '/disputes/$disputeId'
-      fullPath: '/driver/disputes/$disputeId'
-      preLoaderRoute: typeof DriverDisputesDisputeIdRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/admin/validations/$validationId': {
-      id: '/admin/validations/$validationId'
-      path: '/validations/$validationId'
-      fullPath: '/admin/validations/$validationId'
-      preLoaderRoute: typeof AdminValidationsValidationIdRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/users/$userId': {
-      id: '/admin/users/$userId'
-      path: '/users/$userId'
-      fullPath: '/admin/users/$userId'
-      preLoaderRoute: typeof AdminUsersUserIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/disputes/$disputeId': {
@@ -2419,46 +2013,424 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/restaurant/suppliers/$supplierId/edit': {
-      id: '/restaurant/suppliers/$supplierId/edit'
-      path: '/edit'
-      fullPath: '/restaurant/suppliers/$supplierId/edit'
-      preLoaderRoute: typeof RestaurantSuppliersSupplierIdEditRouteImport
-      parentRoute: typeof RestaurantSuppliersSupplierIdRoute
+    '/admin/users/': {
+      id: '/admin/users/'
+      path: '/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/restaurant/orders/$orderId/dispute': {
-      id: '/restaurant/orders/$orderId/dispute'
+    '/admin/users/$userId': {
+      id: '/admin/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AdminUsersUserIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/validations/': {
+      id: '/admin/validations/'
+      path: '/validations'
+      fullPath: '/admin/validations/'
+      preLoaderRoute: typeof AdminValidationsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/validations/$validationId': {
+      id: '/admin/validations/$validationId'
+      path: '/validations/$validationId'
+      fullPath: '/admin/validations/$validationId'
+      preLoaderRoute: typeof AdminValidationsValidationIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/driver/disputes/': {
+      id: '/driver/disputes/'
+      path: '/disputes'
+      fullPath: '/driver/disputes/'
+      preLoaderRoute: typeof DriverDisputesIndexRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/disputes/$disputeId': {
+      id: '/driver/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/driver/disputes/$disputeId'
+      preLoaderRoute: typeof DriverDisputesDisputeIdRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/messages/': {
+      id: '/driver/messages/'
+      path: '/'
+      fullPath: '/driver/messages/'
+      preLoaderRoute: typeof DriverMessagesIndexRouteImport
+      parentRoute: typeof DriverMessagesRoute
+    }
+    '/driver/messages/$conversationId': {
+      id: '/driver/messages/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/driver/messages/$conversationId'
+      preLoaderRoute: typeof DriverMessagesConversationIdRouteImport
+      parentRoute: typeof DriverMessagesRoute
+    }
+    '/driver/missions/': {
+      id: '/driver/missions/'
+      path: '/missions'
+      fullPath: '/driver/missions/'
+      preLoaderRoute: typeof DriverMissionsIndexRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/missions/$missionId': {
+      id: '/driver/missions/$missionId'
+      path: '/missions/$missionId'
+      fullPath: '/driver/missions/$missionId'
+      preLoaderRoute: typeof DriverMissionsMissionIdRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/notifications/': {
+      id: '/driver/notifications/'
+      path: '/'
+      fullPath: '/driver/notifications/'
+      preLoaderRoute: typeof DriverNotificationsIndexRouteImport
+      parentRoute: typeof DriverNotificationsRoute
+    }
+    '/driver/notifications/rules': {
+      id: '/driver/notifications/rules'
+      path: '/rules'
+      fullPath: '/driver/notifications/rules'
+      preLoaderRoute: typeof DriverNotificationsRulesRouteImport
+      parentRoute: typeof DriverNotificationsRoute
+    }
+    '/farmer/disputes/': {
+      id: '/farmer/disputes/'
+      path: '/disputes'
+      fullPath: '/farmer/disputes/'
+      preLoaderRoute: typeof FarmerDisputesIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/disputes/$disputeId': {
+      id: '/farmer/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/farmer/disputes/$disputeId'
+      preLoaderRoute: typeof FarmerDisputesDisputeIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/messages/': {
+      id: '/farmer/messages/'
+      path: '/'
+      fullPath: '/farmer/messages/'
+      preLoaderRoute: typeof FarmerMessagesIndexRouteImport
+      parentRoute: typeof FarmerMessagesRoute
+    }
+    '/farmer/messages/$conversationId': {
+      id: '/farmer/messages/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/farmer/messages/$conversationId'
+      preLoaderRoute: typeof FarmerMessagesConversationIdRouteImport
+      parentRoute: typeof FarmerMessagesRoute
+    }
+    '/farmer/notifications/': {
+      id: '/farmer/notifications/'
+      path: '/'
+      fullPath: '/farmer/notifications/'
+      preLoaderRoute: typeof FarmerNotificationsIndexRouteImport
+      parentRoute: typeof FarmerNotificationsRoute
+    }
+    '/farmer/notifications/rules': {
+      id: '/farmer/notifications/rules'
+      path: '/rules'
+      fullPath: '/farmer/notifications/rules'
+      preLoaderRoute: typeof FarmerNotificationsRulesRouteImport
+      parentRoute: typeof FarmerNotificationsRoute
+    }
+    '/farmer/orders/': {
+      id: '/farmer/orders/'
+      path: '/orders'
+      fullPath: '/farmer/orders/'
+      preLoaderRoute: typeof FarmerOrdersIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/orders/$orderId': {
+      id: '/farmer/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/farmer/orders/$orderId'
+      preLoaderRoute: typeof FarmerOrdersOrderIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/': {
+      id: '/farmer/products/'
+      path: '/products'
+      fullPath: '/farmer/products/'
+      preLoaderRoute: typeof FarmerProductsIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/$productId': {
+      id: '/farmer/products/$productId'
+      path: '/products/$productId'
+      fullPath: '/farmer/products/$productId'
+      preLoaderRoute: typeof FarmerProductsProductIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/import': {
+      id: '/farmer/products/import'
+      path: '/products/import'
+      fullPath: '/farmer/products/import'
+      preLoaderRoute: typeof FarmerProductsImportRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/products/new': {
+      id: '/farmer/products/new'
+      path: '/products/new'
+      fullPath: '/farmer/products/new'
+      preLoaderRoute: typeof FarmerProductsNewRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/revenue/': {
+      id: '/farmer/revenue/'
+      path: '/revenue'
+      fullPath: '/farmer/revenue/'
+      preLoaderRoute: typeof FarmerRevenueIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/revenue/$txId': {
+      id: '/farmer/revenue/$txId'
+      path: '/revenue/$txId'
+      fullPath: '/farmer/revenue/$txId'
+      preLoaderRoute: typeof FarmerRevenueTxIdRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/revenue/withdraw': {
+      id: '/farmer/revenue/withdraw'
+      path: '/revenue/withdraw'
+      fullPath: '/farmer/revenue/withdraw'
+      preLoaderRoute: typeof FarmerRevenueWithdrawRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/revenue/withdrawals': {
+      id: '/farmer/revenue/withdrawals'
+      path: '/revenue/withdrawals'
+      fullPath: '/farmer/revenue/withdrawals'
+      preLoaderRoute: typeof FarmerRevenueWithdrawalsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/settings/': {
+      id: '/farmer/settings/'
+      path: '/'
+      fullPath: '/farmer/settings/'
+      preLoaderRoute: typeof FarmerSettingsIndexRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/farm': {
+      id: '/farmer/settings/farm'
+      path: '/farm'
+      fullPath: '/farmer/settings/farm'
+      preLoaderRoute: typeof FarmerSettingsFarmRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/notifications': {
+      id: '/farmer/settings/notifications'
+      path: '/notifications'
+      fullPath: '/farmer/settings/notifications'
+      preLoaderRoute: typeof FarmerSettingsNotificationsRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/payments': {
+      id: '/farmer/settings/payments'
+      path: '/payments'
+      fullPath: '/farmer/settings/payments'
+      preLoaderRoute: typeof FarmerSettingsPaymentsRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/profile': {
+      id: '/farmer/settings/profile'
+      path: '/profile'
+      fullPath: '/farmer/settings/profile'
+      preLoaderRoute: typeof FarmerSettingsProfileRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/security': {
+      id: '/farmer/settings/security'
+      path: '/security'
+      fullPath: '/farmer/settings/security'
+      preLoaderRoute: typeof FarmerSettingsSecurityRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/settings/team': {
+      id: '/farmer/settings/team'
+      path: '/team'
+      fullPath: '/farmer/settings/team'
+      preLoaderRoute: typeof FarmerSettingsTeamRouteImport
+      parentRoute: typeof FarmerSettingsRoute
+    }
+    '/farmer/stock/': {
+      id: '/farmer/stock/'
+      path: '/stock'
+      fullPath: '/farmer/stock/'
+      preLoaderRoute: typeof FarmerStockIndexRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/stock/inventory': {
+      id: '/farmer/stock/inventory'
+      path: '/stock/inventory'
+      fullPath: '/farmer/stock/inventory'
+      preLoaderRoute: typeof FarmerStockInventoryRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/restaurant/disputes/': {
+      id: '/restaurant/disputes/'
+      path: '/disputes'
+      fullPath: '/restaurant/disputes/'
+      preLoaderRoute: typeof RestaurantDisputesIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/disputes/$disputeId': {
+      id: '/restaurant/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/restaurant/disputes/$disputeId'
+      preLoaderRoute: typeof RestaurantDisputesDisputeIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/invoices/': {
+      id: '/restaurant/invoices/'
+      path: '/invoices'
+      fullPath: '/restaurant/invoices/'
+      preLoaderRoute: typeof RestaurantInvoicesIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/invoices/$invoiceId': {
+      id: '/restaurant/invoices/$invoiceId'
+      path: '/invoices/$invoiceId'
+      fullPath: '/restaurant/invoices/$invoiceId'
+      preLoaderRoute: typeof RestaurantInvoicesInvoiceIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/marketplace/$productId': {
+      id: '/restaurant/marketplace/$productId'
+      path: '/$productId'
+      fullPath: '/restaurant/marketplace/$productId'
+      preLoaderRoute: typeof RestaurantMarketplaceProductIdRouteImport
+      parentRoute: typeof RestaurantMarketplaceRoute
+    }
+    '/restaurant/messages/': {
+      id: '/restaurant/messages/'
+      path: '/'
+      fullPath: '/restaurant/messages/'
+      preLoaderRoute: typeof RestaurantMessagesIndexRouteImport
+      parentRoute: typeof RestaurantMessagesRoute
+    }
+    '/restaurant/messages/$conversationId': {
+      id: '/restaurant/messages/$conversationId'
+      path: '/$conversationId'
+      fullPath: '/restaurant/messages/$conversationId'
+      preLoaderRoute: typeof RestaurantMessagesConversationIdRouteImport
+      parentRoute: typeof RestaurantMessagesRoute
+    }
+    '/restaurant/notifications/': {
+      id: '/restaurant/notifications/'
+      path: '/'
+      fullPath: '/restaurant/notifications/'
+      preLoaderRoute: typeof RestaurantNotificationsIndexRouteImport
+      parentRoute: typeof RestaurantNotificationsRoute
+    }
+    '/restaurant/notifications/rules': {
+      id: '/restaurant/notifications/rules'
+      path: '/rules'
+      fullPath: '/restaurant/notifications/rules'
+      preLoaderRoute: typeof RestaurantNotificationsRulesRouteImport
+      parentRoute: typeof RestaurantNotificationsRoute
+    }
+    '/restaurant/orders/': {
+      id: '/restaurant/orders/'
+      path: '/orders'
+      fullPath: '/restaurant/orders/'
+      preLoaderRoute: typeof RestaurantOrdersIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/orders/$orderId': {
+      id: '/restaurant/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/restaurant/orders/$orderId'
+      preLoaderRoute: typeof RestaurantOrdersOrderIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/settings/': {
+      id: '/restaurant/settings/'
+      path: '/'
+      fullPath: '/restaurant/settings/'
+      preLoaderRoute: typeof RestaurantSettingsIndexRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/establishment': {
+      id: '/restaurant/settings/establishment'
+      path: '/establishment'
+      fullPath: '/restaurant/settings/establishment'
+      preLoaderRoute: typeof RestaurantSettingsEstablishmentRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/notifications': {
+      id: '/restaurant/settings/notifications'
+      path: '/notifications'
+      fullPath: '/restaurant/settings/notifications'
+      preLoaderRoute: typeof RestaurantSettingsNotificationsRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/payments': {
+      id: '/restaurant/settings/payments'
+      path: '/payments'
+      fullPath: '/restaurant/settings/payments'
+      preLoaderRoute: typeof RestaurantSettingsPaymentsRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/profile': {
+      id: '/restaurant/settings/profile'
+      path: '/profile'
+      fullPath: '/restaurant/settings/profile'
+      preLoaderRoute: typeof RestaurantSettingsProfileRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/security': {
+      id: '/restaurant/settings/security'
+      path: '/security'
+      fullPath: '/restaurant/settings/security'
+      preLoaderRoute: typeof RestaurantSettingsSecurityRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/settings/team': {
+      id: '/restaurant/settings/team'
+      path: '/team'
+      fullPath: '/restaurant/settings/team'
+      preLoaderRoute: typeof RestaurantSettingsTeamRouteImport
+      parentRoute: typeof RestaurantSettingsRoute
+    }
+    '/restaurant/suppliers/': {
+      id: '/restaurant/suppliers/'
+      path: '/suppliers'
+      fullPath: '/restaurant/suppliers/'
+      preLoaderRoute: typeof RestaurantSuppliersIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/suppliers/$supplierId': {
+      id: '/restaurant/suppliers/$supplierId'
+      path: '/suppliers/$supplierId'
+      fullPath: '/restaurant/suppliers/$supplierId'
+      preLoaderRoute: typeof RestaurantSuppliersSupplierIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/suppliers/new': {
+      id: '/restaurant/suppliers/new'
+      path: '/suppliers/new'
+      fullPath: '/restaurant/suppliers/new'
+      preLoaderRoute: typeof RestaurantSuppliersNewRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/driver/missions/$missionId/dispute': {
+      id: '/driver/missions/$missionId/dispute'
       path: '/dispute'
-      fullPath: '/restaurant/orders/$orderId/dispute'
-      preLoaderRoute: typeof RestaurantOrdersOrderIdDisputeRouteImport
-      parentRoute: typeof RestaurantOrdersOrderIdRoute
+      fullPath: '/driver/missions/$missionId/dispute'
+      preLoaderRoute: typeof DriverMissionsMissionIdDisputeRouteImport
+      parentRoute: typeof DriverMissionsMissionIdRoute
     }
-    '/farmer/stock/movement/new': {
-      id: '/farmer/stock/movement/new'
-      path: '/stock/movement/new'
-      fullPath: '/farmer/stock/movement/new'
-      preLoaderRoute: typeof FarmerStockMovementNewRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/stock/$productId/history': {
-      id: '/farmer/stock/$productId/history'
-      path: '/stock/$productId/history'
-      fullPath: '/farmer/stock/$productId/history'
-      preLoaderRoute: typeof FarmerStockProductIdHistoryRouteImport
-      parentRoute: typeof FarmerRoute
-    }
-    '/farmer/products/$productId/edit': {
-      id: '/farmer/products/$productId/edit'
-      path: '/edit'
-      fullPath: '/farmer/products/$productId/edit'
-      preLoaderRoute: typeof FarmerProductsProductIdEditRouteImport
-      parentRoute: typeof FarmerProductsProductIdRoute
-    }
-    '/farmer/orders/$orderId/report': {
-      id: '/farmer/orders/$orderId/report'
-      path: '/report'
-      fullPath: '/farmer/orders/$orderId/report'
-      preLoaderRoute: typeof FarmerOrdersOrderIdReportRouteImport
+    '/farmer/orders/$orderId/dispute': {
+      id: '/farmer/orders/$orderId/dispute'
+      path: '/dispute'
+      fullPath: '/farmer/orders/$orderId/dispute'
+      preLoaderRoute: typeof FarmerOrdersOrderIdDisputeRouteImport
       parentRoute: typeof FarmerOrdersOrderIdRoute
     }
     '/farmer/orders/$orderId/refuse': {
@@ -2468,19 +2440,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerOrdersOrderIdRefuseRouteImport
       parentRoute: typeof FarmerOrdersOrderIdRoute
     }
-    '/farmer/orders/$orderId/dispute': {
-      id: '/farmer/orders/$orderId/dispute'
-      path: '/dispute'
-      fullPath: '/farmer/orders/$orderId/dispute'
-      preLoaderRoute: typeof FarmerOrdersOrderIdDisputeRouteImport
+    '/farmer/orders/$orderId/report': {
+      id: '/farmer/orders/$orderId/report'
+      path: '/report'
+      fullPath: '/farmer/orders/$orderId/report'
+      preLoaderRoute: typeof FarmerOrdersOrderIdReportRouteImport
       parentRoute: typeof FarmerOrdersOrderIdRoute
     }
-    '/driver/missions/$missionId/dispute': {
-      id: '/driver/missions/$missionId/dispute'
+    '/farmer/products/$productId/edit': {
+      id: '/farmer/products/$productId/edit'
+      path: '/edit'
+      fullPath: '/farmer/products/$productId/edit'
+      preLoaderRoute: typeof FarmerProductsProductIdEditRouteImport
+      parentRoute: typeof FarmerProductsProductIdRoute
+    }
+    '/farmer/stock/$productId/history': {
+      id: '/farmer/stock/$productId/history'
+      path: '/stock/$productId/history'
+      fullPath: '/farmer/stock/$productId/history'
+      preLoaderRoute: typeof FarmerStockProductIdHistoryRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/stock/movement/new': {
+      id: '/farmer/stock/movement/new'
+      path: '/stock/movement/new'
+      fullPath: '/farmer/stock/movement/new'
+      preLoaderRoute: typeof FarmerStockMovementNewRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/restaurant/orders/$orderId/dispute': {
+      id: '/restaurant/orders/$orderId/dispute'
       path: '/dispute'
-      fullPath: '/driver/missions/$missionId/dispute'
-      preLoaderRoute: typeof DriverMissionsMissionIdDisputeRouteImport
-      parentRoute: typeof DriverMissionsMissionIdRoute
+      fullPath: '/restaurant/orders/$orderId/dispute'
+      preLoaderRoute: typeof RestaurantOrdersOrderIdDisputeRouteImport
+      parentRoute: typeof RestaurantOrdersOrderIdRoute
+    }
+    '/restaurant/suppliers/$supplierId/edit': {
+      id: '/restaurant/suppliers/$supplierId/edit'
+      path: '/edit'
+      fullPath: '/restaurant/suppliers/$supplierId/edit'
+      preLoaderRoute: typeof RestaurantSuppliersSupplierIdEditRouteImport
+      parentRoute: typeof RestaurantSuppliersSupplierIdRoute
     }
   }
 }

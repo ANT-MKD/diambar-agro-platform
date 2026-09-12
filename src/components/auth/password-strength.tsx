@@ -17,7 +17,11 @@ export function PasswordStrength({ value }: { value: string }) {
           <div key={n} className={`h-1.5 flex-1 rounded-full ${n <= s ? colors[s] : "bg-muted"}`} />
         ))}
       </div>
-      {value && <p className="mt-1 text-xs text-muted-foreground">Force : <span className="font-semibold text-foreground">{labels[s]}</span></p>}
+      {value && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Force : <span className="font-semibold text-foreground">{labels[s]}</span>
+        </p>
+      )}
     </div>
   );
 }

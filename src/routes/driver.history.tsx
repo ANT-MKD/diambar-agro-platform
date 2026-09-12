@@ -8,7 +8,13 @@ import { restaurants, farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/driver/history")({
   head: () => ({ meta: [{ title: "Historique · Livreur Diambar" }] }),
@@ -23,7 +29,12 @@ function HistoryPage() {
   const items = useMemo(() => {
     return all
       .filter((m) => m.driverId === "d1" && m.status === "delivered")
-      .filter((m) => q === "" || m.reference.toLowerCase().includes(q.toLowerCase()) || m.orderRef.toLowerCase().includes(q.toLowerCase()))
+      .filter(
+        (m) =>
+          q === "" ||
+          m.reference.toLowerCase().includes(q.toLowerCase()) ||
+          m.orderRef.toLowerCase().includes(q.toLowerCase()),
+      )
       .filter((m) => {
         if (period === "all") return true;
         const days = period === "7d" ? 7 : 30;
@@ -40,16 +51,28 @@ function HistoryPage() {
       <PageHeader
         title="Historique de livraisons"
         subtitle={`${items.length} livraison(s) · ${formatFCFA(totalEarned)} générés · ${totalKm} km parcourus`}
-        actions={<Button variant="outline" className="gap-2"><Download className="h-4 w-4" />Exporter CSV</Button>}
+        actions={
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Exporter CSV
+          </Button>
+        }
       />
 
       <div className="glass rounded-2xl p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Référence mission ou commande…" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Référence mission ou commande…"
+            className="pl-9"
+          />
         </div>
         <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toute période</SelectItem>
             <SelectItem value="7d">7 derniers jours</SelectItem>
@@ -59,7 +82,11 @@ function HistoryPage() {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState icon={Truck} title="Aucune livraison" description="Aucune mission livrée ne correspond à votre recherche." />
+        <EmptyState
+          icon={Truck}
+          title="Aucune livraison"
+          description="Aucune mission livrée ne correspond à votre recherche."
+        />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
@@ -80,13 +107,42 @@ function HistoryPage() {
                 const f = farmers.find((x) => x.id === m.farmerId);
                 return (
                   <tr key={m.id} className="border-t border-border hover:bg-accent/30">
-                    <td className="p-3 text-xs text-muted-foreground">{m.scheduledFor.slice(0, 10)}</td>
-                    <td className="p-3 font-medium"><Link to="/driver/missions/$missionId" params={{ missionId: m.id }} className="hover:text-primary">{m.reference}</Link></td>
-                    <td className="p-3 text-xs"><span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{m.pickup.city} → {m.dropoff.city}</span></td>
-                    <td className="p-3 text-muted-foreground text-xs">{f?.farm} → {r?.name}</td>
-                    <td className="p-3 text-right text-xs"><span className="inline-flex items-center gap-1"><RouteIcon className="h-3 w-3" />{m.distanceKm} km</span></td>
-                    <td className="p-3 text-right text-xs"><span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{m.estimatedMinutes} min</span></td>
-                    <td className="p-3 text-right font-semibold text-primary">{formatFCFA(m.payout)}</td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {m.scheduledFor.slice(0, 10)}
+                    </td>
+                    <td className="p-3 font-medium">
+                      <Link
+                        to="/driver/missions/$missionId"
+                        params={{ missionId: m.id }}
+                        className="hover:text-primary"
+                      >
+                        {m.reference}
+                      </Link>
+                    </td>
+                    <td className="p-3 text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {m.pickup.city} → {m.dropoff.city}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs">
+                      {f?.farm} → {r?.name}
+                    </td>
+                    <td className="p-3 text-right text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        <RouteIcon className="h-3 w-3" />
+                        {m.distanceKm} km
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {m.estimatedMinutes} min
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-semibold text-primary">
+                      {formatFCFA(m.payout)}
+                    </td>
                   </tr>
                 );
               })}

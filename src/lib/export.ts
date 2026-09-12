@@ -19,11 +19,17 @@ function escapeCell(v: unknown) {
 
 export function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
   const csv = [headers, ...rows].map((r) => r.map(escapeCell).join(";")).join("\n");
-  download(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }), filename.endsWith(".csv") ? filename : `${filename}.csv`);
+  download(
+    new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }),
+    filename.endsWith(".csv") ? filename : `${filename}.csv`,
+  );
   toast.success("Export CSV téléchargé", { description: filename });
 }
 
 export function downloadJson(filename: string, data: unknown) {
-  download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), filename.endsWith(".json") ? filename : `${filename}.json`);
+  download(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+    filename.endsWith(".json") ? filename : `${filename}.json`,
+  );
   toast.success("Export JSON téléchargé", { description: filename });
 }

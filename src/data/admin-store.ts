@@ -23,7 +23,9 @@ function createStore<T>(initial: T, persistKey?: string) {
     try {
       const raw = window.localStorage.getItem(persistKey);
       if (raw) state = JSON.parse(raw) as T;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   const listeners = new Set<Listener>();
   return {
@@ -31,7 +33,11 @@ function createStore<T>(initial: T, persistKey?: string) {
     set: (next: T | ((prev: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
       if (persistKey && typeof window !== "undefined") {
-        try { window.localStorage.setItem(persistKey, JSON.stringify(state)); } catch { /* ignore */ }
+        try {
+          window.localStorage.setItem(persistKey, JSON.stringify(state));
+        } catch {
+          /* ignore */
+        }
       }
       listeners.forEach((l) => l());
     },
@@ -43,7 +49,10 @@ function createStore<T>(initial: T, persistKey?: string) {
 }
 
 const usersStore = createStore<PlatformUser[]>(seedUsers, "diambar:admin-users");
-const validationsStore = createStore<ValidationRequest[]>(seedValidations, "diambar:admin-validations");
+const validationsStore = createStore<ValidationRequest[]>(
+  seedValidations,
+  "diambar:admin-validations",
+);
 const disputesStore = createStore<Dispute[]>(seedDisputes, "diambar:admin-disputes");
 const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
@@ -57,7 +66,11 @@ export function usePlatformUser(id: string) {
   return usePlatformUsers().find((u) => u.id === id) ?? null;
 }
 export function useValidations() {
-  return useSyncExternalStore(validationsStore.subscribe, validationsStore.get, validationsStore.get);
+  return useSyncExternalStore(
+    validationsStore.subscribe,
+    validationsStore.get,
+    validationsStore.get,
+  );
 }
 export function useValidation(id: string) {
   return useValidations().find((v) => v.id === id) ?? null;
@@ -82,8 +95,16 @@ export function useDeliveryZones() {
 }
 
 export const auditActions = {
-  log: (action: string, target: string, level: AuditLog["level"] = "info", actor = "Admin Diambar") => {
-    logsStore.set((arr) => [{ id: `al_${Date.now()}`, at: new Date().toISOString(), actor, action, target, level }, ...arr]);
+  log: (
+    action: string,
+    target: string,
+    level: AuditLog["level"] = "info",
+    actor = "Admin Diambar",
+  ) => {
+    logsStore.set((arr) => [
+      { id: `al_${Date.now()}`, at: new Date().toISOString(), actor, action, target, level },
+      ...arr,
+    ]);
   },
 };
 
@@ -109,7 +130,9 @@ export const validationActions = {
   },
   reject: (id: string, note?: string) => {
     const req = validationsStore.get().find((v) => v.id === id);
-    validationsStore.set((arr) => arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)));
+    validationsStore.set((arr) =>
+      arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)),
+    );
     if (req) {
       adminUserActions.setStatus(req.userId, "rejected");
       auditActions.log("Validation de compte rejetée", req.userId, "warning");
@@ -125,7 +148,14 @@ export const disputeActions = {
           ? {
               ...d,
               status,
-              timeline: [...d.timeline, { at: new Date().toISOString(), actor: "Support Diambar", text: text ?? `Statut mis à jour : ${status}` }],
+              timeline: [
+                ...d.timeline,
+                {
+                  at: new Date().toISOString(),
+                  actor: "Support Diambar",
+                  text: text ?? `Statut mis à jour : ${status}`,
+                },
+              ],
             }
           : d,
       ),
@@ -134,7 +164,17 @@ export const disputeActions = {
   },
   comment: (id: string, text: string) => {
     disputesStore.set((arr) =>
-      arr.map((d) => (d.id === id ? { ...d, timeline: [...d.timeline, { at: new Date().toISOString(), actor: "Support Diambar", text }] } : d)),
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              timeline: [
+                ...d.timeline,
+                { at: new Date().toISOString(), actor: "Support Diambar", text },
+              ],
+            }
+          : d,
+      ),
     );
   },
 };

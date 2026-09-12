@@ -10,14 +10,22 @@ const TONE: Record<DisputeStatus, string> = {
 };
 
 export function DisputeStatusBadge({ status }: { status: DisputeStatus }) {
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${TONE[status]}`}>{STATUS_LABEL[status]}</span>;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${TONE[status]}`}
+    >
+      {STATUS_LABEL[status]}
+    </span>
+  );
 }
 
 export function SlaBadge({ dispute }: { dispute: Dispute }) {
   if (dispute.status === "resolved" || dispute.status === "rejected") return null;
   const sla = slaRemaining(dispute);
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${sla.overdue ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border text-muted-foreground"}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${sla.overdue ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border text-muted-foreground"}`}
+    >
       {sla.overdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
       {sla.overdue ? sla.label : `Réponse sous ${sla.label}`}
     </span>
@@ -26,8 +34,14 @@ export function SlaBadge({ dispute }: { dispute: Dispute }) {
 
 export function PriorityBadge({ priority }: { priority: Dispute["priority"] }) {
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" : priority === "medium" ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400" : "border-border text-muted-foreground"}`}>
-      {priority === "high" ? "Priorité haute" : priority === "medium" ? "Priorité moyenne" : "Priorité basse"}
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" : priority === "medium" ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400" : "border-border text-muted-foreground"}`}
+    >
+      {priority === "high"
+        ? "Priorité haute"
+        : priority === "medium"
+          ? "Priorité moyenne"
+          : "Priorité basse"}
     </span>
   );
 }

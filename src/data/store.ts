@@ -40,7 +40,9 @@ function createStore<T>(initial: T, persistKey?: string) {
     try {
       const raw = window.localStorage.getItem(persistKey);
       if (raw) state = JSON.parse(raw) as T;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   const listeners = new Set<Listener>();
   return {
@@ -48,7 +50,11 @@ function createStore<T>(initial: T, persistKey?: string) {
     set: (next: T | ((prev: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
       if (persistKey && typeof window !== "undefined") {
-        try { window.localStorage.setItem(persistKey, JSON.stringify(state)); } catch { /* ignore */ }
+        try {
+          window.localStorage.setItem(persistKey, JSON.stringify(state));
+        } catch {
+          /* ignore */
+        }
       }
       listeners.forEach((l) => l());
     },
@@ -98,7 +104,11 @@ export function useMovements() {
   return useSyncExternalStore(movementsStore.subscribe, movementsStore.get, movementsStore.get);
 }
 export function useWithdrawals() {
-  return useSyncExternalStore(withdrawalsStore.subscribe, withdrawalsStore.get, withdrawalsStore.get);
+  return useSyncExternalStore(
+    withdrawalsStore.subscribe,
+    withdrawalsStore.get,
+    withdrawalsStore.get,
+  );
 }
 export function useCart() {
   return useSyncExternalStore(cartStore.subscribe, cartStore.get, cartStore.get);
@@ -108,7 +118,11 @@ export function useWishlist() {
   return useSyncExternalStore(wishlistStore.subscribe, wishlistStore.get, wishlistStore.get);
 }
 export function useConversations() {
-  return useSyncExternalStore(conversationsStore.subscribe, conversationsStore.get, conversationsStore.get);
+  return useSyncExternalStore(
+    conversationsStore.subscribe,
+    conversationsStore.get,
+    conversationsStore.get,
+  );
 }
 export function useConversation(id: string) {
   return useConversations().find((c) => c.id === id) ?? null;
@@ -121,7 +135,11 @@ export function useOnboarding() {
 }
 
 export function useRestaurantOrders() {
-  return useSyncExternalStore(restaurantOrdersStore.subscribe, restaurantOrdersStore.get, restaurantOrdersStore.get);
+  return useSyncExternalStore(
+    restaurantOrdersStore.subscribe,
+    restaurantOrdersStore.get,
+    restaurantOrdersStore.get,
+  );
 }
 export function useRestaurantOrder(id: string) {
   return useRestaurantOrders().find((o) => o.id === id) ?? null;
@@ -135,13 +153,25 @@ export function useSupplier(id: string) {
 }
 
 export function useFarmerNotifications() {
-  return useSyncExternalStore(farmerNotifsStore.subscribe, farmerNotifsStore.get, farmerNotifsStore.get);
+  return useSyncExternalStore(
+    farmerNotifsStore.subscribe,
+    farmerNotifsStore.get,
+    farmerNotifsStore.get,
+  );
 }
 export function useRestaurantNotifications() {
-  return useSyncExternalStore(restoNotifsStore.subscribe, restoNotifsStore.get, restoNotifsStore.get);
+  return useSyncExternalStore(
+    restoNotifsStore.subscribe,
+    restoNotifsStore.get,
+    restoNotifsStore.get,
+  );
 }
 export function useDriverNotifications() {
-  return useSyncExternalStore(driverNotifsStore.subscribe, driverNotifsStore.get, driverNotifsStore.get);
+  return useSyncExternalStore(
+    driverNotifsStore.subscribe,
+    driverNotifsStore.get,
+    driverNotifsStore.get,
+  );
 }
 export function useMissions() {
   return useSyncExternalStore(missionsStore.subscribe, missionsStore.get, missionsStore.get);
@@ -150,16 +180,28 @@ export function useMission(id: string) {
   return useMissions().find((m) => m.id === id) ?? null;
 }
 export function useDriverConversations() {
-  return useSyncExternalStore(driverConvosStore.subscribe, driverConvosStore.get, driverConvosStore.get);
+  return useSyncExternalStore(
+    driverConvosStore.subscribe,
+    driverConvosStore.get,
+    driverConvosStore.get,
+  );
 }
 export function useDriverConversation(id: string) {
   return useDriverConversations().find((c) => c.id === id) ?? null;
 }
 export function useDriverOnline() {
-  return useSyncExternalStore(driverOnlineStore.subscribe, driverOnlineStore.get, driverOnlineStore.get);
+  return useSyncExternalStore(
+    driverOnlineStore.subscribe,
+    driverOnlineStore.get,
+    driverOnlineStore.get,
+  );
 }
 export function useDriverWallet() {
-  return useSyncExternalStore(driverWalletStore.subscribe, driverWalletStore.get, driverWalletStore.get);
+  return useSyncExternalStore(
+    driverWalletStore.subscribe,
+    driverWalletStore.get,
+    driverWalletStore.get,
+  );
 }
 
 export const driverWalletActions = {
@@ -185,7 +227,17 @@ export const driverWalletActions = {
     driverWalletStore.set((w) => ({
       ...w,
       balance: w.balance + amount,
-      transactions: [{ id: `dtx_${Date.now()}`, at: new Date().toISOString(), label, kind, amount, status: "Complété" }, ...w.transactions],
+      transactions: [
+        {
+          id: `dtx_${Date.now()}`,
+          at: new Date().toISOString(),
+          label,
+          kind,
+          amount,
+          status: "Complété",
+        },
+        ...w.transactions,
+      ],
     }));
   },
   reset: () => driverWalletStore.set(seedDriverWallet),
@@ -202,16 +254,21 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
       store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: !n.read } : n))),
     clearRead: () => store.set((arr) => arr.filter((n) => !n.read)),
     remove: (id: string) => store.set((arr) => arr.filter((n) => n.id !== id)),
-    add: (n: Omit<AppNotification, "id" | "at" | "read"> & { id?: string; at?: string; read?: boolean }) => {
+    add: (
+      n: Omit<AppNotification, "id" | "at" | "read"> & { id?: string; at?: string; read?: boolean },
+    ) => {
       const id = n.id ?? `n_${Date.now()}`;
-      store.set((arr) => [{
-        id,
-        at: n.at ?? new Date().toISOString(),
-        read: n.read ?? false,
-        type: n.type,
-        title: n.title,
-        body: n.body,
-      }, ...arr]);
+      store.set((arr) => [
+        {
+          id,
+          at: n.at ?? new Date().toISOString(),
+          read: n.read ?? false,
+          type: n.type,
+          title: n.title,
+          body: n.body,
+        },
+        ...arr,
+      ]);
       return id;
     },
   };
@@ -226,7 +283,9 @@ export const missionActions = {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status } : m)));
   },
   accept: (id: string, driverId = "d1") => {
-    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)));
+    missionsStore.set((arr) =>
+      arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)),
+    );
   },
   cancel: (id: string) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
@@ -236,10 +295,18 @@ export const missionActions = {
 export const driverConversationActions = {
   send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
     const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
-    driverConvosStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at } : c));
+    driverConvosStore.set((arr) =>
+      arr.map((c) =>
+        c.id === conversationId
+          ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at }
+          : c,
+      ),
+    );
   },
   markRead: (conversationId: string) => {
-    driverConvosStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+    driverConvosStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
+    );
   },
 };
 
@@ -249,9 +316,20 @@ export const driverOnlineActions = {
 };
 
 export const supplierActions = {
-  create: (s: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & { suspended?: boolean }) => {
+  create: (
+    s: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & {
+      suspended?: boolean;
+    },
+  ) => {
     const id = `sup_${Date.now()}`;
-    const next: Supplier = { ...s, id, suspended: s.suspended ?? false, lastOrder: "—", totalOrders: 0, totalSpent: 0 };
+    const next: Supplier = {
+      ...s,
+      id,
+      suspended: s.suspended ?? false,
+      lastOrder: "—",
+      totalOrders: 0,
+      totalSpent: 0,
+    };
     suppliersStore.set((arr) => [next, ...arr]);
     return id;
   },
@@ -259,10 +337,14 @@ export const supplierActions = {
     suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   },
   toggleSuspend: (id: string) => {
-    suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, suspended: !s.suspended } : s)));
+    suppliersStore.set((arr) =>
+      arr.map((s) => (s.id === id ? { ...s, suspended: !s.suspended } : s)),
+    );
   },
   toggleFavorite: (id: string) => {
-    suppliersStore.set((arr) => arr.map((s) => (s.id === id ? { ...s, favorite: !s.favorite } : s)));
+    suppliersStore.set((arr) =>
+      arr.map((s) => (s.id === id ? { ...s, favorite: !s.favorite } : s)),
+    );
   },
   remove: (id: string) => {
     suppliersStore.set((arr) => arr.filter((s) => s.id !== id));
@@ -273,7 +355,13 @@ export const restaurantOrderActions = {
   create: (o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status">) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
-    const next: RestaurantOrder = { ...o, id, reference, status: "pending", createdAt: new Date().toISOString() };
+    const next: RestaurantOrder = {
+      ...o,
+      id,
+      reference,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
     return id;
   },
@@ -295,16 +383,24 @@ export const productActions = {
     return id;
   },
   update: (id: string, patch: Partial<Product>) => {
-    productsStore.set((arr) => arr.map((p) => (p.id === id ? recomputeStatus({ ...p, ...patch }) : p)));
+    productsStore.set((arr) =>
+      arr.map((p) => (p.id === id ? recomputeStatus({ ...p, ...patch }) : p)),
+    );
   },
   remove: (id: string) => {
     productsStore.set((arr) => arr.filter((p) => p.id !== id));
   },
   adjustStock: (id: string, delta: number, _reason?: string) => {
-    productsStore.set((arr) => arr.map((p) => (p.id === id ? recomputeStatus({ ...p, stock: Math.max(0, p.stock + delta) }) : p)));
+    productsStore.set((arr) =>
+      arr.map((p) =>
+        p.id === id ? recomputeStatus({ ...p, stock: Math.max(0, p.stock + delta) }) : p,
+      ),
+    );
   },
   setStock: (id: string, stock: number) => {
-    productsStore.set((arr) => arr.map((p) => (p.id === id ? recomputeStatus({ ...p, stock: Math.max(0, stock) }) : p)));
+    productsStore.set((arr) =>
+      arr.map((p) => (p.id === id ? recomputeStatus({ ...p, stock: Math.max(0, stock) }) : p)),
+    );
   },
 };
 
@@ -338,15 +434,18 @@ export const withdrawalActions = {
   create: (w: { method: PaymentMethod; amount: number }) => {
     const id = `wd${Date.now()}`;
     const fee = Math.round(w.amount * 0.005);
-    withdrawalsStore.set((arr) => [{
-      id,
-      date: new Date().toISOString().slice(0, 10),
-      method: w.method,
-      amount: w.amount,
-      fee,
-      status: "En cours",
-      reference: `WD-${id.slice(-4).toUpperCase()}`,
-    }, ...arr]);
+    withdrawalsStore.set((arr) => [
+      {
+        id,
+        date: new Date().toISOString().slice(0, 10),
+        method: w.method,
+        amount: w.amount,
+        fee,
+        status: "En cours",
+        reference: `WD-${id.slice(-4).toUpperCase()}`,
+      },
+      ...arr,
+    ]);
     return id;
   },
 };
@@ -355,12 +454,17 @@ export const cartActions = {
   add: (productId: string, qty = 1) => {
     cartStore.set((arr) => {
       const existing = arr.find((l) => l.productId === productId);
-      if (existing) return arr.map((l) => l.productId === productId ? { ...l, qty: l.qty + qty } : l);
+      if (existing)
+        return arr.map((l) => (l.productId === productId ? { ...l, qty: l.qty + qty } : l));
       return [...arr, { productId, qty }];
     });
   },
   setQty: (productId: string, qty: number) => {
-    cartStore.set((arr) => qty <= 0 ? arr.filter((l) => l.productId !== productId) : arr.map((l) => l.productId === productId ? { ...l, qty } : l));
+    cartStore.set((arr) =>
+      qty <= 0
+        ? arr.filter((l) => l.productId !== productId)
+        : arr.map((l) => (l.productId === productId ? { ...l, qty } : l)),
+    );
   },
   remove: (productId: string) => {
     cartStore.set((arr) => arr.filter((l) => l.productId !== productId));
@@ -370,7 +474,9 @@ export const cartActions = {
 
 export const wishlistActions = {
   toggle: (productId: string) => {
-    wishlistStore.set((arr) => arr.includes(productId) ? arr.filter((x) => x !== productId) : [...arr, productId]);
+    wishlistStore.set((arr) =>
+      arr.includes(productId) ? arr.filter((x) => x !== productId) : [...arr, productId],
+    );
   },
   remove: (productId: string) => wishlistStore.set((arr) => arr.filter((x) => x !== productId)),
   clear: () => wishlistStore.set([]),
@@ -379,22 +485,34 @@ export const wishlistActions = {
 export const conversationActions = {
   send: (conversationId: string, text: string, from: "me" | "them" = "me") => {
     const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString() };
-    conversationsStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at } : c));
+    conversationsStore.set((arr) =>
+      arr.map((c) =>
+        c.id === conversationId
+          ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at }
+          : c,
+      ),
+    );
   },
   markRead: (conversationId: string) => {
-    conversationsStore.set((arr) => arr.map((c) => c.id === conversationId ? { ...c, unread: 0 } : c));
+    conversationsStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
+    );
   },
 };
 
 export const recurringActions = {
-  toggle: (id: string) => recurringStore.set((arr) => arr.map((r) => r.id === id ? { ...r, active: !r.active } : r)),
-  skipNext: (id: string) => recurringStore.set((arr) => arr.map((r) => {
-    if (r.id !== id) return r;
-    const d = new Date(r.nextDelivery === "—" ? Date.now() : r.nextDelivery);
-    const days = r.frequency === "weekly" ? 7 : r.frequency === "biweekly" ? 14 : 30;
-    d.setDate(d.getDate() + days);
-    return { ...r, nextDelivery: d.toISOString().slice(0, 10) };
-  })),
+  toggle: (id: string) =>
+    recurringStore.set((arr) => arr.map((r) => (r.id === id ? { ...r, active: !r.active } : r))),
+  skipNext: (id: string) =>
+    recurringStore.set((arr) =>
+      arr.map((r) => {
+        if (r.id !== id) return r;
+        const d = new Date(r.nextDelivery === "—" ? Date.now() : r.nextDelivery);
+        const days = r.frequency === "weekly" ? 7 : r.frequency === "biweekly" ? 14 : 30;
+        d.setDate(d.getDate() + days);
+        return { ...r, nextDelivery: d.toISOString().slice(0, 10) };
+      }),
+    ),
   remove: (id: string) => recurringStore.set((arr) => arr.filter((r) => r.id !== id)),
 };
 

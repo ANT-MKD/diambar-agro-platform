@@ -44,12 +44,32 @@ export function LiveMap({
         }}
       />
       {/* Grid streets */}
-      <svg className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none" viewBox="0 0 100 100">
+      <svg
+        className="absolute inset-0 w-full h-full opacity-20"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
         {Array.from({ length: 12 }).map((_, i) => (
-          <line key={`h${i}`} x1="0" y1={i * 8.5} x2="100" y2={i * 8.5} stroke="white" strokeWidth="0.15" />
+          <line
+            key={`h${i}`}
+            x1="0"
+            y1={i * 8.5}
+            x2="100"
+            y2={i * 8.5}
+            stroke="white"
+            strokeWidth="0.15"
+          />
         ))}
         {Array.from({ length: 14 }).map((_, i) => (
-          <line key={`v${i}`} x1={i * 7.5} y1="0" x2={i * 7.5} y2="100" stroke="white" strokeWidth="0.15" />
+          <line
+            key={`v${i}`}
+            x1={i * 7.5}
+            y1="0"
+            x2={i * 7.5}
+            y2="100"
+            stroke="white"
+            strokeWidth="0.15"
+          />
         ))}
       </svg>
       {/* Water/coast splash */}
@@ -57,7 +77,11 @@ export function LiveMap({
       <div className="absolute right-10 -bottom-10 h-52 w-52 rounded-full bg-emerald-500/10 blur-3xl" />
 
       {/* Route overlay */}
-      <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+      <svg
+        className="absolute inset-0 w-full h-full"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
         <defs>
           <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="oklch(0.7 0.17 155)" />
@@ -66,11 +90,32 @@ export function LiveMap({
         </defs>
         {/* Glow */}
         <path d={pathD} stroke="oklch(0.7 0.17 155)" strokeWidth="2.5" fill="none" opacity="0.25" />
-        <path d={pathD} stroke="url(#routeGrad)" strokeWidth="0.8" fill="none" strokeDasharray="2 1.5" strokeLinecap="round" />
+        <path
+          d={pathD}
+          stroke="url(#routeGrad)"
+          strokeWidth="0.8"
+          fill="none"
+          strokeDasharray="2 1.5"
+          strokeLinecap="round"
+        />
         {/* Origin */}
-        <circle cx={origin.x} cy={origin.y} r="2" fill="oklch(0.7 0.17 155)" stroke="white" strokeWidth="0.6" />
+        <circle
+          cx={origin.x}
+          cy={origin.y}
+          r="2"
+          fill="oklch(0.7 0.17 155)"
+          stroke="white"
+          strokeWidth="0.6"
+        />
         {/* Destination */}
-        <circle cx={destination.x} cy={destination.y} r="2" fill="oklch(0.65 0.22 25)" stroke="white" strokeWidth="0.6" />
+        <circle
+          cx={destination.x}
+          cy={destination.y}
+          r="2"
+          fill="oklch(0.65 0.22 25)"
+          stroke="white"
+          strokeWidth="0.6"
+        />
       </svg>
 
       {/* Animated vehicle (HTML for crisp icon) */}
@@ -90,20 +135,34 @@ export function LiveMap({
       {/* Origin/dest labels */}
       <div className="absolute" style={{ left: `${origin.x}%`, top: `${origin.y}%` }}>
         <div className="-translate-x-1/2 -translate-y-[140%] glass-strong rounded-md px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
-          <MapPin className="inline h-3 w-3 mr-0.5 text-primary" />{origin.label}
+          <MapPin className="inline h-3 w-3 mr-0.5 text-primary" />
+          {origin.label}
         </div>
       </div>
       <div className="absolute" style={{ left: `${destination.x}%`, top: `${destination.y}%` }}>
         <div className="-translate-x-1/2 -translate-y-[140%] glass-strong rounded-md px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
-          <MapPin className="inline h-3 w-3 mr-0.5 text-rose-500" />{destination.label}
+          <MapPin className="inline h-3 w-3 mr-0.5 text-rose-500" />
+          {destination.label}
         </div>
       </div>
 
       {/* Controls */}
       <div className="absolute right-3 top-3 flex flex-col gap-1">
-        <button onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))} className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Plus className="h-3.5 w-3.5" /></button>
-        <button onClick={() => setZoom((z) => Math.max(0.8, z - 0.1))} className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Minus className="h-3.5 w-3.5" /></button>
-        <button className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"><Navigation2 className="h-3.5 w-3.5 text-primary" /></button>
+        <button
+          onClick={() => setZoom((z) => Math.min(1.6, z + 0.1))}
+          className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(0.8, z - 0.1))}
+          className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <button className="h-8 w-8 grid place-items-center glass-strong rounded-lg hover:bg-accent">
+          <Navigation2 className="h-3.5 w-3.5 text-primary" />
+        </button>
       </div>
 
       {/* Bottom driver chip */}

@@ -11,7 +11,12 @@ export const Route = createFileRoute("/blog/$slug")({
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
-      return { meta: [{ title: "Article introuvable — Diambar Agro" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [
+          { title: "Article introuvable — Diambar Agro" },
+          { name: "robots", content: "noindex" },
+        ],
+      };
     }
     const { post } = loaderData;
     return {
@@ -36,8 +41,15 @@ function PostNotFound() {
     <PublicShell>
       <div className="mx-auto max-w-2xl px-4 py-24 text-center">
         <h1 className="font-display text-3xl font-bold">Article introuvable</h1>
-        <p className="mt-3 text-muted-foreground">Cet article a peut-être été déplacé ou supprimé.</p>
-        <Link to="/blog" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">Retour au blog</Link>
+        <p className="mt-3 text-muted-foreground">
+          Cet article a peut-être été déplacé ou supprimé.
+        </p>
+        <Link
+          to="/blog"
+          className="mt-6 inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          Retour au blog
+        </Link>
       </div>
     </PublicShell>
   );
@@ -49,23 +61,47 @@ function BlogPost() {
   return (
     <PublicShell>
       <article className="mx-auto max-w-3xl px-4 py-10">
-        <Link to="/blog" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition">
+        <Link
+          to="/blog"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition"
+        >
           <ArrowLeft className="h-4 w-4" /> Tous les articles
         </Link>
-        <span className="mt-6 inline-block rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500">{post.category}</span>
-        <h1 className="mt-3 font-display text-3xl lg:text-5xl font-bold leading-tight">{post.title}</h1>
+        <span className="mt-6 inline-block rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500">
+          {post.category}
+        </span>
+        <h1 className="mt-3 font-display text-3xl lg:text-5xl font-bold leading-tight">
+          {post.title}
+        </h1>
         <div className="mt-5 flex items-center gap-3 text-sm text-muted-foreground">
-          <img src={post.authorAvatar} alt="" loading="lazy" className="h-9 w-9 rounded-full object-cover" />
+          <img
+            src={post.authorAvatar}
+            alt=""
+            loading="lazy"
+            className="h-9 w-9 rounded-full object-cover"
+          />
           <span>{post.author}</span>
           <span>·</span>
-          <time dateTime={post.date}>{new Date(post.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</time>
+          <time dateTime={post.date}>
+            {new Date(post.date).toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </time>
           <span>·</span>
           <span>{post.readMinutes} min de lecture</span>
         </div>
-        <img src={post.cover} alt={post.title} className="mt-8 w-full rounded-3xl object-cover aspect-[16/9]" />
+        <img
+          src={post.cover}
+          alt={post.title}
+          className="mt-8 w-full rounded-3xl object-cover aspect-[16/9]"
+        />
         <div className="mt-8 space-y-5">
           {post.body.map((p: string, i: number) => (
-            <p key={i} className="text-base leading-relaxed text-muted-foreground">{p}</p>
+            <p key={i} className="text-base leading-relaxed text-muted-foreground">
+              {p}
+            </p>
           ))}
         </div>
       </article>
@@ -74,8 +110,18 @@ function BlogPost() {
           <h2 className="font-display text-2xl font-bold">À lire ensuite</h2>
           <div className="mt-6 grid md:grid-cols-3 gap-5">
             {related.map((p) => (
-              <Link key={p.slug} to="/blog/$slug" params={{ slug: p.slug }} className="glass rounded-3xl overflow-hidden hover:scale-[1.02] transition-all">
-                <img src={p.cover} alt={p.title} loading="lazy" className="h-36 w-full object-cover" />
+              <Link
+                key={p.slug}
+                to="/blog/$slug"
+                params={{ slug: p.slug }}
+                className="glass rounded-3xl overflow-hidden hover:scale-[1.02] transition-all"
+              >
+                <img
+                  src={p.cover}
+                  alt={p.title}
+                  loading="lazy"
+                  className="h-36 w-full object-cover"
+                />
                 <div className="p-5">
                   <h3 className="font-semibold text-sm leading-snug">{p.title}</h3>
                   <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{p.excerpt}</p>

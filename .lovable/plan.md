@@ -87,7 +87,6 @@ Créer les briques réutilisées partout **avant** de toucher aux pages.
 
 ## Phase 4 — Décisions d'audit Agriculteur
 
-
 | Page          | Changement                                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------------------------- |
 | Dashboard     | Period selector (7j/30j/90j) + delta % vs période précédente sur chaque KPI                                 |
@@ -100,7 +99,6 @@ Créer les briques réutilisées partout **avant** de toucher aux pages.
 | Notifications | Voir Phase 2                                                                                                |
 | Settings      | Éclater en 6 sous-routes : `settings.profile`, `.farm`, `.payments`, `.notifications`, `.security`, `.team` |
 
-
 **Onboarding**
 
 - `farmer.dashboard` : checklist "Complétez votre profil (3/7)" persistée localStorage, dismissible.
@@ -108,7 +106,6 @@ Créer les briques réutilisées partout **avant** de toucher aux pages.
 ---
 
 ## Phase 5 — Décisions d'audit Restaurant
-
 
 | Page           | Changement                                                                                      |
 | -------------- | ----------------------------------------------------------------------------------------------- |
@@ -123,7 +120,6 @@ Créer les briques réutilisées partout **avant** de toucher aux pages.
 | Factures       | Relance auto impayées (badge + CTA) + filtre période fiscale (T1/T2/T3/T4/Année)                |
 | Messages       | Vraie route `$conversationId` (idem farmer)                                                     |
 | Settings       | Éclater en sous-routes + gestion équipe/rôles (`settings.team` avec invite mock)                |
-
 
 **Onboarding**
 

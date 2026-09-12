@@ -24,12 +24,19 @@ export function EmptyState({
         {icon ?? <Inbox className="h-7 w-7" />}
       </div>
       <h3 className="mt-4 font-semibold">{title}</h3>
-      {description && <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">{description}</p>}
+      {description && (
+        <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">{description}</p>
+      )}
       {(action || docHref) && (
         <div className="mt-4 flex items-center justify-center gap-3">
           {action}
           {docHref && (
-            <a href={docHref} target="_blank" rel="noreferrer" className="text-xs text-primary underline underline-offset-4">
+            <a
+              href={docHref}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-primary underline underline-offset-4"
+            >
               {docLabel}
             </a>
           )}

@@ -26,21 +26,30 @@ if (typeof window !== "undefined") {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) state = { ...initial, ...(JSON.parse(raw) as BudgetState) };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 const listeners = new Set<Listener>();
 function set(next: (p: BudgetState) => BudgetState) {
   state = next(state);
   if (typeof window !== "undefined") {
-    try { window.localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
   }
   listeners.forEach((l) => l());
 }
 
 export function useBudget() {
   return useSyncExternalStore(
-    (l) => { listeners.add(l); return () => listeners.delete(l); },
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
     () => state,
     () => state,
   );
@@ -48,9 +57,15 @@ export function useBudget() {
 
 export const budgetActions = {
   setMonthly: (v: number) => set((s) => ({ ...s, monthly: Math.max(0, v) })),
-  setThreshold: (v: number) => set((s) => ({ ...s, alertThreshold: Math.min(100, Math.max(10, v)) })),
+  setThreshold: (v: number) =>
+    set((s) => ({ ...s, alertThreshold: Math.min(100, Math.max(10, v)) })),
   setCategory: (key: string, allocated: number) =>
-    set((s) => ({ ...s, categories: s.categories.map((c) => (c.key === key ? { ...c, allocated: Math.max(0, allocated) } : c)) })),
+    set((s) => ({
+      ...s,
+      categories: s.categories.map((c) =>
+        c.key === key ? { ...c, allocated: Math.max(0, allocated) } : c,
+      ),
+    })),
   reset: () => set(() => initial),
 };
 

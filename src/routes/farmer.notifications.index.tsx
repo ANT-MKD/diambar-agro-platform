@@ -7,13 +7,23 @@ export const Route = createFileRoute("/farmer/notifications/")({
   head: () => ({
     meta: [
       { title: "Notifications · Diambar Agro" },
-      { name: "description", content: "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal." },
+      {
+        name: "description",
+        content:
+          "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal.",
+      },
     ],
   }),
   component: NotificationsPage,
 });
 
-const TYPES = [{ key: "order", label: "Commandes" }, { key: "payment", label: "Paiements" }, { key: "stock", label: "Stock" }, { key: "message", label: "Messages" }, { key: "system", label: "Système" }];
+const TYPES = [
+  { key: "order", label: "Commandes" },
+  { key: "payment", label: "Paiements" },
+  { key: "stock", label: "Stock" },
+  { key: "message", label: "Messages" },
+  { key: "system", label: "Système" },
+];
 
 function NotificationsPage() {
   const items = useFarmerNotifications();

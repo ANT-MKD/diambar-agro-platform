@@ -15,7 +15,11 @@ export const farmerSettingsNav: SettingsNavItem[] = [
 
 function SettingsLayout() {
   return (
-    <SettingsShell title="Paramètres" subtitle="Gérez votre compte et votre exploitation" items={farmerSettingsNav}>
+    <SettingsShell
+      title="Paramètres"
+      subtitle="Gérez votre compte et votre exploitation"
+      items={farmerSettingsNav}
+    >
       <Outlet />
     </SettingsShell>
   );
