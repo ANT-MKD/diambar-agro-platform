@@ -18,6 +18,7 @@ import {
   PiggyBank,
   RotateCcw,
   Star,
+  LifeBuoy,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -52,7 +53,13 @@ const navSections = [
       { to: "/restaurant/notifications", label: "Notifications", icon: Bell },
     ],
   },
-  { label: "COMPTE", items: [{ to: "/restaurant/settings", label: "Paramètres", icon: Settings }] },
+  {
+    label: "COMPTE",
+    items: [
+      { to: "/restaurant/support", label: "Support", icon: LifeBuoy },
+      { to: "/restaurant/settings", label: "Paramètres", icon: Settings },
+    ],
+  },
 ] as const;
 
 const bottomNav = [

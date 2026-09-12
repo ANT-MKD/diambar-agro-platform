@@ -15,6 +15,7 @@ import {
   Search,
   Bell,
   Undo2,
+  LifeBuoy,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -23,6 +24,7 @@ import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { useDisputes, useValidations } from "@/data/admin-store";
+import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/admin")({
@@ -36,10 +38,12 @@ function AdminLayout() {
   const [open, setOpen] = useState(false);
   const validations = useValidations();
   const disputes = useDisputes();
+  const supportTickets = useSupportTickets();
   const pendingValidations = validations.filter((v) => v.status === "pending").length;
   const openDisputes = disputes.filter(
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
+  const openTickets = supportTickets.filter((t) => t.status === "open").length;
 
   const navSections = [
     {
@@ -61,6 +65,7 @@ function AdminLayout() {
       items: [
         { to: "/admin/orders", label: "Commandes", icon: ShoppingBag, badge: 0 },
         { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
+        { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
         { to: "/admin/refunds", label: "Remboursements", icon: Undo2, badge: 0 },
       ],

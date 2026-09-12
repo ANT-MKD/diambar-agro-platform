@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
+import { PromoCodeField } from "@/components/restaurant/promo-code-field";
 import { useCart, useProducts, cartActions, restaurantOrderActions } from "@/data/store";
 import { farmers, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
@@ -40,7 +41,9 @@ function Checkout() {
     .filter((l) => l.product);
   const subtotal = lines.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0);
   const delivery = Math.round(subtotal * 0.03);
-  const total = subtotal + delivery;
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const total = Math.max(0, subtotal + delivery - promoDiscount);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderIds, setOrderIds] = useState<string[]>([]);
@@ -51,6 +54,7 @@ function Checkout() {
     count: number;
     subtotal: number;
     delivery: number;
+    discount: number;
     total: number;
   } | null>(null);
   const [address, setAddress] = useState("Le Baobab, Dakar Plateau");
@@ -88,15 +92,18 @@ function Checkout() {
 
   const confirm = () => {
     const created: string[] = [];
-    farmerGroups.forEach((f) => {
+    farmerGroups.forEach((f, idx) => {
       const items = lines
         .filter((l) => l.product.farmerId === f.id)
         .map((l) => ({ productId: l.productId, qty: l.qty, price: l.product.pricePerKg }));
       const fSubtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
+      // Une remise ne se répartit pas naturellement entre plusieurs
+      // producteurs : on l'impute simplement à la première commande créée.
+      const fTotal = idx === 0 ? Math.max(0, fSubtotal - promoDiscount) : fSubtotal;
       const id = restaurantOrderActions.create({
         farmerId: f.id,
         items,
-        total: fSubtotal,
+        total: fTotal,
         deliveryAddress: address,
         paymentMethod: method,
         eta: "24h",
@@ -104,7 +111,13 @@ function Checkout() {
       created.push(id);
     });
     setOrderIds(created);
-    setConfirmedSummary({ count: farmerGroups.length, subtotal, delivery, total });
+    setConfirmedSummary({
+      count: farmerGroups.length,
+      subtotal,
+      delivery,
+      discount: promoDiscount,
+      total,
+    });
     cartActions.clear();
     toast.success("Commande passée avec succès");
     setStep(3);
@@ -248,6 +261,20 @@ function Checkout() {
               </div>
             ))}
           </div>
+          {step !== 3 && (
+            <PromoCodeField
+              subtotal={subtotal}
+              deliveryFee={delivery}
+              appliedCode={promoCode}
+              discount={promoDiscount}
+              onApply={(code, amount) => {
+                setPromoCode(code);
+                setPromoDiscount(amount);
+              }}
+              className="border-t border-border pt-3"
+            />
+          )}
+
           <div className="border-t border-border pt-2 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sous-total</span>
@@ -257,6 +284,12 @@ function Checkout() {
               <span className="text-muted-foreground">Livraison</span>
               <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
             </div>
+            {(confirmedSummary?.discount ?? promoDiscount) > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span>Remise{!confirmedSummary && promoCode ? ` (${promoCode})` : ""}</span>
+                <span>−{formatFCFA(confirmedSummary?.discount ?? promoDiscount)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-lg pt-1">
               <span>Total</span>
               <span className="text-primary">{formatFCFA(confirmedSummary?.total ?? total)}</span>

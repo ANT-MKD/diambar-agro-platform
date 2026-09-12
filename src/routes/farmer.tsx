@@ -15,6 +15,7 @@ import {
   Search,
   Scale,
   RotateCcw,
+  LifeBuoy,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -48,7 +49,10 @@ const navSections = [
   },
   {
     label: "COMPTE",
-    items: [{ to: "/farmer/settings", label: "Paramètres", icon: Settings }],
+    items: [
+      { to: "/farmer/support", label: "Support", icon: LifeBuoy },
+      { to: "/farmer/settings", label: "Paramètres", icon: Settings },
+    ],
   },
 ] as const;
 

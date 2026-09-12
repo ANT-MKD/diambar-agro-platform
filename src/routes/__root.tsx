@@ -10,6 +10,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+import { CookieConsentBanner } from "@/components/common/cookie-consent-banner";
 
 import appCss from "../styles.css?url";
 
@@ -121,6 +122,7 @@ function RootComponent() {
         <ImpersonationBanner />
         <Outlet />
         <Toaster richColors position="top-right" />
+        <CookieConsentBanner />
       </ThemeProvider>
     </QueryClientProvider>
   );
