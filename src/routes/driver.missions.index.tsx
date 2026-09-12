@@ -4,7 +4,7 @@ import { Truck, MapPin, Clock, Package, Search, Zap, Filter, Check, X } from "lu
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { useMissions, missionActions, driverNotifActions } from "@/data/store";
+import { useMissions, missionActions } from "@/data/store";
 import { restaurants, farmers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -61,11 +61,6 @@ function MissionsPage() {
 
   const accept = (id: string, ref: string) => {
     missionActions.accept(id);
-    driverNotifActions.add({
-      type: "order",
-      title: "Mission acceptée",
-      body: `${ref} ajoutée à vos missions en cours`,
-    });
     toast.success(`Mission ${ref} acceptée`);
   };
   const refuse = (id: string, ref: string) => {

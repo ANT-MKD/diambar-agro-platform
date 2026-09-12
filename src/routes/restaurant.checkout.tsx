@@ -44,6 +44,15 @@ function Checkout() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderIds, setOrderIds] = useState<string[]>([]);
+  // Le panier est vidé après confirmation, ce qui remettrait sous-total/total/
+  // nombre de commandes à zéro à l'étape 3 si on continuait à lire les valeurs
+  // dérivées du panier live : on fige donc le récapitulatif au moment de payer.
+  const [confirmedSummary, setConfirmedSummary] = useState<{
+    count: number;
+    subtotal: number;
+    delivery: number;
+    total: number;
+  } | null>(null);
   const [address, setAddress] = useState("Le Baobab, Dakar Plateau");
   const [slot, setSlot] = useState("Demain · 08:00 – 10:00");
   const [method, setMethod] = useState<PaymentMethod>("Wave");
@@ -95,6 +104,7 @@ function Checkout() {
       created.push(id);
     });
     setOrderIds(created);
+    setConfirmedSummary({ count: farmerGroups.length, subtotal, delivery, total });
     cartActions.clear();
     toast.success("Commande passée avec succès");
     setStep(3);
@@ -199,8 +209,8 @@ function Checkout() {
               </div>
               <h3 className="font-display text-2xl font-bold">Commande confirmée 🎉</h3>
               <p className="text-sm text-muted-foreground">
-                {farmerGroups.length} commande(s) envoyée(s) à vos producteurs. Vous recevrez une
-                notification de confirmation.
+                {confirmedSummary?.count ?? farmerGroups.length} commande(s) envoyée(s) à vos
+                producteurs. Vous recevrez une notification de confirmation.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {orderIds[0] && (
@@ -241,15 +251,15 @@ function Checkout() {
           <div className="border-t border-border pt-2 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sous-total</span>
-              <span>{formatFCFA(subtotal)}</span>
+              <span>{formatFCFA(confirmedSummary?.subtotal ?? subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Livraison</span>
-              <span>{formatFCFA(delivery)}</span>
+              <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg pt-1">
               <span>Total</span>
-              <span className="text-primary">{formatFCFA(total)}</span>
+              <span className="text-primary">{formatFCFA(confirmedSummary?.total ?? total)}</span>
             </div>
           </div>
 

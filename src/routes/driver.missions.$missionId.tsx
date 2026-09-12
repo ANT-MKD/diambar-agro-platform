@@ -19,7 +19,7 @@ import {
   Building2,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useMission, missionActions, driverNotifActions } from "@/data/store";
+import { useMission, missionActions } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
@@ -80,11 +80,6 @@ function MissionDetail() {
 
   const accept = () => {
     missionActions.accept(mission.id);
-    driverNotifActions.add({
-      type: "order",
-      title: "Mission acceptée",
-      body: `${mission.reference} · pickup ${new Date(mission.scheduledFor).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
-    });
     toast.success("Mission acceptée");
   };
   const startPickup = () => {
@@ -97,11 +92,6 @@ function MissionDetail() {
   };
   const markDelivered = () => {
     missionActions.setStatus(mission.id, "delivered");
-    driverNotifActions.add({
-      type: "payment",
-      title: "Paiement programmé",
-      body: `Wave · +${formatFCFA(mission.payout)} (${mission.reference})`,
-    });
     toast.success("Livraison confirmée · paiement en cours");
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);

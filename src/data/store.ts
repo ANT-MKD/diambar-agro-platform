@@ -31,6 +31,7 @@ import {
   type DriverTx,
   type PaymentMethod as PayMethod,
 } from "./mocks";
+import { formatFCFA } from "@/lib/format";
 
 type Listener = () => void;
 
@@ -280,12 +281,47 @@ export const driverNotifActions = makeNotifActions(driverNotifsStore);
 
 export const missionActions = {
   setStatus: (id: string, status: MissionStatus) => {
-    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status } : m)));
+    let updated: Mission | undefined;
+    missionsStore.set((arr) =>
+      arr.map((m) => {
+        if (m.id !== id) return m;
+        updated = { ...m, status };
+        return updated;
+      }),
+    );
+    if (!updated) return;
+
+    if (status === "loaded") {
+      driverNotifActions.add({
+        type: "order",
+        title: "Marchandise récupérée",
+        body: `${updated.reference} · en route vers le restaurant`,
+      });
+    }
+    if (status === "delivered") {
+      driverNotifActions.add({
+        type: "payment",
+        title: "Paiement programmé",
+        body: `Wave · +${formatFCFA(updated.payout)} (${updated.reference})`,
+      });
+      // Ferme la boucle : la commande liée (agriculteur -> restaurant) passe
+      // aussi en "livrée", avec ses propres notifications en cascade.
+      const order = ordersStore.get().find((o) => o.reference === updated!.orderRef);
+      if (order) orderActions.setStatus(order.id, "delivered");
+    }
   },
   accept: (id: string, driverId = "d1") => {
     missionsStore.set((arr) =>
       arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)),
     );
+    const mission = missionsStore.get().find((m) => m.id === id);
+    if (mission) {
+      driverNotifActions.add({
+        type: "order",
+        title: "Mission acceptée",
+        body: `${mission.reference} ajoutée à vos missions en cours`,
+      });
+    }
   },
   cancel: (id: string) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
@@ -352,21 +388,57 @@ export const supplierActions = {
 };
 
 export const restaurantOrderActions = {
+  /** Passe commande auprès d'un agriculteur : crée aussi la commande côté
+   * agriculteur (même référence), déduit le stock, et notifie l'agriculteur.
+   * Sans ce pont, la commande restait invisible côté producteur. */
   create: (o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status">) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
-    const next: RestaurantOrder = {
-      ...o,
-      id,
-      reference,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    const createdAt = new Date().toISOString();
+    const next: RestaurantOrder = { ...o, id, reference, status: "pending", createdAt };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
+
+    orderActions.create({
+      reference,
+      restaurantId: "r1",
+      farmerId: o.farmerId,
+      items: o.items.map(({ productId, qty, price }) => ({ productId, qty, price })),
+      total: o.total,
+      status: "pending",
+      createdAt,
+    });
+    o.items.forEach((line) => productActions.adjustStock(line.productId, -line.qty));
+    farmerNotifActions.add({
+      type: "order",
+      title: "Nouvelle commande",
+      body: `${reference} — ${formatFCFA(o.total)}`,
+    });
+
     return id;
   },
   setStatus: (id: string, status: OrderStatus) => {
-    restaurantOrdersStore.set((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
+    let updated: RestaurantOrder | undefined;
+    restaurantOrdersStore.set((arr) =>
+      arr.map((o) => {
+        if (o.id !== id) return o;
+        updated = { ...o, status };
+        return updated;
+      }),
+    );
+    if (!updated) return;
+
+    // Répercute côté agriculteur sans repasser par orderActions.setStatus
+    // (qui propagerait dans l'autre sens et boucler à l'infini).
+    ordersStore.set((arr) =>
+      arr.map((o) => (o.reference === updated!.reference ? { ...o, status } : o)),
+    );
+    if (status === "cancelled") {
+      farmerNotifActions.add({
+        type: "order",
+        title: "Commande annulée",
+        body: `${updated.reference} a été annulée par le restaurant`,
+      });
+    }
   },
 };
 
@@ -404,9 +476,42 @@ export const productActions = {
   },
 };
 
+const RESTAURANT_STATUS_NOTIF: Partial<
+  Record<OrderStatus, { title: string; body: (ref: string) => string }>
+> = {
+  confirmed: {
+    title: "Commande confirmée",
+    body: (ref) => `${ref} est confirmée par le producteur`,
+  },
+  delivering: { title: "Livraison en route", body: (ref) => `${ref} est en cours de livraison` },
+  delivered: { title: "Commande livrée", body: (ref) => `${ref} a été livrée` },
+  cancelled: { title: "Commande annulée", body: (ref) => `${ref} a été annulée par le producteur` },
+};
+
 export const orderActions = {
   setStatus: (id: string, status: OrderStatus) => {
-    ordersStore.set((arr) => arr.map((o) => (o.id === id ? { ...o, status } : o)));
+    let updated: Order | undefined;
+    ordersStore.set((arr) =>
+      arr.map((o) => {
+        if (o.id !== id) return o;
+        updated = { ...o, status };
+        return updated;
+      }),
+    );
+    if (!updated) return;
+
+    // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
+    restaurantOrdersStore.set((arr) =>
+      arr.map((o) => (o.reference === updated!.reference ? { ...o, status } : o)),
+    );
+    const notif = RESTAURANT_STATUS_NOTIF[status];
+    if (notif) {
+      restaurantNotifActions.add({
+        type: "order",
+        title: notif.title,
+        body: notif.body(updated.reference),
+      });
+    }
   },
   create: (o: Omit<Order, "id">) => {
     const id = `o${Date.now()}`;
