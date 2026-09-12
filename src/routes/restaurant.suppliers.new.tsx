@@ -18,7 +18,14 @@ function NewSupplier() {
       <PageHeader
         title="Nouveau fournisseur"
         subtitle="Ajoutez un producteur à votre carnet"
-        actions={<Button asChild variant="outline" className="gap-2"><Link to="/restaurant/suppliers"><ArrowLeft className="h-4 w-4" />Retour</Link></Button>}
+        actions={
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/restaurant/suppliers">
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Link>
+          </Button>
+        }
       />
       <SupplierForm
         submitLabel="Créer le fournisseur"

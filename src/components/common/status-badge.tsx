@@ -61,7 +61,9 @@ export function StatusBadge({
     tone = PAYMENT_TONES[status];
   }
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone} ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone} ${className}`}
+    >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {label}
     </span>

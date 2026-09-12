@@ -28,7 +28,9 @@ const LABELS: Record<string, string> = {
 export function AdminBadge({ value, label }: { value: string; label?: string }) {
   const tone = MAP[value] ?? "bg-muted text-muted-foreground border-border";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone}`}
+    >
       {label ?? LABELS[value] ?? value}
     </span>
   );
@@ -41,9 +43,16 @@ export function RoleBadge({ role }: { role: string }) {
     driver: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
     admin: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
   };
-  const labels: Record<string, string> = { farmer: "Agriculteur", restaurant: "Restaurant", driver: "Livreur", admin: "Admin" };
+  const labels: Record<string, string> = {
+    farmer: "Agriculteur",
+    restaurant: "Restaurant",
+    driver: "Livreur",
+    admin: "Admin",
+  };
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${map[role] ?? "border-border"}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${map[role] ?? "border-border"}`}
+    >
       {labels[role] ?? role}
     </span>
   );

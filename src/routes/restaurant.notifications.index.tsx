@@ -7,13 +7,23 @@ export const Route = createFileRoute("/restaurant/notifications/")({
   head: () => ({
     meta: [
       { title: "Notifications · Restaurant" },
-      { name: "description", content: "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal." },
+      {
+        name: "description",
+        content:
+          "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal.",
+      },
     ],
   }),
   component: NotificationsPage,
 });
 
-const TYPES = [{ key: "order", label: "Commandes" }, { key: "payment", label: "Factures" }, { key: "stock", label: "Disponibilités" }, { key: "message", label: "Messages" }, { key: "system", label: "Système" }];
+const TYPES = [
+  { key: "order", label: "Commandes" },
+  { key: "payment", label: "Factures" },
+  { key: "stock", label: "Disponibilités" },
+  { key: "message", label: "Messages" },
+  { key: "system", label: "Système" },
+];
 
 function NotificationsPage() {
   const items = useRestaurantNotifications();

@@ -11,7 +11,15 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PageHero({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle?: string }) {
+export function PageHero({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+}) {
   return (
     <section className="py-14">
       <div className="mx-auto max-w-4xl px-4 text-center">

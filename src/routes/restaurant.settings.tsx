@@ -2,7 +2,9 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { User, Building2, CreditCard, Bell, Shield, Users } from "lucide-react";
 import { SettingsShell, type SettingsNavItem } from "@/components/common/settings-shell";
 
-export const Route = createFileRoute("/restaurant/settings")({ component: RestaurantSettingsLayout });
+export const Route = createFileRoute("/restaurant/settings")({
+  component: RestaurantSettingsLayout,
+});
 
 const nav: SettingsNavItem[] = [
   { to: "/restaurant/settings/profile", label: "Profil", icon: User },

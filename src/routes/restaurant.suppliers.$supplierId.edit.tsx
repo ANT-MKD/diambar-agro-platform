@@ -15,14 +15,26 @@ function EditSupplier() {
   const nav = useNavigate();
   const { supplierId } = Route.useParams();
   const s = useSupplier(supplierId);
-  if (!s) return <div className="glass rounded-2xl p-12 text-center text-muted-foreground">Fournisseur introuvable</div>;
+  if (!s)
+    return (
+      <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
+        Fournisseur introuvable
+      </div>
+    );
 
   return (
     <div className="space-y-6 max-w-3xl">
       <PageHeader
         title={`Modifier ${s.name}`}
         subtitle="Mettez à jour les informations du fournisseur"
-        actions={<Button asChild variant="outline" className="gap-2"><Link to="/restaurant/suppliers/$supplierId" params={{ supplierId }}><ArrowLeft className="h-4 w-4" />Retour</Link></Button>}
+        actions={
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/restaurant/suppliers/$supplierId" params={{ supplierId }}>
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </Link>
+          </Button>
+        }
       />
       <SupplierForm
         initial={s}

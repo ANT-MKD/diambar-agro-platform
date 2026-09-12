@@ -14,7 +14,10 @@ export const Route = createFileRoute("/restaurant/messages/$conversationId")({
       { title: "Conversation · Messages restaurant · Diambar Agro" },
       { name: "description", content: "Discutez en direct avec vos producteurs partenaires." },
       { property: "og:title", content: "Conversation · Messages restaurant" },
-      { property: "og:description", content: "Discutez en direct avec vos producteurs partenaires." },
+      {
+        property: "og:description",
+        content: "Discutez en direct avec vos producteurs partenaires.",
+      },
     ],
   }),
   component: RestaurantConversation,
@@ -37,7 +40,11 @@ function RestaurantConversation() {
           icon={MessageSquare}
           title="Conversation introuvable"
           description="Cette conversation n'existe plus."
-          action={<Button onClick={() => navigate({ to: "/restaurant/messages" })}>Retour aux messages</Button>}
+          action={
+            <Button onClick={() => navigate({ to: "/restaurant/messages" })}>
+              Retour aux messages
+            </Button>
+          }
         />
       </div>
     );
@@ -53,7 +60,10 @@ function RestaurantConversation() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/restaurant/messages" className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-accent">
+        <Link
+          to="/restaurant/messages"
+          className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-accent"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <PageHeader title={farmer.farm} subtitle={`${farmer.city} · Producteur vérifié`} />
@@ -61,32 +71,66 @@ function RestaurantConversation() {
 
       <div className="glass rounded-2xl overflow-hidden flex flex-col h-[640px]">
         <div className="p-4 border-b border-border flex items-center gap-3">
-          <img src={farmer.avatar} alt={`Photo du producteur ${farmer.farm}`} className="h-10 w-10 rounded-full object-cover" />
+          <img
+            src={farmer.avatar}
+            alt={`Photo du producteur ${farmer.farm}`}
+            className="h-10 w-10 rounded-full object-cover"
+          />
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate">{farmer.farm}</div>
-            <div className="text-xs text-muted-foreground">En ligne · répond en général en 15 min</div>
+            <div className="text-xs text-muted-foreground">
+              En ligne · répond en général en 15 min
+            </div>
           </div>
-          <Button variant="outline" size="icon"><Phone className="h-4 w-4" /></Button>
-          <Link to="/restaurant/marketplace"><Button variant="outline" size="sm">Voir ses produits</Button></Link>
+          <Button variant="outline" size="icon">
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Link to="/restaurant/marketplace">
+            <Button variant="outline" size="sm">
+              Voir ses produits
+            </Button>
+          </Link>
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
           {conv.messages.map((m) => (
             <div key={m.id} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${m.from === "me" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border border-border rounded-bl-sm"}`}>
+              <div
+                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${m.from === "me" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border border-border rounded-bl-sm"}`}
+              >
                 <div>{m.text}</div>
-                <div className={`text-[10px] mt-1 ${m.from === "me" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {new Date(m.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                <div
+                  className={`text-[10px] mt-1 ${m.from === "me" ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                >
+                  {new Date(m.at).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); send(); }} className="p-3 border-t border-border flex gap-2">
-          <Button type="button" size="icon" variant="outline"><Paperclip className="h-4 w-4" /></Button>
-          <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Écrire un message…" className="flex-1" />
-          <Button type="submit" size="icon" disabled={!draft.trim()}><Send className="h-4 w-4" /></Button>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+          className="p-3 border-t border-border flex gap-2"
+        >
+          <Button type="button" size="icon" variant="outline">
+            <Paperclip className="h-4 w-4" />
+          </Button>
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Écrire un message…"
+            className="flex-1"
+          />
+          <Button type="submit" size="icon" disabled={!draft.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
         </form>
       </div>
     </div>

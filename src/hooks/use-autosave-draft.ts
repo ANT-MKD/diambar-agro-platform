@@ -10,7 +10,7 @@ export function useAutosaveDraft<T>(key: string, initial: T): [T, (v: T) => void
     if (typeof window === "undefined") return initial;
     try {
       const raw = window.localStorage.getItem(storageKey);
-      return raw ? { ...(initial as object), ...(JSON.parse(raw) as object) } as T : initial;
+      return raw ? ({ ...(initial as object), ...(JSON.parse(raw) as object) } as T) : initial;
     } catch {
       return initial;
     }

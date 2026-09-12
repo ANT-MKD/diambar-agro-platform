@@ -26,13 +26,24 @@ export function OrderCard({ order, compact = false }: { order: Order; compact?: 
         <div className="mt-3 text-xs text-muted-foreground line-clamp-2">
           {order.items.map((it, i) => {
             const p = products.find((x) => x.id === it.productId);
-            return <span key={i}>{i > 0 ? " · " : ""}{p?.name} ×{it.qty}{p?.unit}</span>;
+            return (
+              <span key={i}>
+                {i > 0 ? " · " : ""}
+                {p?.name} ×{it.qty}
+                {p?.unit}
+              </span>
+            );
           })}
         </div>
       )}
       <div className="mt-3 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />{relativeTime(order.createdAt)}</span>
-        <span className="font-display text-base font-bold text-primary">{formatFCFA(order.total)}</span>
+        <span className="text-muted-foreground flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {relativeTime(order.createdAt)}
+        </span>
+        <span className="font-display text-base font-bold text-primary">
+          {formatFCFA(order.total)}
+        </span>
       </div>
     </Link>
   );

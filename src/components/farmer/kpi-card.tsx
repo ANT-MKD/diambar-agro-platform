@@ -1,6 +1,18 @@
 import type { LucideIcon } from "lucide-react";
 
-export function KpiCard({ icon: Icon, label, value, change, tone = "emerald" }: { icon: LucideIcon; label: string; value: string; change?: string; tone?: "emerald" | "amber" | "blue" | "violet" | "rose" }) {
+export function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  change,
+  tone = "emerald",
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  change?: string;
+  tone?: "emerald" | "amber" | "blue" | "violet" | "rose";
+}) {
   const toneClass: Record<string, string> = {
     emerald: "bg-emerald-500/10 text-emerald-500",
     amber: "bg-amber-500/10 text-amber-500",

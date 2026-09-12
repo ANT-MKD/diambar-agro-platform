@@ -16,13 +16,24 @@ export const Route = createFileRoute("/restaurant/cart")({
 function CartPage() {
   const cart = useCart();
   const products = useProducts();
-  const lines = cart.map((l) => ({ ...l, product: products.find((p) => p.id === l.productId)! })).filter((l) => l.product);
+  const lines = cart
+    .map((l) => ({ ...l, product: products.find((p) => p.id === l.productId)! }))
+    .filter((l) => l.product);
 
   if (lines.length === 0) {
     return (
       <div className="space-y-6">
         <PageHeader title="Mon panier" />
-        <EmptyState icon={ShoppingCart} title="Votre panier est vide" description="Parcourez la marketplace pour ajouter des produits." action={<Button asChild><Link to="/restaurant/marketplace">Explorer la marketplace</Link></Button>} />
+        <EmptyState
+          icon={ShoppingCart}
+          title="Votre panier est vide"
+          description="Parcourez la marketplace pour ajouter des produits."
+          action={
+            <Button asChild>
+              <Link to="/restaurant/marketplace">Explorer la marketplace</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -41,7 +52,12 @@ function CartPage() {
       <PageHeader
         title="Mon panier"
         subtitle={`${lines.length} article(s) · ${groups.length} producteur(s)`}
-        actions={<Button variant="outline" size="sm" onClick={() => cartActions.clear()} className="gap-1"><Trash2 className="h-4 w-4" />Vider</Button>}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => cartActions.clear()} className="gap-1">
+            <Trash2 className="h-4 w-4" />
+            Vider
+          </Button>
+        }
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -52,12 +68,18 @@ function CartPage() {
                 <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
                 <div className="flex-1">
                   <div className="font-semibold text-sm">{farmer.farm}</div>
-                  <div className="text-[11px] text-muted-foreground">{farmer.city} · Livraison estimée 24h</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {farmer.city} · Livraison estimée 24h
+                  </div>
                 </div>
-                <span className="text-xs font-semibold text-primary">{formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}</span>
+                <span className="text-xs font-semibold text-primary">
+                  {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}
+                </span>
               </div>
               <div className="space-y-2">
-                {items.map((l) => <CartItemRow key={l.productId} product={l.product} qty={l.qty} />)}
+                {items.map((l) => (
+                  <CartItemRow key={l.productId} product={l.product} qty={l.qty} />
+                ))}
               </div>
             </div>
           ))}
@@ -66,13 +88,28 @@ function CartPage() {
         <div className="glass rounded-2xl p-5 h-fit sticky top-20 space-y-3">
           <h3 className="font-display text-lg font-bold">Récapitulatif</h3>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span>{formatFCFA(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Frais de livraison</span><span>{formatFCFA(delivery)}</span></div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Sous-total</span>
+              <span>{formatFCFA(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Frais de livraison</span>
+              <span>{formatFCFA(delivery)}</span>
+            </div>
             <div className="border-t border-border my-2" />
-            <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-primary">{formatFCFA(total)}</span></div>
+            <div className="flex justify-between font-bold text-lg">
+              <span>Total</span>
+              <span className="text-primary">{formatFCFA(total)}</span>
+            </div>
           </div>
-          <Button asChild className="w-full h-11 gap-2 mt-2"><Link to="/restaurant/checkout">Passer la commande <ArrowRight className="h-4 w-4" /></Link></Button>
-          <p className="text-[11px] text-muted-foreground text-center">Paiement sécurisé via Wave, Orange Money, ou à la livraison.</p>
+          <Button asChild className="w-full h-11 gap-2 mt-2">
+            <Link to="/restaurant/checkout">
+              Passer la commande <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Paiement sécurisé via Wave, Orange Money, ou à la livraison.
+          </p>
         </div>
       </div>
     </div>

@@ -12,17 +12,35 @@ export const CHANNEL_DEFS = [
 
 export type ChannelKey = (typeof CHANNEL_DEFS)[number]["key"];
 export type EventDef = { key: string; label: string; description?: string };
-export type TriggerRule = { key: string; label: string; condition: string; channel: string; firedThisMonth: number };
+export type TriggerRule = {
+  key: string;
+  label: string;
+  condition: string;
+  channel: string;
+  firedThisMonth: number;
+};
 
 type Matrix = Record<string, Record<ChannelKey, boolean>>;
 
-export function buildMatrix(events: readonly EventDef[], defaults: Partial<Record<ChannelKey, boolean>> = {}): Matrix {
-  const base = { inapp: true, email: true, whatsapp: false, sms: false, ...defaults } as Record<ChannelKey, boolean>;
+export function buildMatrix(
+  events: readonly EventDef[],
+  defaults: Partial<Record<ChannelKey, boolean>> = {},
+): Matrix {
+  const base = { inapp: true, email: true, whatsapp: false, sms: false, ...defaults } as Record<
+    ChannelKey,
+    boolean
+  >;
   return Object.fromEntries(events.map((e) => [e.key, { ...base }])) as Matrix;
 }
 
 /** Matrice événements × canaux (in-app, email, WhatsApp, SMS). */
-export function ChannelMatrix({ events, initial }: { events: readonly EventDef[]; initial?: Matrix }) {
+export function ChannelMatrix({
+  events,
+  initial,
+}: {
+  events: readonly EventDef[];
+  initial?: Matrix;
+}) {
   const [matrix, setMatrix] = useState<Matrix>(initial ?? buildMatrix(events));
 
   const toggle = (evt: string, ch: ChannelKey) =>
@@ -30,7 +48,10 @@ export function ChannelMatrix({ events, initial }: { events: readonly EventDef[]
 
   const toggleColumn = (ch: ChannelKey) => {
     const allOn = events.every((e) => matrix[e.key]?.[ch]);
-    setMatrix((m) => Object.fromEntries(events.map((e) => [e.key, { ...m[e.key], [ch]: !allOn }])) as Matrix);
+    setMatrix(
+      (m) =>
+        Object.fromEntries(events.map((e) => [e.key, { ...m[e.key], [ch]: !allOn }])) as Matrix,
+    );
   };
 
   return (
@@ -38,7 +59,9 @@ export function ChannelMatrix({ events, initial }: { events: readonly EventDef[]
       <table className="w-full min-w-[520px] text-sm">
         <thead>
           <tr className="border-b border-border">
-            <th className="text-left py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Événement</th>
+            <th className="text-left py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Événement
+            </th>
             {CHANNEL_DEFS.map((c) => (
               <th key={c.key} className="py-2 w-24">
                 <button
@@ -58,7 +81,9 @@ export function ChannelMatrix({ events, initial }: { events: readonly EventDef[]
             <tr key={e.key} className="border-b border-border last:border-0">
               <td className="py-3 pr-3">
                 <div className="font-medium text-sm">{e.label}</div>
-                {e.description && <div className="text-xs text-muted-foreground">{e.description}</div>}
+                {e.description && (
+                  <div className="text-xs text-muted-foreground">{e.description}</div>
+                )}
               </td>
               {CHANNEL_DEFS.map((c) => (
                 <td key={c.key} className="py-3 text-center">
@@ -73,7 +98,13 @@ export function ChannelMatrix({ events, initial }: { events: readonly EventDef[]
                         : "border-border hover:bg-accent text-transparent"
                     }`}
                   >
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
                       <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
@@ -105,11 +136,17 @@ export function TriggerRules({ rules }: { rules: readonly TriggerRule[] }) {
           <div className="flex-1 min-w-0">
             <div className="font-medium text-sm">{r.label}</div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              <span className="font-mono">SI</span> {r.condition} <span className="font-mono">ALORS</span> {r.channel}
+              <span className="font-mono">SI</span> {r.condition}{" "}
+              <span className="font-mono">ALORS</span> {r.channel}
             </div>
-            <div className="text-[10px] text-muted-foreground/70 mt-1">Déclenchée {r.firedThisMonth} fois ce mois-ci</div>
+            <div className="text-[10px] text-muted-foreground/70 mt-1">
+              Déclenchée {r.firedThisMonth} fois ce mois-ci
+            </div>
           </div>
-          <Switch checked={enabled[r.key]} onCheckedChange={(v) => setEnabled({ ...enabled, [r.key]: v })} />
+          <Switch
+            checked={enabled[r.key]}
+            onCheckedChange={(v) => setEnabled({ ...enabled, [r.key]: v })}
+          />
         </div>
       ))}
 
@@ -119,7 +156,9 @@ export function TriggerRules({ rules }: { rules: readonly TriggerRule[] }) {
         </div>
         <div className="flex-1">
           <div className="font-medium text-sm">Heures calmes (22h – 06h)</div>
-          <div className="text-xs text-muted-foreground">Les alertes non critiques sont mises en file et envoyées le matin.</div>
+          <div className="text-xs text-muted-foreground">
+            Les alertes non critiques sont mises en file et envoyées le matin.
+          </div>
         </div>
         <Switch checked={quietHours} onCheckedChange={setQuietHours} />
       </div>
@@ -128,11 +167,20 @@ export function TriggerRules({ rules }: { rules: readonly TriggerRule[] }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="font-medium text-sm">Regroupement des alertes</div>
-            <div className="text-xs text-muted-foreground">Fusionne les notifications similaires sur une fenêtre glissante.</div>
+            <div className="text-xs text-muted-foreground">
+              Fusionne les notifications similaires sur une fenêtre glissante.
+            </div>
           </div>
           <span className="font-mono text-sm font-semibold text-primary">{digest[0]} min</span>
         </div>
-        <Slider className="mt-3" value={digest} onValueChange={setDigest} min={0} max={60} step={5} />
+        <Slider
+          className="mt-3"
+          value={digest}
+          onValueChange={setDigest}
+          min={0}
+          max={60}
+          step={5}
+        />
       </div>
     </div>
   );

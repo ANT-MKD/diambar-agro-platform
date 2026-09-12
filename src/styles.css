@@ -121,14 +121,21 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4, h5, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
@@ -155,8 +162,16 @@
   }
   .bg-grid {
     background-image:
-      linear-gradient(to right, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 5%, transparent) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+        transparent 1px
+      );
     background-size: 40px 40px;
   }
   .bg-hero-dark {
@@ -167,19 +182,84 @@
   }
   .bg-hero {
     background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 70%),
-      radial-gradient(ellipse 60% 40% at 80% 80%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 70%),
+      radial-gradient(
+        ellipse 80% 60% at 50% 0%,
+        color-mix(in oklab, var(--primary) 22%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 80% 80%,
+        color-mix(in oklab, var(--primary) 14%, transparent),
+        transparent 70%
+      ),
       var(--background);
   }
 }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
-.animate-marquee { animation: marquee 35s linear infinite; }
+.animate-marquee {
+  animation: marquee 35s linear infinite;
+}
+
+/* Marqueurs Leaflet (LiveTrackingMap / DiambarMap) */
+.diambar-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.diambar-marker-pin {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 7px auto 0;
+  background: var(--marker-color, #059669);
+  border: 2.5px solid white;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.diambar-marker-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 2px solid var(--marker-color, #059669);
+  border-radius: 50%;
+  animation: marker-pulse 1.5s ease-out infinite;
+}
+
+@keyframes marker-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  z-index: 0;
+}
 
 @keyframes float-particle {
-  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
-  50% { transform: translateY(-40px) translateX(15px); opacity: 0.9; }
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-40px) translateX(15px);
+    opacity: 0.9;
+  }
 }

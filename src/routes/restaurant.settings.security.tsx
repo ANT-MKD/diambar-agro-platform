@@ -5,7 +5,11 @@ export const Route = createFileRoute("/restaurant/settings/security")({
   head: () => ({
     meta: [
       { title: "Sécurité · Paramètres restaurant · Diambar Agro" },
-      { name: "description", content: "Mot de passe, double authentification et appareils connectés à votre compte restaurant." },
+      {
+        name: "description",
+        content:
+          "Mot de passe, double authentification et appareils connectés à votre compte restaurant.",
+      },
       { property: "og:title", content: "Sécurité · Paramètres restaurant" },
       { property: "og:description", content: "Protégez le compte de votre restaurant." },
     ],

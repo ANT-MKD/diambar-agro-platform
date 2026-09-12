@@ -14,34 +14,62 @@ export const Route = createFileRoute("/farmer/revenue/$txId")({
 function TxPage() {
   const { txId } = Route.useParams();
   const tx = transactions.find((t) => t.id === txId);
-  if (!tx) return <p className="text-center text-muted-foreground py-12">Transaction introuvable</p>;
+  if (!tx)
+    return <p className="text-center text-muted-foreground py-12">Transaction introuvable</p>;
   const r = restaurants.find((x) => x.id === tx.restaurantId);
   const order = orders.find((o) => o.reference === tx.orderRef);
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <PageHeader title={`Transaction ${tx.orderRef}`} subtitle={new Date(tx.date).toLocaleDateString("fr-FR", { dateStyle: "long" })} actions={
-        <div className="flex gap-2">
-          <Button asChild variant="outline" className="gap-2"><Link to="/farmer/revenue"><ArrowLeft className="h-4 w-4" />Retour</Link></Button>
-          <Button variant="outline" onClick={() => toast.success("Reçu téléchargé")} className="gap-2"><Download className="h-4 w-4" />PDF</Button>
-          <Button variant="outline" onClick={() => window.print()} className="gap-2"><Printer className="h-4 w-4" />Imprimer</Button>
-        </div>
-      } />
+      <PageHeader
+        title={`Transaction ${tx.orderRef}`}
+        subtitle={new Date(tx.date).toLocaleDateString("fr-FR", { dateStyle: "long" })}
+        actions={
+          <div className="flex gap-2">
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/farmer/revenue">
+                <ArrowLeft className="h-4 w-4" />
+                Retour
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => toast.success("Reçu téléchargé")}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button variant="outline" onClick={() => window.print()} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Imprimer
+            </Button>
+          </div>
+        }
+      />
 
       <div className="glass rounded-2xl p-8 space-y-6">
         <div className="flex items-center justify-between border-b border-border pb-5">
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary"><Receipt className="h-6 w-6" /></span>
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary">
+              <Receipt className="h-6 w-6" />
+            </span>
             <div>
               <div className="font-display text-xl font-bold">Reçu de paiement</div>
               <div className="text-xs text-muted-foreground">Diambar Agro</div>
             </div>
           </div>
-          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-            tx.status === "Payé" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" :
-            tx.status === "En attente" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30" :
-            "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
-          }`}>{tx.status}</span>
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+              tx.status === "Payé"
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                : tx.status === "En attente"
+                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                  : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
+            }`}
+          >
+            {tx.status}
+          </span>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-6 text-sm">
@@ -71,7 +99,13 @@ function TxPage() {
               const p = products.find((x) => x.id === it.productId);
               return (
                 <div key={i} className="flex justify-between text-sm">
-                  <span>{p?.name} <span className="text-muted-foreground">×{it.qty}{p?.unit}</span></span>
+                  <span>
+                    {p?.name}{" "}
+                    <span className="text-muted-foreground">
+                      ×{it.qty}
+                      {p?.unit}
+                    </span>
+                  </span>
                   <span>{formatFCFA(it.qty * it.price)}</span>
                 </div>
               );
@@ -80,9 +114,18 @@ function TxPage() {
         )}
 
         <div className="border-t border-border pt-5 space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span>{formatFCFA(tx.gross)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Commission Diambar</span><span className="text-rose-500">-{formatFCFA(tx.commission)}</span></div>
-          <div className="flex justify-between font-bold text-lg pt-3 border-t border-border"><span>Net reçu</span><span className="text-primary">{formatFCFA(tx.net)}</span></div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Sous-total</span>
+            <span>{formatFCFA(tx.gross)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Commission Diambar</span>
+            <span className="text-rose-500">-{formatFCFA(tx.commission)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-lg pt-3 border-t border-border">
+            <span>Net reçu</span>
+            <span className="text-primary">{formatFCFA(tx.net)}</span>
+          </div>
         </div>
       </div>
     </div>

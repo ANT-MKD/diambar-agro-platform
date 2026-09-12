@@ -12,7 +12,16 @@ export const Route = createFileRoute("/restaurant/marketplace")({
   component: Marketplace,
 });
 
-const CATEGORIES = ["Tous", "Légumes", "Fruits", "Viande", "Volaille", "Céréales", "Tubercules", "Épices"] as const;
+const CATEGORIES = [
+  "Tous",
+  "Légumes",
+  "Fruits",
+  "Viande",
+  "Volaille",
+  "Céréales",
+  "Tubercules",
+  "Épices",
+] as const;
 const SORTS = ["Pertinence", "Prix ↑", "Prix ↓", "Stock"] as const;
 
 function Marketplace() {
@@ -46,13 +55,25 @@ function Marketplace() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Marketplace" subtitle={`${list.length} produits disponibles auprès de ${farmers.length} producteurs`} />
+      <PageHeader
+        title="Marketplace"
+        subtitle={`${list.length} produits disponibles auprès de ${farmers.length} producteurs`}
+      />
 
       {cartCount > 0 && (
         <div className="glass rounded-2xl p-3 flex items-center gap-3 border border-primary/30 bg-primary/5">
-          <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center"><ShoppingCart className="h-4 w-4" /></div>
-          <div className="flex-1 text-sm"><b>Reprendre votre panier</b> — {cartCount} article(s) en attente</div>
-          <Button asChild size="sm" className="gap-1"><Link to="/restaurant/cart">Voir le panier<ArrowRight className="h-3.5 w-3.5" /></Link></Button>
+          <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center">
+            <ShoppingCart className="h-4 w-4" />
+          </div>
+          <div className="flex-1 text-sm">
+            <b>Reprendre votre panier</b> — {cartCount} article(s) en attente
+          </div>
+          <Button asChild size="sm" className="gap-1">
+            <Link to="/restaurant/cart">
+              Voir le panier
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
         </div>
       )}
 
@@ -60,31 +81,65 @@ function Marketplace() {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-60 rounded-xl border border-border bg-muted/40 px-3 h-10">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tomates, oignons, mangues…" className="flex-1 bg-transparent text-sm outline-none" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tomates, oignons, mangues…"
+              className="flex-1 bg-transparent text-sm outline-none"
+            />
           </div>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm">
-            {regions.map((r) => <option key={r}>{r}</option>)}
+          <select
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
+          >
+            {regions.map((r) => (
+              <option key={r}>{r}</option>
+            ))}
           </select>
-          <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="h-10 rounded-xl border border-border bg-background px-3 text-sm">
-            {SORTS.map((s) => <option key={s}>{s}</option>)}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
+          >
+            {SORTS.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </select>
-          <button onClick={() => setOnlyFav((v) => !v)} className={`h-10 px-3 rounded-xl border inline-flex items-center gap-2 text-sm transition ${onlyFav ? "border-rose-500 bg-rose-500/10 text-rose-500" : "border-border hover:bg-accent"}`}>
-            <Heart className={`h-4 w-4 ${onlyFav ? "fill-rose-500" : ""}`} />Favoris{wishlist.length > 0 && <span className="text-[10px]">({wishlist.length})</span>}
+          <button
+            onClick={() => setOnlyFav((v) => !v)}
+            className={`h-10 px-3 rounded-xl border inline-flex items-center gap-2 text-sm transition ${onlyFav ? "border-rose-500 bg-rose-500/10 text-rose-500" : "border-border hover:bg-accent"}`}
+          >
+            <Heart className={`h-4 w-4 ${onlyFav ? "fill-rose-500" : ""}`} />
+            Favoris{wishlist.length > 0 && <span className="text-[10px]">({wishlist.length})</span>}
           </button>
-          <button className="h-10 px-3 rounded-xl border border-border inline-flex items-center gap-2 text-sm"><SlidersHorizontal className="h-4 w-4" />Filtres</button>
+          <button className="h-10 px-3 rounded-xl border border-border inline-flex items-center gap-2 text-sm">
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtres
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {CATEGORIES.map((c) => (
-            <button key={c} onClick={() => setCat(c)} className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${cat === c ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}>{c}</button>
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${cat === c ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+            >
+              {c}
+            </button>
           ))}
         </div>
       </div>
 
       {list.length === 0 ? (
-        <div className="glass rounded-2xl p-12 text-center text-muted-foreground">Aucun produit ne correspond aux filtres.</div>
+        <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
+          Aucun produit ne correspond aux filtres.
+        </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {list.map((p) => <RestaurantProductCard key={p.id} product={p} />)}
+          {list.map((p) => (
+            <RestaurantProductCard key={p.id} product={p} />
+          ))}
         </div>
       )}
     </div>

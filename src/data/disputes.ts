@@ -2,7 +2,8 @@ import { useSyncExternalStore } from "react";
 import { driverWalletActions } from "./store";
 
 export type DisputeParty = "restaurant" | "farmer" | "driver" | "platform";
-export type DisputeStatus = "open" | "investigating" | "awaiting_response" | "resolved" | "rejected";
+export type DisputeStatus =
+  "open" | "investigating" | "awaiting_response" | "resolved" | "rejected";
 export type DisputeChannel = "app" | "whatsapp" | "email" | "phone";
 export type DisputeOutcome = "refund" | "credit" | "partial" | "rejected" | "goodwill";
 
@@ -87,115 +88,382 @@ export type CreditNote = {
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
-  quality: { label: "Qualité produit", subs: ["Produit avarié", "Calibre non conforme", "Chaîne du froid rompue", "Étiquetage incorrect"] },
-  quantity: { label: "Quantité / colis", subs: ["Colis manquant", "Poids inférieur", "Article non livré", "Erreur de référence"] },
-  delivery: { label: "Livraison", subs: ["Retard important", "Livraison non effectuée", "Client absent", "Colis refusé", "Adresse incorrecte"] },
-  payment: { label: "Paiement", subs: ["Double débit", "Paiement non reçu", "Montant incorrect", "Frais contestés"] },
-  behaviour: { label: "Comportement", subs: ["Comportement inapproprié", "Non-respect des consignes", "Litige contractuel"] },
+  quality: {
+    label: "Qualité produit",
+    subs: [
+      "Produit avarié",
+      "Calibre non conforme",
+      "Chaîne du froid rompue",
+      "Étiquetage incorrect",
+    ],
+  },
+  quantity: {
+    label: "Quantité / colis",
+    subs: ["Colis manquant", "Poids inférieur", "Article non livré", "Erreur de référence"],
+  },
+  delivery: {
+    label: "Livraison",
+    subs: [
+      "Retard important",
+      "Livraison non effectuée",
+      "Client absent",
+      "Colis refusé",
+      "Adresse incorrecte",
+    ],
+  },
+  payment: {
+    label: "Paiement",
+    subs: ["Double débit", "Paiement non reçu", "Montant incorrect", "Frais contestés"],
+  },
+  behaviour: {
+    label: "Comportement",
+    subs: ["Comportement inapproprié", "Non-respect des consignes", "Litige contractuel"],
+  },
   other: { label: "Autre", subs: ["Autre motif"] },
 };
 
-export const SUPPORT_AGENTS = ["Fatou Ndiaye (support)", "Ibrahima Fall (support)", "Coumba Diop (litiges)"];
+export const SUPPORT_AGENTS = [
+  "Fatou Ndiaye (support)",
+  "Ibrahima Fall (support)",
+  "Coumba Diop (litiges)",
+];
 
 const now = Date.now();
 const iso = (hoursAgo: number) => new Date(now - hoursAgo * 3600_000).toISOString();
 
 const seedDisputes: Dispute[] = [
   {
-    id: "dp1", reference: "LIT-0142", category: "quality", subcategory: "Produit avarié",
-    description: "8 kg de poulet fermier livrés avec un écart de fraîcheur constaté à la réception.",
-    orderRef: "CMD-2848", orderId: "ro1", invoiceId: "inv1", hasGpsTrack: true,
-    openedByRole: "restaurant", openedByName: "Le Baobab", againstRole: "farmer", againstName: "Coopérative Sow",
-    claimedAmount: 25600, grantedAmount: null, liableParty: null,
-    status: "awaiting_response", priority: "high", channel: "app",
-    openedAt: iso(20), slaDueAt: iso(-28), escalations: 0, assignee: SUPPORT_AGENTS[0],
-    attachments: [{ id: "at1", name: "photo-reception.jpg", size: 482113, mime: "image/jpeg", kind: "photo", at: iso(20), by: "Le Baobab" }],
+    id: "dp1",
+    reference: "LIT-0142",
+    category: "quality",
+    subcategory: "Produit avarié",
+    description:
+      "8 kg de poulet fermier livrés avec un écart de fraîcheur constaté à la réception.",
+    orderRef: "CMD-2848",
+    orderId: "ro1",
+    invoiceId: "inv1",
+    hasGpsTrack: true,
+    openedByRole: "restaurant",
+    openedByName: "Le Baobab",
+    againstRole: "farmer",
+    againstName: "Coopérative Sow",
+    claimedAmount: 25600,
+    grantedAmount: null,
+    liableParty: null,
+    status: "awaiting_response",
+    priority: "high",
+    channel: "app",
+    openedAt: iso(20),
+    slaDueAt: iso(-28),
+    escalations: 0,
+    assignee: SUPPORT_AGENTS[0],
+    attachments: [
+      {
+        id: "at1",
+        name: "photo-reception.jpg",
+        size: 482113,
+        mime: "image/jpeg",
+        kind: "photo",
+        at: iso(20),
+        by: "Le Baobab",
+      },
+    ],
     messages: [
-      { id: "m1", at: iso(20), authorRole: "restaurant", authorName: "Le Baobab", text: "Produit reçu avec une odeur suspecte, photos jointes. Nous demandons un remboursement total.", internal: false },
-      { id: "m2", at: iso(18), authorRole: "platform", authorName: "Fatou Ndiaye (support)", text: "Dossier pris en charge, réponse du producteur attendue sous 48h.", internal: false },
-      { id: "m3", at: iso(17), authorRole: "platform", authorName: "Fatou Ndiaye (support)", text: "3e signalement qualité pour ce producteur ce mois-ci.", internal: true },
+      {
+        id: "m1",
+        at: iso(20),
+        authorRole: "restaurant",
+        authorName: "Le Baobab",
+        text: "Produit reçu avec une odeur suspecte, photos jointes. Nous demandons un remboursement total.",
+        internal: false,
+      },
+      {
+        id: "m2",
+        at: iso(18),
+        authorRole: "platform",
+        authorName: "Fatou Ndiaye (support)",
+        text: "Dossier pris en charge, réponse du producteur attendue sous 48h.",
+        internal: false,
+      },
+      {
+        id: "m3",
+        at: iso(17),
+        authorRole: "platform",
+        authorName: "Fatou Ndiaye (support)",
+        text: "3e signalement qualité pour ce producteur ce mois-ci.",
+        internal: true,
+      },
     ],
     events: [
-      { id: "e1", at: iso(20), actor: "Le Baobab", label: "Litige ouvert", detail: "Canal : application" },
-      { id: "e2", at: iso(18), actor: "Support Diambar", label: "Assigné", detail: SUPPORT_AGENTS[0] },
+      {
+        id: "e1",
+        at: iso(20),
+        actor: "Le Baobab",
+        label: "Litige ouvert",
+        detail: "Canal : application",
+      },
+      {
+        id: "e2",
+        at: iso(18),
+        actor: "Support Diambar",
+        label: "Assigné",
+        detail: SUPPORT_AGENTS[0],
+      },
       { id: "e3", at: iso(18), actor: "Support Diambar", label: "Statut : réponse attendue" },
     ],
   },
   {
-    id: "dp2", reference: "LIT-0141", category: "delivery", subcategory: "Retard important",
+    id: "dp2",
+    reference: "LIT-0141",
+    category: "delivery",
+    subcategory: "Retard important",
     description: "Livraison arrivée 2h après le créneau confirmé, service du midi impacté.",
-    orderRef: "CMD-2842", orderId: "ro2", missionId: "m1", hasGpsTrack: true,
-    openedByRole: "restaurant", openedByName: "Hôtel Téranga", againstRole: "driver", againstName: "Oumar Ba",
-    claimedAmount: 32500, grantedAmount: null, liableParty: null,
-    status: "investigating", priority: "medium", channel: "whatsapp",
-    openedAt: iso(44), slaDueAt: iso(-4), escalations: 1, assignee: SUPPORT_AGENTS[1],
+    orderRef: "CMD-2842",
+    orderId: "ro2",
+    missionId: "m1",
+    hasGpsTrack: true,
+    openedByRole: "restaurant",
+    openedByName: "Hôtel Téranga",
+    againstRole: "driver",
+    againstName: "Oumar Ba",
+    claimedAmount: 32500,
+    grantedAmount: null,
+    liableParty: null,
+    status: "investigating",
+    priority: "medium",
+    channel: "whatsapp",
+    openedAt: iso(44),
+    slaDueAt: iso(-4),
+    escalations: 1,
+    assignee: SUPPORT_AGENTS[1],
     attachments: [],
     messages: [
-      { id: "m4", at: iso(44), authorRole: "restaurant", authorName: "Hôtel Téranga", text: "Retard de 2h non annoncé.", internal: false },
-      { id: "m5", at: iso(40), authorRole: "driver", authorName: "Oumar Ba", text: "Panne moto à Rufisque, j'ai prévenu par message le restaurant.", internal: false },
+      {
+        id: "m4",
+        at: iso(44),
+        authorRole: "restaurant",
+        authorName: "Hôtel Téranga",
+        text: "Retard de 2h non annoncé.",
+        internal: false,
+      },
+      {
+        id: "m5",
+        at: iso(40),
+        authorRole: "driver",
+        authorName: "Oumar Ba",
+        text: "Panne moto à Rufisque, j'ai prévenu par message le restaurant.",
+        internal: false,
+      },
     ],
     events: [
-      { id: "e4", at: iso(44), actor: "Hôtel Téranga", label: "Litige ouvert", detail: "Canal : WhatsApp" },
-      { id: "e5", at: iso(30), actor: "Système", label: "Escalade niveau 1", detail: "SLA de réponse dépassé" },
+      {
+        id: "e4",
+        at: iso(44),
+        actor: "Hôtel Téranga",
+        label: "Litige ouvert",
+        detail: "Canal : WhatsApp",
+      },
+      {
+        id: "e5",
+        at: iso(30),
+        actor: "Système",
+        label: "Escalade niveau 1",
+        detail: "SLA de réponse dépassé",
+      },
     ],
   },
   {
-    id: "dp3", reference: "LIT-0140", category: "quantity", subcategory: "Colis manquant",
+    id: "dp3",
+    reference: "LIT-0140",
+    category: "quantity",
+    subcategory: "Colis manquant",
     description: "Un sac de 10 kg d'oignons manquant sur la commande.",
-    orderRef: "CMD-2829", orderId: "ro3", invoiceId: "inv3", hasGpsTrack: false,
-    openedByRole: "restaurant", openedByName: "Chez Aminata", againstRole: "farmer", againstName: "Ferme Diallo",
-    claimedAmount: 4500, grantedAmount: 4500, liableParty: "farmer",
-    status: "resolved", priority: "low", channel: "app",
-    openedAt: iso(120), slaDueAt: iso(72), escalations: 0, assignee: SUPPORT_AGENTS[2],
+    orderRef: "CMD-2829",
+    orderId: "ro3",
+    invoiceId: "inv3",
+    hasGpsTrack: false,
+    openedByRole: "restaurant",
+    openedByName: "Chez Aminata",
+    againstRole: "farmer",
+    againstName: "Ferme Diallo",
+    claimedAmount: 4500,
+    grantedAmount: 4500,
+    liableParty: "farmer",
+    status: "resolved",
+    priority: "low",
+    channel: "app",
+    openedAt: iso(120),
+    slaDueAt: iso(72),
+    escalations: 0,
+    assignee: SUPPORT_AGENTS[2],
     attachments: [],
-    messages: [{ id: "m6", at: iso(120), authorRole: "restaurant", authorName: "Chez Aminata", text: "Sac manquant au déchargement.", internal: false }],
+    messages: [
+      {
+        id: "m6",
+        at: iso(120),
+        authorRole: "restaurant",
+        authorName: "Chez Aminata",
+        text: "Sac manquant au déchargement.",
+        internal: false,
+      },
+    ],
     events: [
       { id: "e6", at: iso(120), actor: "Chez Aminata", label: "Litige ouvert" },
-      { id: "e7", at: iso(110), actor: "Support Diambar", label: "Résolu", detail: "Avoir de 4 500 FCFA" },
+      {
+        id: "e7",
+        at: iso(110),
+        actor: "Support Diambar",
+        label: "Résolu",
+        detail: "Avoir de 4 500 FCFA",
+      },
     ],
-    decision: { at: iso(110), by: SUPPORT_AGENTS[2], outcome: "credit", reason: "Manquant confirmé par le bon de livraison signé.", grantedAmount: 4500, debitedParty: "farmer" },
+    decision: {
+      at: iso(110),
+      by: SUPPORT_AGENTS[2],
+      outcome: "credit",
+      reason: "Manquant confirmé par le bon de livraison signé.",
+      grantedAmount: 4500,
+      debitedParty: "farmer",
+    },
   },
   {
-    id: "dp4", reference: "LIT-0139", category: "payment", subcategory: "Double débit",
+    id: "dp4",
+    reference: "LIT-0139",
+    category: "payment",
+    subcategory: "Double débit",
     description: "Double débit Orange Money signalé par le restaurant.",
-    orderRef: "CMD-2820", hasGpsTrack: false,
-    openedByRole: "restaurant", openedByName: "Dibiterie Keur Massar", againstRole: "platform", againstName: "Plateforme Diambar",
-    claimedAmount: 73000, grantedAmount: 0, liableParty: "platform",
-    status: "rejected", priority: "medium", channel: "email",
-    openedAt: iso(170), slaDueAt: iso(122), escalations: 0, assignee: SUPPORT_AGENTS[0],
+    orderRef: "CMD-2820",
+    hasGpsTrack: false,
+    openedByRole: "restaurant",
+    openedByName: "Dibiterie Keur Massar",
+    againstRole: "platform",
+    againstName: "Plateforme Diambar",
+    claimedAmount: 73000,
+    grantedAmount: 0,
+    liableParty: "platform",
+    status: "rejected",
+    priority: "medium",
+    channel: "email",
+    openedAt: iso(170),
+    slaDueAt: iso(122),
+    escalations: 0,
+    assignee: SUPPORT_AGENTS[0],
     attachments: [],
-    messages: [{ id: "m7", at: iso(170), authorRole: "restaurant", authorName: "Dibiterie Keur Massar", text: "Deux débits de 73 000 FCFA constatés.", internal: false }],
-    events: [{ id: "e8", at: iso(170), actor: "Dibiterie Keur Massar", label: "Litige ouvert" }, { id: "e9", at: iso(150), actor: "Support Diambar", label: "Rejeté", detail: "Un seul débit confirmé par l'opérateur" }],
-    decision: { at: iso(150), by: SUPPORT_AGENTS[0], outcome: "rejected", reason: "Relevé opérateur : un seul débit effectif, la seconde écriture est une pré-autorisation annulée.", grantedAmount: 0, debitedParty: "platform" },
+    messages: [
+      {
+        id: "m7",
+        at: iso(170),
+        authorRole: "restaurant",
+        authorName: "Dibiterie Keur Massar",
+        text: "Deux débits de 73 000 FCFA constatés.",
+        internal: false,
+      },
+    ],
+    events: [
+      { id: "e8", at: iso(170), actor: "Dibiterie Keur Massar", label: "Litige ouvert" },
+      {
+        id: "e9",
+        at: iso(150),
+        actor: "Support Diambar",
+        label: "Rejeté",
+        detail: "Un seul débit confirmé par l'opérateur",
+      },
+    ],
+    decision: {
+      at: iso(150),
+      by: SUPPORT_AGENTS[0],
+      outcome: "rejected",
+      reason:
+        "Relevé opérateur : un seul débit effectif, la seconde écriture est une pré-autorisation annulée.",
+      grantedAmount: 0,
+      debitedParty: "platform",
+    },
   },
   {
-    id: "dp5", reference: "LIT-0138", category: "delivery", subcategory: "Client absent",
+    id: "dp5",
+    reference: "LIT-0138",
+    category: "delivery",
+    subcategory: "Client absent",
     description: "Restaurant fermé à l'arrivée, 40 min d'attente puis retour à la ferme.",
-    orderRef: "CMD-2812", missionId: "m2", hasGpsTrack: true,
-    openedByRole: "driver", openedByName: "Modou Sarr", againstRole: "restaurant", againstName: "Le Baobab",
-    claimedAmount: 6000, grantedAmount: null, liableParty: null,
-    status: "open", priority: "medium", channel: "app",
-    openedAt: iso(6), slaDueAt: iso(-42), escalations: 0, assignee: null,
+    orderRef: "CMD-2812",
+    missionId: "m2",
+    hasGpsTrack: true,
+    openedByRole: "driver",
+    openedByName: "Modou Sarr",
+    againstRole: "restaurant",
+    againstName: "Le Baobab",
+    claimedAmount: 6000,
+    grantedAmount: null,
+    liableParty: null,
+    status: "open",
+    priority: "medium",
+    channel: "app",
+    openedAt: iso(6),
+    slaDueAt: iso(-42),
+    escalations: 0,
+    assignee: null,
     attachments: [],
-    messages: [{ id: "m8", at: iso(6), authorRole: "driver", authorName: "Modou Sarr", text: "Personne sur place, appels sans réponse. Je demande l'indemnité de course à vide.", internal: false }],
+    messages: [
+      {
+        id: "m8",
+        at: iso(6),
+        authorRole: "driver",
+        authorName: "Modou Sarr",
+        text: "Personne sur place, appels sans réponse. Je demande l'indemnité de course à vide.",
+        internal: false,
+      },
+    ],
     events: [{ id: "e10", at: iso(6), actor: "Modou Sarr", label: "Litige ouvert" }],
   },
   {
-    id: "dp6", reference: "LIT-0137", category: "payment", subcategory: "Paiement non reçu",
+    id: "dp6",
+    reference: "LIT-0137",
+    category: "payment",
+    subcategory: "Paiement non reçu",
     description: "Commande livrée et confirmée, versement non reçu après 7 jours.",
-    orderRef: "CMD-2801", orderId: "o1", hasGpsTrack: false,
-    openedByRole: "farmer", openedByName: "Coopérative Sow", againstRole: "platform", againstName: "Plateforme Diambar",
-    claimedAmount: 128000, grantedAmount: null, liableParty: null,
-    status: "investigating", priority: "high", channel: "phone",
-    openedAt: iso(52), slaDueAt: iso(-20), escalations: 1, assignee: SUPPORT_AGENTS[1],
+    orderRef: "CMD-2801",
+    orderId: "o1",
+    hasGpsTrack: false,
+    openedByRole: "farmer",
+    openedByName: "Coopérative Sow",
+    againstRole: "platform",
+    againstName: "Plateforme Diambar",
+    claimedAmount: 128000,
+    grantedAmount: null,
+    liableParty: null,
+    status: "investigating",
+    priority: "high",
+    channel: "phone",
+    openedAt: iso(52),
+    slaDueAt: iso(-20),
+    escalations: 1,
+    assignee: SUPPORT_AGENTS[1],
     attachments: [],
-    messages: [{ id: "m9", at: iso(52), authorRole: "farmer", authorName: "Coopérative Sow", text: "Aucun virement reçu sur Wave.", internal: false }],
+    messages: [
+      {
+        id: "m9",
+        at: iso(52),
+        authorRole: "farmer",
+        authorName: "Coopérative Sow",
+        text: "Aucun virement reçu sur Wave.",
+        internal: false,
+      },
+    ],
     events: [{ id: "e11", at: iso(52), actor: "Coopérative Sow", label: "Litige ouvert" }],
   },
 ];
 
 const seedCredits: CreditNote[] = [
-  { id: "cn1", reference: "AV-0031", disputeId: "dp3", beneficiaryRole: "restaurant", beneficiaryName: "Chez Aminata", amount: 4500, at: iso(110), status: "applied" },
+  {
+    id: "cn1",
+    reference: "AV-0031",
+    disputeId: "dp3",
+    beneficiaryRole: "restaurant",
+    beneficiaryName: "Chez Aminata",
+    amount: 4500,
+    at: iso(110),
+    status: "applied",
+  },
 ];
 
 type Listener = () => void;
@@ -205,7 +473,9 @@ function createStore<T>(initial: T, persistKey: string) {
     try {
       const raw = window.localStorage.getItem(persistKey);
       if (raw) state = JSON.parse(raw) as T;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   const listeners = new Set<Listener>();
   return {
@@ -213,11 +483,18 @@ function createStore<T>(initial: T, persistKey: string) {
     set: (next: T | ((p: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
       if (typeof window !== "undefined") {
-        try { window.localStorage.setItem(persistKey, JSON.stringify(state)); } catch { /* ignore */ }
+        try {
+          window.localStorage.setItem(persistKey, JSON.stringify(state));
+        } catch {
+          /* ignore */
+        }
       }
       listeners.forEach((l) => l());
     },
-    subscribe: (l: Listener) => { listeners.add(l); return () => listeners.delete(l); },
+    subscribe: (l: Listener) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
   };
 }
 
@@ -258,11 +535,18 @@ export function slaRemaining(d: Dispute) {
   const overdue = ms < 0;
   const h = Math.floor(Math.abs(ms) / 3600_000);
   const m = Math.floor((Math.abs(ms) % 3600_000) / 60_000);
-  return { overdue, label: `${overdue ? "Dépassé de " : ""}${h}h ${String(m).padStart(2, "0")}min`, hours: ms / 3600_000 };
+  return {
+    overdue,
+    label: `${overdue ? "Dépassé de " : ""}${h}h ${String(m).padStart(2, "0")}min`,
+    hours: ms / 3600_000,
+  };
 }
 
 function nextRef(arr: Dispute[]) {
-  const max = arr.reduce((n, d) => Math.max(n, parseInt(d.reference.split("-")[1] ?? "0", 10) || 0), 140);
+  const max = arr.reduce(
+    (n, d) => Math.max(n, parseInt(d.reference.split("-")[1] ?? "0", 10) || 0),
+    140,
+  );
   return `LIT-${String(max + 1).padStart(4, "0")}`;
 }
 
@@ -290,131 +574,308 @@ export const disputeActions = {
   open: (input: NewDisputeInput) => {
     const id = `dp_${Date.now()}`;
     const at = new Date().toISOString();
-    const slaHours = input.slaHours ?? (input.priority === "high" ? 24 : input.priority === "medium" ? 48 : 72);
-    disputesStore.set((arr) => [{
-      id,
-      reference: nextRef(arr),
-      category: input.category,
-      subcategory: input.subcategory,
-      description: input.description,
-      orderRef: input.orderRef,
-      orderId: input.orderId,
-      invoiceId: input.invoiceId,
-      missionId: input.missionId,
-      hasGpsTrack: input.hasGpsTrack ?? false,
-      openedByRole: input.openedByRole,
-      openedByName: input.openedByName,
-      againstRole: input.againstRole,
-      againstName: input.againstName,
-      claimedAmount: input.claimedAmount,
-      grantedAmount: null,
-      liableParty: null,
-      status: "open",
-      priority: input.priority,
-      channel: input.channel ?? "app",
-      openedAt: at,
-      slaDueAt: new Date(Date.now() + slaHours * 3600_000).toISOString(),
-      escalations: 0,
-      assignee: null,
-      attachments: input.attachments ?? [],
-      messages: [{ id: `m_${Date.now()}`, at, authorRole: input.openedByRole, authorName: input.openedByName, text: input.description, internal: false, attachments: input.attachments }],
-      events: [{ id: `e_${Date.now()}`, at, actor: input.openedByName, label: "Litige ouvert", detail: `Canal : ${input.channel ?? "app"} · SLA ${slaHours}h` }],
-    }, ...arr]);
+    const slaHours =
+      input.slaHours ?? (input.priority === "high" ? 24 : input.priority === "medium" ? 48 : 72);
+    disputesStore.set((arr) => [
+      {
+        id,
+        reference: nextRef(arr),
+        category: input.category,
+        subcategory: input.subcategory,
+        description: input.description,
+        orderRef: input.orderRef,
+        orderId: input.orderId,
+        invoiceId: input.invoiceId,
+        missionId: input.missionId,
+        hasGpsTrack: input.hasGpsTrack ?? false,
+        openedByRole: input.openedByRole,
+        openedByName: input.openedByName,
+        againstRole: input.againstRole,
+        againstName: input.againstName,
+        claimedAmount: input.claimedAmount,
+        grantedAmount: null,
+        liableParty: null,
+        status: "open",
+        priority: input.priority,
+        channel: input.channel ?? "app",
+        openedAt: at,
+        slaDueAt: new Date(Date.now() + slaHours * 3600_000).toISOString(),
+        escalations: 0,
+        assignee: null,
+        attachments: input.attachments ?? [],
+        messages: [
+          {
+            id: `m_${Date.now()}`,
+            at,
+            authorRole: input.openedByRole,
+            authorName: input.openedByName,
+            text: input.description,
+            internal: false,
+            attachments: input.attachments,
+          },
+        ],
+        events: [
+          {
+            id: `e_${Date.now()}`,
+            at,
+            actor: input.openedByName,
+            label: "Litige ouvert",
+            detail: `Canal : ${input.channel ?? "app"} · SLA ${slaHours}h`,
+          },
+        ],
+      },
+      ...arr,
+    ]);
     return id;
   },
-  reply: (id: string, msg: { role: DisputeParty; name: string; text: string; internal?: boolean; attachments?: DisputeAttachment[] }) => {
+  reply: (
+    id: string,
+    msg: {
+      role: DisputeParty;
+      name: string;
+      text: string;
+      internal?: boolean;
+      attachments?: DisputeAttachment[];
+    },
+  ) => {
     const at = new Date().toISOString();
-    disputesStore.set((arr) => arr.map((d) => d.id === id ? {
-      ...d,
-      status: d.status === "awaiting_response" && msg.role === d.againstRole ? "investigating" : d.status,
-      messages: [...d.messages, { id: `m_${Date.now()}`, at, authorRole: msg.role, authorName: msg.name, text: msg.text, internal: msg.internal ?? false, attachments: msg.attachments }],
-      attachments: [...d.attachments, ...(msg.attachments ?? [])],
-    } : d));
+    disputesStore.set((arr) =>
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              status:
+                d.status === "awaiting_response" && msg.role === d.againstRole
+                  ? "investigating"
+                  : d.status,
+              messages: [
+                ...d.messages,
+                {
+                  id: `m_${Date.now()}`,
+                  at,
+                  authorRole: msg.role,
+                  authorName: msg.name,
+                  text: msg.text,
+                  internal: msg.internal ?? false,
+                  attachments: msg.attachments,
+                },
+              ],
+              attachments: [...d.attachments, ...(msg.attachments ?? [])],
+            }
+          : d,
+      ),
+    );
   },
   addAttachments: (id: string, files: DisputeAttachment[]) => {
-    disputesStore.set((arr) => arr.map((d) => d.id === id ? {
-      ...d,
-      attachments: [...d.attachments, ...files],
-      events: [...d.events, { id: `e_${Date.now()}`, at: new Date().toISOString(), actor: files[0]?.by ?? "Utilisateur", label: `${files.length} pièce(s) jointe(s) ajoutée(s)` }],
-    } : d));
+    disputesStore.set((arr) =>
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              attachments: [...d.attachments, ...files],
+              events: [
+                ...d.events,
+                {
+                  id: `e_${Date.now()}`,
+                  at: new Date().toISOString(),
+                  actor: files[0]?.by ?? "Utilisateur",
+                  label: `${files.length} pièce(s) jointe(s) ajoutée(s)`,
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   },
   setStatus: (id: string, status: DisputeStatus, actor = "Support Diambar", detail?: string) => {
-    disputesStore.set((arr) => arr.map((d) => d.id === id ? {
-      ...d, status,
-      events: [...d.events, { id: `e_${Date.now()}`, at: new Date().toISOString(), actor, label: `Statut : ${STATUS_LABEL[status]}`, detail }],
-    } : d));
+    disputesStore.set((arr) =>
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              status,
+              events: [
+                ...d.events,
+                {
+                  id: `e_${Date.now()}`,
+                  at: new Date().toISOString(),
+                  actor,
+                  label: `Statut : ${STATUS_LABEL[status]}`,
+                  detail,
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   },
   assign: (id: string, agent: string) => {
-    disputesStore.set((arr) => arr.map((d) => d.id === id ? {
-      ...d, assignee: agent,
-      events: [...d.events, { id: `e_${Date.now()}`, at: new Date().toISOString(), actor: "Support Diambar", label: "Dossier assigné", detail: agent }],
-    } : d));
+    disputesStore.set((arr) =>
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              assignee: agent,
+              events: [
+                ...d.events,
+                {
+                  id: `e_${Date.now()}`,
+                  at: new Date().toISOString(),
+                  actor: "Support Diambar",
+                  label: "Dossier assigné",
+                  detail: agent,
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   },
   escalate: (id: string, reason: string) => {
-    disputesStore.set((arr) => arr.map((d) => d.id === id ? {
-      ...d,
-      escalations: d.escalations + 1,
-      priority: "high",
-      slaDueAt: new Date(Date.now() + 12 * 3600_000).toISOString(),
-      events: [...d.events, { id: `e_${Date.now()}`, at: new Date().toISOString(), actor: "Support Diambar", label: `Escalade niveau ${d.escalations + 1}`, detail: reason }],
-    } : d));
+    disputesStore.set((arr) =>
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              escalations: d.escalations + 1,
+              priority: "high",
+              slaDueAt: new Date(Date.now() + 12 * 3600_000).toISOString(),
+              events: [
+                ...d.events,
+                {
+                  id: `e_${Date.now()}`,
+                  at: new Date().toISOString(),
+                  actor: "Support Diambar",
+                  label: `Escalade niveau ${d.escalations + 1}`,
+                  detail: reason,
+                },
+              ],
+            }
+          : d,
+      ),
+    );
   },
   /** Décision motivée + impact financier réel (avoir, débit wallet livreur, etc.) */
-  resolve: (id: string, decision: { outcome: DisputeOutcome; grantedAmount: number; liableParty: DisputeParty; reason: string; by?: string }) => {
+  resolve: (
+    id: string,
+    decision: {
+      outcome: DisputeOutcome;
+      grantedAmount: number;
+      liableParty: DisputeParty;
+      reason: string;
+      by?: string;
+    },
+  ) => {
     const d = disputesStore.get().find((x) => x.id === id);
     if (!d) return;
     const at = new Date().toISOString();
     const by = decision.by ?? "Support Diambar";
     const resolved = decision.outcome === "rejected" ? "rejected" : "resolved";
-    disputesStore.set((arr) => arr.map((x) => x.id === id ? {
-      ...x,
-      status: resolved as DisputeStatus,
-      grantedAmount: decision.grantedAmount,
-      liableParty: decision.liableParty,
-      decision: { at, by, outcome: decision.outcome, reason: decision.reason, grantedAmount: decision.grantedAmount, debitedParty: decision.liableParty },
-      events: [...x.events, { id: `e_${Date.now()}`, at, actor: by, label: `Décision : ${outcomeLabel(decision.outcome)}`, detail: `${decision.grantedAmount.toLocaleString("fr-FR")} FCFA · à la charge de ${PARTY_LABEL[decision.liableParty]}` }],
-      messages: [...x.messages, { id: `m_${Date.now()}`, at, authorRole: "platform" as DisputeParty, authorName: by, text: `Décision : ${outcomeLabel(decision.outcome)}. ${decision.reason}`, internal: false }],
-    } : x));
+    disputesStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              status: resolved as DisputeStatus,
+              grantedAmount: decision.grantedAmount,
+              liableParty: decision.liableParty,
+              decision: {
+                at,
+                by,
+                outcome: decision.outcome,
+                reason: decision.reason,
+                grantedAmount: decision.grantedAmount,
+                debitedParty: decision.liableParty,
+              },
+              events: [
+                ...x.events,
+                {
+                  id: `e_${Date.now()}`,
+                  at,
+                  actor: by,
+                  label: `Décision : ${outcomeLabel(decision.outcome)}`,
+                  detail: `${decision.grantedAmount.toLocaleString("fr-FR")} FCFA · à la charge de ${PARTY_LABEL[decision.liableParty]}`,
+                },
+              ],
+              messages: [
+                ...x.messages,
+                {
+                  id: `m_${Date.now()}`,
+                  at,
+                  authorRole: "platform" as DisputeParty,
+                  authorName: by,
+                  text: `Décision : ${outcomeLabel(decision.outcome)}. ${decision.reason}`,
+                  internal: false,
+                },
+              ],
+            }
+          : x,
+      ),
+    );
 
     if (decision.grantedAmount > 0 && decision.outcome !== "rejected") {
-      creditsStore.set((arr) => [{
-        id: `cn_${Date.now()}`,
-        reference: `AV-${String(31 + arr.length + 1).padStart(4, "0")}`,
-        disputeId: id,
-        beneficiaryRole: d.openedByRole,
-        beneficiaryName: d.openedByName,
-        amount: decision.grantedAmount,
-        at,
-        status: "issued",
-      }, ...arr]);
+      creditsStore.set((arr) => [
+        {
+          id: `cn_${Date.now()}`,
+          reference: `AV-${String(31 + arr.length + 1).padStart(4, "0")}`,
+          disputeId: id,
+          beneficiaryRole: d.openedByRole,
+          beneficiaryName: d.openedByName,
+          amount: decision.grantedAmount,
+          at,
+          status: "issued",
+        },
+        ...arr,
+      ]);
       if (decision.liableParty === "driver") {
-        driverWalletActions.credit(`Retenue litige ${d.reference}`, -Math.abs(decision.grantedAmount), "adjustment");
+        driverWalletActions.credit(
+          `Retenue litige ${d.reference}`,
+          -Math.abs(decision.grantedAmount),
+          "adjustment",
+        );
       }
     }
   },
 };
 
 export function outcomeLabel(o: DisputeOutcome) {
-  return o === "refund" ? "Remboursement intégral"
-    : o === "partial" ? "Remboursement partiel"
-    : o === "credit" ? "Avoir émis"
-    : o === "goodwill" ? "Geste commercial"
-    : "Réclamation rejetée";
+  return o === "refund"
+    ? "Remboursement intégral"
+    : o === "partial"
+      ? "Remboursement partiel"
+      : o === "credit"
+        ? "Avoir émis"
+        : o === "goodwill"
+          ? "Geste commercial"
+          : "Réclamation rejetée";
 }
 
 /** Statistiques litiges : taux par partie, délai moyen de résolution, montants remboursés. */
 export function disputeStats(list: Dispute[]) {
   const resolved = list.filter((d) => d.decision);
-  const durations = resolved.map((d) => (new Date(d.decision!.at).getTime() - new Date(d.openedAt).getTime()) / 3600_000);
+  const durations = resolved.map(
+    (d) => (new Date(d.decision!.at).getTime() - new Date(d.openedAt).getTime()) / 3600_000,
+  );
   const avgHours = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
   const refundedThisMonth = resolved
     .filter((d) => new Date(d.decision!.at) >= monthStart)
     .reduce((s, d) => s + (d.decision!.grantedAmount || 0), 0);
-  const byParty = new Map<string, { name: string; role: DisputeParty; count: number; amount: number; liable: number }>();
+  const byParty = new Map<
+    string,
+    { name: string; role: DisputeParty; count: number; amount: number; liable: number }
+  >();
   for (const d of list) {
     const key = `${d.againstRole}:${d.againstName}`;
-    const e = byParty.get(key) ?? { name: d.againstName, role: d.againstRole, count: 0, amount: 0, liable: 0 };
+    const e = byParty.get(key) ?? {
+      name: d.againstName,
+      role: d.againstRole,
+      count: 0,
+      amount: 0,
+      liable: 0,
+    };
     e.count += 1;
     e.amount += d.claimedAmount;
     if (d.liableParty === d.againstRole) e.liable += 1;
@@ -422,8 +883,13 @@ export function disputeStats(list: Dispute[]) {
   }
   return {
     total: list.length,
-    open: list.filter((d) => d.status === "open" || d.status === "investigating" || d.status === "awaiting_response").length,
-    overdue: list.filter((d) => d.status !== "resolved" && d.status !== "rejected" && slaRemaining(d).overdue).length,
+    open: list.filter(
+      (d) =>
+        d.status === "open" || d.status === "investigating" || d.status === "awaiting_response",
+    ).length,
+    overdue: list.filter(
+      (d) => d.status !== "resolved" && d.status !== "rejected" && slaRemaining(d).overdue,
+    ).length,
     avgHours,
     refundedThisMonth,
     claimedTotal: list.reduce((s, d) => s + d.claimedAmount, 0),

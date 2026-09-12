@@ -1,6 +1,7 @@
 # Diambar Agro Platform
 
 DIAMBAR AGRO — PROMPT MAÎTRE ULTRA DÉTAILLÉ POUR LOVABLE (tu vas aussi analyser et te baser sur le document envoye)
+
 > Slogan : "Du Champ à Votre Cuisine"
 > Plateforme africaine de logistique alimentaire — Sénégal
 > À coller dans Lovable phase par phase dans l'ordre indiqué
@@ -10,15 +11,17 @@ DIAMBAR AGRO — PROMPT MAÎTRE ULTRA DÉTAILLÉ POUR LOVABLE (tu vas aussi anal
 INSTRUCTIONS AVANT DE COMMENCER
 
 Comment utiliser ce document :
+
 - Chaque PHASE est un prompt séparé à envoyer à Lovable
 - Envoie une phase à la fois, attends le résultat, vérifie, puis passe à la suivante
 - Ne jamais coller tout le document en une seule fois
 - Si Lovable génère quelque chose d'incorrect, précise dans un message de suivi sans changer de phase
-- On  va creer la structures des routes pour le backend qu'on vas integrer ulterirurement mais pour l'instant on vas travailler avec des donnee mockee
+- On va creer la structures des routes pour le backend qu'on vas integrer ulterirurement mais pour l'instant on vas travailler avec des donnee mockee
 
 ---
 
 PROMPT DE CADRAGE GLOBAL
+
 > À envoyer EN PREMIER, avant toute phase. C'est le "cerveau" de l'app.
 
 ```
@@ -39,7 +42,7 @@ Palette principale :
   - Rouge erreur : #ef4444
 - on vas ameliorer le design vers un design premuim (ajout d'effet de glarmorphism si necessaire)
 Style UI :
-  - Thème sombre et clair (avec toggle switch mode effet de glarmorphism) 
+  - Thème sombre et clair (avec toggle switch mode effet de glarmorphism)
   - Glassmorphism subtil : backdrop-blur-md + bg-white/5 + border border-white/10
   - Cards avec : rounded-2xl, border border-white/10, bg-white/5, shadow-xl
   - Boutons primaires : bg-emerald-600 hover:bg-emerald-500, rounded-xl, font-semibold
@@ -1374,18 +1377,18 @@ DERNIÈRES VÉRIFICATIONS :
 
 RÉCAPITULATIF DES PHASES
 
-| Phase | Contenu | Priorité |
-|-------|---------|----------|
-| 0 — Cadrage | Brief global, identité visuelle, données démo | Obligatoire en premier |
-| 1 — Landing | Page marketing publique complète | Haute |
-| 2 — Auth | Login, Register (4 étapes), OTP, Onboarding | Haute |
-| 3 — Agriculteur | Dashboard complet : produits, stock, commandes, revenus, analytics, messages | Haute |
-| 4 — Restaurant | Catalogue type Uber Eats, panier, checkout, tracking, factures | Haute |
-| 5 — Livreur | Interface mobile-first, missions, GPS, revenus, wallet | Moyenne |
-| 6 — Admin | Vue d'ensemble, gestion utilisateurs, finances, analytics, support | Moyenne |
-| 7 — Chat | Messagerie temps réel Supabase pour tous les rôles | Moyenne |
-| 8 — Notifications | Centre de notifications, paramètres par canal | Basse |
-| 9 — Mobile & Polish | Responsive, loading states, animations, micro-interactions | Basse |
+| Phase               | Contenu                                                                      | Priorité               |
+| ------------------- | ---------------------------------------------------------------------------- | ---------------------- |
+| 0 — Cadrage         | Brief global, identité visuelle, données démo                                | Obligatoire en premier |
+| 1 — Landing         | Page marketing publique complète                                             | Haute                  |
+| 2 — Auth            | Login, Register (4 étapes), OTP, Onboarding                                  | Haute                  |
+| 3 — Agriculteur     | Dashboard complet : produits, stock, commandes, revenus, analytics, messages | Haute                  |
+| 4 — Restaurant      | Catalogue type Uber Eats, panier, checkout, tracking, factures               | Haute                  |
+| 5 — Livreur         | Interface mobile-first, missions, GPS, revenus, wallet                       | Moyenne                |
+| 6 — Admin           | Vue d'ensemble, gestion utilisateurs, finances, analytics, support           | Moyenne                |
+| 7 — Chat            | Messagerie temps réel Supabase pour tous les rôles                           | Moyenne                |
+| 8 — Notifications   | Centre de notifications, paramètres par canal                                | Basse                  |
+| 9 — Mobile & Polish | Responsive, loading states, animations, micro-interactions                   | Basse                  |
 
 ---
 

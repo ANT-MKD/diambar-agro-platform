@@ -39,7 +39,10 @@ export function SettingsShell({
               </Link>
             );
           })}
-          <Link to="/login" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10">
+          <Link
+            to="/login"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10"
+          >
             Se déconnecter
           </Link>
         </aside>
@@ -87,7 +90,15 @@ export function SettingsCard({
   );
 }
 
-export function FieldRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function FieldRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium">{label}</Label>

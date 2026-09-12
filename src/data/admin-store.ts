@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   platformUsers as seedUsers,
   validationRequests as seedValidations,
@@ -23,7 +23,9 @@ function createStore<T>(initial: T, persistKey?: string) {
     try {
       const raw = window.localStorage.getItem(persistKey);
       if (raw) state = JSON.parse(raw) as T;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   const listeners = new Set<Listener>();
   return {
@@ -31,7 +33,11 @@ function createStore<T>(initial: T, persistKey?: string) {
     set: (next: T | ((prev: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
       if (persistKey && typeof window !== "undefined") {
-        try { window.localStorage.setItem(persistKey, JSON.stringify(state)); } catch { /* ignore */ }
+        try {
+          window.localStorage.setItem(persistKey, JSON.stringify(state));
+        } catch {
+          /* ignore */
+        }
       }
       listeners.forEach((l) => l());
     },
@@ -43,7 +49,10 @@ function createStore<T>(initial: T, persistKey?: string) {
 }
 
 const usersStore = createStore<PlatformUser[]>(seedUsers, "diambar:admin-users");
-const validationsStore = createStore<ValidationRequest[]>(seedValidations, "diambar:admin-validations");
+const validationsStore = createStore<ValidationRequest[]>(
+  seedValidations,
+  "diambar:admin-validations",
+);
 const disputesStore = createStore<Dispute[]>(seedDisputes, "diambar:admin-disputes");
 const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
@@ -57,7 +66,11 @@ export function usePlatformUser(id: string) {
   return usePlatformUsers().find((u) => u.id === id) ?? null;
 }
 export function useValidations() {
-  return useSyncExternalStore(validationsStore.subscribe, validationsStore.get, validationsStore.get);
+  return useSyncExternalStore(
+    validationsStore.subscribe,
+    validationsStore.get,
+    validationsStore.get,
+  );
 }
 export function useValidation(id: string) {
   return useValidations().find((v) => v.id === id) ?? null;
@@ -82,8 +95,16 @@ export function useDeliveryZones() {
 }
 
 export const auditActions = {
-  log: (action: string, target: string, level: AuditLog["level"] = "info", actor = "Admin Diambar") => {
-    logsStore.set((arr) => [{ id: `al_${Date.now()}`, at: new Date().toISOString(), actor, action, target, level }, ...arr]);
+  log: (
+    action: string,
+    target: string,
+    level: AuditLog["level"] = "info",
+    actor = "Admin Diambar",
+  ) => {
+    logsStore.set((arr) => [
+      { id: `al_${Date.now()}`, at: new Date().toISOString(), actor, action, target, level },
+      ...arr,
+    ]);
   },
 };
 
@@ -109,7 +130,9 @@ export const validationActions = {
   },
   reject: (id: string, note?: string) => {
     const req = validationsStore.get().find((v) => v.id === id);
-    validationsStore.set((arr) => arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)));
+    validationsStore.set((arr) =>
+      arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)),
+    );
     if (req) {
       adminUserActions.setStatus(req.userId, "rejected");
       auditActions.log("Validation de compte rejetée", req.userId, "warning");
@@ -125,7 +148,14 @@ export const disputeActions = {
           ? {
               ...d,
               status,
-              timeline: [...d.timeline, { at: new Date().toISOString(), actor: "Support Diambar", text: text ?? `Statut mis à jour : ${status}` }],
+              timeline: [
+                ...d.timeline,
+                {
+                  at: new Date().toISOString(),
+                  actor: "Support Diambar",
+                  text: text ?? `Statut mis à jour : ${status}`,
+                },
+              ],
             }
           : d,
       ),
@@ -134,7 +164,17 @@ export const disputeActions = {
   },
   comment: (id: string, text: string) => {
     disputesStore.set((arr) =>
-      arr.map((d) => (d.id === id ? { ...d, timeline: [...d.timeline, { at: new Date().toISOString(), actor: "Support Diambar", text }] } : d)),
+      arr.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              timeline: [
+                ...d.timeline,
+                { at: new Date().toISOString(), actor: "Support Diambar", text },
+              ],
+            }
+          : d,
+      ),
     );
   },
 };
@@ -161,5 +201,115 @@ export const platformSettingsActions = {
   },
   setZoneFee: (id: string, baseFee: number) => {
     zonesStore.set((arr) => arr.map((z) => (z.id === id ? { ...z, baseFee } : z)));
+  },
+};
+
+export type AdminNotification = {
+  id: string;
+  kind: "validation" | "dispute" | "moderation";
+  refId: string;
+  title: string;
+  body: string;
+  at: string;
+};
+
+// Starts empty on both server and first client render (unlike createStore's
+// persistKey option, which reads localStorage synchronously at module load
+// and would make the client's first paint disagree with the SSR markup).
+// The localStorage value is loaded after mount instead, in a useEffect below.
+const notifsReadStore = createStore<string[]>([]);
+const NOTIFS_READ_KEY = "diambar:admin-notifs-read";
+
+function loadPersistedReadIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(NOTIFS_READ_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistReadIds(ids: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(NOTIFS_READ_KEY, JSON.stringify(ids));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Pas de store de notifications dédié : la liste est dérivée en direct des
+ * files d'attente réelles (validations, litiges, modération) plutôt que
+ * dupliquée dans un store parallèle qui pourrait se désynchroniser.
+ */
+export function useAdminNotifications(): (AdminNotification & { read: boolean })[] {
+  const validations = useValidations();
+  const disputes = useDisputes();
+  const moderation = useModerationQueue();
+  const readIds = useSyncExternalStore(
+    notifsReadStore.subscribe,
+    notifsReadStore.get,
+    notifsReadStore.get,
+  );
+
+  useEffect(() => {
+    const persisted = loadPersistedReadIds();
+    if (persisted.length > 0) notifsReadStore.set(persisted);
+  }, []);
+
+  const items: AdminNotification[] = [
+    ...validations
+      .filter((v) => v.status === "pending")
+      .map((v) => ({
+        id: `validation-${v.id}`,
+        kind: "validation" as const,
+        refId: v.id,
+        title: "Validation en attente",
+        body: `Dossier ${v.type} à examiner (${v.docs.length} document(s))`,
+        at: v.submittedAt,
+      })),
+    ...disputes
+      .filter((d) => d.status === "open" || d.status === "investigating")
+      .map((d) => ({
+        id: `dispute-${d.id}`,
+        kind: "dispute" as const,
+        refId: d.id,
+        title: "Litige ouvert",
+        body: `${d.reference} — ${d.reason} (${d.openedBy} vs ${d.against})`,
+        at: d.openedAt,
+      })),
+    ...moderation
+      .filter((m) => m.status === "pending")
+      .map((m) => ({
+        id: `moderation-${m.id}`,
+        kind: "moderation" as const,
+        refId: m.id,
+        title: "Produit signalé",
+        body: `${m.name} — ${m.reason}`,
+        at: m.reportedAt,
+      })),
+  ];
+
+  return items
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .map((n) => ({ ...n, read: readIds.includes(n.id) }));
+}
+
+export const adminNotifActions = {
+  markRead: (id: string) => {
+    notifsReadStore.set((arr) => {
+      const next = arr.includes(id) ? arr : [...arr, id];
+      persistReadIds(next);
+      return next;
+    });
+  },
+  markAllRead: (ids: string[]) => {
+    notifsReadStore.set((arr) => {
+      const next = Array.from(new Set([...arr, ...ids]));
+      persistReadIds(next);
+      return next;
+    });
   },
 };

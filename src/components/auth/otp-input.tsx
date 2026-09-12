@@ -1,6 +1,14 @@
 import { useRef } from "react";
 
-export function OtpInput({ value, onChange, length = 6 }: { value: string; onChange: (v: string) => void; length?: number }) {
+export function OtpInput({
+  value,
+  onChange,
+  length = 6,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  length?: number;
+}) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const set = (i: number, v: string) => {
     if (!/^\d?$/.test(v)) return;
@@ -14,7 +22,9 @@ export function OtpInput({ value, onChange, length = 6 }: { value: string; onCha
       {Array.from({ length }).map((_, i) => (
         <input
           key={i}
-          ref={(el) => { refs.current[i] = el; }}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
           inputMode="numeric"
           maxLength={1}
           value={value[i] || ""}

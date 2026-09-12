@@ -18,7 +18,9 @@ export function PageError({
       <h3 className="mt-4 font-semibold">{title}</h3>
       {message && <p className="mt-1 text-sm text-muted-foreground max-w-sm mx-auto">{message}</p>}
       {onRetry && (
-        <Button onClick={onRetry} className="mt-4">Réessayer</Button>
+        <Button onClick={onRetry} className="mt-4">
+          Réessayer
+        </Button>
       )}
     </div>
   );

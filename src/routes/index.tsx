@@ -15,7 +15,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Diambar Agro — Du Champ à Votre Cuisine" },
-      { name: "description", content: "Plateforme N°1 d'approvisionnement agricole au Sénégal. Connectez agriculteurs, restaurants et livreurs." },
+      {
+        name: "description",
+        content:
+          "Plateforme N°1 d'approvisionnement agricole au Sénégal. Connectez agriculteurs, restaurants et livreurs.",
+      },
     ],
   }),
   component: LandingPage,

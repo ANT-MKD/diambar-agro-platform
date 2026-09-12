@@ -1,4 +1,9 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { faq } from "@/data/mocks";
 
 export function Faq() {
@@ -12,7 +17,9 @@ export function Faq() {
         <Accordion type="single" collapsible className="space-y-3">
           {faq.map((item, i) => (
             <AccordionItem key={i} value={`item-${i}`} className="glass rounded-2xl px-5 border-0">
-              <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">{item.q}</AccordionTrigger>
+              <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                {item.q}
+              </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-5">{item.a}</AccordionContent>
             </AccordionItem>
           ))}

@@ -68,7 +68,14 @@ function textWidth(s: string, size: number, bold = false): number {
   return (w / 1000) * size * (bold ? 1.03 : 1);
 }
 
-function drawText(ops: string[], text: string, x: number, y: number, size: number, opts: TextOpts = {}) {
+function drawText(
+  ops: string[],
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  opts: TextOpts = {},
+) {
   const bold = opts.bold ?? false;
   const font = bold ? "/F2" : "/F1";
   const [r, g, b] = opts.color ?? [0.06, 0.06, 0.08];
@@ -80,7 +87,15 @@ function drawText(ops: string[], text: string, x: number, y: number, size: numbe
   ops.push(`(${pdfEscape(text)}) Tj`);
   ops.push("ET");
 }
-function drawLine(ops: string[], x1: number, y1: number, x2: number, y2: number, color: RGB = [0.85, 0.85, 0.87], width = 0.5) {
+function drawLine(
+  ops: string[],
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  color: RGB = [0.85, 0.85, 0.87],
+  width = 0.5,
+) {
   ops.push(`${color[0]} ${color[1]} ${color[2]} RG`);
   ops.push(`${width} w`);
   ops.push(`${x1} ${y1} m ${x2} ${y2} l S`);
@@ -90,7 +105,11 @@ function fmtMoney(n: number): string {
   return new Intl.NumberFormat("fr-FR").format(n);
 }
 function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
 }
 
 export function buildDiambarInvoice(d: InvoiceData): Blob {
@@ -170,11 +189,14 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
     y -= 22;
     drawText(ops, it.name, ML, y, 10, { bold: true, color: BLACK });
     drawText(ops, it.qty, ML + 320, y, 10, { color: BLACK, align: "right" });
-    drawText(ops, `${fmtMoney(it.unitPrice)} FCFA`, ML + 420, y, 10, { color: BLACK, align: "right" });
+    drawText(ops, `${fmtMoney(it.unitPrice)} FCFA`, ML + 420, y, 10, {
+      color: BLACK,
+      align: "right",
+    });
     drawText(ops, `${fmtMoney(it.amount)} FCFA`, MR, y, 10, { color: BLACK, align: "right" });
     if (it.qtyUnit) drawText(ops, it.qtyUnit, ML + 320, y - 12, 8, { color: GRAY, align: "right" });
     if (it.sub) drawText(ops, it.sub, ML, y - 12, 8, { color: GRAY });
-    y -= (it.sub || it.qtyUnit) ? 18 : 10;
+    y -= it.sub || it.qtyUnit ? 18 : 10;
     drawLine(ops, ML, y, MR, y);
   }
 
@@ -202,10 +224,14 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   const objects: string[] = [];
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");
   objects.push("<< /Type /Pages /Count 1 /Kids [3 0 R] >>");
-  objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>`);
+  objects.push(
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>`,
+  );
   objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
-  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  objects.push(
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+  );
 
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];

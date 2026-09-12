@@ -7,13 +7,22 @@ export const Route = createFileRoute("/driver/notifications/")({
   head: () => ({
     meta: [
       { title: "Notifications · Livreur" },
-      { name: "description", content: "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal." },
+      {
+        name: "description",
+        content:
+          "Centre de notifications : filtres, statut lu/non lu et règles de déclenchement par canal.",
+      },
     ],
   }),
   component: NotificationsPage,
 });
 
-const TYPES = [{ key: "order", label: "Missions" }, { key: "payment", label: "Paiements" }, { key: "message", label: "Messages" }, { key: "system", label: "Système" }];
+const TYPES = [
+  { key: "order", label: "Missions" },
+  { key: "payment", label: "Paiements" },
+  { key: "message", label: "Messages" },
+  { key: "system", label: "Système" },
+];
 
 function NotificationsPage() {
   const items = useDriverNotifications();

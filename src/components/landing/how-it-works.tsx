@@ -33,28 +33,50 @@ export function HowItWorks() {
     <section id="how" className="py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-4">
         <div className="text-center max-w-2xl mx-auto">
-          <p className="text-emerald-500 font-semibold text-sm uppercase tracking-wider">Processus</p>
-          <h2 className="mt-3 font-display text-4xl lg:text-5xl font-bold">Simple. Rapide. Direct.</h2>
-          <p className="mt-4 text-muted-foreground text-lg">3 étapes pour révolutionner votre approvisionnement</p>
+          <p className="text-emerald-500 font-semibold text-sm uppercase tracking-wider">
+            Processus
+          </p>
+          <h2 className="mt-3 font-display text-4xl lg:text-5xl font-bold">
+            Simple. Rapide. Direct.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            3 étapes pour révolutionner votre approvisionnement
+          </p>
         </div>
         <div className="mt-16 grid md:grid-cols-3 gap-6">
           {steps.map((s, i) => (
-            <motion.div key={s.n}
+            <motion.div
+              key={s.n}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="glass rounded-3xl p-6 hover:scale-[1.02] transition-transform">
+              className="glass rounded-3xl p-6 hover:scale-[1.02] transition-transform"
+            >
               <div className="flex items-start justify-between">
-                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-emerald-300" style={{ backgroundImage: `linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 60%, black))` }}>
+                <div
+                  className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br text-emerald-300"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 60%, black))`,
+                  }}
+                >
                   <s.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
-                <span className="font-display text-4xl font-extrabold text-foreground/10">{s.n}</span>
+                <span className="font-display text-4xl font-extrabold text-foreground/10">
+                  {s.n}
+                </span>
               </div>
               <h3 className="mt-6 text-xl font-bold">{s.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
-              <div className={`mt-6 h-40 rounded-2xl overflow-hidden bg-gradient-to-br ${s.accent}`}>
-                <img src={s.image} alt={s.title} className="h-full w-full object-cover opacity-90" loading="lazy" />
+              <div
+                className={`mt-6 h-40 rounded-2xl overflow-hidden bg-gradient-to-br ${s.accent}`}
+              >
+                <img
+                  src={s.image}
+                  alt={s.title}
+                  className="h-full w-full object-cover opacity-90"
+                  loading="lazy"
+                />
               </div>
             </motion.div>
           ))}

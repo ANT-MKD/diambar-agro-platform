@@ -6,13 +6,26 @@ export const Route = createFileRoute("/for-farmers")({
   head: () => ({
     meta: [
       { title: "Pour les agriculteurs — Vendez en direct | Diambar Agro" },
-      { name: "description", content: "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, payé sous 24h par Wave, Orange Money ou Free Money." },
+      {
+        name: "description",
+        content:
+          "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, payé sous 24h par Wave, Orange Money ou Free Money.",
+      },
       { property: "og:title", content: "Pour les agriculteurs — Diambar Agro" },
-      { property: "og:description", content: "Vendez votre récolte en direct aux restaurants, payé sous 24h." },
+      {
+        property: "og:description",
+        content: "Vendez votre récolte en direct aux restaurants, payé sous 24h.",
+      },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200" },
+      {
+        property: "og:image",
+        content: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200",
+      },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200" },
+      {
+        name: "twitter:image",
+        content: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200",
+      },
     ],
   }),
   component: () => (
@@ -28,10 +41,26 @@ export const Route = createFileRoute("/for-farmers")({
         { value: "0 F", label: "frais d'inscription" },
       ]}
       benefits={[
-        { icon: Wallet, title: "Paiement rapide", desc: "Retrait sur Wave, Orange Money ou Free Money sous 24h après livraison." },
-        { icon: Boxes, title: "Stock maîtrisé", desc: "Alertes de rupture, mouvements d'entrée/sortie et inventaire complet." },
-        { icon: BarChart3, title: "Analytics de ventes", desc: "Comprenez vos meilleurs produits, vos pics de demande et vos prévisions." },
-        { icon: ShieldCheck, title: "Acheteurs vérifiés", desc: "Chaque restaurant est validé par notre équipe avant de commander." },
+        {
+          icon: Wallet,
+          title: "Paiement rapide",
+          desc: "Retrait sur Wave, Orange Money ou Free Money sous 24h après livraison.",
+        },
+        {
+          icon: Boxes,
+          title: "Stock maîtrisé",
+          desc: "Alertes de rupture, mouvements d'entrée/sortie et inventaire complet.",
+        },
+        {
+          icon: BarChart3,
+          title: "Analytics de ventes",
+          desc: "Comprenez vos meilleurs produits, vos pics de demande et vos prévisions.",
+        },
+        {
+          icon: ShieldCheck,
+          title: "Acheteurs vérifiés",
+          desc: "Chaque restaurant est validé par notre équipe avant de commander.",
+        },
       ]}
       steps={[
         "Créez votre compte producteur et vérifiez votre identité",

@@ -11,7 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin/finance")({
-  head: () => ({ meta: [{ title: "Finance — Administration Diambar Agro" }, { name: "description", content: "Commissions encaissées, versements aux partenaires et trésorerie de la plateforme." }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Finance — Administration Diambar Agro" },
+      {
+        name: "description",
+        content:
+          "Commissions encaissées, versements aux partenaires et trésorerie de la plateforme.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AdminFinance,
 });
 
@@ -29,16 +39,78 @@ function AdminFinance() {
         subtitle="Commissions, versements et trésorerie"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("commissions-mensuelles", ["Mois", "GMV FCFA", "Commission FCFA"], platformGmv.map((m) => [m.month, m.gmv, Math.round(m.gmv * 0.11)]))}><Download className="h-4 w-4" />Export comptable</Button>
-            <Button variant="outline" className="gap-2" onClick={() => downloadCsv("versements", ["Référence", "Bénéficiaire", "Rôle", "Montant FCFA", "Méthode", "Statut", "Date"], payouts.map((p) => [p.reference, p.beneficiary, p.role, p.amount, p.method, p.status, p.date]))}><Download className="h-4 w-4" />Versements CSV</Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                downloadCsv(
+                  "commissions-mensuelles",
+                  ["Mois", "GMV FCFA", "Commission FCFA"],
+                  platformGmv.map((m) => [m.month, m.gmv, Math.round(m.gmv * 0.11)]),
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              Export comptable
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                downloadCsv(
+                  "versements",
+                  [
+                    "Référence",
+                    "Bénéficiaire",
+                    "Rôle",
+                    "Montant FCFA",
+                    "Méthode",
+                    "Statut",
+                    "Date",
+                  ],
+                  payouts.map((p) => [
+                    p.reference,
+                    p.beneficiary,
+                    p.role,
+                    p.amount,
+                    p.method,
+                    p.status,
+                    p.date,
+                  ]),
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              Versements CSV
+            </Button>
           </div>
         }
       />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Commissions du mois" value={formatFCFA(commission)} delta={19} icon={TrendingUp} />
-        <StatCard label="Versements effectués" value={formatFCFA(paid)} icon={Wallet} hint="Semaine en cours" />
-        <StatCard label="Versements en attente" value={formatFCFA(pending)} icon={Receipt} hint={`${payouts.filter((p) => p.status !== "Payé").length} opérations`} />
-        <StatCard label="Trésorerie estimée" value={formatFCFA(commission - pending)} delta={7} icon={PiggyBank} />
+        <StatCard
+          label="Commissions du mois"
+          value={formatFCFA(commission)}
+          delta={19}
+          icon={TrendingUp}
+        />
+        <StatCard
+          label="Versements effectués"
+          value={formatFCFA(paid)}
+          icon={Wallet}
+          hint="Semaine en cours"
+        />
+        <StatCard
+          label="Versements en attente"
+          value={formatFCFA(pending)}
+          icon={Receipt}
+          hint={`${payouts.filter((p) => p.status !== "Payé").length} opérations`}
+        />
+        <StatCard
+          label="Trésorerie estimée"
+          value={formatFCFA(commission - pending)}
+          delta={7}
+          icon={PiggyBank}
+        />
       </div>
 
       <div className="glass rounded-2xl p-5">
@@ -47,9 +119,29 @@ function AdminFinance() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => formatFCFA(v)} />
+              <XAxis
+                dataKey="month"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${Math.round(v / 1000)}k`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: 12,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => formatFCFA(v)}
+              />
               <Bar dataKey="commission" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -57,7 +149,9 @@ function AdminFinance() {
       </div>
 
       <div className="glass rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-border font-semibold text-sm">Derniers versements partenaires</div>
+        <div className="px-4 py-3 border-b border-border font-semibold text-sm">
+          Derniers versements partenaires
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-xs text-muted-foreground">
             <tr>
@@ -74,10 +168,14 @@ function AdminFinance() {
               <tr key={p.id} className="hover:bg-accent/50 transition">
                 <td className="px-4 py-3 font-medium">{p.reference}</td>
                 <td className="px-4 py-3">{p.beneficiary}</td>
-                <td className="px-4 py-3 hidden md:table-cell"><RoleBadge role={p.role} /></td>
+                <td className="px-4 py-3 hidden md:table-cell">
+                  <RoleBadge role={p.role} />
+                </td>
                 <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{p.method}</td>
                 <td className="px-4 py-3 text-right font-medium">{formatFCFA(p.amount)}</td>
-                <td className="px-4 py-3"><AdminBadge value={p.status} label={p.status} /></td>
+                <td className="px-4 py-3">
+                  <AdminBadge value={p.status} label={p.status} />
+                </td>
               </tr>
             ))}
           </tbody>

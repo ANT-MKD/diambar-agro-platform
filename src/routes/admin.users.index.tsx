@@ -9,7 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/")({
-  head: () => ({ meta: [{ title: "Utilisateurs — Administration Diambar Agro" }, { name: "description", content: "Gestion des comptes agriculteurs, restaurants et livreurs." }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Utilisateurs — Administration Diambar Agro" },
+      {
+        name: "description",
+        content: "Gestion des comptes agriculteurs, restaurants et livreurs.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AdminUsers,
 });
 
@@ -22,10 +31,11 @@ function AdminUsers() {
   const [role, setRole] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
 
-  const rows = users.filter((u) =>
-    (role === "all" || u.role === role) &&
-    (status === "all" || u.status === status) &&
-    (q === "" || `${u.name} ${u.email} ${u.city}`.toLowerCase().includes(q.toLowerCase())),
+  const rows = users.filter(
+    (u) =>
+      (role === "all" || u.role === role) &&
+      (status === "all" || u.status === status) &&
+      (q === "" || `${u.name} ${u.email} ${u.city}`.toLowerCase().includes(q.toLowerCase())),
   );
 
   return (
@@ -33,15 +43,69 @@ function AdminUsers() {
       <PageHeader
         title="Utilisateurs"
         subtitle={`${users.length} comptes sur la plateforme`}
-        actions={<Button variant="outline" className="gap-2" onClick={() => downloadCsv("utilisateurs-diambar", ["Nom", "Email", "Téléphone", "Rôle", "Ville", "Statut", "Volume FCFA", "Commandes"], rows.map((u) => [u.name, u.email, u.phone, u.role, u.city, u.status, u.gmv, u.orders]))}><Download className="h-4 w-4" />Exporter CSV</Button>}
+        actions={
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() =>
+              downloadCsv(
+                "utilisateurs-diambar",
+                [
+                  "Nom",
+                  "Email",
+                  "Téléphone",
+                  "Rôle",
+                  "Ville",
+                  "Statut",
+                  "Volume FCFA",
+                  "Commandes",
+                ],
+                rows.map((u) => [
+                  u.name,
+                  u.email,
+                  u.phone,
+                  u.role,
+                  u.city,
+                  u.status,
+                  u.gmv,
+                  u.orders,
+                ]),
+              )
+            }
+          >
+            <Download className="h-4 w-4" />
+            Exporter CSV
+          </Button>
+        }
       />
       <div className="glass rounded-2xl p-4 flex flex-wrap items-center gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un nom, email, ville…" className="flex-1 min-w-52 h-9 rounded-xl border border-border bg-background px-3 text-sm" />
-        <select value={role} onChange={(e) => setRole(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-3 text-sm">
-          {ROLES.map((r) => <option key={r} value={r}>{r === "all" ? "Tous les rôles" : r}</option>)}
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Rechercher un nom, email, ville…"
+          className="flex-1 min-w-52 h-9 rounded-xl border border-border bg-background px-3 text-sm"
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="h-9 rounded-xl border border-border bg-background px-3 text-sm"
+        >
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {r === "all" ? "Tous les rôles" : r}
+            </option>
+          ))}
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-9 rounded-xl border border-border bg-background px-3 text-sm">
-          {STATUSES.map((s) => <option key={s} value={s}>{s === "all" ? "Tous les statuts" : s}</option>)}
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="h-9 rounded-xl border border-border bg-background px-3 text-sm"
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s === "all" ? "Tous les statuts" : s}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -61,7 +125,11 @@ function AdminUsers() {
             {rows.map((u) => (
               <tr key={u.id} className="hover:bg-accent/50 transition">
                 <td className="px-4 py-3">
-                  <Link to="/admin/users/$userId" params={{ userId: u.id }} className="flex items-center gap-3">
+                  <Link
+                    to="/admin/users/$userId"
+                    params={{ userId: u.id }}
+                    className="flex items-center gap-3"
+                  >
                     <img src={u.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                     <div className="min-w-0">
                       <div className="font-medium truncate">{u.name}</div>
@@ -69,14 +137,28 @@ function AdminUsers() {
                     </div>
                   </Link>
                 </td>
-                <td className="px-4 py-3 hidden md:table-cell"><RoleBadge role={u.role} /></td>
+                <td className="px-4 py-3 hidden md:table-cell">
+                  <RoleBadge role={u.role} />
+                </td>
                 <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{u.city}</td>
-                <td className="px-4 py-3 hidden lg:table-cell text-right font-medium">{formatFCFA(u.gmv)}</td>
-                <td className="px-4 py-3"><AdminBadge value={u.status} /></td>
-                <td className="px-4 py-3 hidden md:table-cell text-right text-[11px] text-muted-foreground">{relativeTime(u.lastActiveAt)}</td>
+                <td className="px-4 py-3 hidden lg:table-cell text-right font-medium">
+                  {formatFCFA(u.gmv)}
+                </td>
+                <td className="px-4 py-3">
+                  <AdminBadge value={u.status} />
+                </td>
+                <td className="px-4 py-3 hidden md:table-cell text-right text-[11px] text-muted-foreground">
+                  {relativeTime(u.lastActiveAt)}
+                </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Aucun compte ne correspond à ces filtres.</td></tr>}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                  Aucun compte ne correspond à ces filtres.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
