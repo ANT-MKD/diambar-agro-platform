@@ -42,7 +42,6 @@ import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
-import { Route as DriverEarningsRouteImport } from './routes/driver.earnings'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverIncidentsRouteImport } from './routes/driver.incidents'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
@@ -307,11 +306,6 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
 const DriverDashboardRoute = DriverDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => DriverRoute,
-} as any)
-const DriverEarningsRoute = DriverEarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
   getParentRoute: () => DriverRoute,
 } as any)
 const DriverHistoryRoute = DriverHistoryRouteImport.update({
@@ -878,7 +872,6 @@ export interface FileRoutesByFullPath {
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
-  '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
   '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
@@ -1014,7 +1007,6 @@ export interface FileRoutesByTo {
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
-  '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
   '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/routes': typeof DriverRoutesRoute
@@ -1143,7 +1135,6 @@ export interface FileRoutesById {
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
-  '/driver/earnings': typeof DriverEarningsRoute
   '/driver/history': typeof DriverHistoryRoute
   '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
@@ -1281,7 +1272,6 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
-    | '/driver/earnings'
     | '/driver/history'
     | '/driver/incidents'
     | '/driver/messages'
@@ -1417,7 +1407,6 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
-    | '/driver/earnings'
     | '/driver/history'
     | '/driver/incidents'
     | '/driver/routes'
@@ -1545,7 +1534,6 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
-    | '/driver/earnings'
     | '/driver/history'
     | '/driver/incidents'
     | '/driver/messages'
@@ -1906,13 +1894,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/driver/dashboard'
       preLoaderRoute: typeof DriverDashboardRouteImport
-      parentRoute: typeof DriverRoute
-    }
-    '/driver/earnings': {
-      id: '/driver/earnings'
-      path: '/earnings'
-      fullPath: '/driver/earnings'
-      preLoaderRoute: typeof DriverEarningsRouteImport
       parentRoute: typeof DriverRoute
     }
     '/driver/history': {
@@ -2705,7 +2686,6 @@ const DriverMissionsMissionIdRouteWithChildren =
 
 interface DriverRouteChildren {
   DriverDashboardRoute: typeof DriverDashboardRoute
-  DriverEarningsRoute: typeof DriverEarningsRoute
   DriverHistoryRoute: typeof DriverHistoryRoute
   DriverIncidentsRoute: typeof DriverIncidentsRoute
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
@@ -2722,7 +2702,6 @@ interface DriverRouteChildren {
 
 const DriverRouteChildren: DriverRouteChildren = {
   DriverDashboardRoute: DriverDashboardRoute,
-  DriverEarningsRoute: DriverEarningsRoute,
   DriverHistoryRoute: DriverHistoryRoute,
   DriverIncidentsRoute: DriverIncidentsRoute,
   DriverMessagesRoute: DriverMessagesRouteWithChildren,

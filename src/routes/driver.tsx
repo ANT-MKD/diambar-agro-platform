@@ -40,7 +40,6 @@ const navSections = [
       { to: "/driver/missions", label: "Missions", icon: Truck, badge: 3 },
       { to: "/driver/routes", label: "Tournées", icon: Navigation },
       { to: "/driver/history", label: "Historique", icon: History },
-      { to: "/driver/earnings", label: "Mes Revenus", icon: Wallet },
       { to: "/driver/wallet", label: "Portefeuille", icon: Wallet },
       { to: "/driver/incidents", label: "Incidents", icon: TriangleAlert },
       { to: "/driver/disputes", label: "Litiges", icon: Scale },
@@ -60,7 +59,7 @@ const navSections = [
 const bottomNav = [
   { to: "/driver/dashboard", label: "Accueil", icon: LayoutDashboard },
   { to: "/driver/missions", label: "Missions", icon: Truck },
-  { to: "/driver/earnings", label: "Revenus", icon: Wallet },
+  { to: "/driver/wallet", label: "Revenus", icon: Wallet },
   { to: "/driver/messages", label: "Messages", icon: MessageSquare },
   { to: "/driver/settings", label: "Plus", icon: Settings },
 ];

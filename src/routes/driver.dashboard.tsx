@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import {
   Truck,
   Wallet,
@@ -15,7 +16,7 @@ import {
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useMissions, useDriverOnline, driverOnlineActions, useDriverWallet } from "@/data/store";
-import { driverProfile, restaurants, farmers, driverEarningsChart } from "@/data/mocks";
+import { driverProfile, restaurants, farmers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
@@ -47,23 +48,25 @@ function DriverDashboard() {
       (m.status === "accepted" || m.status === "pickup" || m.status === "loaded"),
   );
   const nextMission = active[0] ?? null;
+  const delivered = missions.filter((m) => m.driverId === "d1" && m.status === "delivered");
+  const totalDistance = delivered.reduce((s, m) => s + m.distanceKm, 0);
 
   const kpis = [
     {
-      label: "Gains du jour",
-      value: formatFCFA(driverProfile.todayEarnings),
+      label: "Gains (missions livrées)",
+      value: formatFCFA(grossMissions + bonusTotal),
       icon: Wallet,
       tone: "from-emerald-500/20 to-emerald-500/0 border-emerald-500/30 text-emerald-600 dark:text-emerald-400",
     },
     {
       label: "Livraisons",
-      value: `${driverProfile.todayMissions}`,
+      value: `${delivered.length}`,
       icon: Truck,
       tone: "from-blue-500/20 to-blue-500/0 border-blue-500/30 text-blue-600 dark:text-blue-400",
     },
     {
       label: "Distance",
-      value: `${driverProfile.todayKm} km`,
+      value: `${totalDistance} km`,
       icon: RouteIcon,
       tone: "from-violet-500/20 to-violet-500/0 border-violet-500/30 text-violet-600 dark:text-violet-400",
     },
@@ -75,8 +78,23 @@ function DriverDashboard() {
     },
   ];
 
-  const bonusProgress = Math.min(100, Math.round((driverProfile.todayMissions / 6) * 100));
-  const maxChart = Math.max(...driverEarningsChart.map((d) => d.amount));
+  // Peu de jours couverts par les missions de démo : agrégation par jour réel
+  // plutôt qu'une semaine simulée.
+  const earningsByDay = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of wallet.transactions) {
+      if (t.kind !== "mission" && t.kind !== "bonus") continue;
+      const day = t.at.slice(0, 10);
+      totals.set(day, (totals.get(day) ?? 0) + t.amount);
+    }
+    return Array.from(totals.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([day, amount]) => ({
+        day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+        amount,
+      }));
+  }, [wallet.transactions]);
+  const maxChart = Math.max(1, ...earningsByDay.map((d) => d.amount));
 
   return (
     <div className="space-y-6">
@@ -263,32 +281,6 @@ function DriverDashboard() {
 
         {/* Sidebar droite */}
         <div className="space-y-6">
-          {/* Bonus / objectif jour */}
-          <div className="glass rounded-2xl p-5 border-t-4 border-amber-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                  Objectif du jour
-                </div>
-                <div className="mt-1 font-display font-bold">Bonus +2 000 FCFA</div>
-              </div>
-              <Star className="h-6 w-6 text-amber-500" />
-            </div>
-            <div className="mt-3 text-xs text-muted-foreground">
-              {driverProfile.todayMissions} / 6 missions
-            </div>
-            <div className="mt-1.5 h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all"
-                style={{ width: `${bonusProgress}%` }}
-              />
-            </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              Complétez {6 - driverProfile.todayMissions} mission(s) de plus pour débloquer le
-              bonus.
-            </p>
-          </div>
-
           {/* Portefeuille */}
           <div className="glass rounded-2xl p-5 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10">
             <div className="flex items-center justify-between">
@@ -343,41 +335,42 @@ function DriverDashboard() {
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button asChild size="sm">
-                <Link to="/driver/wallet">Portefeuille</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link to="/driver/earnings">Revenus</Link>
+            <div className="mt-3">
+              <Button asChild size="sm" className="w-full">
+                <Link to="/driver/wallet">Voir le portefeuille</Link>
               </Button>
             </div>
           </div>
 
-          {/* Graph semaine */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                  Cette semaine
-                </div>
-                <div className="mt-1 font-display font-bold flex items-center gap-1.5">
-                  {formatFCFA(driverEarningsChart.reduce((s, d) => s + d.amount, 0))}{" "}
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+          {/* Graph gains */}
+          {earningsByDay.length > 0 && (
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Gains par jour
+                  </div>
+                  <div className="mt-1 font-display font-bold flex items-center gap-1.5">
+                    {formatFCFA(earningsByDay.reduce((s, d) => s + d.amount, 0))}{" "}
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
                 </div>
               </div>
+              <div className="flex items-end gap-1.5 h-24">
+                {earningsByDay.map((d) => (
+                  <div key={d.day} className="flex-1 flex flex-col items-center gap-1 h-full">
+                    <div className="w-full flex-1 flex items-end">
+                      <div
+                        className="w-full rounded-t-md bg-gradient-to-t from-primary to-primary/40"
+                        style={{ height: `${(d.amount / maxChart) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{d.day}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-end gap-1.5 h-24">
-              {driverEarningsChart.map((d) => (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-primary to-primary/40"
-                    style={{ height: `${(d.amount / maxChart) * 100}%` }}
-                  />
-                  <span className="text-[10px] text-muted-foreground">{d.day}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
