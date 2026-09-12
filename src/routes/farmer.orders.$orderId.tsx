@@ -60,9 +60,13 @@ function OrderDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <OrderStatusBadge status={order.status} />
-          <Button size="icon" variant="outline">
-            <Phone className="h-4 w-4" />
-          </Button>
+          {r?.phone && (
+            <Button size="icon" variant="outline" asChild>
+              <a href={`tel:${r.phone}`} aria-label={`Appeler ${r.name}`}>
+                <Phone className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 

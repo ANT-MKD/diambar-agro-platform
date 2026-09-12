@@ -10,6 +10,7 @@ export const farmers = [
     name: "Mamadou Diallo",
     city: "Thiès",
     farm: "Ferme Diallo",
+    phone: "+221 77 123 45 67",
     avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200",
     rating: 4.9,
     products: 8,
@@ -20,6 +21,7 @@ export const farmers = [
     name: "Fatou Sow",
     city: "Dakar-Pikine",
     farm: "Coopérative Sow",
+    phone: "+221 78 200 33 44",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200",
     rating: 4.8,
     products: 6,
@@ -30,6 +32,7 @@ export const farmers = [
     name: "Ibrahima Ndoye",
     city: "Mbour",
     farm: "Niayes Ndoye",
+    phone: "+221 76 555 11 22",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
     rating: 4.7,
     products: 5,
@@ -43,6 +46,7 @@ export const restaurants = [
     name: "Le Baobab",
     city: "Dakar Plateau",
     type: "Sénégalaise",
+    phone: "+221 33 821 45 67",
     avatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200",
   },
   {
@@ -50,6 +54,7 @@ export const restaurants = [
     name: "Chez Aminata",
     city: "Thiès",
     type: "Sénégalaise",
+    phone: "+221 33 951 22 33",
     avatar: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200",
   },
   {
@@ -57,6 +62,7 @@ export const restaurants = [
     name: "Restaurant Téranga",
     city: "Dakar",
     type: "Hôtel",
+    phone: "+221 33 889 10 11",
     avatar: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=200",
   },
 ];
@@ -68,6 +74,7 @@ export const drivers = [
     vehicle: "Moto",
     rating: 4.9,
     missions: 234,
+    phone: "+221 77 456 78 90",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
   },
   {
@@ -76,6 +83,7 @@ export const drivers = [
     vehicle: "Camionnette",
     rating: 4.7,
     missions: 156,
+    phone: "+221 76 234 56 78",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200",
   },
 ];

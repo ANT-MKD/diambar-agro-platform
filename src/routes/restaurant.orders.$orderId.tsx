@@ -182,13 +182,19 @@ function OrderDetail() {
               </div>
             </div>
             <div className="flex gap-2 mt-3">
-              <Button variant="outline" size="sm" className="flex-1 gap-1">
-                <Phone className="h-3.5 w-3.5" />
-                Appeler
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1 gap-1">
-                <MessageSquare className="h-3.5 w-3.5" />
-                Message
+              {farmer?.phone && (
+                <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                  <a href={`tel:${farmer.phone}`} aria-label={`Appeler ${farmer.farm}`}>
+                    <Phone className="h-3.5 w-3.5" />
+                    Appeler
+                  </a>
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                <Link to="/restaurant/messages">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Message
+                </Link>
               </Button>
             </div>
           </div>
@@ -205,10 +211,14 @@ function OrderDetail() {
                   </div>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="w-full mt-3 gap-1">
-                <Phone className="h-3.5 w-3.5" />
-                Contacter le livreur
-              </Button>
+              {driver.phone && (
+                <Button variant="outline" size="sm" className="w-full mt-3 gap-1" asChild>
+                  <a href={`tel:${driver.phone}`} aria-label={`Appeler ${driver.name}`}>
+                    <Phone className="h-3.5 w-3.5" />
+                    Contacter le livreur
+                  </a>
+                </Button>
+              )}
             </div>
           )}
 

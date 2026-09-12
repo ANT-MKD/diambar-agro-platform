@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/farmer/empty-state";
 import { useMissions } from "@/data/store";
 import { restaurants, farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { downloadCsv } from "@/lib/export";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,13 +47,30 @@ function HistoryPage() {
   const totalEarned = items.reduce((s, m) => s + m.payout, 0);
   const totalKm = items.reduce((s, m) => s + m.distanceKm, 0);
 
+  const exportCsv = () => {
+    downloadCsv(
+      "historique-livraisons.csv",
+      ["Date", "Mission", "Commande", "Départ", "Arrivée", "Distance (km)", "Durée (min)", "Gain"],
+      items.map((m) => [
+        m.scheduledFor.slice(0, 10),
+        m.reference,
+        m.orderRef,
+        m.pickup.city,
+        m.dropoff.city,
+        m.distanceKm,
+        m.estimatedMinutes,
+        m.payout,
+      ]),
+    );
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Historique de livraisons"
         subtitle={`${items.length} livraison(s) · ${formatFCFA(totalEarned)} générés · ${totalKm} km parcourus`}
         actions={
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportCsv}>
             <Download className="h-4 w-4" />
             Exporter CSV
           </Button>

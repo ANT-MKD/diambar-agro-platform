@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { formatFCFA } from "@/lib/format";
 import { platformSettingsActions, useCommissionTiers, useDeliveryZones } from "@/data/admin-store";
@@ -58,9 +57,9 @@ function AdminSettings() {
             </div>
           ))}
         </div>
-        <Button className="mt-4" onClick={() => toast.success("Barème enregistré")}>
-          Enregistrer le barème
-        </Button>
+        <p className="mt-4 text-[11px] text-muted-foreground">
+          Les taux sont enregistrés automatiquement à chaque modification.
+        </p>
       </div>
 
       <div className="glass rounded-2xl p-5">
