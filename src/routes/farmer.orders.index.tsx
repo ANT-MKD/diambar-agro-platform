@@ -1,10 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, LayoutGrid, List, Clock, Package2, ShoppingBag } from "lucide-react";
+import {
+  Search,
+  LayoutGrid,
+  List,
+  Clock,
+  Package2,
+  ShoppingBag,
+  Hourglass,
+  Truck,
+  CheckCircle2,
+} from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { OrderKanban } from "@/components/farmer/order-kanban";
+import { KpiCard } from "@/components/farmer/kpi-card";
 import { useOrders } from "@/data/store";
 import { restaurants, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -53,7 +64,7 @@ function OrdersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Commandes"
+        title="Mes commandes"
         subtitle={`${items.length} commande(s) · glissez les cartes entre colonnes pour changer le statut`}
         actions={
           <div className="inline-flex rounded-xl border border-border p-1 bg-muted/40">
@@ -74,6 +85,28 @@ function OrdersPage() {
           </div>
         }
       />
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          icon={ShoppingBag}
+          label="Total commandes"
+          value={String(items.length)}
+          tone="blue"
+        />
+        <KpiCard icon={Hourglass} label="À traiter" value={String(count("pending"))} tone="amber" />
+        <KpiCard
+          icon={Truck}
+          label="En livraison"
+          value={String(count("delivering"))}
+          tone="violet"
+        />
+        <KpiCard
+          icon={CheckCircle2}
+          label="Terminées"
+          value={String(count("delivered"))}
+          tone="emerald"
+        />
+      </div>
 
       <div className="glass rounded-2xl p-3 flex flex-wrap gap-3 items-center">
         <Tabs
