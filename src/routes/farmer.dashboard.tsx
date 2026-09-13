@@ -1,9 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { TrendingUp, ShoppingBag, Package, Star, Plus, ArrowRight, Check, X } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  TrendingUp,
+  ShoppingBag,
+  Package,
+  Star,
+  Plus,
+  ArrowRight,
+  Check,
+  X,
+  Warehouse,
+  Wallet,
+} from "lucide-react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,12 +26,20 @@ import {
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { formatFCFA, formatNumber, relativeTime } from "@/lib/format";
-import { restaurants } from "@/data/mocks";
-import { useOrders, useProducts, orderActions } from "@/data/store";
+import { restaurants, type AppNotification } from "@/data/mocks";
+import {
+  useOrders,
+  useProducts,
+  orderActions,
+  useFarmerNotifications,
+  farmerNotifActions,
+} from "@/data/store";
 import { useSupplierScores } from "@/data/business";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
-import { LiveFeed } from "@/components/farmer/live-feed";
+import { AlertsPanel } from "@/components/farmer/alerts-panel";
+import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
+import { CATEGORY_COLOR } from "@/lib/category-colors";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -34,6 +56,8 @@ function Dashboard() {
   const active = products.filter((p) => p.status === "active").length;
   const [period, setPeriod] = useState<"7" | "30" | "12">("30");
   const score = useSupplierScores().find((s) => s.id === "f1");
+  const notifications = useFarmerNotifications();
+  const navigate = useNavigate();
 
   // Peu de jours couverts par les commandes de démo : le graphique agrège
   // par jour réel plutôt que de simuler une tendance sur 7/30/365 jours.
@@ -53,6 +77,37 @@ function Dashboard() {
       }));
   }, [orders]);
   const revenueThisMonth = delivered.reduce((s, o) => s + o.total, 0);
+
+  // Répartition réelle du CA livré par catégorie de produit (via les lignes
+  // de commande), plutôt qu'un flux d'activité simulé.
+  const categorySplit = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const o of delivered) {
+      for (const item of o.items) {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) continue;
+        totals.set(product.category, (totals.get(product.category) ?? 0) + item.qty * item.price);
+      }
+    }
+    return Array.from(totals.entries())
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [delivered, products]);
+
+  const openNotification = (n: AppNotification) => {
+    farmerNotifActions.markRead(n.id);
+    if (n.type === "order") navigate({ to: "/farmer/orders" });
+    else if (n.type === "payment") navigate({ to: "/farmer/revenue" });
+    else if (n.type === "stock") navigate({ to: "/farmer/stock" });
+    else if (n.type === "message") navigate({ to: "/farmer/messages" });
+  };
+
+  const quickActions: QuickAction[] = [
+    { icon: Plus, label: "Ajouter un produit", to: "/farmer/products/new", tone: "emerald" },
+    { icon: Warehouse, label: "Gérer le stock", to: "/farmer/stock", tone: "blue" },
+    { icon: ShoppingBag, label: "Voir les commandes", to: "/farmer/orders", tone: "violet" },
+    { icon: Wallet, label: "Demander un retrait", to: "/farmer/revenue/withdraw", tone: "amber" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -316,7 +371,75 @@ function Dashboard() {
           </div>
         </div>
 
-        <LiveFeed />
+        <div className="glass rounded-2xl p-6">
+          <h3 className="font-semibold mb-1">Répartition par catégorie</h3>
+          <p className="text-xs text-muted-foreground mb-3">Chiffre d'affaires livré</p>
+          {categorySplit.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">
+              Pas encore de vente livrée
+            </p>
+          ) : (
+            <>
+              <div className="h-40 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categorySplit}
+                      dataKey="value"
+                      nameKey="category"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={categorySplit.length > 1 ? 3 : 0}
+                    >
+                      {categorySplit.map((c) => (
+                        <Cell key={c.category} fill={CATEGORY_COLOR[c.category] ?? "#94a3b8"} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 12,
+                        color: "var(--foreground)",
+                      }}
+                      formatter={(v: number) => formatFCFA(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <div className="font-display font-bold text-sm text-center px-4">
+                    {formatFCFA(revenueThisMonth)}
+                  </div>
+                </div>
+              </div>
+              <ul className="space-y-1.5 mt-3">
+                {categorySplit.map((c) => (
+                  <li key={c.category} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: CATEGORY_COLOR[c.category] ?? "#94a3b8" }}
+                    />
+                    <span className="flex-1 truncate">{c.category}</span>
+                    <span className="font-semibold">
+                      {Math.round((c.value / revenueThisMonth) * 100)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <AlertsPanel
+            items={notifications}
+            viewAllTo="/farmer/notifications"
+            onOpen={openNotification}
+          />
+        </div>
+        <QuickActions actions={quickActions} />
       </div>
     </div>
   );

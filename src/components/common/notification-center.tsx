@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { relativeTime } from "@/lib/format";
 import type { AppNotification } from "@/data/mocks";
 
-const ICONS: Record<string, typeof Bell> = {
+export const NOTIF_ICONS: Record<string, typeof Bell> = {
   order: Package,
   payment: CreditCard,
   stock: Warehouse,
@@ -31,7 +31,7 @@ const ICONS: Record<string, typeof Bell> = {
   message: MessageSquare,
   mission: Truck,
 };
-const TONES: Record<string, string> = {
+export const NOTIF_TONES: Record<string, string> = {
   order: "bg-blue-500/10 text-blue-500",
   payment: "bg-emerald-500/10 text-emerald-500",
   stock: "bg-amber-500/10 text-amber-500",
@@ -186,7 +186,7 @@ export function NotificationCenter({
             </div>
             <div className="glass rounded-2xl divide-y divide-border overflow-hidden">
               {list.map((n) => {
-                const Icon = ICONS[n.type] ?? Bell;
+                const Icon = NOTIF_ICONS[n.type] ?? Bell;
                 return (
                   <div
                     key={n.id}
@@ -197,7 +197,7 @@ export function NotificationCenter({
                       className="flex flex-1 items-start gap-3 text-left"
                     >
                       <div
-                        className={`h-10 w-10 rounded-xl grid place-items-center shrink-0 ${TONES[n.type] ?? "bg-primary/10 text-primary"}`}
+                        className={`h-10 w-10 rounded-xl grid place-items-center shrink-0 ${NOTIF_TONES[n.type] ?? "bg-primary/10 text-primary"}`}
                       >
                         <Icon className="h-5 w-5" />
                       </div>
