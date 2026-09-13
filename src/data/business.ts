@@ -59,6 +59,13 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   credited: "Avoir émis",
 };
 
+export type ReturnProofPhoto = {
+  id: string;
+  url: string;
+  by: string;
+  at: string;
+};
+
 export type ReturnRequest = {
   id: string;
   reference: string;
@@ -76,6 +83,7 @@ export type ReturnRequest = {
   decidedAt?: string;
   decisionNote?: string;
   creditNoteRef?: string;
+  photos?: ReturnProofPhoto[];
   history: { at: string; actor: string; text: string }[];
 };
 
@@ -93,6 +101,14 @@ const seedReturns: ReturnRequest[] = [
     requestedAmount: 6800,
     status: "pending",
     createdAt: "2025-05-15T12:10:00Z",
+    photos: [
+      {
+        id: "rtp1",
+        url: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400",
+        by: "Le Baobab",
+        at: "2025-05-15T12:10:00Z",
+      },
+    ],
     history: [
       { at: "2025-05-15T12:10:00Z", actor: "Le Baobab", text: "Demande de retour ouverte" },
     ],
@@ -136,6 +152,14 @@ const seedReturns: ReturnRequest[] = [
     requestedAmount: 6400,
     status: "refused",
     createdAt: "2025-05-13T09:30:00Z",
+    photos: [
+      {
+        id: "rtp2",
+        url: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400",
+        by: "Teranga Food",
+        at: "2025-05-13T09:30:00Z",
+      },
+    ],
     decidedAt: "2025-05-13T18:00:00Z",
     decisionNote: "Retard imputable au transporteur, dossier basculé en litige livreur.",
     history: [

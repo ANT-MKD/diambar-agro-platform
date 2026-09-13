@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { RotateCcw, Check, X, ReceiptText, Download } from "lucide-react";
+import {
+  RotateCcw,
+  Check,
+  X,
+  ReceiptText,
+  Download,
+  ClipboardList,
+  Clock,
+  CheckCheck,
+  Wallet,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
+import { KpiCard } from "@/components/farmer/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,11 +72,9 @@ function ReturnsPage() {
 
   const list = tab === "all" ? returns : returns.filter((r) => r.status === tab);
   const pending = returns.filter((r) => r.status === "pending").length;
+  const processed = returns.filter((r) => r.status !== "pending").length;
   const credited = returns.filter((r) => r.status === "credited");
   const totalCredited = credited.reduce((s, r) => s + (r.awardedAmount ?? 0), 0);
-  const rate = returns.length
-    ? Math.round((returns.filter((r) => r.status !== "refused").length / returns.length) * 100)
-    : 0;
 
   const exportCsv = () =>
     downloadCsv(
@@ -107,19 +116,27 @@ function ReturnsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="glass rounded-2xl p-4">
-          <div className="text-xs text-muted-foreground">Demandes à traiter</div>
-          <div className="mt-1 text-2xl font-bold">{pending}</div>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="text-xs text-muted-foreground">Avoirs émis</div>
-          <div className="mt-1 text-2xl font-bold">{formatFCFA(totalCredited)}</div>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="text-xs text-muted-foreground">Taux d'acceptation</div>
-          <div className="mt-1 text-2xl font-bold">{rate}%</div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          icon={ClipboardList}
+          label="Demandes de retour"
+          value={String(returns.length)}
+          tone="blue"
+        />
+        <KpiCard icon={Clock} label="En attente" value={String(pending)} tone="amber" />
+        <KpiCard
+          icon={CheckCheck}
+          label="Retours traités"
+          value={String(processed)}
+          tone="violet"
+        />
+        <KpiCard
+          icon={Wallet}
+          label="Avoirs émis"
+          value={String(credited.length)}
+          change={formatFCFA(totalCredited)}
+          tone="emerald"
+        />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -173,6 +190,25 @@ function ReturnsPage() {
               </div>
 
               <p className="text-sm">{r.description}</p>
+              {r.photos && r.photos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {r.photos.map((p) => (
+                    <a
+                      key={p.id}
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block h-16 w-16 rounded-lg overflow-hidden border border-border shrink-0"
+                    >
+                      <img
+                        src={p.url}
+                        alt={`Preuve envoyée par ${p.by}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
               {r.decisionNote && (
                 <p className="text-xs text-muted-foreground">Décision : {r.decisionNote}</p>
               )}
