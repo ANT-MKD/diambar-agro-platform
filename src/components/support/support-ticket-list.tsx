@@ -1,6 +1,6 @@
 import { MessageCircleQuestion } from "lucide-react";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { TICKET_STATUS_LABEL, type SupportTicket } from "@/data/support";
+import { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL, type SupportTicket } from "@/data/support";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -28,9 +28,10 @@ export function SupportTicketList({ tickets }: { tickets: SupportTicket[] }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">{t.subject}</div>
-              {t.orderRef && (
-                <div className="text-xs text-muted-foreground">Commande {t.orderRef}</div>
-              )}
+              <div className="text-xs text-muted-foreground">
+                {TICKET_CATEGORY_LABEL[t.category]}
+                {t.orderRef && <> · Commande {t.orderRef}</>}
+              </div>
             </div>
             <span
               className={cn(
