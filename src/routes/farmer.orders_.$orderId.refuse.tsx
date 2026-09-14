@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export const Route = createFileRoute("/farmer/orders/$orderId/refuse")({
+export const Route = createFileRoute("/farmer/orders_/$orderId/refuse")({
   head: () => ({ meta: [{ title: "Refuser la commande · Diambar Agro" }] }),
   component: RefusePage,
 });

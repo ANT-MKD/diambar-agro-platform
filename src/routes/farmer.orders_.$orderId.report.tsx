@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const Route = createFileRoute("/farmer/orders/$orderId/report")({
+export const Route = createFileRoute("/farmer/orders_/$orderId/report")({
   head: () => ({ meta: [{ title: "Signaler un problème · Diambar Agro" }] }),
   component: ReportPage,
 });

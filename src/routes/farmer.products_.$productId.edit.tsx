@@ -4,13 +4,13 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { ProductForm } from "@/components/farmer/product-form";
 import { useProduct, productActions } from "@/data/store";
 
-export const Route = createFileRoute("/farmer/products/$productId/edit")({
+export const Route = createFileRoute("/farmer/products_/$productId/edit")({
   head: () => ({ meta: [{ title: "Modifier produit · Diambar Agro" }] }),
   component: EditProductPage,
 });
 
 function EditProductPage() {
-  const { productId } = useParams({ from: "/farmer/products/$productId/edit" });
+  const { productId } = useParams({ from: "/farmer/products_/$productId/edit" });
   const navigate = useNavigate();
   const product = useProduct(productId);
   if (!product)

@@ -6,7 +6,7 @@ import { DisputeForm } from "@/components/disputes/dispute-form";
 import { useOrder, useFarmerProfile } from "@/data/store";
 import { restaurants } from "@/data/mocks";
 
-export const Route = createFileRoute("/farmer/orders/$orderId/dispute")({
+export const Route = createFileRoute("/farmer/orders_/$orderId/dispute")({
   head: () => ({
     meta: [
       { title: "Ouvrir un litige — Espace producteur Diambar Agro" },
