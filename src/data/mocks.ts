@@ -770,6 +770,50 @@ export type RestaurantBudget = {
   monthly: number;
 };
 
+export type ProductReview = {
+  id: string;
+  productId: string;
+  restaurantName: string;
+  rating: number;
+  text: string;
+  at: string;
+};
+
+export const productReviews: ProductReview[] = [
+  {
+    id: "rv1",
+    productId: "p1",
+    restaurantName: "Chez Aminata",
+    rating: 5,
+    text: "Produit toujours frais et bien calibré. Livraison ponctuelle.",
+    at: "2025-05-08T10:00:00Z",
+  },
+  {
+    id: "rv2",
+    productId: "p1",
+    restaurantName: "Restaurant Téranga",
+    rating: 5,
+    text: "Excellente qualité, nous commandons chaque semaine.",
+    at: "2025-05-02T10:00:00Z",
+  },
+  {
+    id: "rv3",
+    productId: "p2",
+    restaurantName: "Le Baobab",
+    rating: 4,
+    text: "Bon rapport qualité-prix. À recommander.",
+    at: "2025-04-28T10:00:00Z",
+  },
+  {
+    id: "rv4",
+    productId: "p6",
+    restaurantName: "Restaurant Téranga",
+    rating: 5,
+    text: "Très bonne fraîcheur, parfait pour nos plats du jour.",
+    at: "2025-05-10T10:00:00Z",
+  },
+];
+
 export const restaurantBudget: RestaurantBudget = {
   monthly: 1500000,
 };

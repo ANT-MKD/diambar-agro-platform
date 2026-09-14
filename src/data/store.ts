@@ -22,12 +22,14 @@ import {
   paymentPrefs as seedPaymentPrefs,
   teamMembers as seedTeamMembers,
   restaurantBudget as seedRestaurantBudget,
+  productReviews as seedProductReviews,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
   type PaymentPrefs,
   type TeamMember,
   type RestaurantBudget,
+  type ProductReview,
   type Product,
   type Order,
   type OrderStatus,
@@ -113,6 +115,10 @@ const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
 const restaurantBudgetStore = createStore<RestaurantBudget>(
   seedRestaurantBudget,
   "diambar:restaurant-budget",
+);
+const productReviewsStore = createStore<ProductReview[]>(
+  seedProductReviews,
+  "diambar:product-reviews",
 );
 
 export type CartLine = { productId: string; qty: number };
@@ -418,6 +424,26 @@ export function useRestaurantBudget() {
 
 export const restaurantBudgetActions = {
   setMonthly: (monthly: number) => restaurantBudgetStore.set({ monthly }),
+};
+
+export function useProductReviews(productId: string) {
+  const all = useSyncExternalStore(
+    productReviewsStore.subscribe,
+    productReviewsStore.get,
+    productReviewsStore.get,
+  );
+  return all.filter((r) => r.productId === productId);
+}
+
+export const productReviewActions = {
+  add: (input: { productId: string; restaurantName: string; rating: number; text: string }) => {
+    const review: ProductReview = {
+      ...input,
+      id: `rv_${Date.now()}`,
+      at: new Date().toISOString(),
+    };
+    productReviewsStore.set((arr) => [review, ...arr]);
+  },
 };
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
