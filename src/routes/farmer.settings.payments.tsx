@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { type PaymentMethod } from "@/data/mocks";
+import { useWallets, walletActions, usePaymentPrefs, paymentPrefsActions } from "@/data/store";
 
 export const Route = createFileRoute("/farmer/settings/payments")({
   head: () => ({
@@ -27,17 +30,44 @@ export const Route = createFileRoute("/farmer/settings/payments")({
 });
 
 function PaymentSettings() {
-  const [form, setForm] = useState({
-    wave: "77 123 45 67",
-    orange: "78 200 33 44",
-    free: "",
-    primary: "wave",
-    threshold: "25000",
-  });
+  const wallets = useWallets();
+  const paymentPrefs = usePaymentPrefs();
+  const [form, setForm] = useState(() => ({
+    wave: wallets.find((w) => w.method === "Wave")?.phone ?? "",
+    orange: wallets.find((w) => w.method === "Orange Money")?.phone ?? "",
+    free: wallets.find((w) => w.method === "Free Money")?.phone ?? "",
+    primary: paymentPrefs.primary,
+    threshold: String(paymentPrefs.withdrawThreshold),
+  }));
+
+  const save = () => {
+    const byMethod: Record<string, string> = {
+      Wave: form.wave,
+      "Orange Money": form.orange,
+      "Free Money": form.free,
+    };
+    if (!byMethod[form.primary]?.trim()) {
+      toast.error("Renseignez un numéro pour votre méthode par défaut");
+      return false;
+    }
+    const threshold = Number(form.threshold);
+    if (!Number.isFinite(threshold) || threshold < 5000) {
+      toast.error("Le seuil de retrait doit être d'au moins 5 000 FCFA");
+      return false;
+    }
+    walletActions.setPhone("Wave", form.wave.trim());
+    walletActions.setPhone("Orange Money", form.orange.trim());
+    walletActions.setPhone("Free Money", form.free.trim());
+    paymentPrefsActions.setPrimary(form.primary);
+    paymentPrefsActions.setThreshold(threshold);
+    return true;
+  };
+
   return (
     <SettingsCard
       title="Méthodes de paiement"
-      description="Comptes mobile money pour recevoir vos paiements."
+      description="Comptes mobile money pour recevoir vos paiements. Ce sont les mêmes comptes proposés lors d'une demande de retrait."
+      onSave={save}
     >
       <FieldRow label="Wave">
         <Input
@@ -60,15 +90,18 @@ function PaymentSettings() {
           placeholder="Numéro Free Money"
         />
       </FieldRow>
-      <FieldRow label="Méthode par défaut">
-        <Select value={form.primary} onValueChange={(v) => setForm({ ...form, primary: v })}>
+      <FieldRow label="Méthode par défaut" hint="Présélectionnée lors d'une demande de retrait.">
+        <Select
+          value={form.primary}
+          onValueChange={(v) => setForm({ ...form, primary: v as PaymentMethod })}
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="wave">Wave</SelectItem>
-            <SelectItem value="orange">Orange Money</SelectItem>
-            <SelectItem value="free">Free Money</SelectItem>
+            <SelectItem value="Wave">Wave</SelectItem>
+            <SelectItem value="Orange Money">Orange Money</SelectItem>
+            <SelectItem value="Free Money">Free Money</SelectItem>
           </SelectContent>
         </Select>
       </FieldRow>

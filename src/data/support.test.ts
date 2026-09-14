@@ -13,6 +13,7 @@ describe("supportTicketActions.create", () => {
         message: "Test message body",
         fromName: "Test Farmer",
         fromRole: "farmer",
+        category: "other",
       });
     });
 
@@ -33,6 +34,7 @@ describe("supportTicketActions.create", () => {
         message: "message",
         fromName: "A Different Farmer",
         fromRole: "farmer",
+        category: "other",
       });
     });
     expect(someoneElse.result.current).toHaveLength(0);
@@ -49,6 +51,7 @@ describe("supportTicketActions.setStatus", () => {
         message: "message",
         fromName: "Closer Tester",
         fromRole: "restaurant",
+        category: "other",
       }).id;
     });
 

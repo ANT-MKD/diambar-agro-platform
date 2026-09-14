@@ -8,11 +8,17 @@ import {
   Hourglass,
   Download,
   History,
+  Plus,
+  FileText,
+  Settings,
 } from "lucide-react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -21,10 +27,11 @@ import {
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
+import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
 import { transactions, restaurants, wallets } from "@/data/mocks";
-import { useWithdrawals } from "@/data/store";
+import { useWithdrawals, useWallets } from "@/data/store";
 import { WalletWidget } from "@/components/farmer/wallet-widget";
-import { formatFCFA } from "@/lib/format";
+import { formatFCFA, relativeTime } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,11 +49,28 @@ export const Route = createFileRoute("/farmer/revenue/")({
 });
 
 const PERIOD_DAYS = { "7": 7, "30": 30, "90": 90 } as const;
+const METHOD_COLOR: Record<string, string> = Object.fromEntries(
+  wallets.map((w) => [w.method, w.color]),
+);
+METHOD_COLOR["Espèces"] = "#94a3b8";
+
+const quickActions: QuickAction[] = [
+  { icon: Plus, label: "Demander un retrait", to: "/farmer/revenue/withdraw", tone: "emerald" },
+  { icon: History, label: "Voir l'historique", to: "/farmer/revenue/withdrawals", tone: "blue" },
+  { icon: FileText, label: "Voir mes commandes", to: "/farmer/orders", tone: "violet" },
+  {
+    icon: Settings,
+    label: "Paramètres de paiement",
+    to: "/farmer/settings/payments",
+    tone: "amber",
+  },
+];
 
 function RevenuePage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const withdrawals = useWithdrawals();
+  const wallets = useWallets();
 
   // Le graphique agrège les vraies transactions par jour réel, filtrées aux
   // N derniers jours disponibles (les dates de démo étant fixes, un filtre
@@ -80,6 +104,20 @@ function RevenuePage() {
   const totalWithdrawn = withdrawals
     .filter((w) => w.status === "Effectué")
     .reduce((a, w) => a + w.amount, 0);
+
+  const revenueByMethod = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of transactions) {
+      totals.set(t.method, (totals.get(t.method) ?? 0) + t.net);
+    }
+    return Array.from(totals.entries())
+      .map(([method, value]) => ({ method, value }))
+      .sort((a, b) => b.value - a.value);
+  }, []);
+
+  const recentWithdrawals = [...withdrawals]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 3);
 
   const exportCsv = () => {
     const rows = [["date", "ref", "restaurant", "brut", "commission", "net", "méthode", "statut"]];
@@ -124,6 +162,12 @@ function RevenuePage() {
               <Download className="h-4 w-4" />
               Exporter CSV
             </Button>
+            <Button asChild className="gap-2">
+              <Link to="/farmer/revenue/withdraw">
+                <Plus className="h-4 w-4" />
+                Demander un retrait
+              </Link>
+            </Button>
           </div>
         }
       />
@@ -166,6 +210,111 @@ function RevenuePage() {
         />
         <KpiCard icon={ShoppingBag} label="Panier moyen" value={formatFCFA(avg)} tone="amber" />
         <KpiCard icon={Hourglass} label="En attente" value={formatFCFA(pending)} tone="rose" />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="glass rounded-2xl p-5">
+          <h3 className="font-semibold mb-1">Répartition par méthode</h3>
+          <p className="text-xs text-muted-foreground mb-3">Revenus nets</p>
+          {revenueByMethod.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">Aucune transaction</p>
+          ) : (
+            <>
+              <div className="h-36 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={revenueByMethod}
+                      dataKey="value"
+                      nameKey="method"
+                      innerRadius={40}
+                      outerRadius={58}
+                      paddingAngle={revenueByMethod.length > 1 ? 3 : 0}
+                    >
+                      {revenueByMethod.map((m) => (
+                        <Cell key={m.method} fill={METHOD_COLOR[m.method] ?? "#94a3b8"} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 12,
+                        color: "var(--foreground)",
+                      }}
+                      formatter={(v: number) => formatFCFA(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <div className="font-display font-bold text-sm text-center px-4">
+                    {formatFCFA(totalAllTime)}
+                  </div>
+                </div>
+              </div>
+              <ul className="space-y-1.5 mt-3">
+                {revenueByMethod.map((m) => (
+                  <li key={m.method} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: METHOD_COLOR[m.method] ?? "#94a3b8" }}
+                    />
+                    <span className="flex-1 truncate">{m.method}</span>
+                    <span className="font-semibold">
+                      {Math.round((m.value / totalAllTime) * 100)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Dernières demandes de retrait</h3>
+            <Link to="/farmer/revenue/withdrawals" className="text-xs text-primary font-medium">
+              Voir tout
+            </Link>
+          </div>
+          {recentWithdrawals.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Aucune demande</p>
+          ) : (
+            <div className="space-y-3">
+              {recentWithdrawals.map((w) => (
+                <div key={w.id} className="flex items-start gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">{formatFCFA(w.amount)}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {w.reference} · {w.method}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                        w.status === "Effectué"
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          : w.status === "En cours"
+                            ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                      }`}
+                    >
+                      {w.status}
+                    </span>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {relativeTime(w.date)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <QuickActions actions={quickActions} />
       </div>
 
       <div className="glass rounded-2xl p-6">

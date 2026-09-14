@@ -1,7 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Mail, MessageCircle, Smartphone, Zap, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+
+/**
+ * Le SSR n'a pas accès à localStorage, donc l'état initial doit rester identique
+ * entre serveur et client (sinon React ne corrige pas le mismatch d'hydratation
+ * sur les attributs comme aria-pressed/className, et l'UI reste figée sur la
+ * valeur par défaut). La valeur persistée est donc appliquée après coup, dans un
+ * effet qui ne s'exécute que côté client une fois l'hydratation terminée.
+ */
+function usePersisted<T>(key: string | undefined, initial: T | (() => T)): [T, (v: T) => void] {
+  const [state, setState] = useState<T>(() =>
+    typeof initial === "function" ? (initial as () => T)() : initial,
+  );
+
+  useEffect(() => {
+    if (!key) return;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) {
+        setState((prev) => ({ ...(prev as object), ...(JSON.parse(raw) as object) }) as T);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [key]);
+
+  const update = (v: T) => {
+    setState(v);
+    if (!key || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(key, JSON.stringify(v));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return [state, update];
+}
 
 export const CHANNEL_DEFS = [
   { key: "inapp", label: "In-app", icon: Bell },
@@ -37,20 +74,25 @@ export function buildMatrix(
 export function ChannelMatrix({
   events,
   initial,
+  storageKey,
 }: {
   events: readonly EventDef[];
   initial?: Matrix;
+  /** Clé de persistance locale (par page/rôle) ; sans elle, l'état reste en mémoire uniquement. */
+  storageKey?: string;
 }) {
-  const [matrix, setMatrix] = useState<Matrix>(initial ?? buildMatrix(events));
+  const [matrix, setMatrix] = usePersisted<Matrix>(
+    storageKey && `diambar:notif-matrix:${storageKey}`,
+    () => initial ?? buildMatrix(events),
+  );
 
   const toggle = (evt: string, ch: ChannelKey) =>
-    setMatrix((m) => ({ ...m, [evt]: { ...m[evt], [ch]: !m[evt][ch] } }));
+    setMatrix({ ...matrix, [evt]: { ...matrix[evt], [ch]: !matrix[evt][ch] } });
 
   const toggleColumn = (ch: ChannelKey) => {
     const allOn = events.every((e) => matrix[e.key]?.[ch]);
     setMatrix(
-      (m) =>
-        Object.fromEntries(events.map((e) => [e.key, { ...m[e.key], [ch]: !allOn }])) as Matrix,
+      Object.fromEntries(events.map((e) => [e.key, { ...matrix[e.key], [ch]: !allOn }])) as Matrix,
     );
   };
 
@@ -118,13 +160,29 @@ export function ChannelMatrix({
   );
 }
 
+type RulesPrefs = { enabled: Record<string, boolean>; quietHours: boolean; digest: number[] };
+
 /** Règles de déclenchement mockées + heures calmes + regroupement. */
-export function TriggerRules({ rules }: { rules: readonly TriggerRule[] }) {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    Object.fromEntries(rules.map((r) => [r.key, true])),
+export function TriggerRules({
+  rules,
+  storageKey,
+}: {
+  rules: readonly TriggerRule[];
+  /** Clé de persistance locale (par page/rôle) ; sans elle, l'état reste en mémoire uniquement. */
+  storageKey?: string;
+}) {
+  const [prefs, setPrefs] = usePersisted<RulesPrefs>(
+    storageKey && `diambar:notif-rules:${storageKey}`,
+    () => ({
+      enabled: Object.fromEntries(rules.map((r) => [r.key, true])),
+      quietHours: true,
+      digest: [15],
+    }),
   );
-  const [quietHours, setQuietHours] = useState(true);
-  const [digest, setDigest] = useState([15]);
+  const { enabled, quietHours, digest } = prefs;
+  const setEnabled = (v: Record<string, boolean>) => setPrefs({ ...prefs, enabled: v });
+  const setQuietHours = (v: boolean) => setPrefs({ ...prefs, quietHours: v });
+  const setDigest = (v: number[]) => setPrefs({ ...prefs, digest: v });
 
   return (
     <div className="space-y-3">

@@ -18,8 +18,8 @@ import {
 } from "recharts";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
-import { SenegalMap } from "@/components/farmer/senegal-map";
-import { products, restaurants, topClients } from "@/data/mocks";
+import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
+import { products, restaurants, missions } from "@/data/mocks";
 import { useOrders } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
@@ -42,23 +42,48 @@ const COLORS = [
 
 function AnalyticsPage() {
   const orders = useOrders().filter((o) => o.farmerId === "f1");
-  const topProducts = [...products]
-    .sort((a, b) => b.ordersThisMonth - a.ordersThisMonth)
+
+  // Ventes par produit calculées depuis les vraies lignes de commande
+  // (remplace l'ancien champ statique product.ordersThisMonth, jamais mis à jour).
+  const productSales = new Map<string, { name: string; category: string; cmd: number }>();
+  for (const o of orders) {
+    for (const item of o.items) {
+      const p = products.find((pp) => pp.id === item.productId);
+      if (!p) continue;
+      const entry = productSales.get(p.id) ?? { name: p.name, category: p.category, cmd: 0 };
+      entry.cmd += 1;
+      productSales.set(p.id, entry);
+    }
+  }
+  const topProducts = Array.from(productSales.values())
+    .sort((a, b) => b.cmd - a.cmd)
     .slice(0, 6)
-    .map((p) => ({ name: p.name, cmd: p.ordersThisMonth }));
+    .map((p) => ({ name: p.name, cmd: p.cmd }));
   const categoryData = Object.entries(
-    products.reduce<Record<string, number>>((acc, p) => {
-      acc[p.category] = (acc[p.category] || 0) + p.ordersThisMonth;
+    Array.from(productSales.values()).reduce<Record<string, number>>((acc, p) => {
+      acc[p.category] = (acc[p.category] || 0) + p.cmd;
       return acc;
     }, {}),
   ).map(([name, value]) => ({ name, value }));
 
-  const bestClient = topClients[0]
-    ? restaurants.find((r) => r.id === topClients[0].restaurantId)
-    : null;
+  // Clients calculés depuis les vraies commandes par restaurant
+  // (remplace l'ancien tableau topClients figé avec des taux de réachat inventés).
+  const clientStats = restaurants
+    .map((r) => {
+      const rOrders = orders.filter((o) => o.restaurantId === r.id);
+      return {
+        restaurant: r,
+        orders: rOrders.length,
+        total: rOrders.reduce((s, o) => s + o.total, 0),
+      };
+    })
+    .filter((c) => c.orders > 0)
+    .sort((a, b) => b.orders - a.orders || b.total - a.total);
+
+  const bestClient = clientStats[0]?.restaurant ?? null;
   const repeatRate =
-    topClients.length > 0
-      ? Math.round(topClients.reduce((s, c) => s + c.recurringPct, 0) / topClients.length)
+    clientStats.length > 0
+      ? Math.round((clientStats.filter((c) => c.orders > 1).length / clientStats.length) * 100)
       : 0;
   const cancelRate =
     orders.length > 0
@@ -67,6 +92,37 @@ function AnalyticsPage() {
       : 0;
 
   const lowStockProducts = products.filter((p) => p.status === "low" || p.status === "out");
+
+  // Position géographique réelle des restaurants clients, déduite des points
+  // de livraison des missions (seul endroit où de vraies coordonnées existent).
+  const restaurantCoords = new Map<string, { lat: number; lng: number }>();
+  for (const m of missions) {
+    if (!restaurantCoords.has(m.restaurantId)) {
+      restaurantCoords.set(m.restaurantId, { lat: m.dropoff.lat, lng: m.dropoff.lng });
+    }
+  }
+  const mapMarkers = clientStats.flatMap((c, i) => {
+    const coords = restaurantCoords.get(c.restaurant.id);
+    if (!coords) return [];
+    return [
+      {
+        id: c.restaurant.id,
+        lat: coords.lat,
+        lng: coords.lng,
+        label: c.restaurant.name,
+        description: `${c.restaurant.city} · ${c.orders} commande(s) · ${formatFCFA(c.total)}`,
+        color: (i === 0 ? "emerald" : "blue") as "emerald" | "blue",
+        pulse: i === 0,
+      },
+    ];
+  });
+  const mapCenter: [number, number] | undefined =
+    mapMarkers.length > 0
+      ? [
+          mapMarkers.reduce((s, m) => s + m.lat, 0) / mapMarkers.length,
+          mapMarkers.reduce((s, m) => s + m.lng, 0) / mapMarkers.length,
+        ]
+      : undefined;
 
   // Peu de jours couverts par les commandes de démo : agrégation par jour
   // réel plutôt qu'une tendance sur 30 jours simulée.
@@ -121,7 +177,7 @@ function AnalyticsPage() {
           icon={Heart}
           label="Meilleur client"
           value={bestClient?.name ?? "—"}
-          change={topClients[0] ? `${topClients[0].orders} cmd` : undefined}
+          change={clientStats[0] ? `${clientStats[0].orders} cmd` : undefined}
           tone="rose"
         />
         <KpiCard
@@ -146,9 +202,22 @@ function AnalyticsPage() {
           <h3 className="font-semibold">Répartition géographique des ventes</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          Commandes par région · 30 derniers jours
+          {mapMarkers.length > 0
+            ? `${mapMarkers.length} client(s) actif(s), positionnés selon les vraies commandes`
+            : "Aucune commande livrée pour le moment"}
         </p>
-        <SenegalMap />
+        {mapMarkers.length > 0 ? (
+          <DiambarMapLazy
+            markers={mapMarkers}
+            center={mapCenter}
+            zoom={mapMarkers.length > 1 ? 8 : 11}
+            minHeight={320}
+          />
+        ) : (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            La carte apparaîtra dès que vous aurez des commandes.
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -190,31 +259,36 @@ function AnalyticsPage() {
             <h3 className="font-semibold">Top clients fidèles</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-4">Par volume de commandes</p>
-          <div className="space-y-3">
-            {topClients.map((c, i) => {
-              const r = restaurants.find((x) => x.id === c.restaurantId);
-              return (
+          {clientStats.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune commande pour le moment.</p>
+          ) : (
+            <div className="space-y-3">
+              {clientStats.map((c, i) => (
                 <div
-                  key={c.restaurantId}
+                  key={c.restaurant.id}
                   className="flex items-center gap-3 p-3 rounded-xl border border-border"
                 >
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15 text-primary text-xs font-bold">
                     {i + 1}
                   </span>
-                  <img src={r?.avatar} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                  <img
+                    src={c.restaurant.avatar}
+                    alt=""
+                    className="h-9 w-9 rounded-lg object-cover"
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{r?.name}</div>
+                    <div className="font-medium text-sm truncate">{c.restaurant.name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {c.orders} cmd · {c.recurringPct}% récurrentes
+                      {c.orders} cmd · panier moyen {formatFCFA(Math.round(c.total / c.orders))}
                     </div>
                   </div>
                   <div className="text-xs font-bold text-primary text-right">
                     {formatFCFA(c.total)}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

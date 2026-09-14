@@ -129,13 +129,13 @@ function NotificationSettings() {
         title="Matrice événements × canaux"
         description="Affinez le canal utilisé pour chaque type d'alerte."
       >
-        <ChannelMatrix events={EVENTS} />
+        <ChannelMatrix events={EVENTS} storageKey="farmer-settings" />
       </SettingsCard>
       <SettingsCard
         title="Règles de déclenchement"
         description="Automatisations qui décident quand et comment vous alerter."
       >
-        <TriggerRules rules={RULES} />
+        <TriggerRules rules={RULES} storageKey="farmer-settings" />
       </SettingsCard>
     </>
   );

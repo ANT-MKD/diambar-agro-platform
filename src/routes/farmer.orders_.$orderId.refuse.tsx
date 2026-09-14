@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-export const Route = createFileRoute("/farmer/orders/$orderId/refuse")({
+export const Route = createFileRoute("/farmer/orders_/$orderId/refuse")({
   head: () => ({ meta: [{ title: "Refuser la commande · Diambar Agro" }] }),
   component: RefusePage,
 });
@@ -36,7 +36,8 @@ function RefusePage() {
   const r = restaurants.find((x) => x.id === order.restaurantId);
 
   const submit = () => {
-    orderActions.setStatus(order.id, "cancelled");
+    const note = comment.trim() ? `${reason} : ${comment.trim()}` : reason;
+    orderActions.setStatus(order.id, "cancelled", note);
     toast.success(`${order.reference} refusée · motif : ${reason}`);
     navigate({ to: "/farmer/orders" });
   };

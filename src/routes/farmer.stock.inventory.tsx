@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useProducts, productActions } from "@/data/store";
+import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,7 +51,17 @@ function InventoryPage() {
               <ArrowLeft className="h-4 w-4" />
               Retour
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                downloadCsv(
+                  "inventaire",
+                  ["Produit", "Théorique", "Réel", "Écart", "Unité"],
+                  items.map((p) => [p.name, p.stock, counts[p.id], counts[p.id] - p.stock, p.unit]),
+                )
+              }
+            >
               <Download className="h-4 w-4" />
               Export
             </Button>

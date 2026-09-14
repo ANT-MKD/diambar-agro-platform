@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
 import { useDisputeById } from "@/data/disputes";
+import { useFarmerProfile } from "@/data/store";
 
 export const Route = createFileRoute("/farmer/disputes/$disputeId")({
   head: () => ({
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/farmer/disputes/$disputeId")({
 function FarmerDisputeDetail() {
   const { disputeId } = Route.useParams();
   const d = useDisputeById(disputeId);
+  const profile = useFarmerProfile();
   if (!d)
     return (
       <div className="glass rounded-2xl p-10 text-center">
@@ -38,7 +40,7 @@ function FarmerDisputeDetail() {
     <DisputeDetailView
       dispute={d}
       role="farmer"
-      name="Coopérative Sow"
+      name={`${profile.firstName} ${profile.lastName}`}
       breadcrumb={
         <Link
           to="/farmer/disputes"

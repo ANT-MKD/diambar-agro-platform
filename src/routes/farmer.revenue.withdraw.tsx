@@ -3,8 +3,8 @@ import { useState } from "react";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { wallets, transactions, type PaymentMethod } from "@/data/mocks";
-import { useWithdrawals, withdrawalActions } from "@/data/store";
+import { transactions, type PaymentMethod } from "@/data/mocks";
+import { useWithdrawals, withdrawalActions, useWallets, usePaymentPrefs } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,14 @@ export const Route = createFileRoute("/farmer/revenue/withdraw")({
 function WithdrawPage() {
   const navigate = useNavigate();
   const withdrawals = useWithdrawals();
+  const wallets = useWallets();
+  const paymentPrefs = usePaymentPrefs();
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
     withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount + w.fee, 0);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [method, setMethod] = useState<PaymentMethod>("Wave");
+  const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);
   const [amount, setAmount] = useState(50000);
   const fee = Math.round(amount * 0.005);
 

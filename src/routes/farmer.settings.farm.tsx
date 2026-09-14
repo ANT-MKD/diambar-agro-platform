@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cities } from "@/data/mocks";
+import { useFarmerFarm, farmerFarmActions } from "@/data/store";
 
 export const Route = createFileRoute("/farmer/settings/farm")({
   head: () => ({
@@ -41,21 +43,38 @@ const PRODUCT_TYPES = [
 ];
 
 function FarmSettings() {
-  const [form, setForm] = useState({
-    name: "Ferme Diallo",
-    city: "Thiès",
-    address: "Route de Khombole, km 3",
-    size: "5.5",
-    types: ["Légumes", "Tubercules"] as string[],
-    certification: "bio",
-  });
+  const farm = useFarmerFarm();
+  const [form, setForm] = useState(farm);
   const toggle = (t: string) =>
     setForm({
       ...form,
       types: form.types.includes(t) ? form.types.filter((x) => x !== t) : [...form.types, t],
     });
+
+  const save = () => {
+    if (!form.name.trim()) {
+      toast.error("Le nom de l'exploitation est obligatoire");
+      return false;
+    }
+    if (form.types.length === 0) {
+      toast.error("Sélectionnez au moins un type de produit");
+      return false;
+    }
+    const size = Number(form.size);
+    if (!Number.isFinite(size) || size <= 0) {
+      toast.error("Superficie invalide");
+      return false;
+    }
+    farmerFarmActions.update(form);
+    return true;
+  };
+
   return (
-    <SettingsCard title="Exploitation" description="Détails de votre exploitation agricole.">
+    <SettingsCard
+      title="Exploitation"
+      description="Détails de votre exploitation agricole."
+      onSave={save}
+    >
       <FieldRow label="Nom de l'exploitation">
         <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
       </FieldRow>
@@ -92,7 +111,7 @@ function FarmSettings() {
       <FieldRow label="Certification" hint="Affichée sur votre vitrine marketplace.">
         <Select
           value={form.certification}
-          onValueChange={(v) => setForm({ ...form, certification: v })}
+          onValueChange={(v) => setForm({ ...form, certification: v as typeof form.certification })}
         >
           <SelectTrigger>
             <SelectValue />

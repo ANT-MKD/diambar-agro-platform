@@ -3,6 +3,8 @@ import type { Role } from "./mocks";
 
 export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
+export type TicketCategory =
+  "delivery" | "products" | "payments" | "account" | "technical" | "other";
 
 export type SupportTicket = {
   id: string;
@@ -10,6 +12,7 @@ export type SupportTicket = {
   message: string;
   fromName: string;
   fromRole: TicketRole;
+  category: TicketCategory;
   orderRef?: string;
   status: TicketStatus;
   createdAt: string;
@@ -22,6 +25,7 @@ const SEED: SupportTicket[] = [
     message: "Le versement de ma dernière commande n'est toujours pas arrivé après 48h.",
     fromName: "Mamadou Diallo",
     fromRole: "farmer",
+    category: "payments",
     orderRef: "CMD-2851",
     status: "answered",
     createdAt: "2025-05-10T09:00:00Z",
@@ -32,6 +36,7 @@ const SEED: SupportTicket[] = [
     message: "Les tomates de la dernière livraison étaient abîmées à réception.",
     fromName: "Le Baobab",
     fromRole: "restaurant",
+    category: "products",
     orderRef: "CMD-3049",
     status: "open",
     createdAt: "2025-05-14T15:30:00Z",
@@ -87,6 +92,7 @@ export const supportTicketActions = {
     message: string;
     fromName: string;
     fromRole: TicketRole;
+    category: TicketCategory;
     orderRef?: string;
   }) => {
     const id = `t_${Date.now()}`;
@@ -96,6 +102,7 @@ export const supportTicketActions = {
       message: input.message,
       fromName: input.fromName,
       fromRole: input.fromRole,
+      category: input.category,
       orderRef: input.orderRef,
       status: "open",
       createdAt: new Date().toISOString(),
@@ -112,4 +119,13 @@ export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   open: "Ouvert",
   answered: "Répondu",
   closed: "Fermé",
+};
+
+export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {
+  delivery: "Commandes et livraisons",
+  products: "Produits et stock",
+  payments: "Paiements et factures",
+  account: "Compte et profil",
+  technical: "Technique et bugs",
+  other: "Autres",
 };

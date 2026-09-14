@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { useTeam, teamActions } from "@/data/store";
+import type { TeamMember } from "@/data/mocks";
 
 export const Route = createFileRoute("/farmer/settings/team")({
   head: () => ({
@@ -29,15 +31,7 @@ export const Route = createFileRoute("/farmer/settings/team")({
   component: TeamSettings,
 });
 
-type Member = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "active" | "invited";
-};
-
-const ROLES = [
+const ROLES: { value: TeamMember["role"]; label: string }[] = [
   { value: "owner", label: "Propriétaire" },
   { value: "manager", label: "Gestionnaire" },
   { value: "stock", label: "Responsable stock" },
@@ -45,34 +39,22 @@ const ROLES = [
 ];
 
 function TeamSettings() {
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: "t1",
-      name: "Mamadou Diallo",
-      email: "mamadou@diallo-farm.sn",
-      role: "owner",
-      status: "active",
-    },
-    { id: "t2", name: "Awa Ndiaye", email: "awa@diallo-farm.sn", role: "stock", status: "active" },
-    { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
-  ]);
-  const [invite, setInvite] = useState({ email: "", role: "viewer" });
+  const members = useTeam();
+  const [invite, setInvite] = useState<{ email: string; role: TeamMember["role"] }>({
+    email: "",
+    role: "viewer",
+  });
 
   const sendInvite = () => {
     if (!/^\S+@\S+\.\S+$/.test(invite.email)) {
       toast.error("Email invalide");
       return false;
     }
-    setMembers((m) => [
-      ...m,
-      {
-        id: `t_${Date.now()}`,
-        name: "—",
-        email: invite.email,
-        role: invite.role,
-        status: "invited",
-      },
-    ]);
+    if (members.some((m) => m.email.toLowerCase() === invite.email.toLowerCase())) {
+      toast.error("Ce collaborateur a déjà accès");
+      return false;
+    }
+    teamActions.invite(invite.email, invite.role);
     setInvite({ email: "", role: "viewer" });
     return true;
   };
@@ -95,7 +77,10 @@ function TeamSettings() {
             />
           </FieldRow>
           <FieldRow label="Rôle">
-            <Select value={invite.role} onValueChange={(v) => setInvite({ ...invite, role: v })}>
+            <Select
+              value={invite.role}
+              onValueChange={(v) => setInvite({ ...invite, role: v as TeamMember["role"] })}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -136,7 +121,7 @@ function TeamSettings() {
               <Select
                 value={m.role}
                 onValueChange={(v) => {
-                  setMembers((arr) => arr.map((x) => (x.id === m.id ? { ...x, role: v } : x)));
+                  teamActions.setRole(m.id, v as TeamMember["role"]);
                   toast.success("Rôle mis à jour");
                 }}
                 disabled={m.role === "owner"}
@@ -164,7 +149,7 @@ function TeamSettings() {
                   destructive
                   confirmLabel="Retirer"
                   onConfirm={() => {
-                    setMembers((arr) => arr.filter((x) => x.id !== m.id));
+                    teamActions.remove(m.id);
                     toast.success("Membre retiré");
                   }}
                 />

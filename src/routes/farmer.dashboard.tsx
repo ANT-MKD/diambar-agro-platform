@@ -1,9 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { TrendingUp, ShoppingBag, Package, Star, Plus, ArrowRight, Check, X } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  TrendingUp,
+  ShoppingBag,
+  Package,
+  Star,
+  Plus,
+  ArrowRight,
+  Check,
+  X,
+  Warehouse,
+  Wallet,
+} from "lucide-react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,14 +26,32 @@ import {
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { formatFCFA, formatNumber, relativeTime } from "@/lib/format";
-import { restaurants } from "@/data/mocks";
-import { useOrders, useProducts, orderActions } from "@/data/store";
+import { restaurants, type AppNotification } from "@/data/mocks";
+import {
+  useOrders,
+  useProducts,
+  useMovements,
+  orderActions,
+  useFarmerNotifications,
+  farmerNotifActions,
+} from "@/data/store";
 import { useSupplierScores } from "@/data/business";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
-import { LiveFeed } from "@/components/farmer/live-feed";
+import { AlertsPanel } from "@/components/farmer/alerts-panel";
+import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
+import { OrderStatusBadge } from "@/components/farmer/status-badge";
+import { CATEGORY_COLOR } from "@/lib/category-colors";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
@@ -34,6 +66,8 @@ function Dashboard() {
   const active = products.filter((p) => p.status === "active").length;
   const [period, setPeriod] = useState<"7" | "30" | "12">("30");
   const score = useSupplierScores().find((s) => s.id === "f1");
+  const notifications = useFarmerNotifications();
+  const navigate = useNavigate();
 
   // Peu de jours couverts par les commandes de démo : le graphique agrège
   // par jour réel plutôt que de simuler une tendance sur 7/30/365 jours.
@@ -53,6 +87,71 @@ function Dashboard() {
       }));
   }, [orders]);
   const revenueThisMonth = delivered.reduce((s, o) => s + o.total, 0);
+
+  // Répartition réelle du CA livré par catégorie de produit (via les lignes
+  // de commande), plutôt qu'un flux d'activité simulé.
+  const categorySplit = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const o of delivered) {
+      for (const item of o.items) {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) continue;
+        totals.set(product.category, (totals.get(product.category) ?? 0) + item.qty * item.price);
+      }
+    }
+    return Array.from(totals.entries())
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [delivered, products]);
+
+  const movements = useMovements();
+
+  // Top 5 produits par revenu livré (nombre de ventes = nombre de lignes de
+  // commande, pas la quantité en kg, pour rester lisible et comparable).
+  const topProducts = useMemo(() => {
+    const totals = new Map<string, { sales: number; revenue: number }>();
+    for (const o of delivered) {
+      for (const item of o.items) {
+        const cur = totals.get(item.productId) ?? { sales: 0, revenue: 0 };
+        totals.set(item.productId, {
+          sales: cur.sales + 1,
+          revenue: cur.revenue + item.qty * item.price,
+        });
+      }
+    }
+    return Array.from(totals.entries())
+      .map(([productId, v]) => ({ product: products.find((p) => p.id === productId), ...v }))
+      .filter((x): x is typeof x & { product: NonNullable<typeof x.product> } => Boolean(x.product))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }, [delivered, products]);
+
+  const recentOrders = [...orders]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5);
+
+  const recentMovements = useMemo(() => {
+    const myProductIds = new Set(products.map((p) => p.id));
+    return movements
+      .filter((m) => myProductIds.has(m.productId))
+      .slice(0, 5)
+      .map((m) => ({ ...m, product: products.find((p) => p.id === m.productId) }));
+  }, [movements, products]);
+
+  const openNotification = (n: AppNotification) => {
+    farmerNotifActions.markRead(n.id);
+    if (n.type === "order") navigate({ to: "/farmer/orders" });
+    else if (n.type === "payment") navigate({ to: "/farmer/revenue" });
+    else if (n.type === "stock") navigate({ to: "/farmer/stock" });
+    else if (n.type === "message") navigate({ to: "/farmer/messages" });
+  };
+
+  const quickActions: QuickAction[] = [
+    { icon: Plus, label: "Ajouter un produit", to: "/farmer/products/new", tone: "emerald" },
+    { icon: Warehouse, label: "Gérer le stock", to: "/farmer/stock", tone: "blue" },
+    { icon: ShoppingBag, label: "Voir les commandes", to: "/farmer/orders", tone: "violet" },
+    { icon: Wallet, label: "Demander un retrait", to: "/farmer/revenue/withdraw", tone: "amber" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -316,7 +415,219 @@ function Dashboard() {
           </div>
         </div>
 
-        <LiveFeed />
+        <div className="glass rounded-2xl p-6">
+          <h3 className="font-semibold mb-1">Répartition par catégorie</h3>
+          <p className="text-xs text-muted-foreground mb-3">Chiffre d'affaires livré</p>
+          {categorySplit.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-10">
+              Pas encore de vente livrée
+            </p>
+          ) : (
+            <>
+              <div className="h-40 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categorySplit}
+                      dataKey="value"
+                      nameKey="category"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={categorySplit.length > 1 ? 3 : 0}
+                    >
+                      {categorySplit.map((c) => (
+                        <Cell key={c.category} fill={CATEGORY_COLOR[c.category] ?? "#94a3b8"} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 12,
+                        color: "var(--foreground)",
+                      }}
+                      formatter={(v: number) => formatFCFA(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <div className="font-display font-bold text-sm text-center px-4">
+                    {formatFCFA(revenueThisMonth)}
+                  </div>
+                </div>
+              </div>
+              <ul className="space-y-1.5 mt-3">
+                {categorySplit.map((c) => (
+                  <li key={c.category} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: CATEGORY_COLOR[c.category] ?? "#94a3b8" }}
+                    />
+                    <span className="flex-1 truncate">{c.category}</span>
+                    <span className="font-semibold">
+                      {Math.round((c.value / revenueThisMonth) * 100)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl overflow-hidden">
+        <div className="p-6 pb-0 flex items-center justify-between">
+          <h3 className="font-semibold">Top 5 des produits</h3>
+        </div>
+        {topProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-10">
+            Pas encore de vente livrée
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produit</TableHead>
+                <TableHead className="text-right">Ventes</TableHead>
+                <TableHead className="text-right">Revenu</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topProducts.map(({ product, sales, revenue }) => (
+                <TableRow
+                  key={product.id}
+                  className="cursor-pointer"
+                  onClick={() =>
+                    navigate({
+                      to: "/farmer/products/$productId",
+                      params: { productId: product.id },
+                    })
+                  }
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                      />
+                      <span className="font-medium">{product.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {sales} vente{sales > 1 ? "s" : ""}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-primary">
+                    {formatFCFA(revenue)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 glass rounded-2xl overflow-hidden">
+          <div className="p-6 pb-4 flex items-center justify-between">
+            <h3 className="font-semibold">Commandes récentes</h3>
+            <Link to="/farmer/orders" className="text-xs text-primary font-medium">
+              Voir tout
+            </Link>
+          </div>
+          {recentOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center pb-10">Aucune commande</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° commande</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Produits</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                  <TableHead>Statut</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentOrders.map((o) => {
+                  const r = restaurants.find((x) => x.id === o.restaurantId);
+                  return (
+                    <TableRow
+                      key={o.id}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        navigate({ to: "/farmer/orders/$orderId", params: { orderId: o.id } })
+                      }
+                    >
+                      <TableCell className="font-mono text-xs">{o.reference}</TableCell>
+                      <TableCell>{r?.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {o.items.length} produit{o.items.length > 1 ? "s" : ""}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatFCFA(o.total)}
+                      </TableCell>
+                      <TableCell>
+                        <OrderStatusBadge status={o.status} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Mouvements de stock récents</h3>
+            <Link to="/farmer/stock" className="text-xs text-primary font-medium">
+              Voir tout
+            </Link>
+          </div>
+          {recentMovements.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Aucun mouvement</p>
+          ) : (
+            <div className="space-y-3">
+              {recentMovements.map((m) => (
+                <div key={m.id} className="flex items-start gap-3">
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold ${
+                      m.type === "in"
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : m.type === "out"
+                          ? "bg-rose-500/10 text-rose-500"
+                          : "bg-blue-500/10 text-blue-500"
+                    }`}
+                  >
+                    {m.type === "in" ? "+" : m.type === "out" ? "-" : "="}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{m.product?.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {m.type === "out" ? "-" : "+"}
+                      {m.qty} {m.product?.unit ?? ""}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
+                    {relativeTime(m.at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <AlertsPanel
+            items={notifications}
+            viewAllTo="/farmer/notifications"
+            onOpen={openNotification}
+          />
+        </div>
+        <QuickActions actions={quickActions} />
       </div>
     </div>
   );

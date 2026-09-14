@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Check, X, Phone, Truck, Package2, Flag } from "lucide-react";
+import { ArrowLeft, Check, X, Phone, Truck, Package2, Flag, Clock, Scale } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
@@ -59,6 +59,12 @@ function OrderDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {order.eta && !["delivered", "cancelled"].includes(order.status) && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              ETA {order.eta}
+            </span>
+          )}
           <OrderStatusBadge status={order.status} />
           {r?.phone && (
             <Button size="icon" variant="outline" asChild>
@@ -92,16 +98,25 @@ function OrderDetailPage() {
             return (
               <div
                 key={i}
-                className="flex items-center justify-between text-sm rounded-lg border border-border p-3"
+                className="flex items-center gap-3 justify-between text-sm rounded-lg border border-border p-3"
               >
-                <span>
-                  {p?.name}{" "}
-                  <span className="text-muted-foreground">
-                    ×{it.qty}
-                    {p?.unit}
+                <div className="flex items-center gap-3 min-w-0">
+                  {p?.image && (
+                    <img
+                      src={p.image}
+                      alt=""
+                      className="h-9 w-9 rounded-lg object-cover shrink-0"
+                    />
+                  )}
+                  <span className="truncate">
+                    {p?.name}{" "}
+                    <span className="text-muted-foreground">
+                      ×{it.qty}
+                      {p?.unit}
+                    </span>
                   </span>
-                </span>
-                <span className="font-medium">{formatFCFA(it.qty * it.price)}</span>
+                </div>
+                <span className="font-medium shrink-0">{formatFCFA(it.qty * it.price)}</span>
               </div>
             );
           })}
@@ -161,6 +176,12 @@ function OrderDetailPage() {
           <Link to="/farmer/orders/$orderId/report" params={{ orderId: order.id }}>
             <Flag className="h-4 w-4" />
             Signaler
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="gap-1">
+          <Link to="/farmer/orders/$orderId/dispute" params={{ orderId: order.id }}>
+            <Scale className="h-4 w-4" />
+            Ouvrir un litige
           </Link>
         </Button>
       </div>

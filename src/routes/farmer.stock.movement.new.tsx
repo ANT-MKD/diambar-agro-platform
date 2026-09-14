@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Plus, Minus, ClipboardEdit, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useProducts, movementActions } from "@/data/store";
+import { useProducts, movementActions, useFarmerProfile } from "@/data/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,7 @@ function NewMovementPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const products = useProducts().filter((p) => p.farmerId === "f1");
+  const profile = useFarmerProfile();
 
   const [productId, setProductId] = useState(search.productId || products[0]?.id || "");
   const [type, setType] = useState<"in" | "out" | "adjust">(search.type ?? "in");
@@ -78,7 +79,7 @@ function NewMovementPage() {
       type,
       qty,
       reason: reason || "—",
-      operator: "Mamadou",
+      operator: profile.firstName,
     });
     toast.success(`Mouvement enregistré · ${product.name} maintenant à ${next} ${product.unit}`);
     navigate({ to: "/farmer/stock" });

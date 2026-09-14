@@ -16,6 +16,18 @@ import {
   driverWallet as seedDriverWallet,
   driverVehicle as seedDriverVehicle,
   driverSettings as seedDriverSettings,
+  wallets as seedWallets,
+  farmerProfile as seedFarmerProfile,
+  farmerFarm as seedFarmerFarm,
+  paymentPrefs as seedPaymentPrefs,
+  teamMembers as seedTeamMembers,
+  restaurantBudget as seedRestaurantBudget,
+  type Wallet,
+  type FarmerProfile,
+  type FarmerFarm,
+  type PaymentPrefs,
+  type TeamMember,
+  type RestaurantBudget,
   type Product,
   type Order,
   type OrderStatus,
@@ -26,6 +38,7 @@ import {
   type Supplier,
   type AppNotification,
   type Conversation,
+  type ChatAttachment,
   type RecurringOrder,
   type Mission,
   type MissionProofPhoto,
@@ -73,10 +86,10 @@ function createStore<T>(initial: T, persistKey?: string) {
   };
 }
 
-const productsStore = createStore<Product[]>(seedProducts);
+const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 const ordersStore = createStore<Order[]>(seedOrders);
-const movementsStore = createStore<StockMovement[]>(seedMovements);
-const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
+const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:movements");
+const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers);
 const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
@@ -91,6 +104,15 @@ const vehicleIssuesStore = createStore<VehicleIssue[]>([], "diambar:driver-vehic
 const driverSettingsStore = createStore<DriverSettings>(
   seedDriverSettings,
   "diambar:driver-settings",
+);
+const walletsStore = createStore<Wallet[]>(seedWallets, "diambar:wallets");
+const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diambar:farmer-profile");
+const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
+const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
+const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
+const restaurantBudgetStore = createStore<RestaurantBudget>(
+  seedRestaurantBudget,
+  "diambar:restaurant-budget",
 );
 
 export type CartLine = { productId: string; qty: number };
@@ -326,6 +348,76 @@ export const driverSettingsActions = {
       ...s,
       paymentMethods: s.paymentMethods.map((m) => ({ ...m, active: m.id === id })),
     })),
+};
+
+export function useWallets() {
+  return useSyncExternalStore(walletsStore.subscribe, walletsStore.get, walletsStore.get);
+}
+
+export const walletActions = {
+  setPhone: (method: PaymentMethod, phone: string) =>
+    walletsStore.set((arr) => arr.map((w) => (w.method === method ? { ...w, phone } : w))),
+};
+
+export function useFarmerProfile() {
+  return useSyncExternalStore(
+    farmerProfileStore.subscribe,
+    farmerProfileStore.get,
+    farmerProfileStore.get,
+  );
+}
+
+export const farmerProfileActions = {
+  update: (patch: Partial<FarmerProfile>) => farmerProfileStore.set((s) => ({ ...s, ...patch })),
+};
+
+export function useFarmerFarm() {
+  return useSyncExternalStore(farmerFarmStore.subscribe, farmerFarmStore.get, farmerFarmStore.get);
+}
+
+export const farmerFarmActions = {
+  update: (patch: Partial<FarmerFarm>) => farmerFarmStore.set((s) => ({ ...s, ...patch })),
+};
+
+export function usePaymentPrefs() {
+  return useSyncExternalStore(
+    paymentPrefsStore.subscribe,
+    paymentPrefsStore.get,
+    paymentPrefsStore.get,
+  );
+}
+
+export const paymentPrefsActions = {
+  setPrimary: (primary: PaymentMethod) => paymentPrefsStore.set((s) => ({ ...s, primary })),
+  setThreshold: (withdrawThreshold: number) =>
+    paymentPrefsStore.set((s) => ({ ...s, withdrawThreshold })),
+};
+
+export function useTeam() {
+  return useSyncExternalStore(teamStore.subscribe, teamStore.get, teamStore.get);
+}
+
+export const teamActions = {
+  invite: (email: string, role: TeamMember["role"]) => {
+    const id = `t_${Date.now()}`;
+    teamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    return id;
+  },
+  setRole: (id: string, role: TeamMember["role"]) =>
+    teamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
+  remove: (id: string) => teamStore.set((arr) => arr.filter((m) => m.id !== id)),
+};
+
+export function useRestaurantBudget() {
+  return useSyncExternalStore(
+    restaurantBudgetStore.subscribe,
+    restaurantBudgetStore.get,
+    restaurantBudgetStore.get,
+  );
+}
+
+export const restaurantBudgetActions = {
+  setMonthly: (monthly: number) => restaurantBudgetStore.set({ monthly }),
 };
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
@@ -576,7 +668,7 @@ const RESTAURANT_STATUS_NOTIF: Partial<
 };
 
 export const orderActions = {
-  setStatus: (id: string, status: OrderStatus) => {
+  setStatus: (id: string, status: OrderStatus, note?: string) => {
     let updated: Order | undefined;
     ordersStore.set((arr) =>
       arr.map((o) => {
@@ -596,7 +688,7 @@ export const orderActions = {
       restaurantNotifActions.add({
         type: "order",
         title: notif.title,
-        body: notif.body(updated.reference),
+        body: note ? `${notif.body(updated.reference)} — ${note}` : notif.body(updated.reference),
       });
     }
   },
@@ -675,12 +767,30 @@ export const wishlistActions = {
 };
 
 export const conversationActions = {
-  send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
-    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
+  send: (
+    conversationId: string,
+    text: string,
+    from: "me" | "them" = "me",
+    senderName?: string,
+    attachment?: ChatAttachment,
+  ) => {
+    const msg = {
+      id: `m_${Date.now()}`,
+      from,
+      text,
+      at: new Date().toISOString(),
+      senderName,
+      attachment,
+    };
     conversationsStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
-          ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at }
+          ? {
+              ...c,
+              messages: [...c.messages, msg],
+              lastMessage: text || attachment?.name || "Pièce jointe",
+              lastAt: msg.at,
+            }
           : c,
       ),
     );

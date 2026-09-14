@@ -1,10 +1,23 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { supportTicketActions, type SupportTicket, type TicketRole } from "@/data/support";
+import {
+  supportTicketActions,
+  TICKET_CATEGORY_LABEL,
+  type SupportTicket,
+  type TicketCategory,
+  type TicketRole,
+} from "@/data/support";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SupportTicketFormProps {
   role: TicketRole;
@@ -12,10 +25,13 @@ interface SupportTicketFormProps {
   onCreated?: (ticket: SupportTicket) => void;
 }
 
+const CATEGORIES = Object.entries(TICKET_CATEGORY_LABEL) as [TicketCategory, string][];
+
 export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFormProps) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [orderRef, setOrderRef] = useState("");
+  const [category, setCategory] = useState<TicketCategory>("other");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -28,12 +44,14 @@ export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFo
       message: message.trim(),
       fromName,
       fromRole: role,
+      category,
       orderRef: orderRef.trim() || undefined,
     });
     toast.success(`Ticket ${ticket.id.toUpperCase()} envoyé — notre équipe répond sous 4h`);
     setSubject("");
     setMessage("");
     setOrderRef("");
+    setCategory("other");
     onCreated?.(ticket);
   };
 
@@ -49,6 +67,21 @@ export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFo
           className="mt-1.5"
           placeholder="Paiement, livraison, compte…"
         />
+      </div>
+      <div>
+        <Label htmlFor="category">Catégorie</Label>
+        <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
+          <SelectTrigger id="category" className="mt-1.5">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map(([key, label]) => (
+              <SelectItem key={key} value={key}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label htmlFor="orderRef">Référence commande (optionnel)</Label>

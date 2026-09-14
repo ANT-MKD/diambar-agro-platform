@@ -3,10 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { DisputeForm } from "@/components/disputes/dispute-form";
-import { useOrder } from "@/data/store";
+import { useOrder, useFarmerProfile } from "@/data/store";
 import { restaurants } from "@/data/mocks";
 
-export const Route = createFileRoute("/farmer/orders/$orderId/dispute")({
+export const Route = createFileRoute("/farmer/orders_/$orderId/dispute")({
   head: () => ({
     meta: [
       { title: "Ouvrir un litige — Espace producteur Diambar Agro" },
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/farmer/orders/$orderId/dispute")({
 function FarmerOpenDispute() {
   const { orderId } = Route.useParams();
   const order = useOrder(orderId);
+  const profile = useFarmerProfile();
   const navigate = useNavigate();
   if (!order)
     return <p className="py-12 text-center text-muted-foreground">Commande introuvable</p>;
@@ -51,7 +52,7 @@ function FarmerOpenDispute() {
       />
       <DisputeForm
         openedByRole="farmer"
-        openedByName="Coopérative Sow"
+        openedByName={`${profile.firstName} ${profile.lastName}`}
         againstOptions={[
           { role: "restaurant", name: r?.name ?? "Restaurant" },
           { role: "driver", name: "Livreur assigné" },

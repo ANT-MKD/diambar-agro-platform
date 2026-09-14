@@ -33,3 +33,11 @@ export function downloadJson(filename: string, data: unknown) {
   );
   toast.success("Export JSON téléchargé", { description: filename });
 }
+
+export function downloadHtml(filename: string, html: string) {
+  download(
+    new Blob([html], { type: "text/html;charset=utf-8;" }),
+    filename.endsWith(".html") ? filename : `${filename}.html`,
+  );
+  toast.success("Reçu téléchargé", { description: filename });
+}

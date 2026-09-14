@@ -465,6 +465,8 @@ export const transactions: Transaction[] = [
   },
 ];
 
+export type ChatAttachment = { name: string; dataUrl: string; mime: string };
+
 export type Conversation = {
   id: string;
   restaurantId: string;
@@ -474,7 +476,14 @@ export type Conversation = {
   // senderName: renseigné uniquement pour les messages injectés par l'admin
   // depuis la messagerie de supervision, pour ne pas les faire passer pour
   // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
-  messages: { id: string; from: "me" | "them"; text: string; at: string; senderName?: string }[];
+  messages: {
+    id: string;
+    from: "me" | "them";
+    text: string;
+    at: string;
+    senderName?: string;
+    attachment?: ChatAttachment;
+  }[];
 };
 
 export const conversations: Conversation[] = [
@@ -675,23 +684,95 @@ export const stockMovements: StockMovement[] = [
   },
 ];
 
-export const wallets = [
-  { id: "w1", method: "Wave" as const, balance: 145000, phone: "77 123 45 67", color: "#1DB7FF" },
-  {
-    id: "w2",
-    method: "Orange Money" as const,
-    balance: 78500,
-    phone: "78 200 33 44",
-    color: "#FF6F00",
-  },
-  {
-    id: "w3",
-    method: "Free Money" as const,
-    balance: 22000,
-    phone: "76 555 11 22",
-    color: "#CD1F4C",
-  },
+export type Wallet = {
+  id: string;
+  method: PaymentMethod;
+  balance: number;
+  phone: string;
+  color: string;
+};
+
+export const wallets: Wallet[] = [
+  { id: "w1", method: "Wave", balance: 145000, phone: "77 123 45 67", color: "#1DB7FF" },
+  { id: "w2", method: "Orange Money", balance: 78500, phone: "78 200 33 44", color: "#FF6F00" },
+  { id: "w3", method: "Free Money", balance: 22000, phone: "76 555 11 22", color: "#CD1F4C" },
 ];
+
+export type FarmerProfile = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  lang: "fr" | "wo" | "en";
+  bio: string;
+  avatar: string;
+};
+
+export const farmerProfile: FarmerProfile = {
+  firstName: "Mamadou",
+  lastName: "Diallo",
+  email: "mamadou@diallo-farm.sn",
+  phone: "77 123 45 67",
+  lang: "fr",
+  bio: "Producteur de tomates et oignons depuis 2015 à Thiès.",
+  avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200",
+};
+
+export type FarmerFarm = {
+  name: string;
+  city: string;
+  address: string;
+  size: string;
+  types: string[];
+  certification: "none" | "bio" | "raisonnee" | "globalgap";
+};
+
+export const farmerFarm: FarmerFarm = {
+  name: "Ferme Diallo",
+  city: "Thiès",
+  address: "Route de Khombole, km 3",
+  size: "5.5",
+  types: ["Légumes", "Tubercules"],
+  certification: "bio",
+};
+
+export type PaymentPrefs = {
+  primary: PaymentMethod;
+  withdrawThreshold: number;
+};
+
+export const paymentPrefs: PaymentPrefs = {
+  primary: "Wave",
+  withdrawThreshold: 25000,
+};
+
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "owner" | "manager" | "stock" | "viewer";
+  status: "active" | "invited";
+};
+
+export const teamMembers: TeamMember[] = [
+  {
+    id: "t1",
+    name: "Mamadou Diallo",
+    email: "mamadou@diallo-farm.sn",
+    role: "owner",
+    status: "active",
+  },
+  { id: "t2", name: "Awa Ndiaye", email: "awa@diallo-farm.sn", role: "stock", status: "active" },
+  { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
+];
+
+export type RestaurantBudget = {
+  monthly: number;
+};
+
+export const restaurantBudget: RestaurantBudget = {
+  monthly: 1500000,
+};
 
 export type Withdrawal = {
   id: string;
@@ -740,21 +821,6 @@ export const withdrawals: Withdrawal[] = [
     status: "En cours",
     reference: "WD-004",
   },
-];
-
-export const topClients = [
-  { restaurantId: "r1", orders: 24, total: 845000, recurringPct: 78 },
-  { restaurantId: "r2", orders: 18, total: 612000, recurringPct: 65 },
-  { restaurantId: "r3", orders: 11, total: 423000, recurringPct: 42 },
-];
-
-export const geoPins = [
-  { id: "g1", region: "Dakar", x: 18, y: 40, count: 12, color: "#10b981" },
-  { id: "g2", region: "Thiès", x: 28, y: 38, count: 8, color: "#10b981" },
-  { id: "g3", region: "Mbour", x: 24, y: 50, count: 5, color: "#f59e0b" },
-  { id: "g4", region: "Saint-Louis", x: 32, y: 14, count: 3, color: "#3b82f6" },
-  { id: "g5", region: "Kaolack", x: 45, y: 52, count: 4, color: "#3b82f6" },
-  { id: "g6", region: "Ziguinchor", x: 30, y: 82, count: 2, color: "#8b5cf6" },
 ];
 
 export type RecurringOrder = {
