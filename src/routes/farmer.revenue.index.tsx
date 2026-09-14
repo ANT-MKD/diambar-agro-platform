@@ -29,7 +29,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
 import { transactions, restaurants, wallets } from "@/data/mocks";
-import { useWithdrawals } from "@/data/store";
+import { useWithdrawals, useWallets } from "@/data/store";
 import { WalletWidget } from "@/components/farmer/wallet-widget";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,6 +70,7 @@ function RevenuePage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const withdrawals = useWithdrawals();
+  const wallets = useWallets();
 
   // Le graphique agrège les vraies transactions par jour réel, filtrées aux
   // N derniers jours disponibles (les dates de démo étant fixes, un filtre

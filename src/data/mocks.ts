@@ -684,22 +684,86 @@ export const stockMovements: StockMovement[] = [
   },
 ];
 
-export const wallets = [
-  { id: "w1", method: "Wave" as const, balance: 145000, phone: "77 123 45 67", color: "#1DB7FF" },
+export type Wallet = {
+  id: string;
+  method: PaymentMethod;
+  balance: number;
+  phone: string;
+  color: string;
+};
+
+export const wallets: Wallet[] = [
+  { id: "w1", method: "Wave", balance: 145000, phone: "77 123 45 67", color: "#1DB7FF" },
+  { id: "w2", method: "Orange Money", balance: 78500, phone: "78 200 33 44", color: "#FF6F00" },
+  { id: "w3", method: "Free Money", balance: 22000, phone: "76 555 11 22", color: "#CD1F4C" },
+];
+
+export type FarmerProfile = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  lang: "fr" | "wo" | "en";
+  bio: string;
+  avatar: string;
+};
+
+export const farmerProfile: FarmerProfile = {
+  firstName: "Mamadou",
+  lastName: "Diallo",
+  email: "mamadou@diallo-farm.sn",
+  phone: "77 123 45 67",
+  lang: "fr",
+  bio: "Producteur de tomates et oignons depuis 2015 à Thiès.",
+  avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200",
+};
+
+export type FarmerFarm = {
+  name: string;
+  city: string;
+  address: string;
+  size: string;
+  types: string[];
+  certification: "none" | "bio" | "raisonnee" | "globalgap";
+};
+
+export const farmerFarm: FarmerFarm = {
+  name: "Ferme Diallo",
+  city: "Thiès",
+  address: "Route de Khombole, km 3",
+  size: "5.5",
+  types: ["Légumes", "Tubercules"],
+  certification: "bio",
+};
+
+export type PaymentPrefs = {
+  primary: PaymentMethod;
+  withdrawThreshold: number;
+};
+
+export const paymentPrefs: PaymentPrefs = {
+  primary: "Wave",
+  withdrawThreshold: 25000,
+};
+
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "owner" | "manager" | "stock" | "viewer";
+  status: "active" | "invited";
+};
+
+export const teamMembers: TeamMember[] = [
   {
-    id: "w2",
-    method: "Orange Money" as const,
-    balance: 78500,
-    phone: "78 200 33 44",
-    color: "#FF6F00",
+    id: "t1",
+    name: "Mamadou Diallo",
+    email: "mamadou@diallo-farm.sn",
+    role: "owner",
+    status: "active",
   },
-  {
-    id: "w3",
-    method: "Free Money" as const,
-    balance: 22000,
-    phone: "76 555 11 22",
-    color: "#CD1F4C",
-  },
+  { id: "t2", name: "Awa Ndiaye", email: "awa@diallo-farm.sn", role: "stock", status: "active" },
+  { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
 ];
 
 export type Withdrawal = {

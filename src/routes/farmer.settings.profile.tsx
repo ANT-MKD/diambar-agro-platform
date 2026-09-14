@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFarmerProfile, farmerProfileActions } from "@/data/store";
 
 export const Route = createFileRoute("/farmer/settings/profile")({
   head: () => ({
@@ -30,29 +32,71 @@ export const Route = createFileRoute("/farmer/settings/profile")({
   component: ProfileSettings,
 });
 
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+
 function ProfileSettings() {
-  const [form, setForm] = useState({
-    firstName: "Mamadou",
-    lastName: "Diallo",
-    email: "mamadou@diallo-farm.sn",
-    phone: "77 123 45 67",
-    lang: "fr",
-    bio: "Producteur de tomates et oignons depuis 2015 à Thiès.",
-  });
+  const profile = useFarmerProfile();
+  const [form, setForm] = useState(profile);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
+
+  const pickPhoto = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choisissez une image (JPG ou PNG)");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      toast.error("Image trop lourde (max 2 Mo)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => set("avatar", reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const save = () => {
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      toast.error("Le prénom et le nom sont obligatoires");
+      return false;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+      toast.error("Adresse email invalide");
+      return false;
+    }
+    farmerProfileActions.update(form);
+    return true;
+  };
+
   return (
     <SettingsCard
       title="Informations personnelles"
       description="Visibles par les restaurants partenaires."
+      onSave={save}
     >
       <div className="flex items-center gap-4">
         <img
-          src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200"
+          src={form.avatar}
           alt="Photo de profil du producteur"
           className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
         />
         <div>
-          <Button type="button" variant="outline" size="sm">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) pickPhoto(file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
             Changer la photo
           </Button>
           <p className="text-xs text-muted-foreground mt-2">JPG ou PNG, max 2 Mo</p>

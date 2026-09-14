@@ -16,6 +16,16 @@ import {
   driverWallet as seedDriverWallet,
   driverVehicle as seedDriverVehicle,
   driverSettings as seedDriverSettings,
+  wallets as seedWallets,
+  farmerProfile as seedFarmerProfile,
+  farmerFarm as seedFarmerFarm,
+  paymentPrefs as seedPaymentPrefs,
+  teamMembers as seedTeamMembers,
+  type Wallet,
+  type FarmerProfile,
+  type FarmerFarm,
+  type PaymentPrefs,
+  type TeamMember,
   type Product,
   type Order,
   type OrderStatus,
@@ -93,6 +103,11 @@ const driverSettingsStore = createStore<DriverSettings>(
   seedDriverSettings,
   "diambar:driver-settings",
 );
+const walletsStore = createStore<Wallet[]>(seedWallets, "diambar:wallets");
+const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diambar:farmer-profile");
+const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
+const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
+const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([], "diambar:cart");
@@ -327,6 +342,64 @@ export const driverSettingsActions = {
       ...s,
       paymentMethods: s.paymentMethods.map((m) => ({ ...m, active: m.id === id })),
     })),
+};
+
+export function useWallets() {
+  return useSyncExternalStore(walletsStore.subscribe, walletsStore.get, walletsStore.get);
+}
+
+export const walletActions = {
+  setPhone: (method: PaymentMethod, phone: string) =>
+    walletsStore.set((arr) => arr.map((w) => (w.method === method ? { ...w, phone } : w))),
+};
+
+export function useFarmerProfile() {
+  return useSyncExternalStore(
+    farmerProfileStore.subscribe,
+    farmerProfileStore.get,
+    farmerProfileStore.get,
+  );
+}
+
+export const farmerProfileActions = {
+  update: (patch: Partial<FarmerProfile>) => farmerProfileStore.set((s) => ({ ...s, ...patch })),
+};
+
+export function useFarmerFarm() {
+  return useSyncExternalStore(farmerFarmStore.subscribe, farmerFarmStore.get, farmerFarmStore.get);
+}
+
+export const farmerFarmActions = {
+  update: (patch: Partial<FarmerFarm>) => farmerFarmStore.set((s) => ({ ...s, ...patch })),
+};
+
+export function usePaymentPrefs() {
+  return useSyncExternalStore(
+    paymentPrefsStore.subscribe,
+    paymentPrefsStore.get,
+    paymentPrefsStore.get,
+  );
+}
+
+export const paymentPrefsActions = {
+  setPrimary: (primary: PaymentMethod) => paymentPrefsStore.set((s) => ({ ...s, primary })),
+  setThreshold: (withdrawThreshold: number) =>
+    paymentPrefsStore.set((s) => ({ ...s, withdrawThreshold })),
+};
+
+export function useTeam() {
+  return useSyncExternalStore(teamStore.subscribe, teamStore.get, teamStore.get);
+}
+
+export const teamActions = {
+  invite: (email: string, role: TeamMember["role"]) => {
+    const id = `t_${Date.now()}`;
+    teamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    return id;
+  },
+  setRole: (id: string, role: TeamMember["role"]) =>
+    teamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
+  remove: (id: string) => teamStore.set((arr) => arr.filter((m) => m.id !== id)),
 };
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
