@@ -21,11 +21,13 @@ import {
   farmerFarm as seedFarmerFarm,
   paymentPrefs as seedPaymentPrefs,
   teamMembers as seedTeamMembers,
+  restaurantBudget as seedRestaurantBudget,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
   type PaymentPrefs,
   type TeamMember,
+  type RestaurantBudget,
   type Product,
   type Order,
   type OrderStatus,
@@ -108,6 +110,10 @@ const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diamba
 const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
 const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
 const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
+const restaurantBudgetStore = createStore<RestaurantBudget>(
+  seedRestaurantBudget,
+  "diambar:restaurant-budget",
+);
 
 export type CartLine = { productId: string; qty: number };
 const cartStore = createStore<CartLine[]>([], "diambar:cart");
@@ -400,6 +406,18 @@ export const teamActions = {
   setRole: (id: string, role: TeamMember["role"]) =>
     teamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
   remove: (id: string) => teamStore.set((arr) => arr.filter((m) => m.id !== id)),
+};
+
+export function useRestaurantBudget() {
+  return useSyncExternalStore(
+    restaurantBudgetStore.subscribe,
+    restaurantBudgetStore.get,
+    restaurantBudgetStore.get,
+  );
+}
+
+export const restaurantBudgetActions = {
+  setMonthly: (monthly: number) => restaurantBudgetStore.set({ monthly }),
 };
 
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {

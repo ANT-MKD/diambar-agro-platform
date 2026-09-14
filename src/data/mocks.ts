@@ -766,6 +766,14 @@ export const teamMembers: TeamMember[] = [
   { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
 ];
 
+export type RestaurantBudget = {
+  monthly: number;
+};
+
+export const restaurantBudget: RestaurantBudget = {
+  monthly: 1500000,
+};
+
 export type Withdrawal = {
   id: string;
   date: string;
