@@ -13,7 +13,15 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
 import { PromoCodeField } from "@/components/restaurant/promo-code-field";
-import { useCart, useProducts, cartActions, restaurantOrderActions } from "@/data/store";
+import {
+  useCart,
+  useProducts,
+  cartActions,
+  restaurantOrderActions,
+  useRestaurantProfile,
+  restaurantProfileActions,
+  onboardingActions,
+} from "@/data/store";
 import { farmers, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -36,6 +44,7 @@ function Checkout() {
   const navigate = useNavigate();
   const cart = useCart();
   const products = useProducts();
+  const profile = useRestaurantProfile();
   const lines = cart
     .map((l) => ({ ...l, product: products.find((p) => p.id === l.productId)! }))
     .filter((l) => l.product);
@@ -57,9 +66,9 @@ function Checkout() {
     discount: number;
     total: number;
   } | null>(null);
-  const [address, setAddress] = useState("Le Baobab, Dakar Plateau");
+  const [address, setAddress] = useState(profile.deliveryAddress);
   const [slot, setSlot] = useState("Demain · 08:00 – 10:00");
-  const [method, setMethod] = useState<PaymentMethod>("Wave");
+  const [method, setMethod] = useState<PaymentMethod>(profile.paymentMethod);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const farmerGroups = useMemo(
@@ -106,7 +115,7 @@ function Checkout() {
         total: fTotal,
         deliveryAddress: address,
         paymentMethod: method,
-        eta: "24h",
+        eta: slot,
       });
       created.push(id);
     });
@@ -119,6 +128,11 @@ function Checkout() {
       total,
     });
     cartActions.clear();
+    // L'adresse et la méthode utilisées deviennent les vraies préférences du
+    // restaurant, préremplies aux prochaines commandes.
+    restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
+    onboardingActions.set("resto_address", true);
+    onboardingActions.set("resto_payment", true);
     toast.success("Commande passée avec succès");
     setStep(3);
   };

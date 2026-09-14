@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ShoppingCart, Trash2 } from "lucide-react";
+import { ArrowRight, ShoppingCart, Trash2, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { CartItemRow } from "@/components/restaurant/cart-item";
+import { RestaurantProductCard } from "@/components/restaurant/product-card";
 import { useCart, useProducts, cartActions } from "@/data/store";
 import { farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
@@ -47,6 +48,14 @@ function CartPage() {
   const delivery = Math.round(subtotal * 0.03);
   const total = subtotal + delivery;
 
+  // Suggestions réelles : produits actifs des mêmes catégories que le panier,
+  // pas encore dedans — pas une sélection éditoriale inventée.
+  const cartCategories = new Set(lines.map((l) => l.product.category));
+  const inCart = new Set(lines.map((l) => l.productId));
+  const suggestions = products
+    .filter((p) => p.status === "active" && cartCategories.has(p.category) && !inCart.has(p.id))
+    .slice(0, 4);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -68,9 +77,7 @@ function CartPage() {
                 <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
                 <div className="flex-1">
                   <div className="font-semibold text-sm">{farmer.farm}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {farmer.city} · Livraison estimée 24h
-                  </div>
+                  <div className="text-[11px] text-muted-foreground">{farmer.city}</div>
                 </div>
                 <span className="text-xs font-semibold text-primary">
                   {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}
@@ -83,6 +90,17 @@ function CartPage() {
               </div>
             </div>
           ))}
+
+          {suggestions.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-display text-base font-bold">Vous pourriez aussi aimer</h3>
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {suggestions.map((p) => (
+                  <RestaurantProductCard key={p.id} product={p} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="glass rounded-2xl p-5 h-fit sticky top-20 space-y-3">
@@ -110,6 +128,17 @@ function CartPage() {
           <p className="text-[11px] text-muted-foreground text-center">
             Paiement sécurisé via Wave, Orange Money, ou à la livraison.
           </p>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 text-muted-foreground"
+          >
+            <Link to="/restaurant/returns">
+              <Undo2 className="h-3.5 w-3.5" />
+              Retours & avoirs
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

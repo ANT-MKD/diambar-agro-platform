@@ -770,6 +770,19 @@ export type RestaurantBudget = {
   monthly: number;
 };
 
+export type RestaurantProfile = {
+  deliveryAddress: string;
+  paymentMethod: PaymentMethod;
+};
+
+// Reprend l'adresse déjà utilisée dans l'historique réel des commandes de ce
+// restaurant (voir restaurantOrders), pour ne pas introduire une valeur
+// déconnectée du reste des données de démo.
+export const restaurantProfile: RestaurantProfile = {
+  deliveryAddress: "Le Baobab, Dakar Plateau",
+  paymentMethod: "Wave",
+};
+
 export type ProductReview = {
   id: string;
   productId: string;

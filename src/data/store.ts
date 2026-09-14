@@ -23,6 +23,7 @@ import {
   teamMembers as seedTeamMembers,
   restaurantBudget as seedRestaurantBudget,
   productReviews as seedProductReviews,
+  restaurantProfile as seedRestaurantProfile,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
@@ -30,6 +31,7 @@ import {
   type TeamMember,
   type RestaurantBudget,
   type ProductReview,
+  type RestaurantProfile,
   type Product,
   type Order,
   type OrderStatus,
@@ -119,6 +121,10 @@ const restaurantBudgetStore = createStore<RestaurantBudget>(
 const productReviewsStore = createStore<ProductReview[]>(
   seedProductReviews,
   "diambar:product-reviews",
+);
+const restaurantProfileStore = createStore<RestaurantProfile>(
+  seedRestaurantProfile,
+  "diambar:restaurant-profile",
 );
 
 export type CartLine = { productId: string; qty: number };
@@ -446,6 +452,19 @@ export const productReviewActions = {
   },
 };
 
+export function useRestaurantProfile() {
+  return useSyncExternalStore(
+    restaurantProfileStore.subscribe,
+    restaurantProfileStore.get,
+    restaurantProfileStore.get,
+  );
+}
+
+export const restaurantProfileActions = {
+  update: (patch: Partial<RestaurantProfile>) =>
+    restaurantProfileStore.set((s) => ({ ...s, ...patch })),
+};
+
 function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
   return {
     markRead: (id: string) =>
@@ -760,21 +779,34 @@ export const withdrawalActions = {
   },
 };
 
+function stockOf(productId: string) {
+  return productsStore.get().find((p) => p.id === productId)?.stock ?? Infinity;
+}
+
 export const cartActions = {
+  // Retourne la quantité réellement appliquée (peut être plafonnée au stock
+  // réel du producteur), pour que l'UI puisse prévenir l'utilisateur.
   add: (productId: string, qty = 1) => {
+    const max = stockOf(productId);
+    let applied = 0;
     cartStore.set((arr) => {
       const existing = arr.find((l) => l.productId === productId);
-      if (existing)
-        return arr.map((l) => (l.productId === productId ? { ...l, qty: l.qty + qty } : l));
-      return [...arr, { productId, qty }];
+      const nextQty = Math.min(max, (existing?.qty ?? 0) + qty);
+      applied = nextQty;
+      if (existing) return arr.map((l) => (l.productId === productId ? { ...l, qty: nextQty } : l));
+      return [...arr, { productId, qty: nextQty }];
     });
+    return applied;
   },
   setQty: (productId: string, qty: number) => {
+    const max = stockOf(productId);
+    const capped = Math.min(qty, max);
     cartStore.set((arr) =>
-      qty <= 0
+      capped <= 0
         ? arr.filter((l) => l.productId !== productId)
-        : arr.map((l) => (l.productId === productId ? { ...l, qty } : l)),
+        : arr.map((l) => (l.productId === productId ? { ...l, qty: capped } : l)),
     );
+    return capped;
   },
   remove: (productId: string) => {
     cartStore.set((arr) => arr.filter((l) => l.productId !== productId));
