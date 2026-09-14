@@ -30,6 +30,7 @@ import { restaurants, type AppNotification } from "@/data/mocks";
 import {
   useOrders,
   useProducts,
+  useMovements,
   orderActions,
   useFarmerNotifications,
   farmerNotifActions,
@@ -39,9 +40,18 @@ import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
 import { AlertsPanel } from "@/components/farmer/alerts-panel";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
+import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
@@ -93,6 +103,40 @@ function Dashboard() {
       .map(([category, value]) => ({ category, value }))
       .sort((a, b) => b.value - a.value);
   }, [delivered, products]);
+
+  const movements = useMovements();
+
+  // Top 5 produits par revenu livré (nombre de ventes = nombre de lignes de
+  // commande, pas la quantité en kg, pour rester lisible et comparable).
+  const topProducts = useMemo(() => {
+    const totals = new Map<string, { sales: number; revenue: number }>();
+    for (const o of delivered) {
+      for (const item of o.items) {
+        const cur = totals.get(item.productId) ?? { sales: 0, revenue: 0 };
+        totals.set(item.productId, {
+          sales: cur.sales + 1,
+          revenue: cur.revenue + item.qty * item.price,
+        });
+      }
+    }
+    return Array.from(totals.entries())
+      .map(([productId, v]) => ({ product: products.find((p) => p.id === productId), ...v }))
+      .filter((x): x is typeof x & { product: NonNullable<typeof x.product> } => Boolean(x.product))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }, [delivered, products]);
+
+  const recentOrders = [...orders]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5);
+
+  const recentMovements = useMemo(() => {
+    const myProductIds = new Set(products.map((p) => p.id));
+    return movements
+      .filter((m) => myProductIds.has(m.productId))
+      .slice(0, 5)
+      .map((m) => ({ ...m, product: products.find((p) => p.id === m.productId) }));
+  }, [movements, products]);
 
   const openNotification = (n: AppNotification) => {
     farmerNotifActions.markRead(n.id);
@@ -427,6 +471,150 @@ function Dashboard() {
                 ))}
               </ul>
             </>
+          )}
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl overflow-hidden">
+        <div className="p-6 pb-0 flex items-center justify-between">
+          <h3 className="font-semibold">Top 5 des produits</h3>
+        </div>
+        {topProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-10">
+            Pas encore de vente livrée
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produit</TableHead>
+                <TableHead className="text-right">Ventes</TableHead>
+                <TableHead className="text-right">Revenu</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topProducts.map(({ product, sales, revenue }) => (
+                <TableRow
+                  key={product.id}
+                  className="cursor-pointer"
+                  onClick={() =>
+                    navigate({
+                      to: "/farmer/products/$productId",
+                      params: { productId: product.id },
+                    })
+                  }
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                      />
+                      <span className="font-medium">{product.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {sales} vente{sales > 1 ? "s" : ""}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-primary">
+                    {formatFCFA(revenue)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 glass rounded-2xl overflow-hidden">
+          <div className="p-6 pb-4 flex items-center justify-between">
+            <h3 className="font-semibold">Commandes récentes</h3>
+            <Link to="/farmer/orders" className="text-xs text-primary font-medium">
+              Voir tout
+            </Link>
+          </div>
+          {recentOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center pb-10">Aucune commande</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>N° commande</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Produits</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                  <TableHead>Statut</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentOrders.map((o) => {
+                  const r = restaurants.find((x) => x.id === o.restaurantId);
+                  return (
+                    <TableRow
+                      key={o.id}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        navigate({ to: "/farmer/orders/$orderId", params: { orderId: o.id } })
+                      }
+                    >
+                      <TableCell className="font-mono text-xs">{o.reference}</TableCell>
+                      <TableCell>{r?.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {o.items.length} produit{o.items.length > 1 ? "s" : ""}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatFCFA(o.total)}
+                      </TableCell>
+                      <TableCell>
+                        <OrderStatusBadge status={o.status} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">Mouvements de stock récents</h3>
+            <Link to="/farmer/stock" className="text-xs text-primary font-medium">
+              Voir tout
+            </Link>
+          </div>
+          {recentMovements.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Aucun mouvement</p>
+          ) : (
+            <div className="space-y-3">
+              {recentMovements.map((m) => (
+                <div key={m.id} className="flex items-start gap-3">
+                  <div
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold ${
+                      m.type === "in"
+                        ? "bg-emerald-500/10 text-emerald-500"
+                        : m.type === "out"
+                          ? "bg-rose-500/10 text-rose-500"
+                          : "bg-blue-500/10 text-blue-500"
+                    }`}
+                  >
+                    {m.type === "in" ? "+" : m.type === "out" ? "-" : "="}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{m.product?.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {m.type === "out" ? "-" : "+"}
+                      {m.qty} {m.product?.unit ?? ""}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
+                    {relativeTime(m.at)}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
