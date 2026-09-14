@@ -751,21 +751,6 @@ export const withdrawals: Withdrawal[] = [
   },
 ];
 
-export const topClients = [
-  { restaurantId: "r1", orders: 24, total: 845000, recurringPct: 78 },
-  { restaurantId: "r2", orders: 18, total: 612000, recurringPct: 65 },
-  { restaurantId: "r3", orders: 11, total: 423000, recurringPct: 42 },
-];
-
-export const geoPins = [
-  { id: "g1", region: "Dakar", x: 18, y: 40, count: 12, color: "#10b981" },
-  { id: "g2", region: "Thiès", x: 28, y: 38, count: 8, color: "#10b981" },
-  { id: "g3", region: "Mbour", x: 24, y: 50, count: 5, color: "#f59e0b" },
-  { id: "g4", region: "Saint-Louis", x: 32, y: 14, count: 3, color: "#3b82f6" },
-  { id: "g5", region: "Kaolack", x: 45, y: 52, count: 4, color: "#3b82f6" },
-  { id: "g6", region: "Ziguinchor", x: 30, y: 82, count: 2, color: "#8b5cf6" },
-];
-
 export type RecurringOrder = {
   id: string;
   restaurantId: string;
