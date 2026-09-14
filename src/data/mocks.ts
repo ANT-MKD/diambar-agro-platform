@@ -997,6 +997,7 @@ export const restaurantOrders: RestaurantOrder[] = [
 export const suppliers = [
   {
     id: "f1",
+    restaurantId: "r1",
     farmerId: "f1",
     name: "Ferme Diallo",
     contact: "Mamadou Diallo",
@@ -1012,6 +1013,7 @@ export const suppliers = [
   },
   {
     id: "f2",
+    restaurantId: "r1",
     farmerId: "f2",
     name: "Coopérative Sow",
     contact: "Fatou Sow",
@@ -1027,6 +1029,7 @@ export const suppliers = [
   },
   {
     id: "f3",
+    restaurantId: "r1",
     farmerId: "f3",
     name: "Niayes Ndoye",
     contact: "Ibrahima Ndoye",
@@ -1044,6 +1047,9 @@ export const suppliers = [
 
 export type Supplier = {
   id: string;
+  // Carnet privé : chaque fiche appartient à UN SEUL restaurant (celui qui
+  // l'a créée), jamais partagée avec les autres comptes restaurant.
+  restaurantId: string;
   farmerId?: string;
   name: string;
   contact: string;

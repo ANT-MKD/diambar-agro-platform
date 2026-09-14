@@ -95,7 +95,7 @@ const ordersStore = createStore<Order[]>(seedOrders);
 const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:movements");
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
-const suppliersStore = createStore<Supplier[]>(seedSuppliers);
+const suppliersStore = createStore<Supplier[]>(seedSuppliers, "diambar:suppliers");
 const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
 const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
 const driverNotifsStore = createStore<AppNotification[]>(seedDriverNotifs);
@@ -574,6 +574,22 @@ export const driverOnlineActions = {
   toggle: () => driverOnlineStore.set((v) => !v),
   set: (v: boolean) => driverOnlineStore.set(v),
 };
+
+// Un fournisseur du carnet lié à un vrai producteur (farmerId) doit afficher
+// ses vraies statistiques de commande, pas des totaux saisis une fois à la
+// création et jamais mis à jour. Sans farmerId (fournisseur hors plateforme),
+// il n'existe par définition aucune commande réelle à agréger.
+export function supplierOrderStats(orders: RestaurantOrder[], farmerId?: string) {
+  if (!farmerId) return { totalOrders: 0, totalSpent: 0, lastOrder: "—" };
+  const matching = orders.filter((o) => o.farmerId === farmerId);
+  if (matching.length === 0) return { totalOrders: 0, totalSpent: 0, lastOrder: "—" };
+  const totalOrders = matching.length;
+  const totalSpent = matching.reduce((s, o) => s + o.total, 0);
+  const lastOrder = matching
+    .reduce((latest, o) => (o.createdAt > latest ? o.createdAt : latest), matching[0].createdAt)
+    .slice(0, 10);
+  return { totalOrders, totalSpent, lastOrder };
+}
 
 export const supplierActions = {
   create: (

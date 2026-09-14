@@ -1,10 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { SupplierForm } from "@/components/restaurant/supplier-form";
 import { useSupplier, supplierActions } from "@/data/store";
+import { restaurants } from "@/data/mocks";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId/edit")({
   head: () => ({ meta: [{ title: "Modifier fournisseur · Restaurant" }] }),
@@ -13,9 +14,11 @@ export const Route = createFileRoute("/restaurant/suppliers/$supplierId/edit")({
 
 function EditSupplier() {
   const nav = useNavigate();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
   const { supplierId } = Route.useParams();
   const s = useSupplier(supplierId);
-  if (!s)
+  if (!s || s.restaurantId !== myRestaurant?.id)
     return (
       <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
         Fournisseur introuvable

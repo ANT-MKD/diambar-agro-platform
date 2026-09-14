@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,8 +21,9 @@ import {
   useRestaurantProfile,
   restaurantProfileActions,
   onboardingActions,
+  useSuppliers,
 } from "@/data/store";
-import { farmers, type PaymentMethod } from "@/data/mocks";
+import { farmers, restaurants, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,12 +43,21 @@ const step1Schema = z.object({
 
 function Checkout() {
   const navigate = useNavigate();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const suppliers = useSuppliers();
   const cart = useCart();
   const products = useProducts();
   const profile = useRestaurantProfile();
   const lines = cart
     .map((l) => ({ ...l, product: products.find((p) => p.id === l.productId)! }))
     .filter((l) => l.product);
+  const suspendedFarmerIds = new Set(
+    suppliers
+      .filter((s) => s.restaurantId === myRestaurant?.id && s.suspended)
+      .map((s) => s.farmerId),
+  );
+  const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
   const subtotal = lines.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0);
   const delivery = Math.round(subtotal * 0.03);
   const [promoCode, setPromoCode] = useState<string | null>(null);
@@ -100,6 +110,10 @@ function Checkout() {
   };
 
   const confirm = () => {
+    if (hasSuspendedSupplier) {
+      toast.error("Retirez du panier les produits d'un fournisseur suspendu avant de commander");
+      return;
+    }
     const created: string[] = [];
     farmerGroups.forEach((f, idx) => {
       const items = lines
@@ -209,6 +223,13 @@ function Checkout() {
           )}
           {step === 2 && (
             <>
+              {hasSuspendedSupplier && (
+                <div className="rounded-xl p-3 border border-destructive/40 bg-destructive/5 text-sm text-destructive flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  Votre panier contient un produit d'un fournisseur suspendu dans votre carnet.
+                  Retirez-le du panier pour pouvoir confirmer la commande.
+                </div>
+              )}
               <h3 className="font-display text-lg font-bold flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-primary" />
                 Méthode de paiement
@@ -328,7 +349,7 @@ function Checkout() {
                 </Button>
               )}
               {step === 2 && (
-                <Button onClick={confirm} className="flex-1 gap-1">
+                <Button onClick={confirm} disabled={hasSuspendedSupplier} className="flex-1 gap-1">
                   Confirmer <Check className="h-4 w-4" />
                 </Button>
               )}

@@ -1,4 +1,11 @@
-import { createFileRoute, Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useRouterState,
+  useNavigate,
+  useRouteContext,
+} from "@tanstack/react-router";
 import {
   ArrowLeft,
   Pencil,
@@ -14,8 +21,13 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useSupplier, supplierActions } from "@/data/store";
-import { farmers, products } from "@/data/mocks";
+import {
+  useSupplier,
+  useRestaurantOrders,
+  supplierActions,
+  supplierOrderStats,
+} from "@/data/store";
+import { farmers, products, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId")({
@@ -32,8 +44,14 @@ function SupplierLayout() {
 
 function SupplierDetail({ supplierId }: { supplierId: string }) {
   const nav = useNavigate();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
   const s = useSupplier(supplierId);
-  if (!s)
+  const orders = useRestaurantOrders();
+  // Un fournisseur n'appartient qu'au carnet du restaurant qui l'a créé :
+  // un accès direct par URL à la fiche d'un autre restaurant doit échouer,
+  // comme pour les conversations de messagerie.
+  if (!s || s.restaurantId !== myRestaurant?.id)
     return (
       <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
         Fournisseur introuvable
@@ -41,6 +59,7 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
     );
   const f = s.farmerId ? farmers.find((x) => x.id === s.farmerId) : null;
   const offer = f ? products.filter((p) => p.farmerId === f.id) : [];
+  const stats = supplierOrderStats(orders, s.farmerId);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -174,15 +193,15 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
           <div className="glass rounded-2xl p-5 space-y-3">
             <div className="text-xs font-semibold text-muted-foreground">STATISTIQUES</div>
             <div>
-              <div className="text-3xl font-bold text-primary">{s.totalOrders}</div>
+              <div className="text-3xl font-bold text-primary">{stats.totalOrders}</div>
               <div className="text-[11px] text-muted-foreground">Commandes totales</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">{formatFCFA(s.totalSpent)}</div>
+              <div className="text-2xl font-bold">{formatFCFA(stats.totalSpent)}</div>
               <div className="text-[11px] text-muted-foreground">Total dépensé</div>
             </div>
             <div className="pt-2 border-t border-border text-xs text-muted-foreground">
-              Dernière commande : <b className="text-foreground">{s.lastOrder}</b>
+              Dernière commande : <b className="text-foreground">{stats.lastOrder}</b>
             </div>
           </div>
         </div>

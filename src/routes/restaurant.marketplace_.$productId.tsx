@@ -21,8 +21,9 @@ import {
   cartActions,
   useWishlist,
   wishlistActions,
+  useSuppliers,
 } from "@/data/store";
-import { farmers } from "@/data/mocks";
+import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +49,7 @@ function ProductDetail() {
   const all = useProducts();
   const reviews = useProductReviews(productId);
   const wishlist = useWishlist();
+  const suppliers = useSuppliers();
   const [qty, setQty] = useState(1);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -61,6 +63,12 @@ function ProductDetail() {
     );
   const farmer = farmers.find((f) => f.id === product.farmerId);
   const out = product.stock === 0;
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const supplierRecord = suppliers.find(
+    (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId,
+  );
+  const supplierSuspended = supplierRecord?.suspended ?? false;
+  const blocked = out || supplierSuspended;
   const liked = wishlist.includes(product.id);
   const similar = all
     .filter((p) => p.id !== product.id && p.category === product.category && p.status !== "draft")
@@ -93,6 +101,10 @@ function ProductDetail() {
   };
 
   const orderNow = () => {
+    if (supplierSuspended) {
+      toast.error("Ce fournisseur est suspendu dans votre carnet");
+      return;
+    }
     cartActions.add(product.id, qty);
     navigate({ to: "/restaurant/cart" });
   };
@@ -173,15 +185,24 @@ function ProductDetail() {
                 {farmer?.city} · {farmer?.products} produits
               </div>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                to="/restaurant/suppliers/$supplierId"
-                params={{ supplierId: product.farmerId }}
-              >
-                Voir profil
-              </Link>
-            </Button>
+            {supplierRecord && (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to="/restaurant/suppliers/$supplierId"
+                  params={{ supplierId: supplierRecord.id }}
+                >
+                  Voir profil
+                </Link>
+              </Button>
+            )}
           </div>
+
+          {supplierSuspended && (
+            <div className="glass rounded-xl p-3 border border-destructive/40 bg-destructive/5 text-sm text-destructive">
+              Ce fournisseur est suspendu dans votre carnet — impossible de lui commander tant qu'il
+              n'est pas réactivé sur sa fiche.
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <div className="inline-flex items-center gap-1 rounded-xl border border-border h-12">
@@ -200,7 +221,7 @@ function ProductDetail() {
               </button>
             </div>
             <Button
-              disabled={out}
+              disabled={blocked}
               variant="outline"
               onClick={() => {
                 cartActions.add(product.id, qty);
@@ -212,7 +233,7 @@ function ProductDetail() {
             </Button>
           </div>
           <div className="flex items-center gap-3">
-            <Button disabled={out} onClick={orderNow} className="flex-1 h-12 gap-2 text-base">
+            <Button disabled={blocked} onClick={orderNow} className="flex-1 h-12 gap-2 text-base">
               <Zap className="h-5 w-5" /> Commander maintenant
             </Button>
             <Button asChild variant="outline" className="h-12 gap-2">

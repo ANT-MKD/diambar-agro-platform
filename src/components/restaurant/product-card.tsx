@@ -1,13 +1,20 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { Plus, Star, MapPin, Heart } from "lucide-react";
 import { toast } from "sonner";
-import { type Product, farmers } from "@/data/mocks";
+import { type Product, farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { cartActions, useWishlist, wishlistActions } from "@/data/store";
+import { cartActions, useWishlist, wishlistActions, useSuppliers } from "@/data/store";
 
 export function RestaurantProductCard({ product }: { product: Product }) {
   const farmer = farmers.find((f) => f.id === product.farmerId);
   const out = product.stock === 0;
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const suppliers = useSuppliers();
+  const supplierSuspended = suppliers.some(
+    (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId && s.suspended,
+  );
+  const blocked = out || supplierSuspended;
   const wishlist = useWishlist();
   const liked = wishlist.includes(product.id);
   return (
@@ -28,6 +35,11 @@ export function RestaurantProductCard({ product }: { product: Product }) {
         {out && (
           <span className="absolute top-2 right-12 text-[10px] font-semibold rounded-full bg-rose-500 text-white px-2 py-0.5">
             Rupture
+          </span>
+        )}
+        {!out && supplierSuspended && (
+          <span className="absolute top-2 right-12 text-[10px] font-semibold rounded-full bg-rose-500 text-white px-2 py-0.5">
+            Fournisseur suspendu
           </span>
         )}
       </Link>
@@ -76,8 +88,12 @@ export function RestaurantProductCard({ product }: { product: Product }) {
             {farmer?.city}
           </span>
           <button
-            disabled={out}
+            disabled={blocked}
             onClick={() => {
+              if (supplierSuspended) {
+                toast.error("Ce fournisseur est suspendu dans votre carnet");
+                return;
+              }
               cartActions.add(product.id, 1);
               toast.success(`${product.name} ajouté`);
             }}

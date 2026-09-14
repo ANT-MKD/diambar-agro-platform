@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ShoppingCart, Trash2, Undo2 } from "lucide-react";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { ArrowRight, ShoppingCart, Trash2, Undo2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { CartItemRow } from "@/components/restaurant/cart-item";
 import { RestaurantProductCard } from "@/components/restaurant/product-card";
-import { useCart, useProducts, cartActions } from "@/data/store";
-import { farmers } from "@/data/mocks";
+import { useCart, useProducts, cartActions, useSuppliers } from "@/data/store";
+import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +15,14 @@ export const Route = createFileRoute("/restaurant/cart")({
 });
 
 function CartPage() {
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const suppliers = useSuppliers();
+  const suspendedFarmerIds = new Set(
+    suppliers
+      .filter((s) => s.restaurantId === myRestaurant?.id && s.suspended)
+      .map((s) => s.farmerId),
+  );
   const cart = useCart();
   const products = useProducts();
   const lines = cart
@@ -47,6 +55,7 @@ function CartPage() {
   const subtotal = lines.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0);
   const delivery = Math.round(subtotal * 0.03);
   const total = subtotal + delivery;
+  const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
 
   // Suggestions réelles : produits actifs des mêmes catégories que le panier,
   // pas encore dedans — pas une sélection éditoriale inventée.
@@ -71,25 +80,35 @@ function CartPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {groups.map(({ farmer, items }) => (
-            <div key={farmer.id} className="glass rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
-                <div className="flex-1">
-                  <div className="font-semibold text-sm">{farmer.farm}</div>
-                  <div className="text-[11px] text-muted-foreground">{farmer.city}</div>
+          {groups.map(({ farmer, items }) => {
+            const suspended = suspendedFarmerIds.has(farmer.id);
+            return (
+              <div key={farmer.id} className="glass rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{farmer.farm}</div>
+                    <div className="text-[11px] text-muted-foreground">{farmer.city}</div>
+                  </div>
+                  <span className="text-xs font-semibold text-primary">
+                    {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}
+                  </span>
                 </div>
-                <span className="text-xs font-semibold text-primary">
-                  {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}
-                </span>
+                {suspended && (
+                  <div className="rounded-lg px-3 py-2 flex items-center gap-2 text-xs font-medium text-destructive bg-destructive/5 border border-destructive/30">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Fournisseur suspendu dans votre carnet — retirez ces produits avant de
+                    commander.
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {items.map((l) => (
+                    <CartItemRow key={l.productId} product={l.product} qty={l.qty} />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2">
-                {items.map((l) => (
-                  <CartItemRow key={l.productId} product={l.product} qty={l.qty} />
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {suggestions.length > 0 && (
             <div className="space-y-3">
@@ -120,11 +139,22 @@ function CartPage() {
               <span className="text-primary">{formatFCFA(total)}</span>
             </div>
           </div>
-          <Button asChild className="w-full h-11 gap-2 mt-2">
-            <Link to="/restaurant/checkout">
+          {hasSuspendedSupplier ? (
+            <Button disabled className="w-full h-11 gap-2 mt-2">
               Passer la commande <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button asChild className="w-full h-11 gap-2 mt-2">
+              <Link to="/restaurant/checkout">
+                Passer la commande <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+          {hasSuspendedSupplier && (
+            <p className="text-[11px] text-destructive text-center">
+              Retirez les produits d'un fournisseur suspendu pour continuer.
+            </p>
+          )}
           <p className="text-[11px] text-muted-foreground text-center">
             Paiement sécurisé via Wave, Orange Money, ou à la livraison.
           </p>

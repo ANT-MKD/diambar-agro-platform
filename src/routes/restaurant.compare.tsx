@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { GitCompare, X, ShoppingCart, Check, Minus } from "lucide-react";
 import { z } from "zod";
@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { Button } from "@/components/ui/button";
-import { farmers } from "@/data/mocks";
-import { useProducts, cartActions } from "@/data/store";
+import { farmers, restaurants } from "@/data/mocks";
+import { useProducts, cartActions, useSuppliers } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/compare")({
@@ -33,6 +33,14 @@ export const Route = createFileRoute("/restaurant/compare")({
 function ComparePage() {
   const { ids } = Route.useSearch();
   const navigate = useNavigate();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const suppliers = useSuppliers();
+  const suspendedFarmerIds = new Set(
+    suppliers
+      .filter((s) => s.restaurantId === myRestaurant?.id && s.suspended)
+      .map((s) => s.farmerId),
+  );
   const products = useProducts();
   const selected: string[] = String(ids ?? "")
     .split(",")
@@ -166,7 +174,7 @@ function ComparePage() {
                 <td key={p.id} className="p-4">
                   <Button
                     size="sm"
-                    disabled={p.stock === 0}
+                    disabled={p.stock === 0 || suspendedFarmerIds.has(p.farmerId)}
                     onClick={() => {
                       cartActions.add(p.id, 1);
                       toast.success(`${p.name} ajouté au panier`);
