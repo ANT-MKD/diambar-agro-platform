@@ -84,7 +84,7 @@ function RulesPage() {
         <p className="text-xs text-muted-foreground mb-4">
           In-app, Email, WhatsApp et SMS · données simulées
         </p>
-        <ChannelMatrix events={EVENTS} />
+        <ChannelMatrix events={EVENTS} storageKey="driver-rules" />
       </div>
 
       <div className="glass rounded-2xl p-5">
@@ -95,7 +95,7 @@ function RulesPage() {
         <p className="text-xs text-muted-foreground mb-4">
           Conditions automatiques évaluées en temps réel
         </p>
-        <TriggerRules rules={RULES} />
+        <TriggerRules rules={RULES} storageKey="driver-rules" />
       </div>
     </div>
   );

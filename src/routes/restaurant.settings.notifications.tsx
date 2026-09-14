@@ -126,13 +126,13 @@ function RestaurantNotificationSettings() {
         title="Matrice événements × canaux"
         description="Affinez le canal utilisé pour chaque type d'alerte."
       >
-        <ChannelMatrix events={EVENTS} />
+        <ChannelMatrix events={EVENTS} storageKey="restaurant-settings" />
       </SettingsCard>
       <SettingsCard
         title="Règles de déclenchement"
         description="Automatisations qui décident quand et comment alerter votre équipe."
       >
-        <TriggerRules rules={RULES} />
+        <TriggerRules rules={RULES} storageKey="restaurant-settings" />
       </SettingsCard>
     </>
   );

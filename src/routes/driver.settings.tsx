@@ -262,13 +262,13 @@ function DriverSettings() {
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
               Matrice événements × canaux
             </div>
-            <ChannelMatrix events={DRIVER_EVENTS} />
+            <ChannelMatrix events={DRIVER_EVENTS} storageKey="driver-settings" />
           </div>
           <div className="glass rounded-2xl p-5 space-y-3">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
               Règles de déclenchement
             </div>
-            <TriggerRules rules={DRIVER_RULES} />
+            <TriggerRules rules={DRIVER_RULES} storageKey="driver-settings" />
           </div>
           <div className="glass rounded-2xl p-5 space-y-3">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">

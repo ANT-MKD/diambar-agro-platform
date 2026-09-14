@@ -465,6 +465,8 @@ export const transactions: Transaction[] = [
   },
 ];
 
+export type ChatAttachment = { name: string; dataUrl: string; mime: string };
+
 export type Conversation = {
   id: string;
   restaurantId: string;
@@ -474,7 +476,14 @@ export type Conversation = {
   // senderName: renseigné uniquement pour les messages injectés par l'admin
   // depuis la messagerie de supervision, pour ne pas les faire passer pour
   // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
-  messages: { id: string; from: "me" | "them"; text: string; at: string; senderName?: string }[];
+  messages: {
+    id: string;
+    from: "me" | "them";
+    text: string;
+    at: string;
+    senderName?: string;
+    attachment?: ChatAttachment;
+  }[];
 };
 
 export const conversations: Conversation[] = [

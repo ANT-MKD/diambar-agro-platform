@@ -26,6 +26,7 @@ import {
   type Supplier,
   type AppNotification,
   type Conversation,
+  type ChatAttachment,
   type RecurringOrder,
   type Mission,
   type MissionProofPhoto,
@@ -675,12 +676,30 @@ export const wishlistActions = {
 };
 
 export const conversationActions = {
-  send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
-    const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
+  send: (
+    conversationId: string,
+    text: string,
+    from: "me" | "them" = "me",
+    senderName?: string,
+    attachment?: ChatAttachment,
+  ) => {
+    const msg = {
+      id: `m_${Date.now()}`,
+      from,
+      text,
+      at: new Date().toISOString(),
+      senderName,
+      attachment,
+    };
     conversationsStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
-          ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at }
+          ? {
+              ...c,
+              messages: [...c.messages, msg],
+              lastMessage: text || attachment?.name || "Pièce jointe",
+              lastAt: msg.at,
+            }
           : c,
       ),
     );

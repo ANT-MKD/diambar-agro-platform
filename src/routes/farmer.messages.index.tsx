@@ -1,14 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Send, Search, MessageSquare, Paperclip } from "lucide-react";
+import { useRef, useState } from "react";
+import { Send, Search, MessageSquare, Paperclip, X, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
-import { restaurants } from "@/data/mocks";
+import { restaurants, type ChatAttachment } from "@/data/mocks";
 import { useConversations, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/format";
+
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
 export const Route = createFileRoute("/farmer/messages/")({
   head: () => ({ meta: [{ title: "Messages · Diambar Agro" }] }),
@@ -20,6 +23,8 @@ function MessagesPage() {
   const [activeId, setActiveId] = useState<string | null>(convs[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const active = convs.find((c) => c.id === activeId) || null;
   const filtered = convs.filter((c) => {
@@ -30,10 +35,23 @@ function MessagesPage() {
     );
   });
 
+  const pickFile = (file: File) => {
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      toast.error("Fichier trop volumineux (5 Mo max)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachment({ name: file.name, dataUrl: reader.result as string, mime: file.type });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const send = () => {
-    if (!active || !draft.trim()) return;
-    conversationActions.send(active.id, draft.trim(), "me");
+    if (!active || (!draft.trim() && !attachment)) return;
+    conversationActions.send(active.id, draft.trim(), "me", undefined, attachment ?? undefined);
     setDraft("");
+    setAttachment(null);
   };
 
   const openConv = (id: string) => {
@@ -116,20 +134,52 @@ function MessagesPage() {
                     e.preventDefault();
                     send();
                   }}
-                  className="p-3 border-t border-border flex gap-2"
+                  className="p-3 border-t border-border space-y-2"
                 >
-                  <Button type="button" size="icon" variant="outline">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Input
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Écrire un message…"
-                    className="flex-1"
-                  />
-                  <Button type="submit" size="icon" disabled={!draft.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  {attachment && (
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1 truncate">{attachment.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachment(null)}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label="Retirer la pièce jointe"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) pickFile(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      placeholder="Écrire un message…"
+                      className="flex-1"
+                    />
+                    <Button type="submit" size="icon" disabled={!draft.trim() && !attachment}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </form>
               </div>
             );
