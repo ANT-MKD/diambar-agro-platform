@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Printer, Receipt } from "lucide-react";
-import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { transactions, restaurants, orders, products } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { downloadHtml } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/farmer/revenue/$txId")({
@@ -19,6 +19,39 @@ function TxPage() {
   const r = restaurants.find((x) => x.id === tx.restaurantId);
   const order = orders.find((o) => o.reference === tx.orderRef);
 
+  const downloadReceipt = () => {
+    const itemsHtml = order
+      ? order.items
+          .map((it) => {
+            const p = products.find((x) => x.id === it.productId);
+            return `<div class="row"><span>${p?.name ?? ""} ×${it.qty}${p?.unit ?? ""}</span><span>${formatFCFA(it.qty * it.price)}</span></div>`;
+          })
+          .join("")
+      : "";
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Reçu ${tx.orderRef}</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:560px;margin:32px auto;color:#111;padding:0 16px}
+h1{font-size:1.25rem;margin-bottom:0}
+.muted{color:#666;font-size:.85rem}
+.row{display:flex;justify-content:space-between;margin:6px 0}
+.section{border-top:1px solid #ddd;padding-top:12px;margin-top:16px}
+.total{font-weight:bold;font-size:1.15rem;border-top:2px solid #111;padding-top:10px;margin-top:10px}
+</style></head><body>
+<h1>Reçu de paiement — Diambar Agro</h1>
+<p class="muted">Transaction ${tx.id.toUpperCase()} · ${tx.orderRef} · ${new Date(tx.date).toLocaleDateString("fr-FR", { dateStyle: "long" })}</p>
+<div class="row"><span>Restaurant</span><span>${r?.name ?? ""} (${r?.city ?? ""})</span></div>
+<div class="row"><span>Méthode</span><span>${tx.method}</span></div>
+<div class="row"><span>Statut</span><span>${tx.status}</span></div>
+${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
+<div class="section">
+<div class="row"><span>Sous-total</span><span>${formatFCFA(tx.gross)}</span></div>
+<div class="row"><span>Commission Diambar</span><span>-${formatFCFA(tx.commission)}</span></div>
+<div class="row total"><span>Net reçu</span><span>${formatFCFA(tx.net)}</span></div>
+</div>
+</body></html>`;
+    downloadHtml(`recu-${tx.orderRef}`, html);
+  };
+
   return (
     <div className="space-y-6 max-w-3xl">
       <PageHeader
@@ -32,13 +65,9 @@ function TxPage() {
                 Retour
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => toast.success("Reçu téléchargé")}
-              className="gap-2"
-            >
+            <Button variant="outline" onClick={downloadReceipt} className="gap-2">
               <Download className="h-4 w-4" />
-              PDF
+              Télécharger
             </Button>
             <Button variant="outline" onClick={() => window.print()} className="gap-2">
               <Printer className="h-4 w-4" />

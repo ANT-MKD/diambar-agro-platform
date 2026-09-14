@@ -18,7 +18,7 @@ import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { StockStatusBadge } from "./status-badge";
 
-const CATEGORIES: Product["category"][] = [
+export const CATEGORIES: Product["category"][] = [
   "Légumes",
   "Fruits",
   "Viande",
@@ -27,7 +27,7 @@ const CATEGORIES: Product["category"][] = [
   "Tubercules",
   "Épices",
 ];
-const SAMPLE_IMAGES = [
+export const SAMPLE_IMAGES = [
   "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600",
   "https://images.unsplash.com/photo-1620574387735-3624d75b2dbc?w=600",
   "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=600",

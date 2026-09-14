@@ -1,14 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Flag, Upload } from "lucide-react";
+import { ArrowLeft, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useOrder } from "@/data/store";
-import { disputeActions } from "@/data/disputes";
+import { useOrder, useFarmerProfile } from "@/data/store";
+import { disputeActions, type DisputeAttachment } from "@/data/disputes";
+import { FileDrop } from "@/components/disputes/file-drop";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -36,14 +36,17 @@ const ISSUES = [
 function ReportPage() {
   const { orderId } = Route.useParams();
   const order = useOrder(orderId);
+  const profile = useFarmerProfile();
   const navigate = useNavigate();
   const [issue, setIssue] = useState("no_show");
   const [severity, setSeverity] = useState<"low" | "medium" | "high">("medium");
   const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<DisputeAttachment[]>([]);
 
   if (!order)
     return <p className="text-center text-muted-foreground py-12">Commande introuvable</p>;
   const r = restaurants.find((x) => x.id === order.restaurantId);
+  const farmerName = `${profile.firstName} ${profile.lastName}`;
 
   const submit = () => {
     if (!description.trim()) {
@@ -67,7 +70,8 @@ function ReportPage() {
       orderId: order.id,
       hasGpsTrack: Boolean(order.driverId),
       openedByRole: "farmer",
-      openedByName: "Coopérative Sow",
+      openedByName: farmerName,
+      attachments: files,
       againstRole: issue === "driver" ? "driver" : issue === "payment" ? "platform" : "restaurant",
       againstName:
         issue === "driver"
@@ -155,16 +159,13 @@ function ReportPage() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Pièces jointes (photos, captures)</Label>
-          <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-6 cursor-pointer hover:border-primary/50 transition">
-            <Upload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              Glissez vos fichiers ou cliquez (JPG, PNG, PDF · max 5 Mo)
-            </span>
-            <Input type="file" multiple className="hidden" />
-          </label>
-        </div>
+        <FileDrop
+          value={files}
+          onChange={setFiles}
+          by={farmerName}
+          kind="photo"
+          label="Pièces jointes (photos, captures)"
+        />
 
         <div className="flex justify-end gap-2">
           <Button

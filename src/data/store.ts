@@ -84,10 +84,10 @@ function createStore<T>(initial: T, persistKey?: string) {
   };
 }
 
-const productsStore = createStore<Product[]>(seedProducts);
+const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 const ordersStore = createStore<Order[]>(seedOrders);
-const movementsStore = createStore<StockMovement[]>(seedMovements);
-const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals);
+const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:movements");
+const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers);
 const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
@@ -650,7 +650,7 @@ const RESTAURANT_STATUS_NOTIF: Partial<
 };
 
 export const orderActions = {
-  setStatus: (id: string, status: OrderStatus) => {
+  setStatus: (id: string, status: OrderStatus, note?: string) => {
     let updated: Order | undefined;
     ordersStore.set((arr) =>
       arr.map((o) => {
@@ -670,7 +670,7 @@ export const orderActions = {
       restaurantNotifActions.add({
         type: "order",
         title: notif.title,
-        body: notif.body(updated.reference),
+        body: note ? `${notif.body(updated.reference)} — ${note}` : notif.body(updated.reference),
       });
     }
   },
