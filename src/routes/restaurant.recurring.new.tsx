@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Search,
@@ -28,6 +28,7 @@ import {
   useProducts,
   useAllProductReviews,
   useRestaurantProfile,
+  useRestaurantOrders,
   recurringOrderActions,
 } from "@/data/store";
 import {
@@ -61,6 +62,7 @@ function NewRecurringOrder() {
   const products = useProducts();
   const reviews = useAllProductReviews();
   const profile = useRestaurantProfile();
+  const restaurantOrders = useRestaurantOrders();
 
   const [step, setStep] = useState(0);
 
@@ -86,6 +88,7 @@ function NewRecurringOrder() {
   const [onPriceIncrease, setOnPriceIncrease] = useState<PriceRuleAction>("ask_confirmation");
   const [onOutOfStock, setOnOutOfStock] = useState<StockRuleAction>("ask_confirmation");
   const [maxBudget, setMaxBudget] = useState(150000);
+  const [budgetTouched, setBudgetTouched] = useState(false);
   const [onBudgetExceeded, setOnBudgetExceeded] = useState<BudgetRuleAction>("ask_confirmation");
   const [onNonBusinessDay, setOnNonBusinessDay] = useState<HolidayRuleAction>("day_after");
 
@@ -140,6 +143,29 @@ function NewRecurringOrder() {
   const total = subtotal + deliveryFee;
 
   const selectedFarmer = farmers.find((f) => f.id === farmerId);
+
+  const farmerHistory = useMemo(
+    () => (farmerId ? restaurantOrders.filter((o) => o.farmerId === farmerId) : []),
+    [farmerId, restaurantOrders],
+  );
+  // Suggestion réelle : basée sur la moyenne des vraies commandes passées
+  // auprès de ce producteur (avec une marge de 20%), ou à défaut sur le
+  // panier actuel — jamais un chiffre inventé.
+  const suggestedBudget = useMemo(() => {
+    const base =
+      farmerHistory.length > 0
+        ? farmerHistory.reduce((s, o) => s + o.total, 0) / farmerHistory.length
+        : total;
+    const margin = farmerHistory.length > 0 ? 1.2 : 1.3;
+    return Math.max(5000, Math.ceil((base * margin) / 5000) * 5000);
+  }, [farmerHistory, total]);
+
+  useEffect(() => {
+    if (step === 3 && !budgetTouched && items.length > 0) {
+      setMaxBudget(suggestedBudget);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   const canGoStep1 = !!farmerId;
   const canGoStep2 = items.length > 0;
@@ -607,9 +633,17 @@ function NewRecurringOrder() {
               <Input
                 type="number"
                 value={maxBudget}
-                onChange={(e) => setMaxBudget(Math.max(0, Number(e.target.value)))}
+                onChange={(e) => {
+                  setBudgetTouched(true);
+                  setMaxBudget(Math.max(0, Number(e.target.value)));
+                }}
                 className="w-40"
               />
+              <p className="text-[11px] text-muted-foreground">
+                {farmerHistory.length > 0
+                  ? `Suggéré à partir de vos ${farmerHistory.length} commande(s) précédente(s) avec ${selectedFarmer?.farm ?? "ce producteur"}.`
+                  : `Suggéré à partir du panier actuel (aucun historique avec ${selectedFarmer?.farm ?? "ce producteur"}).`}
+              </p>
               <div className="grid sm:grid-cols-3 gap-2">
                 {(
                   [

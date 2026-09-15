@@ -22,6 +22,7 @@ import {
   Truck,
   Zap,
   Pencil,
+  CalendarClock,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,9 @@ function RecurringDetail() {
   const [calendarCursor, setCalendarCursor] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideItems, setOverrideItems] = useState<{ productId: string; qty: number }[]>([]);
+
   const priceOf = (id: string) => products.find((p) => p.id === id)?.pricePerKg ?? 0;
 
   const farmer = ro ? farmers.find((f) => f.id === ro.farmerId) : null;
@@ -165,6 +169,29 @@ function RecurringDetail() {
     });
     toast.success("Produits mis à jour");
     setEditingItems(false);
+  };
+
+  const nextOccDay = ro.nextRunAt?.slice(0, 10);
+  const existingOverride = ro.exceptions.find(
+    (e) => e.type === "override" && e.occurrenceDate === nextOccDay,
+  );
+  const openOverride = () => {
+    setOverrideItems(
+      (existingOverride?.items ?? ro.items).map((i) => ({ productId: i.productId, qty: i.qty })),
+    );
+    setOverrideOpen(true);
+  };
+  const saveOverride = () => {
+    recurringOrderActions.overrideNextOccurrence(
+      ro.id,
+      overrideItems.map((i) => ({
+        productId: i.productId,
+        qty: i.qty,
+        referencePrice: priceOf(i.productId),
+      })),
+    );
+    toast.success("Cette occurrence a été modifiée exceptionnellement");
+    setOverrideOpen(false);
   };
 
   const monthLabel = calendarCursor.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
@@ -756,25 +783,32 @@ function RecurringDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Sauter la prochaine occurrence */}
+      {/* Actions ponctuelles sur la prochaine occurrence */}
       {ro.status === "active" && ro.nextRunAt && (
         <div className="glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">
-            Le restaurant est fermé le{" "}
-            {new Date(ro.nextRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })} ?
+            {existingOverride
+              ? "Cette prochaine commande a été modifiée exceptionnellement."
+              : `Une exception pour la prochaine commande du ${new Date(ro.nextRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })} ?`}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              recurringOrderActions.skipNextOccurrence(ro.id, "Fermeture ponctuelle");
-              toast.success("Prochaine commande ignorée");
-            }}
-          >
-            <SkipForward className="h-3.5 w-3.5" />
-            Sauter la prochaine commande
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={openOverride}>
+              <CalendarClock className="h-3.5 w-3.5" />
+              {existingOverride ? "Modifier à nouveau" : "Modifier uniquement cette commande"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                recurringOrderActions.skipNextOccurrence(ro.id, "Fermeture ponctuelle");
+                toast.success("Prochaine commande ignorée");
+              }}
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              Sauter la prochaine commande
+            </Button>
+          </div>
         </div>
       )}
 
@@ -826,6 +860,66 @@ function RecurringDetail() {
             >
               Mettre en pause
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={overrideOpen} onOpenChange={setOverrideOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier uniquement cette commande</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Ces quantités ne s'appliquent qu'à la prochaine commande
+            {ro.nextRunAt
+              ? ` du ${new Date(ro.nextRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })}`
+              : ""}
+            . Les commandes suivantes garderont les quantités habituelles.
+          </p>
+          <div className="space-y-2">
+            {overrideItems.map((it) => {
+              const p = products.find((x) => x.id === it.productId);
+              return (
+                <div key={it.productId} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{p?.name}</span>
+                  <div className="inline-flex items-center gap-1 rounded-lg border border-border">
+                    <button
+                      onClick={() =>
+                        setOverrideItems((prev) =>
+                          prev.map((d) =>
+                            d.productId === it.productId
+                              ? { ...d, qty: Math.max(1, d.qty - 1) }
+                              : d,
+                          ),
+                        )
+                      }
+                      className="h-8 w-8 grid place-items-center hover:bg-accent"
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="w-10 text-center">{it.qty}</span>
+                    <button
+                      onClick={() =>
+                        setOverrideItems((prev) =>
+                          prev.map((d) =>
+                            d.productId === it.productId ? { ...d, qty: d.qty + 1 } : d,
+                          ),
+                        )
+                      }
+                      className="h-8 w-8 grid place-items-center hover:bg-accent"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverrideOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveOverride}>Enregistrer pour cette commande</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -998,7 +998,7 @@ function endReached(ro: RecurringOrder): boolean {
  * données actuelles (prix, stock, budget), puis génère une vraie commande
  * via le pont restaurantOrderActions.create() déjà utilisé partout
  * ailleurs, ou pose une action en attente si une règle l'exige. */
-function processOccurrence(
+function processOccurrenceInner(
   ro: RecurringOrder,
   bypass?: RecurringOrderPendingAction["kind"],
 ): RecurringOrder {
@@ -1077,6 +1077,60 @@ function processOccurrence(
   let effectiveItems = items;
   if (outOfStock.length > 0 && ro.rules.onOutOfStock === "cancel_item") {
     effectiveItems = items.filter((it) => stockOfProduct(it.productId) >= it.qty);
+  }
+  if (
+    outOfStock.length > 0 &&
+    ro.rules.onOutOfStock === "replace_equivalent" &&
+    bypass !== "out_of_stock"
+  ) {
+    const unresolved: string[] = [];
+    effectiveItems = items.map((it) => {
+      if (stockOfProduct(it.productId) >= it.qty) return it;
+      const original = liveProducts.find((p) => p.id === it.productId);
+      const equivalent = liveProducts.find(
+        (p) =>
+          p.id !== it.productId &&
+          p.farmerId === ro.farmerId &&
+          p.category === original?.category &&
+          p.status !== "out" &&
+          p.status !== "draft" &&
+          p.stock >= it.qty &&
+          !items.some((other) => other.productId === p.id),
+      );
+      if (!equivalent) {
+        unresolved.push(original?.name ?? it.productId);
+        return it;
+      }
+      return { productId: equivalent.id, qty: it.qty, referencePrice: equivalent.pricePerKg };
+    });
+    if (unresolved.length > 0) {
+      // Aucun équivalent réel disponible chez ce producteur : on ne peut
+      // pas remplacer silencieusement, il faut trancher.
+      return {
+        ...pushHistory(
+          ro,
+          "rule_triggered",
+          `Aucun équivalent disponible pour : ${unresolved.join(", ")}. Confirmation demandée.`,
+        ),
+        status: "problem",
+        pendingAction: {
+          kind: "out_of_stock",
+          detail: `Rupture sans équivalent disponible : ${unresolved.join(", ")}.`,
+          occurrenceDate: occDay,
+        },
+      };
+    }
+    const replaced = items
+      .filter((it) => stockOfProduct(it.productId) < it.qty)
+      .map((it) => liveProducts.find((p) => p.id === it.productId)?.name)
+      .filter(Boolean);
+    if (replaced.length > 0) {
+      ro = pushHistory(
+        ro,
+        "rule_triggered",
+        `Remplacé par un équivalent : ${replaced.join(", ")}.`,
+      );
+    }
   }
   if (outOfStock.length > 0 && ro.rules.onOutOfStock === "cancel_all") {
     let next = pushHistory(
@@ -1230,6 +1284,33 @@ function processOccurrence(
   }
   const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
   return { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+}
+
+/** Enveloppe processOccurrenceInner() pour notifier réellement le
+ * restaurant dès qu'une échéance produit un résultat qui compte pour lui :
+ * une nouvelle alerte à traiter, ou une commande générée en silence.
+ * Sans ça, le restaurant ne l'apprenait qu'en revenant sur cette page. */
+function processOccurrence(
+  ro: RecurringOrder,
+  bypass?: RecurringOrderPendingAction["kind"],
+): RecurringOrder {
+  const result = processOccurrenceInner(ro, bypass);
+  if (result.pendingAction && result.pendingAction !== ro.pendingAction) {
+    restaurantNotifActions.add({
+      type: "order",
+      title: `Action requise · ${result.name}`,
+      body: result.pendingAction.detail,
+    });
+  } else if (result.generatedOrderIds.length > ro.generatedOrderIds.length) {
+    const newOrderId = result.generatedOrderIds[result.generatedOrderIds.length - 1];
+    const order = restaurantOrdersStore.get().find((o) => o.id === newOrderId);
+    restaurantNotifActions.add({
+      type: "order",
+      title: "Commande récurrente générée",
+      body: `${result.name} — ${order?.reference ?? newOrderId} (${order ? formatFCFA(order.total) : ""})`,
+    });
+  }
+  return result;
 }
 
 export const recurringOrderActions = {
