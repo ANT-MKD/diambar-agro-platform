@@ -42,6 +42,7 @@ import {
 } from "@/data/mocks";
 import { CATEGORIES } from "@/components/farmer/product-form";
 import { formatFCFA } from "@/lib/format";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 
 export const Route = createFileRoute("/restaurant/recurring/new")({
   head: () => ({ meta: [{ title: "Nouvelle commande récurrente · Restaurant" }] }),
@@ -101,15 +102,11 @@ function NewRecurringOrder() {
     return farmers.map((f) => {
       const farmerProducts = products.filter((p) => p.farmerId === f.id);
       const available = farmerProducts.filter((p) => p.status !== "out" && p.status !== "draft");
-      const farmerReviews = reviews.filter((r) => farmerProducts.some((p) => p.id === r.productId));
-      const avgRating =
-        farmerReviews.length > 0
-          ? farmerReviews.reduce((s, r) => s + r.rating, 0) / farmerReviews.length
-          : f.rating;
+      const { avgRating, reviewCount } = farmerReviewStats(f.id, products, reviews, f.rating);
       return {
         farmer: f,
         available: available.length,
-        reviewCount: farmerReviews.length,
+        reviewCount,
         avgRating,
       };
     });

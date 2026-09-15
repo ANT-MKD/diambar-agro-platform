@@ -134,6 +134,7 @@ import { Route as RestaurantSettingsSecurityRouteImport } from './routes/restaur
 import { Route as RestaurantSettingsTeamRouteImport } from './routes/restaurant.settings.team'
 import { Route as RestaurantSuppliersIndexRouteImport } from './routes/restaurant.suppliers.index'
 import { Route as RestaurantSuppliersSupplierIdRouteImport } from './routes/restaurant.suppliers.$supplierId'
+import { Route as RestaurantSuppliersCompareRouteImport } from './routes/restaurant.suppliers.compare'
 import { Route as RestaurantSuppliersNewRouteImport } from './routes/restaurant.suppliers.new'
 import { Route as DriverMissionsMissionIdDisputeRouteImport } from './routes/driver.missions.$missionId.dispute'
 import { Route as FarmerOrdersOrderIdDisputeRouteImport } from './routes/farmer.orders_.$orderId.dispute'
@@ -794,6 +795,12 @@ const RestaurantSuppliersSupplierIdRoute =
     path: '/suppliers/$supplierId',
     getParentRoute: () => RestaurantRoute,
   } as any)
+const RestaurantSuppliersCompareRoute =
+  RestaurantSuppliersCompareRouteImport.update({
+    id: '/suppliers/compare',
+    path: '/suppliers/compare',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
 const RestaurantSuppliersNewRoute = RestaurantSuppliersNewRouteImport.update({
   id: '/suppliers/new',
   path: '/suppliers/new',
@@ -956,6 +963,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
   '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
+  '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -1085,6 +1093,7 @@ export interface FileRoutesByTo {
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
   '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
+  '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/admin/disputes': typeof AdminDisputesIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
@@ -1223,6 +1232,7 @@ export interface FileRoutesById {
   '/restaurant/settings/security': typeof RestaurantSettingsSecurityRoute
   '/restaurant/settings/team': typeof RestaurantSettingsTeamRoute
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
+  '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -1362,6 +1372,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/security'
     | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
+    | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
     | '/admin/disputes/'
     | '/admin/users/'
@@ -1491,6 +1502,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/security'
     | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
+    | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
     | '/admin/disputes'
     | '/admin/users'
@@ -1628,6 +1640,7 @@ export interface FileRouteTypes {
     | '/restaurant/settings/security'
     | '/restaurant/settings/team'
     | '/restaurant/suppliers/$supplierId'
+    | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
     | '/admin/disputes/'
     | '/admin/users/'
@@ -2566,6 +2579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantSuppliersSupplierIdRouteImport
       parentRoute: typeof RestaurantRoute
     }
+    '/restaurant/suppliers/compare': {
+      id: '/restaurant/suppliers/compare'
+      path: '/suppliers/compare'
+      fullPath: '/restaurant/suppliers/compare'
+      preLoaderRoute: typeof RestaurantSuppliersCompareRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
     '/restaurant/suppliers/new': {
       id: '/restaurant/suppliers/new'
       path: '/suppliers/new'
@@ -2960,6 +2980,7 @@ interface RestaurantRouteChildren {
   RestaurantRecurringRecurringOrderIdRoute: typeof RestaurantRecurringRecurringOrderIdRoute
   RestaurantRecurringNewRoute: typeof RestaurantRecurringNewRoute
   RestaurantSuppliersSupplierIdRoute: typeof RestaurantSuppliersSupplierIdRouteWithChildren
+  RestaurantSuppliersCompareRoute: typeof RestaurantSuppliersCompareRoute
   RestaurantSuppliersNewRoute: typeof RestaurantSuppliersNewRoute
   RestaurantDisputesIndexRoute: typeof RestaurantDisputesIndexRoute
   RestaurantInvoicesIndexRoute: typeof RestaurantInvoicesIndexRoute
@@ -2991,6 +3012,7 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantRecurringNewRoute: RestaurantRecurringNewRoute,
   RestaurantSuppliersSupplierIdRoute:
     RestaurantSuppliersSupplierIdRouteWithChildren,
+  RestaurantSuppliersCompareRoute: RestaurantSuppliersCompareRoute,
   RestaurantSuppliersNewRoute: RestaurantSuppliersNewRoute,
   RestaurantDisputesIndexRoute: RestaurantDisputesIndexRoute,
   RestaurantInvoicesIndexRoute: RestaurantInvoicesIndexRoute,
