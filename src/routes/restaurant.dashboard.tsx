@@ -35,7 +35,7 @@ import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import {
   useRestaurantOrders,
-  useRecurring,
+  useRecurringOrders,
   useProducts,
   useSuppliers,
   useRestaurantBudget,
@@ -77,7 +77,7 @@ function Dashboard() {
   const { user } = useRouteContext({ from: "/restaurant" });
   const navigate = useNavigate();
   const orders = useRestaurantOrders();
-  const recurring = useRecurring();
+  const recurring = useRecurringOrders();
   const products = useProducts();
   const suppliers = useSuppliers();
   const returns = useReturns();
@@ -124,8 +124,7 @@ function Dashboard() {
   const lowStockProducts = products
     .filter((p) => p.status === "low" || p.status === "out")
     .slice(0, 4);
-  const today = new Date().toISOString().slice(0, 10);
-  const todaysRecurring = recurring.filter((r) => r.active && r.nextDelivery === today);
+  const recurringNeedingAction = recurring.filter((r) => r.status === "problem" && r.pendingAction);
 
   const avgRating =
     suppliers.length > 0
@@ -370,11 +369,14 @@ function Dashboard() {
         </motion.div>
       </div>
 
-      {todaysRecurring.length > 0 && (
-        <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-primary/30 bg-primary/5">
-          <Sparkles className="h-5 w-5 text-primary shrink-0" />
+      {recurringNeedingAction.length > 0 && (
+        <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-amber-500/30 bg-amber-500/5">
+          <Sparkles className="h-5 w-5 text-amber-500 shrink-0" />
           <div className="flex-1 text-sm">
-            <b>{todaysRecurring.length} commande(s) récurrente(s) à valider aujourd'hui</b>
+            <b>
+              {recurringNeedingAction.length} commande(s) récurrente(s) nécessitent votre
+              confirmation
+            </b>
           </div>
           <Link
             to="/restaurant/recurring"

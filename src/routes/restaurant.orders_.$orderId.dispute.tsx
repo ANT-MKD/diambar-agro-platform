@@ -1,12 +1,12 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { DisputeForm } from "@/components/disputes/dispute-form";
-import { useRestaurantOrder } from "@/data/store";
-import { suppliers } from "@/data/mocks";
+import { useRestaurantOrder, useMissions } from "@/data/store";
+import { suppliers, drivers } from "@/data/mocks";
 
-export const Route = createFileRoute("/restaurant/orders/$orderId/dispute")({
+export const Route = createFileRoute("/restaurant/orders_/$orderId/dispute")({
   head: () => ({
     meta: [
       { title: "Ouvrir un litige — Espace restaurant Diambar Agro" },
@@ -28,11 +28,15 @@ export const Route = createFileRoute("/restaurant/orders/$orderId/dispute")({
 
 function RestaurantOpenDispute() {
   const { orderId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/restaurant" });
   const order = useRestaurantOrder(orderId);
+  const missions = useMissions();
   const navigate = useNavigate();
   if (!order)
     return <p className="py-12 text-center text-muted-foreground">Commande introuvable</p>;
   const supplier = suppliers.find((s) => s.farmerId === order.farmerId);
+  const mission = missions.find((m) => m.orderRef === order.reference);
+  const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -52,10 +56,10 @@ function RestaurantOpenDispute() {
       />
       <DisputeForm
         openedByRole="restaurant"
-        openedByName="Le Baobab"
+        openedByName={user.name}
         againstOptions={[
           { role: "farmer", name: supplier?.name ?? "Fournisseur" },
-          { role: "driver", name: "Livreur assigné" },
+          { role: "driver", name: driver?.name ?? "Livreur (non assigné)" },
           { role: "platform", name: "Plateforme Diambar" },
         ]}
         orderRef={order.reference}

@@ -67,7 +67,6 @@ import { Route as RestaurantDashboardRouteImport } from './routes/restaurant.das
 import { Route as RestaurantMarketplaceRouteImport } from './routes/restaurant.marketplace'
 import { Route as RestaurantMessagesRouteImport } from './routes/restaurant.messages'
 import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant.notifications'
-import { Route as RestaurantRecurringRouteImport } from './routes/restaurant.recurring'
 import { Route as RestaurantReturnsRouteImport } from './routes/restaurant.returns'
 import { Route as RestaurantReviewsRouteImport } from './routes/restaurant.reviews'
 import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
@@ -116,13 +115,16 @@ import { Route as RestaurantDisputesIndexRouteImport } from './routes/restaurant
 import { Route as RestaurantDisputesDisputeIdRouteImport } from './routes/restaurant.disputes.$disputeId'
 import { Route as RestaurantInvoicesIndexRouteImport } from './routes/restaurant.invoices.index'
 import { Route as RestaurantInvoicesInvoiceIdRouteImport } from './routes/restaurant.invoices.$invoiceId'
-import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace.$productId'
+import { Route as RestaurantMarketplaceProductIdRouteImport } from './routes/restaurant.marketplace_.$productId'
 import { Route as RestaurantMessagesIndexRouteImport } from './routes/restaurant.messages.index'
 import { Route as RestaurantMessagesConversationIdRouteImport } from './routes/restaurant.messages.$conversationId'
 import { Route as RestaurantNotificationsIndexRouteImport } from './routes/restaurant.notifications.index'
 import { Route as RestaurantNotificationsRulesRouteImport } from './routes/restaurant.notifications.rules'
 import { Route as RestaurantOrdersIndexRouteImport } from './routes/restaurant.orders.index'
 import { Route as RestaurantOrdersOrderIdRouteImport } from './routes/restaurant.orders.$orderId'
+import { Route as RestaurantRecurringIndexRouteImport } from './routes/restaurant.recurring.index'
+import { Route as RestaurantRecurringRecurringOrderIdRouteImport } from './routes/restaurant.recurring.$recurringOrderId'
+import { Route as RestaurantRecurringNewRouteImport } from './routes/restaurant.recurring.new'
 import { Route as RestaurantSettingsIndexRouteImport } from './routes/restaurant.settings.index'
 import { Route as RestaurantSettingsEstablishmentRouteImport } from './routes/restaurant.settings.establishment'
 import { Route as RestaurantSettingsNotificationsRouteImport } from './routes/restaurant.settings.notifications'
@@ -140,7 +142,7 @@ import { Route as FarmerOrdersOrderIdReportRouteImport } from './routes/farmer.o
 import { Route as FarmerProductsProductIdEditRouteImport } from './routes/farmer.products_.$productId.edit'
 import { Route as FarmerStockProductIdHistoryRouteImport } from './routes/farmer.stock.$productId.history'
 import { Route as FarmerStockMovementNewRouteImport } from './routes/farmer.stock.movement.new'
-import { Route as RestaurantOrdersOrderIdDisputeRouteImport } from './routes/restaurant.orders.$orderId.dispute'
+import { Route as RestaurantOrdersOrderIdDisputeRouteImport } from './routes/restaurant.orders_.$orderId.dispute'
 import { Route as RestaurantSuppliersSupplierIdEditRouteImport } from './routes/restaurant.suppliers.$supplierId.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -433,11 +435,6 @@ const RestaurantNotificationsRoute = RestaurantNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => RestaurantRoute,
 } as any)
-const RestaurantRecurringRoute = RestaurantRecurringRouteImport.update({
-  id: '/recurring',
-  path: '/recurring',
-  getParentRoute: () => RestaurantRoute,
-} as any)
 const RestaurantReturnsRoute = RestaurantReturnsRouteImport.update({
   id: '/returns',
   path: '/returns',
@@ -691,9 +688,9 @@ const RestaurantInvoicesInvoiceIdRoute =
   } as any)
 const RestaurantMarketplaceProductIdRoute =
   RestaurantMarketplaceProductIdRouteImport.update({
-    id: '/$productId',
-    path: '/$productId',
-    getParentRoute: () => RestaurantMarketplaceRoute,
+    id: '/marketplace_/$productId',
+    path: '/marketplace/$productId',
+    getParentRoute: () => RestaurantRoute,
   } as any)
 const RestaurantMessagesIndexRoute = RestaurantMessagesIndexRouteImport.update({
   id: '/',
@@ -726,6 +723,23 @@ const RestaurantOrdersIndexRoute = RestaurantOrdersIndexRouteImport.update({
 const RestaurantOrdersOrderIdRoute = RestaurantOrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
+  getParentRoute: () => RestaurantRoute,
+} as any)
+const RestaurantRecurringIndexRoute =
+  RestaurantRecurringIndexRouteImport.update({
+    id: '/recurring/',
+    path: '/recurring/',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
+const RestaurantRecurringRecurringOrderIdRoute =
+  RestaurantRecurringRecurringOrderIdRouteImport.update({
+    id: '/recurring/$recurringOrderId',
+    path: '/recurring/$recurringOrderId',
+    getParentRoute: () => RestaurantRoute,
+  } as any)
+const RestaurantRecurringNewRoute = RestaurantRecurringNewRouteImport.update({
+  id: '/recurring/new',
+  path: '/recurring/new',
   getParentRoute: () => RestaurantRoute,
 } as any)
 const RestaurantSettingsIndexRoute = RestaurantSettingsIndexRouteImport.update({
@@ -828,9 +842,9 @@ const FarmerStockMovementNewRoute = FarmerStockMovementNewRouteImport.update({
 } as any)
 const RestaurantOrdersOrderIdDisputeRoute =
   RestaurantOrdersOrderIdDisputeRouteImport.update({
-    id: '/dispute',
-    path: '/dispute',
-    getParentRoute: () => RestaurantOrdersOrderIdRoute,
+    id: '/orders_/$orderId/dispute',
+    path: '/orders/$orderId/dispute',
+    getParentRoute: () => RestaurantRoute,
   } as any)
 const RestaurantSuppliersSupplierIdEditRoute =
   RestaurantSuppliersSupplierIdEditRouteImport.update({
@@ -894,10 +908,9 @@ export interface FileRoutesByFullPath {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/restaurant/messages': typeof RestaurantMessagesRouteWithChildren
   '/restaurant/notifications': typeof RestaurantNotificationsRouteWithChildren
-  '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/returns': typeof RestaurantReturnsRoute
   '/restaurant/reviews': typeof RestaurantReviewsRoute
   '/restaurant/settings': typeof RestaurantSettingsRouteWithChildren
@@ -933,7 +946,9 @@ export interface FileRoutesByFullPath {
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/recurring/$recurringOrderId': typeof RestaurantRecurringRecurringOrderIdRoute
+  '/restaurant/recurring/new': typeof RestaurantRecurringNewRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -962,6 +977,7 @@ export interface FileRoutesByFullPath {
   '/restaurant/messages/': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications/': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders/': typeof RestaurantOrdersIndexRoute
+  '/restaurant/recurring/': typeof RestaurantRecurringIndexRoute
   '/restaurant/settings/': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers/': typeof RestaurantSuppliersIndexRoute
   '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
@@ -1024,8 +1040,7 @@ export interface FileRoutesByTo {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
-  '/restaurant/recurring': typeof RestaurantRecurringRoute
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/restaurant/returns': typeof RestaurantReturnsRoute
   '/restaurant/reviews': typeof RestaurantReviewsRoute
   '/restaurant/support': typeof RestaurantSupportRoute
@@ -1060,7 +1075,9 @@ export interface FileRoutesByTo {
   '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/recurring/$recurringOrderId': typeof RestaurantRecurringRecurringOrderIdRoute
+  '/restaurant/recurring/new': typeof RestaurantRecurringNewRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -1089,6 +1106,7 @@ export interface FileRoutesByTo {
   '/restaurant/messages': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders': typeof RestaurantOrdersIndexRoute
+  '/restaurant/recurring': typeof RestaurantRecurringIndexRoute
   '/restaurant/settings': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers': typeof RestaurantSuppliersIndexRoute
   '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
@@ -1157,10 +1175,9 @@ export interface FileRoutesById {
   '/restaurant/checkout': typeof RestaurantCheckoutRoute
   '/restaurant/compare': typeof RestaurantCompareRoute
   '/restaurant/dashboard': typeof RestaurantDashboardRoute
-  '/restaurant/marketplace': typeof RestaurantMarketplaceRouteWithChildren
+  '/restaurant/marketplace': typeof RestaurantMarketplaceRoute
   '/restaurant/messages': typeof RestaurantMessagesRouteWithChildren
   '/restaurant/notifications': typeof RestaurantNotificationsRouteWithChildren
-  '/restaurant/recurring': typeof RestaurantRecurringRoute
   '/restaurant/returns': typeof RestaurantReturnsRoute
   '/restaurant/reviews': typeof RestaurantReviewsRoute
   '/restaurant/settings': typeof RestaurantSettingsRouteWithChildren
@@ -1193,10 +1210,12 @@ export interface FileRoutesById {
   '/farmer/stock/inventory': typeof FarmerStockInventoryRoute
   '/restaurant/disputes/$disputeId': typeof RestaurantDisputesDisputeIdRoute
   '/restaurant/invoices/$invoiceId': typeof RestaurantInvoicesInvoiceIdRoute
-  '/restaurant/marketplace/$productId': typeof RestaurantMarketplaceProductIdRoute
+  '/restaurant/marketplace_/$productId': typeof RestaurantMarketplaceProductIdRoute
   '/restaurant/messages/$conversationId': typeof RestaurantMessagesConversationIdRoute
   '/restaurant/notifications/rules': typeof RestaurantNotificationsRulesRoute
-  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRouteWithChildren
+  '/restaurant/orders/$orderId': typeof RestaurantOrdersOrderIdRoute
+  '/restaurant/recurring/$recurringOrderId': typeof RestaurantRecurringRecurringOrderIdRoute
+  '/restaurant/recurring/new': typeof RestaurantRecurringNewRoute
   '/restaurant/settings/establishment': typeof RestaurantSettingsEstablishmentRoute
   '/restaurant/settings/notifications': typeof RestaurantSettingsNotificationsRoute
   '/restaurant/settings/payments': typeof RestaurantSettingsPaymentsRoute
@@ -1225,6 +1244,7 @@ export interface FileRoutesById {
   '/restaurant/messages/': typeof RestaurantMessagesIndexRoute
   '/restaurant/notifications/': typeof RestaurantNotificationsIndexRoute
   '/restaurant/orders/': typeof RestaurantOrdersIndexRoute
+  '/restaurant/recurring/': typeof RestaurantRecurringIndexRoute
   '/restaurant/settings/': typeof RestaurantSettingsIndexRoute
   '/restaurant/suppliers/': typeof RestaurantSuppliersIndexRoute
   '/driver/missions/$missionId/dispute': typeof DriverMissionsMissionIdDisputeRoute
@@ -1234,7 +1254,7 @@ export interface FileRoutesById {
   '/farmer/products_/$productId/edit': typeof FarmerProductsProductIdEditRoute
   '/farmer/stock/$productId/history': typeof FarmerStockProductIdHistoryRoute
   '/farmer/stock/movement/new': typeof FarmerStockMovementNewRoute
-  '/restaurant/orders/$orderId/dispute': typeof RestaurantOrdersOrderIdDisputeRoute
+  '/restaurant/orders_/$orderId/dispute': typeof RestaurantOrdersOrderIdDisputeRoute
   '/restaurant/suppliers/$supplierId/edit': typeof RestaurantSuppliersSupplierIdEditRoute
 }
 export interface FileRouteTypes {
@@ -1297,7 +1317,6 @@ export interface FileRouteTypes {
     | '/restaurant/marketplace'
     | '/restaurant/messages'
     | '/restaurant/notifications'
-    | '/restaurant/recurring'
     | '/restaurant/returns'
     | '/restaurant/reviews'
     | '/restaurant/settings'
@@ -1334,6 +1353,8 @@ export interface FileRouteTypes {
     | '/restaurant/messages/$conversationId'
     | '/restaurant/notifications/rules'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/recurring/$recurringOrderId'
+    | '/restaurant/recurring/new'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
@@ -1362,6 +1383,7 @@ export interface FileRouteTypes {
     | '/restaurant/messages/'
     | '/restaurant/notifications/'
     | '/restaurant/orders/'
+    | '/restaurant/recurring/'
     | '/restaurant/settings/'
     | '/restaurant/suppliers/'
     | '/driver/missions/$missionId/dispute'
@@ -1425,7 +1447,6 @@ export interface FileRouteTypes {
     | '/restaurant/compare'
     | '/restaurant/dashboard'
     | '/restaurant/marketplace'
-    | '/restaurant/recurring'
     | '/restaurant/returns'
     | '/restaurant/reviews'
     | '/restaurant/support'
@@ -1461,6 +1482,8 @@ export interface FileRouteTypes {
     | '/restaurant/messages/$conversationId'
     | '/restaurant/notifications/rules'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/recurring/$recurringOrderId'
+    | '/restaurant/recurring/new'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
@@ -1489,6 +1512,7 @@ export interface FileRouteTypes {
     | '/restaurant/messages'
     | '/restaurant/notifications'
     | '/restaurant/orders'
+    | '/restaurant/recurring'
     | '/restaurant/settings'
     | '/restaurant/suppliers'
     | '/driver/missions/$missionId/dispute'
@@ -1559,7 +1583,6 @@ export interface FileRouteTypes {
     | '/restaurant/marketplace'
     | '/restaurant/messages'
     | '/restaurant/notifications'
-    | '/restaurant/recurring'
     | '/restaurant/returns'
     | '/restaurant/reviews'
     | '/restaurant/settings'
@@ -1592,10 +1615,12 @@ export interface FileRouteTypes {
     | '/farmer/stock/inventory'
     | '/restaurant/disputes/$disputeId'
     | '/restaurant/invoices/$invoiceId'
-    | '/restaurant/marketplace/$productId'
+    | '/restaurant/marketplace_/$productId'
     | '/restaurant/messages/$conversationId'
     | '/restaurant/notifications/rules'
     | '/restaurant/orders/$orderId'
+    | '/restaurant/recurring/$recurringOrderId'
+    | '/restaurant/recurring/new'
     | '/restaurant/settings/establishment'
     | '/restaurant/settings/notifications'
     | '/restaurant/settings/payments'
@@ -1624,6 +1649,7 @@ export interface FileRouteTypes {
     | '/restaurant/messages/'
     | '/restaurant/notifications/'
     | '/restaurant/orders/'
+    | '/restaurant/recurring/'
     | '/restaurant/settings/'
     | '/restaurant/suppliers/'
     | '/driver/missions/$missionId/dispute'
@@ -1633,7 +1659,7 @@ export interface FileRouteTypes {
     | '/farmer/products_/$productId/edit'
     | '/farmer/stock/$productId/history'
     | '/farmer/stock/movement/new'
-    | '/restaurant/orders/$orderId/dispute'
+    | '/restaurant/orders_/$orderId/dispute'
     | '/restaurant/suppliers/$supplierId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -2071,13 +2097,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantNotificationsRouteImport
       parentRoute: typeof RestaurantRoute
     }
-    '/restaurant/recurring': {
-      id: '/restaurant/recurring'
-      path: '/recurring'
-      fullPath: '/restaurant/recurring'
-      preLoaderRoute: typeof RestaurantRecurringRouteImport
-      parentRoute: typeof RestaurantRoute
-    }
     '/restaurant/returns': {
       id: '/restaurant/returns'
       path: '/returns'
@@ -2414,12 +2433,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RestaurantInvoicesInvoiceIdRouteImport
       parentRoute: typeof RestaurantRoute
     }
-    '/restaurant/marketplace/$productId': {
-      id: '/restaurant/marketplace/$productId'
-      path: '/$productId'
+    '/restaurant/marketplace_/$productId': {
+      id: '/restaurant/marketplace_/$productId'
+      path: '/marketplace/$productId'
       fullPath: '/restaurant/marketplace/$productId'
       preLoaderRoute: typeof RestaurantMarketplaceProductIdRouteImport
-      parentRoute: typeof RestaurantMarketplaceRoute
+      parentRoute: typeof RestaurantRoute
     }
     '/restaurant/messages/': {
       id: '/restaurant/messages/'
@@ -2461,6 +2480,27 @@ declare module '@tanstack/react-router' {
       path: '/orders/$orderId'
       fullPath: '/restaurant/orders/$orderId'
       preLoaderRoute: typeof RestaurantOrdersOrderIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/recurring/': {
+      id: '/restaurant/recurring/'
+      path: '/recurring'
+      fullPath: '/restaurant/recurring/'
+      preLoaderRoute: typeof RestaurantRecurringIndexRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/recurring/$recurringOrderId': {
+      id: '/restaurant/recurring/$recurringOrderId'
+      path: '/recurring/$recurringOrderId'
+      fullPath: '/restaurant/recurring/$recurringOrderId'
+      preLoaderRoute: typeof RestaurantRecurringRecurringOrderIdRouteImport
+      parentRoute: typeof RestaurantRoute
+    }
+    '/restaurant/recurring/new': {
+      id: '/restaurant/recurring/new'
+      path: '/recurring/new'
+      fullPath: '/restaurant/recurring/new'
+      preLoaderRoute: typeof RestaurantRecurringNewRouteImport
       parentRoute: typeof RestaurantRoute
     }
     '/restaurant/settings/': {
@@ -2582,12 +2622,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerStockMovementNewRouteImport
       parentRoute: typeof FarmerRoute
     }
-    '/restaurant/orders/$orderId/dispute': {
-      id: '/restaurant/orders/$orderId/dispute'
-      path: '/dispute'
+    '/restaurant/orders_/$orderId/dispute': {
+      id: '/restaurant/orders_/$orderId/dispute'
+      path: '/orders/$orderId/dispute'
       fullPath: '/restaurant/orders/$orderId/dispute'
       preLoaderRoute: typeof RestaurantOrdersOrderIdDisputeRouteImport
-      parentRoute: typeof RestaurantOrdersOrderIdRoute
+      parentRoute: typeof RestaurantRoute
     }
     '/restaurant/suppliers/$supplierId/edit': {
       id: '/restaurant/suppliers/$supplierId/edit'
@@ -2833,19 +2873,6 @@ const FarmerRouteChildren: FarmerRouteChildren = {
 const FarmerRouteWithChildren =
   FarmerRoute._addFileChildren(FarmerRouteChildren)
 
-interface RestaurantMarketplaceRouteChildren {
-  RestaurantMarketplaceProductIdRoute: typeof RestaurantMarketplaceProductIdRoute
-}
-
-const RestaurantMarketplaceRouteChildren: RestaurantMarketplaceRouteChildren = {
-  RestaurantMarketplaceProductIdRoute: RestaurantMarketplaceProductIdRoute,
-}
-
-const RestaurantMarketplaceRouteWithChildren =
-  RestaurantMarketplaceRoute._addFileChildren(
-    RestaurantMarketplaceRouteChildren,
-  )
-
 interface RestaurantMessagesRouteChildren {
   RestaurantMessagesConversationIdRoute: typeof RestaurantMessagesConversationIdRoute
   RestaurantMessagesIndexRoute: typeof RestaurantMessagesIndexRoute
@@ -2898,20 +2925,6 @@ const RestaurantSettingsRouteChildren: RestaurantSettingsRouteChildren = {
 const RestaurantSettingsRouteWithChildren =
   RestaurantSettingsRoute._addFileChildren(RestaurantSettingsRouteChildren)
 
-interface RestaurantOrdersOrderIdRouteChildren {
-  RestaurantOrdersOrderIdDisputeRoute: typeof RestaurantOrdersOrderIdDisputeRoute
-}
-
-const RestaurantOrdersOrderIdRouteChildren: RestaurantOrdersOrderIdRouteChildren =
-  {
-    RestaurantOrdersOrderIdDisputeRoute: RestaurantOrdersOrderIdDisputeRoute,
-  }
-
-const RestaurantOrdersOrderIdRouteWithChildren =
-  RestaurantOrdersOrderIdRoute._addFileChildren(
-    RestaurantOrdersOrderIdRouteChildren,
-  )
-
 interface RestaurantSuppliersSupplierIdRouteChildren {
   RestaurantSuppliersSupplierIdEditRoute: typeof RestaurantSuppliersSupplierIdEditRoute
 }
@@ -2933,23 +2946,27 @@ interface RestaurantRouteChildren {
   RestaurantCheckoutRoute: typeof RestaurantCheckoutRoute
   RestaurantCompareRoute: typeof RestaurantCompareRoute
   RestaurantDashboardRoute: typeof RestaurantDashboardRoute
-  RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRouteWithChildren
+  RestaurantMarketplaceRoute: typeof RestaurantMarketplaceRoute
   RestaurantMessagesRoute: typeof RestaurantMessagesRouteWithChildren
   RestaurantNotificationsRoute: typeof RestaurantNotificationsRouteWithChildren
-  RestaurantRecurringRoute: typeof RestaurantRecurringRoute
   RestaurantReturnsRoute: typeof RestaurantReturnsRoute
   RestaurantReviewsRoute: typeof RestaurantReviewsRoute
   RestaurantSettingsRoute: typeof RestaurantSettingsRouteWithChildren
   RestaurantSupportRoute: typeof RestaurantSupportRoute
   RestaurantDisputesDisputeIdRoute: typeof RestaurantDisputesDisputeIdRoute
   RestaurantInvoicesInvoiceIdRoute: typeof RestaurantInvoicesInvoiceIdRoute
-  RestaurantOrdersOrderIdRoute: typeof RestaurantOrdersOrderIdRouteWithChildren
+  RestaurantMarketplaceProductIdRoute: typeof RestaurantMarketplaceProductIdRoute
+  RestaurantOrdersOrderIdRoute: typeof RestaurantOrdersOrderIdRoute
+  RestaurantRecurringRecurringOrderIdRoute: typeof RestaurantRecurringRecurringOrderIdRoute
+  RestaurantRecurringNewRoute: typeof RestaurantRecurringNewRoute
   RestaurantSuppliersSupplierIdRoute: typeof RestaurantSuppliersSupplierIdRouteWithChildren
   RestaurantSuppliersNewRoute: typeof RestaurantSuppliersNewRoute
   RestaurantDisputesIndexRoute: typeof RestaurantDisputesIndexRoute
   RestaurantInvoicesIndexRoute: typeof RestaurantInvoicesIndexRoute
   RestaurantOrdersIndexRoute: typeof RestaurantOrdersIndexRoute
+  RestaurantRecurringIndexRoute: typeof RestaurantRecurringIndexRoute
   RestaurantSuppliersIndexRoute: typeof RestaurantSuppliersIndexRoute
+  RestaurantOrdersOrderIdDisputeRoute: typeof RestaurantOrdersOrderIdDisputeRoute
 }
 
 const RestaurantRouteChildren: RestaurantRouteChildren = {
@@ -2958,24 +2975,29 @@ const RestaurantRouteChildren: RestaurantRouteChildren = {
   RestaurantCheckoutRoute: RestaurantCheckoutRoute,
   RestaurantCompareRoute: RestaurantCompareRoute,
   RestaurantDashboardRoute: RestaurantDashboardRoute,
-  RestaurantMarketplaceRoute: RestaurantMarketplaceRouteWithChildren,
+  RestaurantMarketplaceRoute: RestaurantMarketplaceRoute,
   RestaurantMessagesRoute: RestaurantMessagesRouteWithChildren,
   RestaurantNotificationsRoute: RestaurantNotificationsRouteWithChildren,
-  RestaurantRecurringRoute: RestaurantRecurringRoute,
   RestaurantReturnsRoute: RestaurantReturnsRoute,
   RestaurantReviewsRoute: RestaurantReviewsRoute,
   RestaurantSettingsRoute: RestaurantSettingsRouteWithChildren,
   RestaurantSupportRoute: RestaurantSupportRoute,
   RestaurantDisputesDisputeIdRoute: RestaurantDisputesDisputeIdRoute,
   RestaurantInvoicesInvoiceIdRoute: RestaurantInvoicesInvoiceIdRoute,
-  RestaurantOrdersOrderIdRoute: RestaurantOrdersOrderIdRouteWithChildren,
+  RestaurantMarketplaceProductIdRoute: RestaurantMarketplaceProductIdRoute,
+  RestaurantOrdersOrderIdRoute: RestaurantOrdersOrderIdRoute,
+  RestaurantRecurringRecurringOrderIdRoute:
+    RestaurantRecurringRecurringOrderIdRoute,
+  RestaurantRecurringNewRoute: RestaurantRecurringNewRoute,
   RestaurantSuppliersSupplierIdRoute:
     RestaurantSuppliersSupplierIdRouteWithChildren,
   RestaurantSuppliersNewRoute: RestaurantSuppliersNewRoute,
   RestaurantDisputesIndexRoute: RestaurantDisputesIndexRoute,
   RestaurantInvoicesIndexRoute: RestaurantInvoicesIndexRoute,
   RestaurantOrdersIndexRoute: RestaurantOrdersIndexRoute,
+  RestaurantRecurringIndexRoute: RestaurantRecurringIndexRoute,
   RestaurantSuppliersIndexRoute: RestaurantSuppliersIndexRoute,
+  RestaurantOrdersOrderIdDisputeRoute: RestaurantOrdersOrderIdDisputeRoute,
 }
 
 const RestaurantRouteWithChildren = RestaurantRoute._addFileChildren(

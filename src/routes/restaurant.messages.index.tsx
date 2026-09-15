@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { Send, Search, MessageSquare, Paperclip } from "lucide-react";
 import { useState } from "react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
-import { farmers } from "@/data/mocks";
+import { farmers, restaurants } from "@/data/mocks";
 import { useConversations, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,22 @@ export const Route = createFileRoute("/restaurant/messages/")({
   component: Messages,
 });
 
+// Le store `conversations` représente l'inbox d'un seul producteur (f1,
+// Mamadou Diallo) avec ses différents restaurants clients : chaque
+// conversation porte un restaurantId réel mais pas de farmerId (inutile
+// tant qu'il n'y a qu'un seul producteur dans ce fil). Le contre-parti
+// affiché est donc toujours ce même producteur, une fois qu'on a bien
+// filtré les conversations pour ne garder que celles de CE restaurant.
+const MESSAGES_FARMER_ID = "f1";
+
 function Messages() {
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const farmer = farmers.find((f) => f.id === MESSAGES_FARMER_ID);
   const convs = useConversations();
-  // Map conversations to farmers as counterpart (index-based, stable)
-  const enriched = convs.map((c, i) => ({ ...c, farmer: farmers[i % farmers.length] }));
+  const enriched = farmer
+    ? convs.filter((c) => c.restaurantId === myRestaurant?.id).map((c) => ({ ...c, farmer }))
+    : [];
   const [activeId, setActiveId] = useState<string | null>(enriched[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");

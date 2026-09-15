@@ -770,6 +770,63 @@ export type RestaurantBudget = {
   monthly: number;
 };
 
+export type RestaurantProfile = {
+  deliveryAddress: string;
+  paymentMethod: PaymentMethod;
+};
+
+// Reprend l'adresse déjà utilisée dans l'historique réel des commandes de ce
+// restaurant (voir restaurantOrders), pour ne pas introduire une valeur
+// déconnectée du reste des données de démo.
+export const restaurantProfile: RestaurantProfile = {
+  deliveryAddress: "Le Baobab, Dakar Plateau",
+  paymentMethod: "Wave",
+};
+
+export type ProductReview = {
+  id: string;
+  productId: string;
+  restaurantName: string;
+  rating: number;
+  text: string;
+  at: string;
+};
+
+export const productReviews: ProductReview[] = [
+  {
+    id: "rv1",
+    productId: "p1",
+    restaurantName: "Chez Aminata",
+    rating: 5,
+    text: "Produit toujours frais et bien calibré. Livraison ponctuelle.",
+    at: "2025-05-08T10:00:00Z",
+  },
+  {
+    id: "rv2",
+    productId: "p1",
+    restaurantName: "Restaurant Téranga",
+    rating: 5,
+    text: "Excellente qualité, nous commandons chaque semaine.",
+    at: "2025-05-02T10:00:00Z",
+  },
+  {
+    id: "rv3",
+    productId: "p2",
+    restaurantName: "Le Baobab",
+    rating: 4,
+    text: "Bon rapport qualité-prix. À recommander.",
+    at: "2025-04-28T10:00:00Z",
+  },
+  {
+    id: "rv4",
+    productId: "p6",
+    restaurantName: "Restaurant Téranga",
+    rating: 5,
+    text: "Très bonne fraîcheur, parfait pour nos plats du jour.",
+    at: "2025-05-10T10:00:00Z",
+  },
+];
+
 export const restaurantBudget: RestaurantBudget = {
   monthly: 1500000,
 };
@@ -823,49 +880,239 @@ export const withdrawals: Withdrawal[] = [
   },
 ];
 
+export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "every_n_days" | "custom";
+export type RecurringOrderStatus = "active" | "paused" | "ended" | "problem";
+
+export type RecurringOrderItem = {
+  productId: string;
+  qty: number;
+  // Prix au moment où la récurrence a été configurée : sert de référence
+  // pour détecter une vraie variation de prix (comparée au prix réel actuel
+  // du produit), pas un chiffre inventé.
+  referencePrice: number;
+};
+
+export type PriceRuleAction = "auto_continue" | "ask_confirmation" | "suspend";
+export type StockRuleAction =
+  "cancel_item" | "replace_equivalent" | "cancel_all" | "ask_confirmation";
+export type BudgetRuleAction = "ask_confirmation" | "cancel" | "reduce_quantities";
+export type HolidayRuleAction = "day_before" | "day_after" | "ask_confirmation";
+
+export type RecurringOrderRules = {
+  priceIncreaseThresholdPct: number;
+  onPriceIncrease: PriceRuleAction;
+  onOutOfStock: StockRuleAction;
+  maxBudget: number;
+  onBudgetExceeded: BudgetRuleAction;
+  onNonBusinessDay: HolidayRuleAction;
+};
+
+export type RecurringOrderEnd =
+  { type: "never" } | { type: "on_date"; date: string } | { type: "after_count"; count: number };
+
+export type RecurringOrderException = {
+  id: string;
+  type: "skip" | "override";
+  occurrenceDate: string;
+  items?: RecurringOrderItem[];
+  reason?: string;
+  createdAt: string;
+};
+
+export type RecurringOrderEventKind =
+  | "generated"
+  | "confirmed"
+  | "delivered"
+  | "cancelled"
+  | "paused"
+  | "resumed"
+  | "skipped"
+  | "rule_triggered"
+  | "shifted";
+
+export type RecurringOrderEvent = {
+  id: string;
+  at: string;
+  kind: RecurringOrderEventKind;
+  message: string;
+};
+
+export type RecurringOrderPendingAction = {
+  kind: "price_increase" | "out_of_stock" | "budget_exceeded" | "non_business_day";
+  detail: string;
+  occurrenceDate: string;
+};
+
 export type RecurringOrder = {
   id: string;
   restaurantId: string;
-  items: { productId: string; qty: number }[];
-  frequency: "weekly" | "biweekly" | "monthly";
-  dayOfWeek: number;
-  active: boolean;
-  nextDelivery: string;
+  name: string;
+  farmerId: string;
+  items: RecurringOrderItem[];
+  frequency: RecurringFrequency;
+  intervalDays?: number;
+  daysOfWeek: number[];
+  createTime: string;
+  deliverySlot: string;
+  firstRunAt: string;
+  end: RecurringOrderEnd;
+  rules: RecurringOrderRules;
+  deliveryAddress: string;
+  deliveryMode: "standard" | "express";
+  instructions?: string;
+  paymentMethod: PaymentMethod;
+  status: RecurringOrderStatus;
+  pauseReason?: string;
+  pausedUntil?: string;
+  nextRunAt: string | null;
+  generatedOrderIds: string[];
+  exceptions: RecurringOrderException[];
+  history: RecurringOrderEvent[];
+  pendingAction?: RecurringOrderPendingAction | null;
+  createdAt: string;
 };
+
+function daysAgoAt(days: number, hh: number, mm: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(hh, mm, 0, 0);
+  return d.toISOString();
+}
 
 export const recurringOrders: RecurringOrder[] = [
   {
-    id: "ro1",
+    id: "rec1",
     restaurantId: "r1",
+    name: "Approvisionnement légumes",
+    farmerId: "f1",
     items: [
-      { productId: "p1", qty: 30 },
-      { productId: "p2", qty: 15 },
+      { productId: "p1", qty: 20, referencePrice: 700 },
+      { productId: "p2", qty: 15, referencePrice: 450 },
+      { productId: "p7", qty: 10, referencePrice: 500 },
     ],
     frequency: "weekly",
-    dayOfWeek: 1,
-    active: true,
-    nextDelivery: "2025-05-19",
+    daysOfWeek: [1],
+    createTime: "08:00",
+    deliverySlot: "14:00 – 16:00",
+    firstRunAt: daysAgoAt(30, 8, 0),
+    end: { type: "after_count", count: 24 },
+    rules: {
+      priceIncreaseThresholdPct: 10,
+      onPriceIncrease: "ask_confirmation",
+      onOutOfStock: "ask_confirmation",
+      maxBudget: 150000,
+      onBudgetExceeded: "ask_confirmation",
+      onNonBusinessDay: "day_after",
+    },
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+    deliveryMode: "standard",
+    instructions: "Livrer à l'entrée principale du restaurant.",
+    paymentMethod: "Wave",
+    status: "active",
+    // En retard d'un jour par rapport à "maintenant" : le premier tick()
+    // du moteur va réellement traiter cette échéance (et détecter la
+    // hausse de prix des tomates, 700 -> prix réel actuel).
+    nextRunAt: daysAgoAt(1, 8, 0),
+    generatedOrderIds: [],
+    exceptions: [],
+    history: [
+      {
+        id: "rev1",
+        at: daysAgoAt(30, 8, 0),
+        kind: "generated",
+        message: "Commande récurrente créée.",
+      },
+    ],
+    pendingAction: null,
+    createdAt: daysAgoAt(30, 8, 0),
   },
   {
-    id: "ro2",
-    restaurantId: "r2",
-    items: [{ productId: "p3", qty: 10 }],
+    id: "rec2",
+    restaurantId: "r1",
+    name: "Volaille & épices",
+    farmerId: "f2",
+    items: [
+      { productId: "p3", qty: 8, referencePrice: 3200 },
+      { productId: "p6", qty: 5, referencePrice: 1200 },
+    ],
     frequency: "biweekly",
-    dayOfWeek: 4,
-    active: true,
-    nextDelivery: "2025-05-22",
+    daysOfWeek: [4],
+    createTime: "08:00",
+    deliverySlot: "10:00 – 12:00",
+    firstRunAt: daysAgoAt(28, 8, 0),
+    end: { type: "never" },
+    rules: {
+      priceIncreaseThresholdPct: 15,
+      onPriceIncrease: "auto_continue",
+      onOutOfStock: "ask_confirmation",
+      maxBudget: 80000,
+      onBudgetExceeded: "ask_confirmation",
+      onNonBusinessDay: "day_after",
+    },
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+    deliveryMode: "express",
+    paymentMethod: "Orange Money",
+    status: "active",
+    // Également en retard : le tick() va générer une vraie commande sans
+    // accroc (prix inchangés, stock suffisant), pour montrer le chemin
+    // "tout se passe bien" en plus du cas avec alerte de rec1.
+    nextRunAt: daysAgoAt(2, 8, 0),
+    generatedOrderIds: [],
+    exceptions: [],
+    history: [
+      {
+        id: "rev2",
+        at: daysAgoAt(28, 8, 0),
+        kind: "generated",
+        message: "Commande récurrente créée.",
+      },
+    ],
+    pendingAction: null,
+    createdAt: daysAgoAt(28, 8, 0),
   },
   {
-    id: "ro3",
-    restaurantId: "r3",
+    id: "rec3",
+    restaurantId: "r1",
+    name: "Fruits & tubercules",
+    farmerId: "f3",
     items: [
-      { productId: "p7", qty: 25 },
-      { productId: "p8", qty: 12 },
+      { productId: "p5", qty: 25, referencePrice: 350 },
+      { productId: "p4", qty: 10, referencePrice: 600 },
     ],
-    frequency: "weekly",
-    dayOfWeek: 3,
-    active: false,
-    nextDelivery: "—",
+    frequency: "monthly",
+    daysOfWeek: [],
+    createTime: "08:00",
+    deliverySlot: "14:00 – 16:00",
+    firstRunAt: daysAgoAt(35, 8, 0),
+    end: { type: "never" },
+    rules: {
+      priceIncreaseThresholdPct: 10,
+      onPriceIncrease: "ask_confirmation",
+      onOutOfStock: "ask_confirmation",
+      maxBudget: 60000,
+      onBudgetExceeded: "ask_confirmation",
+      onNonBusinessDay: "day_after",
+    },
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+    deliveryMode: "standard",
+    paymentMethod: "Wave",
+    status: "active",
+    // p4 (Mangues Kent) est réellement en rupture de stock dans le
+    // catalogue (stock: 0) : le premier tick() va donc réellement
+    // déclencher la règle de rupture, pas une simulation.
+    nextRunAt: daysAgoAt(3, 8, 0),
+    generatedOrderIds: [],
+    exceptions: [],
+    history: [
+      {
+        id: "rev3",
+        at: daysAgoAt(35, 8, 0),
+        kind: "generated",
+        message: "Commande récurrente créée.",
+      },
+    ],
+    pendingAction: null,
+    createdAt: daysAgoAt(35, 8, 0),
   },
 ];
 
@@ -881,6 +1128,10 @@ export type RestaurantOrder = {
   eta?: string;
   deliveryAddress: string;
   paymentMethod: PaymentMethod;
+  // Horodatage réel de chaque transition, alimenté à chaque changement de
+  // statut. Pour les commandes de démo déjà existantes, on ne connaît que
+  // l'état observé à leur création — pas d'heures de transition inventées.
+  statusHistory: { status: OrderStatus; at: string }[];
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -898,6 +1149,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     eta: "18 min",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
+    statusHistory: [{ status: "delivering", at: "2025-05-15T09:00:00Z" }],
   },
   {
     id: "ro_2",
@@ -909,6 +1161,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-15T08:15:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Orange Money",
+    statusHistory: [{ status: "preparing", at: "2025-05-15T08:15:00Z" }],
   },
   {
     id: "ro_3",
@@ -920,6 +1173,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-14T14:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
+    statusHistory: [{ status: "delivered", at: "2025-05-14T14:00:00Z" }],
   },
   {
     id: "ro_4",
@@ -934,12 +1188,14 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-15T11:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Free Money",
+    statusHistory: [{ status: "pending", at: "2025-05-15T11:00:00Z" }],
   },
 ];
 
 export const suppliers = [
   {
     id: "f1",
+    restaurantId: "r1",
     farmerId: "f1",
     name: "Ferme Diallo",
     contact: "Mamadou Diallo",
@@ -955,6 +1211,7 @@ export const suppliers = [
   },
   {
     id: "f2",
+    restaurantId: "r1",
     farmerId: "f2",
     name: "Coopérative Sow",
     contact: "Fatou Sow",
@@ -970,6 +1227,7 @@ export const suppliers = [
   },
   {
     id: "f3",
+    restaurantId: "r1",
     farmerId: "f3",
     name: "Niayes Ndoye",
     contact: "Ibrahima Ndoye",
@@ -987,6 +1245,9 @@ export const suppliers = [
 
 export type Supplier = {
   id: string;
+  // Carnet privé : chaque fiche appartient à UN SEUL restaurant (celui qui
+  // l'a créée), jamais partagée avec les autres comptes restaurant.
+  restaurantId: string;
   farmerId?: string;
   name: string;
   contact: string;
@@ -1364,6 +1625,41 @@ export const missions: Mission[] = [
     itemsCount: 1,
     scheduledFor: "2025-05-11T09:00:00Z",
     createdAt: "2025-05-11T08:30:00Z",
+    vehicleType: "Moto",
+    urgency: "standard",
+  },
+  // Mission liée à la commande restaurant CMD-3051 (ro_1, "En livraison") :
+  // sans elle, le suivi de cette commande n'aurait aucun vrai livreur à
+  // afficher alors qu'elle est déjà en cours de livraison dans la démo.
+  {
+    id: "mi10",
+    reference: "MIS-4220",
+    orderRef: "CMD-3051",
+    farmerId: "f1",
+    restaurantId: "r1",
+    driverId: "d1",
+    status: "loaded",
+    pickup: {
+      address: "Route de Khombole km 3, Thiès",
+      city: "Thiès",
+      lat: 14.79,
+      lng: -16.93,
+      contactPhone: "+221 77 123 45 67",
+    },
+    dropoff: {
+      address: "Le Baobab, Dakar Plateau",
+      city: "Dakar",
+      lat: 14.67,
+      lng: -17.43,
+      contactPhone: "+221 33 821 45 67",
+    },
+    distanceKm: 72,
+    estimatedMinutes: 95,
+    payout: 8500,
+    weightKg: 40,
+    itemsCount: 2,
+    scheduledFor: "2025-05-15T09:30:00Z",
+    createdAt: "2025-05-15T09:00:00Z",
     vehicleType: "Moto",
     urgency: "standard",
   },

@@ -1,9 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { Star, MapPin, Heart, Plus, Search, Pencil, Ban, PlayCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { farmers, products } from "@/data/mocks";
-import { useSuppliers, supplierActions } from "@/data/store";
+import { farmers, products, restaurants } from "@/data/mocks";
+import {
+  useSuppliers,
+  useRestaurantOrders,
+  supplierActions,
+  supplierOrderStats,
+} from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +39,14 @@ export const Route = createFileRoute("/restaurant/suppliers/")({
 });
 
 function SuppliersList() {
-  const suppliers = useSuppliers();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const allSuppliers = useSuppliers();
+  const orders = useRestaurantOrders();
+  const suppliers = useMemo(
+    () => allSuppliers.filter((s) => s.restaurantId === myRestaurant?.id),
+    [allSuppliers, myRestaurant],
+  );
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"all" | "favorites" | "suspended">("all");
 
@@ -91,6 +103,7 @@ function SuppliersList() {
         {filtered.map((s) => {
           const f = s.farmerId ? farmers.find((x) => x.id === s.farmerId) : null;
           const offer = f ? products.filter((p) => p.farmerId === f.id) : [];
+          const stats = supplierOrderStats(orders, s.farmerId);
           return (
             <div
               key={s.id}
@@ -129,22 +142,24 @@ function SuppliersList() {
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <div className="text-lg font-bold">{s.totalOrders}</div>
+                  <div className="text-lg font-bold">{stats.totalOrders}</div>
                   <div className="text-[10px] text-muted-foreground">Commandes</div>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-primary">
-                    {formatFCFA(s.totalSpent).replace(" FCFA", "")}
+                    {formatFCFA(stats.totalSpent).replace(" FCFA", "")}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Dépensé</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold">{s.lastOrder.slice(5)}</div>
+                  <div className="text-lg font-bold">
+                    {stats.lastOrder === "—" ? "—" : stats.lastOrder.slice(5)}
+                  </div>
                   <div className="text-[10px] text-muted-foreground">Dernière</div>
                 </div>
               </div>
               {(() => {
-                const q = qualityScore(s.totalOrders, s.favorite, s.suspended);
+                const q = qualityScore(stats.totalOrders, s.favorite, s.suspended);
                 return (
                   <div
                     className={`rounded-lg px-3 py-2 flex items-center justify-between text-xs font-semibold ${q.tone}`}

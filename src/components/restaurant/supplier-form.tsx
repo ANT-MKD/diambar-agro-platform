@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Supplier } from "@/data/mocks";
 
-export type SupplierFormValues = Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder">;
+export type SupplierFormValues = Omit<
+  Supplier,
+  "id" | "restaurantId" | "totalOrders" | "totalSpent" | "lastOrder"
+>;
 
 export function SupplierForm({
   initial,

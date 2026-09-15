@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Send, Paperclip, Phone, MessageSquare } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -6,8 +6,9 @@ import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { farmers } from "@/data/mocks";
+import { farmers, restaurants } from "@/data/mocks";
 import { useConversations, conversationActions } from "@/data/store";
+import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/messages/$conversationId")({
   head: () => ({
@@ -24,16 +25,23 @@ export const Route = createFileRoute("/restaurant/messages/$conversationId")({
   component: RestaurantConversation,
 });
 
+// Même limite de modèle que la page liste : ce store ne représente que
+// l'inbox du producteur f1 avec ses restaurants clients.
+const MESSAGES_FARMER_ID = "f1";
+
 function RestaurantConversation() {
   const { conversationId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
   const convs = useConversations();
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
 
-  const index = convs.findIndex((c) => c.id === conversationId);
-  const conv = index >= 0 ? convs[index] : null;
+  const conv =
+    convs.find((c) => c.id === conversationId && c.restaurantId === myRestaurant?.id) ?? null;
+  const farmer = farmers.find((f) => f.id === MESSAGES_FARMER_ID);
 
-  if (!conv) {
+  if (!conv || !farmer) {
     return (
       <div className="space-y-6">
         <PageHeader title="Conversation" subtitle="Introuvable" />
@@ -51,7 +59,6 @@ function RestaurantConversation() {
     );
   }
 
-  const farmer = farmers[index % farmers.length];
   const send = () => {
     if (!draft.trim()) return;
     conversationActions.send(conv.id, draft.trim(), "me");
@@ -80,13 +87,17 @@ function RestaurantConversation() {
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate">{farmer.farm}</div>
             <div className="text-xs text-muted-foreground">
-              En ligne · répond en général en 15 min
+              Dernier message {relativeTime(conv.lastAt)}
             </div>
           </div>
-          <Button variant="outline" size="icon">
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Link to="/restaurant/marketplace">
+          {farmer.phone && (
+            <Button variant="outline" size="icon" asChild>
+              <a href={`tel:${farmer.phone}`}>
+                <Phone className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
+          <Link to="/restaurant/suppliers/$supplierId" params={{ supplierId: farmer.id }}>
             <Button variant="outline" size="sm">
               Voir ses produits
             </Button>

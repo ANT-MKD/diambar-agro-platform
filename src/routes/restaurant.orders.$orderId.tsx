@@ -8,6 +8,10 @@ import {
   Copy,
   Clock,
   MapPin,
+  Download,
+  LifeBuoy,
+  AlertTriangle,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,9 +19,10 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
-import { useRestaurantOrder } from "@/data/store";
+import { useRestaurantOrder, useMissions } from "@/data/store";
 import { farmers, products, drivers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { ORDER_LABEL } from "@/components/farmer/status-badge";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -27,9 +32,18 @@ export const Route = createFileRoute("/restaurant/orders/$orderId")({
 function OrderDetail() {
   const { orderId } = Route.useParams();
   const order = useRestaurantOrder(orderId);
+  const missions = useMissions();
+  // La mission de livraison réelle liée à cette commande (créée en même
+  // temps qu'elle) — tant qu'aucun livreur ne l'a acceptée, il n'existe
+  // aucun vrai livreur à afficher, contrairement à l'ancien code qui
+  // affichait toujours "Oumar Ba" (drivers[0]) quelle que soit la commande.
+  const mission = missions.find((m) => order && m.orderRef === order.reference);
+  const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
+  const showMap = order?.status === "delivering" && !!driver;
   const { snapshot } = useLiveTracking({
     trackingId: order?.reference,
-    enabled: !!order && ["preparing", "delivering"].includes(order.status),
+    driverName: driver?.name,
+    enabled: showMap,
   });
 
   if (!order)
@@ -40,8 +54,6 @@ function OrderDetail() {
     );
 
   const farmer = farmers.find((f) => f.id === order.farmerId);
-  const driver = drivers[0];
-  const showMap = ["delivering", "preparing"].includes(order.status);
   const publicId = `TRK-${order.id
     .replace(/[^a-z0-9]/gi, "")
     .slice(-6)
@@ -50,7 +62,7 @@ function OrderDetail() {
     typeof window !== "undefined"
       ? `${window.location.origin}/track/${publicId}`
       : `/track/${publicId}`;
-  const etaMinutes = snapshot?.etaMinutes ?? 30;
+  const etaMinutes = snapshot?.etaMinutes ?? mission?.estimatedMinutes ?? null;
   const progress = snapshot?.progress ?? 0;
 
   const share = async () => {
@@ -79,6 +91,12 @@ function OrderDetail() {
                 Retour
               </Link>
             </Button>
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
+                <Download className="h-4 w-4" />
+                Télécharger la facture
+              </Link>
+            </Button>
             <Button
               variant="outline"
               className="gap-2"
@@ -103,7 +121,7 @@ function OrderDetail() {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
             <span className="text-muted-foreground">ETA</span>
-            <b>{etaMinutes} min</b>
+            <b>{etaMinutes ?? "—"} min</b>
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-amber-500" />
@@ -130,7 +148,7 @@ function OrderDetail() {
       {showMap && (
         <LiveTrackingMapLazy
           trackingId={order.reference}
-          driverName={driver.name}
+          driverName={driver?.name ?? ""}
           minHeight={360}
         />
       )}
@@ -138,6 +156,29 @@ function OrderDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <OrderTracker status={order.status} eta={order.eta} />
+
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              Historique de la commande
+            </h3>
+            <div className="space-y-2">
+              {order.statusHistory.map((h, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm">
+                  <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                  <span className="font-medium">{ORDER_LABEL[h.status]}</span>
+                  <span className="text-muted-foreground text-xs ml-auto">
+                    {new Date(h.at).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="glass rounded-2xl p-5">
             <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
@@ -169,6 +210,21 @@ function OrderDetail() {
               <span className="text-primary">{formatFCFA(order.total)}</span>
             </div>
           </div>
+
+          <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <div className="flex-1 min-w-[200px]">
+              <div className="text-sm font-semibold">Un problème avec cette commande ?</div>
+              <div className="text-xs text-muted-foreground">
+                Signalez un souci de qualité, quantité, livraison ou paiement.
+              </div>
+            </div>
+            <Button asChild variant="destructive" size="sm" className="gap-2">
+              <Link to="/restaurant/orders/$orderId/dispute" params={{ orderId: order.id }}>
+                Signaler un problème
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -178,7 +234,10 @@ function OrderDetail() {
               <img src={farmer?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
               <div className="flex-1">
                 <div className="font-semibold text-sm">{farmer?.farm}</div>
-                <div className="text-[11px] text-muted-foreground">{farmer?.city}</div>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                  <span>{farmer?.city}</span>
+                  {farmer?.rating != null && <span>★ {farmer.rating}</span>}
+                </div>
               </div>
             </div>
             <div className="flex gap-2 mt-3">
@@ -199,28 +258,36 @@ function OrderDetail() {
             </div>
           </div>
 
-          {showMap && (
-            <div className="glass rounded-2xl p-4">
-              <div className="text-xs font-semibold text-muted-foreground mb-3">LIVREUR</div>
-              <div className="flex items-center gap-3">
-                <img src={driver.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
-                <div className="flex-1">
-                  <div className="font-semibold text-sm">{driver.name}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {driver.vehicle} · ★ {driver.rating}
+          <div className="glass rounded-2xl p-4">
+            <div className="text-xs font-semibold text-muted-foreground mb-3">LIVREUR</div>
+            {driver ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <img src={driver.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{driver.name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {driver.vehicle} · ★ {driver.rating}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {driver.phone && (
-                <Button variant="outline" size="sm" className="w-full mt-3 gap-1" asChild>
-                  <a href={`tel:${driver.phone}`} aria-label={`Appeler ${driver.name}`}>
-                    <Phone className="h-3.5 w-3.5" />
-                    Contacter le livreur
-                  </a>
-                </Button>
-              )}
-            </div>
-          )}
+                {driver.phone && (
+                  <Button variant="outline" size="sm" className="w-full mt-3 gap-1" asChild>
+                    <a href={`tel:${driver.phone}`} aria-label={`Appeler ${driver.name}`}>
+                      <Phone className="h-3.5 w-3.5" />
+                      Contacter le livreur
+                    </a>
+                  </Button>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {["delivered", "cancelled"].includes(order.status)
+                  ? "Aucun livreur n'a été assigné à cette commande."
+                  : "Aucun livreur assigné pour l'instant — un livreur va bientôt accepter la mission de livraison."}
+              </p>
+            )}
+          </div>
 
           <div className="glass rounded-2xl p-4 space-y-2 text-sm">
             <div className="text-xs font-semibold text-muted-foreground mb-2">LIVRAISON</div>
@@ -239,6 +306,13 @@ function OrderDetail() {
               </div>
             )}
           </div>
+
+          <Button asChild variant="outline" className="w-full gap-2">
+            <Link to="/restaurant/support">
+              <LifeBuoy className="h-4 w-4" />
+              Contacter le support
+            </Link>
+          </Button>
         </div>
       </div>
     </div>
