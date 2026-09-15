@@ -46,6 +46,10 @@ import {
   type Conversation,
   type ChatAttachment,
   type RecurringOrder,
+  type RecurringOrderItem,
+  type RecurringOrderException,
+  type RecurringOrderEventKind,
+  type RecurringOrderPendingAction,
   type Mission,
   type MissionProofPhoto,
   type MissionStatus,
@@ -60,6 +64,7 @@ import {
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
 import { haversineKm } from "@/lib/tracking/geo-math";
+import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
 
 type Listener = () => void;
 
@@ -179,8 +184,11 @@ export function useConversations() {
 export function useConversation(id: string) {
   return useConversations().find((c) => c.id === id) ?? null;
 }
-export function useRecurring() {
+export function useRecurringOrders() {
   return useSyncExternalStore(recurringStore.subscribe, recurringStore.get, recurringStore.get);
+}
+export function useRecurringOrder(id: string) {
+  return useRecurringOrders().find((r) => r.id === id) ?? null;
 }
 export function useOnboarding() {
   return useSyncExternalStore(onboardingStore.subscribe, onboardingStore.get, onboardingStore.get);
@@ -436,13 +444,15 @@ export const restaurantBudgetActions = {
   setMonthly: (monthly: number) => restaurantBudgetStore.set({ monthly }),
 };
 
-export function useProductReviews(productId: string) {
-  const all = useSyncExternalStore(
+export function useAllProductReviews() {
+  return useSyncExternalStore(
     productReviewsStore.subscribe,
     productReviewsStore.get,
     productReviewsStore.get,
   );
-  return all.filter((r) => r.productId === productId);
+}
+export function useProductReviews(productId: string) {
+  return useAllProductReviews().filter((r) => r.productId === productId);
 }
 
 export const productReviewActions = {
@@ -653,6 +663,7 @@ export const restaurantOrderActions = {
    * de livreur codé en dur, sans rapport avec une vraie affectation). */
   create: (
     o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status" | "statusHistory">,
+    opts?: { forceUrgency?: Mission["urgency"] },
   ) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
@@ -721,7 +732,8 @@ export const restaurantOrderActions = {
           scheduledFor: createdAt,
           createdAt,
           vehicleType: vehicleForWeight(weightKg),
-          urgency: o.eta?.startsWith("Aujourd'hui") ? "priority" : "standard",
+          urgency:
+            opts?.forceUrgency ?? (o.eta?.startsWith("Aujourd'hui") ? "priority" : "standard"),
         },
         ...arr,
       ]);
@@ -955,20 +967,453 @@ export const conversationActions = {
   },
 };
 
-export const recurringActions = {
-  toggle: (id: string) =>
-    recurringStore.set((arr) => arr.map((r) => (r.id === id ? { ...r, active: !r.active } : r))),
-  skipNext: (id: string) =>
+function pushHistory(
+  ro: RecurringOrder,
+  kind: RecurringOrderEventKind,
+  message: string,
+): RecurringOrder {
+  return {
+    ...ro,
+    history: [
+      ...ro.history,
+      {
+        id: `rev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        at: new Date().toISOString(),
+        kind,
+        message,
+      },
+    ],
+  };
+}
+
+function endReached(ro: RecurringOrder): boolean {
+  if (ro.end.type === "after_count") return ro.generatedOrderIds.length >= ro.end.count;
+  if (ro.end.type === "on_date")
+    return ro.nextRunAt != null && new Date(ro.nextRunAt) > new Date(ro.end.date);
+  return false;
+}
+
+/** Traite une seule échéance échue d'une commande récurrente : applique
+ * les exceptions (saut/remplacement), évalue les règles sur les vraies
+ * données actuelles (prix, stock, budget), puis génère une vraie commande
+ * via le pont restaurantOrderActions.create() déjà utilisé partout
+ * ailleurs, ou pose une action en attente si une règle l'exige. */
+function processOccurrence(
+  ro: RecurringOrder,
+  bypass?: RecurringOrderPendingAction["kind"],
+): RecurringOrder {
+  const occurrenceDate = ro.nextRunAt!;
+  const occDay = occurrenceDate.slice(0, 10);
+
+  const skip = ro.exceptions.find((e) => e.type === "skip" && e.occurrenceDate === occDay);
+  if (skip) {
+    let next = pushHistory(
+      ro,
+      "skipped",
+      `Occurrence du ${occDay} ignorée (${skip.reason ?? "sautée"}).`,
+    );
+    const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
+    next = { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+    return next;
+  }
+
+  const override = ro.exceptions.find((e) => e.type === "override" && e.occurrenceDate === occDay);
+  const items = override?.items ?? ro.items;
+
+  // Jour non ouvré
+  const scheduled = new Date(occurrenceDate);
+  const holiday = applyHolidayShift(scheduled, ro.rules.onNonBusinessDay);
+  if (holiday.needsConfirmation && bypass !== "non_business_day") {
+    return {
+      ...pushHistory(
+        ro,
+        "rule_triggered",
+        `${occDay} tombe un jour non ouvré : confirmation demandée.`,
+      ),
+      status: "problem",
+      pendingAction: {
+        kind: "non_business_day",
+        detail: `La commande prévue le ${occDay} tombe un jour non ouvré.`,
+        occurrenceDate: occDay,
+      },
+    };
+  }
+  if (holiday.date.getTime() !== scheduled.getTime()) {
+    ro = pushHistory(
+      ro,
+      "shifted",
+      `Décalée du ${occDay} au ${holiday.date.toISOString().slice(0, 10)} (jour non ouvré).`,
+    );
+  }
+
+  const liveProducts = productsStore.get();
+  const priceOf = (id: string) => liveProducts.find((p) => p.id === id)?.pricePerKg ?? 0;
+  const stockOfProduct = (id: string) => liveProducts.find((p) => p.id === id)?.stock ?? 0;
+
+  // Règle stock
+  const outOfStock = items.filter((it) => stockOfProduct(it.productId) < it.qty);
+  if (
+    outOfStock.length > 0 &&
+    ro.rules.onOutOfStock === "ask_confirmation" &&
+    bypass !== "out_of_stock"
+  ) {
+    const names = outOfStock
+      .map((it) => liveProducts.find((p) => p.id === it.productId)?.name ?? it.productId)
+      .join(", ");
+    return {
+      ...pushHistory(
+        ro,
+        "rule_triggered",
+        `Stock insuffisant pour : ${names}. Confirmation demandée.`,
+      ),
+      status: "problem",
+      pendingAction: {
+        kind: "out_of_stock",
+        detail: `Stock insuffisant pour : ${names}.`,
+        occurrenceDate: occDay,
+      },
+    };
+  }
+  let effectiveItems = items;
+  if (outOfStock.length > 0 && ro.rules.onOutOfStock === "cancel_item") {
+    effectiveItems = items.filter((it) => stockOfProduct(it.productId) >= it.qty);
+  }
+  if (outOfStock.length > 0 && ro.rules.onOutOfStock === "cancel_all") {
+    let next = pushHistory(
+      ro,
+      "rule_triggered",
+      "Rupture de stock : commande annulée pour cette échéance.",
+    );
+    const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
+    next = { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+    return next;
+  }
+
+  if (effectiveItems.length === 0) {
+    const next = pushHistory(
+      ro,
+      "rule_triggered",
+      "Aucun article disponible : commande annulée pour cette échéance.",
+    );
+    const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
+    return { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+  }
+
+  // Règle prix
+  const priceHike = effectiveItems.find((it) => {
+    const current = priceOf(it.productId);
+    return current > it.referencePrice * (1 + ro.rules.priceIncreaseThresholdPct / 100);
+  });
+  if (priceHike) {
+    const p = liveProducts.find((x) => x.id === priceHike.productId);
+    const pct = Math.round(
+      ((priceOf(priceHike.productId) - priceHike.referencePrice) / priceHike.referencePrice) * 100,
+    );
+    if (ro.rules.onPriceIncrease === "suspend") {
+      return {
+        ...pushHistory(
+          ro,
+          "rule_triggered",
+          `Prix de ${p?.name} en hausse de ${pct}% : récurrence suspendue.`,
+        ),
+        status: "paused",
+        pauseReason: `Prix de ${p?.name} en hausse de ${pct}%`,
+      };
+    }
+    if (ro.rules.onPriceIncrease === "ask_confirmation" && bypass !== "price_increase") {
+      return {
+        ...pushHistory(
+          ro,
+          "rule_triggered",
+          `Prix de ${p?.name} en hausse de ${pct}% (seuil ${ro.rules.priceIncreaseThresholdPct}%). Confirmation demandée.`,
+        ),
+        status: "problem",
+        pendingAction: {
+          kind: "price_increase",
+          detail: `${p?.name} : ${priceHike.referencePrice} → ${priceOf(priceHike.productId)} FCFA/kg (+${pct}%).`,
+          occurrenceDate: occDay,
+        },
+      };
+    }
+    // auto_continue (règle), ou confirmation manuelle donnée par le restaurant : on journalise et on continue
+    ro = pushHistory(
+      ro,
+      "rule_triggered",
+      bypass === "price_increase"
+        ? `Prix de ${p?.name} en hausse de ${pct}% — commande confirmée malgré tout par le restaurant.`
+        : `Prix de ${p?.name} en hausse de ${pct}% — poursuite automatique (règle).`,
+    );
+  }
+
+  const subtotal = itemsSubtotal(effectiveItems, priceOf);
+  const delivery = Math.round(subtotal * 0.03);
+  const total = subtotal + delivery;
+
+  // Règle budget
+  if (total > ro.rules.maxBudget) {
+    if (ro.rules.onBudgetExceeded === "cancel") {
+      const next = pushHistory(
+        ro,
+        "rule_triggered",
+        `Budget maximum dépassé (${total} > ${ro.rules.maxBudget} FCFA) : commande annulée.`,
+      );
+      const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
+      return { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+    }
+    if (ro.rules.onBudgetExceeded === "ask_confirmation" && bypass !== "budget_exceeded") {
+      return {
+        ...pushHistory(
+          ro,
+          "rule_triggered",
+          `Budget maximum dépassé (${total} > ${ro.rules.maxBudget} FCFA). Confirmation demandée.`,
+        ),
+        status: "problem",
+        pendingAction: {
+          kind: "budget_exceeded",
+          detail: `Total estimé ${total} FCFA > budget maximum ${ro.rules.maxBudget} FCFA.`,
+          occurrenceDate: occDay,
+        },
+      };
+    }
+    if (ro.rules.onBudgetExceeded === "ask_confirmation" && bypass === "budget_exceeded") {
+      // Confirmation manuelle donnée par le restaurant : on commande tel quel,
+      // sans réduire les quantités (ce n'est pas la règle configurée).
+      ro = pushHistory(
+        ro,
+        "rule_triggered",
+        `Budget maximum dépassé (${total} > ${ro.rules.maxBudget} FCFA) — commande confirmée malgré tout par le restaurant.`,
+      );
+    } else if (ro.rules.onBudgetExceeded === "reduce_quantities") {
+      const ratio = ro.rules.maxBudget / total;
+      effectiveItems = effectiveItems.map((it) => ({
+        ...it,
+        qty: Math.max(1, Math.floor(it.qty * ratio)),
+      }));
+      ro = pushHistory(
+        ro,
+        "rule_triggered",
+        "Quantités réduites automatiquement pour respecter le budget maximum.",
+      );
+    }
+  }
+
+  const finalSubtotal = itemsSubtotal(effectiveItems, priceOf);
+  const finalDelivery = Math.round(finalSubtotal * 0.03);
+  const finalTotal = finalSubtotal + finalDelivery;
+
+  const newOrderId = restaurantOrderActions.create(
+    {
+      farmerId: ro.farmerId,
+      items: effectiveItems.map((it) => ({
+        productId: it.productId,
+        qty: it.qty,
+        price: priceOf(it.productId),
+      })),
+      total: finalTotal,
+      deliveryAddress: ro.deliveryAddress,
+      paymentMethod: ro.paymentMethod,
+      eta: ro.deliverySlot,
+    },
+    { forceUrgency: ro.deliveryMode === "express" ? "priority" : undefined },
+  );
+
+  const order = restaurantOrdersStore.get().find((o) => o.id === newOrderId);
+  let next = pushHistory(
+    ro,
+    "generated",
+    `Commande ${order?.reference ?? newOrderId} générée automatiquement (${formatFCFA(finalTotal)}).`,
+  );
+  next = { ...next, generatedOrderIds: [...next.generatedOrderIds, newOrderId] };
+
+  if (endReached(next)) {
+    return { ...next, status: "ended", nextRunAt: null };
+  }
+  const nextRun = computeNextOccurrence(next, new Date(occurrenceDate));
+  return { ...next, nextRunAt: nextRun ? nextRun.toISOString() : null };
+}
+
+export const recurringOrderActions = {
+  create: (
+    input: Omit<
+      RecurringOrder,
+      | "id"
+      | "restaurantId"
+      | "status"
+      | "nextRunAt"
+      | "generatedOrderIds"
+      | "exceptions"
+      | "history"
+      | "pendingAction"
+      | "createdAt"
+    >,
+  ) => {
+    const id = `rec_${Date.now()}`;
+    const createdAt = new Date().toISOString();
+    const next: RecurringOrder = {
+      ...input,
+      id,
+      restaurantId: "r1",
+      status: "active",
+      nextRunAt: input.firstRunAt,
+      generatedOrderIds: [],
+      exceptions: [],
+      history: [
+        {
+          id: `rev_${Date.now()}`,
+          at: createdAt,
+          kind: "generated",
+          message: "Commande récurrente créée.",
+        },
+      ],
+      pendingAction: null,
+      createdAt,
+    };
+    recurringStore.set((arr) => [next, ...arr]);
+    return id;
+  },
+  update: (id: string, patch: Partial<RecurringOrder>) =>
+    recurringStore.set((arr) => arr.map((r) => (r.id === id ? { ...r, ...patch } : r))),
+  pause: (id: string, reason: string, pausedUntil?: string) =>
+    recurringStore.set((arr) =>
+      arr.map((r) =>
+        r.id === id
+          ? pushHistory(
+              { ...r, status: "paused", pauseReason: reason, pausedUntil },
+              "paused",
+              `Mise en pause : ${reason}.`,
+            )
+          : r,
+      ),
+    ),
+  resume: (id: string) =>
     recurringStore.set((arr) =>
       arr.map((r) => {
         if (r.id !== id) return r;
-        const d = new Date(r.nextDelivery === "—" ? Date.now() : r.nextDelivery);
-        const days = r.frequency === "weekly" ? 7 : r.frequency === "biweekly" ? 14 : 30;
-        d.setDate(d.getDate() + days);
-        return { ...r, nextDelivery: d.toISOString().slice(0, 10) };
+        const nextRun = computeNextOccurrence(r, new Date());
+        return pushHistory(
+          {
+            ...r,
+            status: "active",
+            pauseReason: undefined,
+            pausedUntil: undefined,
+            nextRunAt: nextRun ? nextRun.toISOString() : r.nextRunAt,
+          },
+          "resumed",
+          "Récurrence réactivée.",
+        );
+      }),
+    ),
+  cancel: (id: string, mode: "future_only" | "full") =>
+    recurringStore.set((arr) =>
+      arr.map((r) =>
+        r.id === id
+          ? pushHistory(
+              { ...r, status: "ended", nextRunAt: null },
+              "cancelled",
+              mode === "future_only"
+                ? "Prochaines commandes annulées (historique conservé)."
+                : "Récurrence annulée définitivement (historique conservé).",
+            )
+          : r,
+      ),
+    ),
+  skipNextOccurrence: (id: string, reason?: string) =>
+    recurringStore.set((arr) =>
+      arr.map((r) => {
+        if (r.id !== id || !r.nextRunAt) return r;
+        const occDay = r.nextRunAt.slice(0, 10);
+        const exception: RecurringOrderException = {
+          id: `exc_${Date.now()}`,
+          type: "skip",
+          occurrenceDate: occDay,
+          reason,
+          createdAt: new Date().toISOString(),
+        };
+        const withExc = { ...r, exceptions: [...r.exceptions, exception] };
+        return processOccurrence(withExc);
+      }),
+    ),
+  overrideNextOccurrence: (id: string, items: RecurringOrderItem[]) =>
+    recurringStore.set((arr) =>
+      arr.map((r) => {
+        if (r.id !== id || !r.nextRunAt) return r;
+        const occDay = r.nextRunAt.slice(0, 10);
+        const exception: RecurringOrderException = {
+          id: `exc_${Date.now()}`,
+          type: "override",
+          occurrenceDate: occDay,
+          items,
+          createdAt: new Date().toISOString(),
+        };
+        return pushHistory(
+          { ...r, exceptions: [...r.exceptions, exception] },
+          "rule_triggered",
+          `Occurrence du ${occDay} modifiée exceptionnellement.`,
+        );
+      }),
+    ),
+  resolvePendingAction: (id: string, action: "confirm" | "cancel_occurrence") =>
+    recurringStore.set((arr) =>
+      arr.map((r) => {
+        if (r.id !== id || !r.pendingAction) return r;
+        if (action === "cancel_occurrence" && r.nextRunAt) {
+          const occDay = r.nextRunAt.slice(0, 10);
+          const exception: RecurringOrderException = {
+            id: `exc_${Date.now()}`,
+            type: "skip",
+            occurrenceDate: occDay,
+            reason: "Refusée suite à alerte",
+            createdAt: new Date().toISOString(),
+          };
+          const withExc = pushHistory(
+            {
+              ...r,
+              exceptions: [...r.exceptions, exception],
+              status: "active",
+              pendingAction: null,
+            },
+            "skipped",
+            "Occurrence annulée suite à l'alerte.",
+          );
+          return processOccurrence(withExc);
+        }
+        // confirm : on lève le blocage et on retraite l'échéance immédiatement,
+        // en indiquant au moteur de ne pas re-bloquer sur la même règle.
+        const bypassedKind = r.pendingAction.kind;
+        const unblocked = pushHistory(
+          { ...r, status: "active", pendingAction: null },
+          "confirmed",
+          "Alerte confirmée par le restaurant : traitement de la commande.",
+        );
+        return processOccurrence(unblocked, bypassedKind);
       }),
     ),
   remove: (id: string) => recurringStore.set((arr) => arr.filter((r) => r.id !== id)),
+  /** Vérifie toutes les récurrences actives et traite celles dont
+   * l'échéance est passée. À appeler à chaque chargement du portail
+   * restaurant : c'est ce qui tient lieu de "scheduler" dans une appli
+   * sans backend/cron — la commande est réellement générée dès que
+   * quelqu'un ouvre l'application après l'heure prévue, pas seulement
+   * simulée visuellement. */
+  tick: () => {
+    recurringStore.set((arr) =>
+      arr.map((r) => {
+        if (r.status !== "active" || !r.nextRunAt) return r;
+        let current = r;
+        let guard = 0;
+        while (
+          current.status === "active" &&
+          current.nextRunAt &&
+          new Date(current.nextRunAt) <= new Date() &&
+          guard < 12
+        ) {
+          current = processOccurrence(current);
+          guard++;
+        }
+        return current;
+      }),
+    );
+  },
 };
 
 export const onboardingActions = {

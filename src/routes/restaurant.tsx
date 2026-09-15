@@ -20,11 +20,11 @@ import {
   Star,
   LifeBuoy,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
-import { useCart, useRestaurantNotifications } from "@/data/store";
+import { useCart, useRestaurantNotifications, recurringOrderActions } from "@/data/store";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { requireRole } from "@/lib/auth/functions";
@@ -78,6 +78,13 @@ function RestaurantLayout() {
   const [open, setOpen] = useState(false);
   const notifs = useRestaurantNotifications();
   const unread = notifs.filter((n) => !n.read).length;
+  // Il n'existe pas de vrai scheduler côté serveur dans cette démo : on
+  // vérifie donc les commandes récurrentes en retard à chaque ouverture du
+  // portail restaurant, et on les traite réellement à ce moment-là plutôt
+  // que d'attendre une exécution qui ne se déclencherait jamais seule.
+  useEffect(() => {
+    recurringOrderActions.tick();
+  }, []);
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar">
