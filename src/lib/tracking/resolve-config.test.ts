@@ -19,14 +19,27 @@ describe("resolveTrackingConfig", () => {
     expect(byOrderRef).toEqual(byMission);
   });
 
-  it("falls back to the farmer's and delivery address's city for a plain restaurant order", () => {
-    // ro_1: farmerId f1 (Thiès), deliveryAddress "Le Baobab, Dakar Plateau", status delivering
+  it("resolves a restaurant order via its own real delivery mission when one exists", () => {
+    // ro_1 / CMD-3051 a une vraie mission liée (mi10, créée lors de la
+    // commande) : elle doit primer sur le repli ville-par-ville.
     const config = resolveTrackingConfig("CMD-3051");
     expect(config).not.toBeNull();
-    expect(config?.pickup.label).toBe("Ferme Diallo");
+    expect(config?.pickup.label).toBe("Route de Khombole km 3, Thiès");
     expect(config?.dropoff.label).toBe("Le Baobab, Dakar Plateau");
-    // status "delivering" -> transit
+    // status "loaded" (mission) -> transit
     expect(config?.step).toBe("transit");
+  });
+
+  it("falls back to the farmer's and delivery address's city for a plain restaurant order", () => {
+    // ro_2 / CMD-3050 : farmerId f2 (Coopérative Sow, Dakar-Pikine),
+    // deliveryAddress "Le Baobab, Dakar Plateau", status preparing, sans
+    // mission liée dans les données de démo.
+    const config = resolveTrackingConfig("CMD-3050");
+    expect(config).not.toBeNull();
+    expect(config?.pickup.label).toBe("Coopérative Sow");
+    expect(config?.dropoff.label).toBe("Le Baobab, Dakar Plateau");
+    // status "preparing" -> pickup
+    expect(config?.step).toBe("pickup");
   });
 
   it("returns null for an unknown tracking id", () => {

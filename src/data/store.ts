@@ -24,6 +24,8 @@ import {
   restaurantBudget as seedRestaurantBudget,
   productReviews as seedProductReviews,
   restaurantProfile as seedRestaurantProfile,
+  farmers,
+  restaurants,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
@@ -56,6 +58,8 @@ import {
   type DriverPaymentMethod,
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
+import { cityCoords } from "@/lib/tracking/geo";
+import { haversineKm } from "@/lib/tracking/geo-math";
 
 type Listener = () => void;
 
@@ -627,15 +631,40 @@ export const supplierActions = {
   },
 };
 
+function vehicleForWeight(kg: number): Mission["vehicleType"] {
+  if (kg > 80) return "Camion";
+  if (kg > 30) return "Camionnette";
+  return "Moto";
+}
+
+/** "Le Baobab, Dakar Plateau" -> "Dakar Plateau" (même règle que la
+ * résolution de suivi en direct, pour rester cohérent avec elle). */
+function lastAddressSegment(address: string): string {
+  const parts = address.split(",");
+  return parts[parts.length - 1]?.trim() || address;
+}
+
 export const restaurantOrderActions = {
   /** Passe commande auprès d'un agriculteur : crée aussi la commande côté
-   * agriculteur (même référence), déduit le stock, et notifie l'agriculteur.
-   * Sans ce pont, la commande restait invisible côté producteur. */
-  create: (o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status">) => {
+   * agriculteur (même référence), déduit le stock, notifie l'agriculteur, et
+   * ouvre une vraie mission de livraison disponible pour un livreur. Sans ce
+   * pont, la commande restait invisible côté producteur et aucun livreur réel
+   * ne pouvait jamais être associé à la livraison (le suivi affichait un nom
+   * de livreur codé en dur, sans rapport avec une vraie affectation). */
+  create: (
+    o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status" | "statusHistory">,
+  ) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
     const createdAt = new Date().toISOString();
-    const next: RestaurantOrder = { ...o, id, reference, status: "pending", createdAt };
+    const next: RestaurantOrder = {
+      ...o,
+      id,
+      reference,
+      status: "pending",
+      createdAt,
+      statusHistory: [{ status: "pending", at: createdAt }],
+    };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 
     orderActions.create({
@@ -654,14 +683,59 @@ export const restaurantOrderActions = {
       body: `${reference} — ${formatFCFA(o.total)}`,
     });
 
+    const farmer = farmers.find((f) => f.id === o.farmerId);
+    const restaurant = restaurants.find((r) => r.id === "r1");
+    if (farmer) {
+      const pickupCoords = cityCoords(farmer.city);
+      const dropoffCity = lastAddressSegment(o.deliveryAddress);
+      const dropoffCoords = cityCoords(dropoffCity);
+      const distanceKm = Math.max(1, Math.round(haversineKm(pickupCoords, dropoffCoords)));
+      const estimatedMinutes = Math.max(10, Math.round((distanceKm / 42) * 60));
+      const weightKg = o.items.reduce((s, i) => s + i.qty, 0);
+      const payout = Math.round((distanceKm * 120) / 50) * 50;
+      missionsStore.set((arr) => [
+        {
+          id: `mi_${Date.now()}`,
+          reference: `MIS-${4300 + Math.floor(Math.random() * 699)}`,
+          orderRef: reference,
+          farmerId: o.farmerId,
+          restaurantId: "r1",
+          status: "available",
+          pickup: {
+            address: `${farmer.farm}, ${farmer.city}`,
+            city: farmer.city,
+            ...pickupCoords,
+            contactPhone: farmer.phone,
+          },
+          dropoff: {
+            address: o.deliveryAddress,
+            city: dropoffCity,
+            ...dropoffCoords,
+            contactPhone: restaurant?.phone ?? "",
+          },
+          distanceKm,
+          estimatedMinutes,
+          payout,
+          weightKg,
+          itemsCount: o.items.length,
+          scheduledFor: createdAt,
+          createdAt,
+          vehicleType: vehicleForWeight(weightKg),
+          urgency: o.eta?.startsWith("Aujourd'hui") ? "priority" : "standard",
+        },
+        ...arr,
+      ]);
+    }
+
     return id;
   },
   setStatus: (id: string, status: OrderStatus) => {
     let updated: RestaurantOrder | undefined;
+    const at = new Date().toISOString();
     restaurantOrdersStore.set((arr) =>
       arr.map((o) => {
         if (o.id !== id) return o;
-        updated = { ...o, status };
+        updated = { ...o, status, statusHistory: [...o.statusHistory, { status, at }] };
         return updated;
       }),
     );
@@ -741,8 +815,13 @@ export const orderActions = {
     if (!updated) return;
 
     // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
+    const at = new Date().toISOString();
     restaurantOrdersStore.set((arr) =>
-      arr.map((o) => (o.reference === updated!.reference ? { ...o, status } : o)),
+      arr.map((o) =>
+        o.reference === updated!.reference
+          ? { ...o, status, statusHistory: [...o.statusHistory, { status, at }] }
+          : o,
+      ),
     );
     const notif = RESTAURANT_STATUS_NOTIF[status];
     if (notif) {

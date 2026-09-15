@@ -938,6 +938,10 @@ export type RestaurantOrder = {
   eta?: string;
   deliveryAddress: string;
   paymentMethod: PaymentMethod;
+  // Horodatage réel de chaque transition, alimenté à chaque changement de
+  // statut. Pour les commandes de démo déjà existantes, on ne connaît que
+  // l'état observé à leur création — pas d'heures de transition inventées.
+  statusHistory: { status: OrderStatus; at: string }[];
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -955,6 +959,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     eta: "18 min",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
+    statusHistory: [{ status: "delivering", at: "2025-05-15T09:00:00Z" }],
   },
   {
     id: "ro_2",
@@ -966,6 +971,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-15T08:15:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Orange Money",
+    statusHistory: [{ status: "preparing", at: "2025-05-15T08:15:00Z" }],
   },
   {
     id: "ro_3",
@@ -977,6 +983,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-14T14:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
+    statusHistory: [{ status: "delivered", at: "2025-05-14T14:00:00Z" }],
   },
   {
     id: "ro_4",
@@ -991,6 +998,7 @@ export const restaurantOrders: RestaurantOrder[] = [
     createdAt: "2025-05-15T11:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Free Money",
+    statusHistory: [{ status: "pending", at: "2025-05-15T11:00:00Z" }],
   },
 ];
 
@@ -1427,6 +1435,41 @@ export const missions: Mission[] = [
     itemsCount: 1,
     scheduledFor: "2025-05-11T09:00:00Z",
     createdAt: "2025-05-11T08:30:00Z",
+    vehicleType: "Moto",
+    urgency: "standard",
+  },
+  // Mission liée à la commande restaurant CMD-3051 (ro_1, "En livraison") :
+  // sans elle, le suivi de cette commande n'aurait aucun vrai livreur à
+  // afficher alors qu'elle est déjà en cours de livraison dans la démo.
+  {
+    id: "mi10",
+    reference: "MIS-4220",
+    orderRef: "CMD-3051",
+    farmerId: "f1",
+    restaurantId: "r1",
+    driverId: "d1",
+    status: "loaded",
+    pickup: {
+      address: "Route de Khombole km 3, Thiès",
+      city: "Thiès",
+      lat: 14.79,
+      lng: -16.93,
+      contactPhone: "+221 77 123 45 67",
+    },
+    dropoff: {
+      address: "Le Baobab, Dakar Plateau",
+      city: "Dakar",
+      lat: 14.67,
+      lng: -17.43,
+      contactPhone: "+221 33 821 45 67",
+    },
+    distanceKm: 72,
+    estimatedMinutes: 95,
+    payout: 8500,
+    weightKg: 40,
+    itemsCount: 2,
+    scheduledFor: "2025-05-15T09:30:00Z",
+    createdAt: "2025-05-15T09:00:00Z",
     vehicleType: "Moto",
     urgency: "standard",
   },
