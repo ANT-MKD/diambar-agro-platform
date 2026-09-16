@@ -1132,6 +1132,13 @@ export type RestaurantOrder = {
   // statut. Pour les commandes de démo déjà existantes, on ne connaît que
   // l'état observé à leur création — pas d'heures de transition inventées.
   statusHistory: { status: OrderStatus; at: string }[];
+  // Avec un vrai gateway (Wave/Orange Money/Free Money), le paiement est
+  // confirmé immédiatement à la commande — pas d'action manuelle possible
+  // ensuite. En espèces, le règlement n'est réel qu'à la livraison
+  // effective (paiement à la livraison), donc `paid` ne bascule qu'au
+  // moment où le statut passe réellement à "delivered".
+  paid: boolean;
+  paidAt?: string;
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -1150,6 +1157,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
     statusHistory: [{ status: "delivering", at: "2025-05-15T09:00:00Z" }],
+    paid: true,
+    paidAt: "2025-05-15T09:00:00Z",
   },
   {
     id: "ro_2",
@@ -1162,6 +1171,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Orange Money",
     statusHistory: [{ status: "preparing", at: "2025-05-15T08:15:00Z" }],
+    paid: true,
+    paidAt: "2025-05-15T08:15:00Z",
   },
   {
     id: "ro_3",
@@ -1174,6 +1185,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
     statusHistory: [{ status: "delivered", at: "2025-05-14T14:00:00Z" }],
+    paid: true,
+    paidAt: "2025-05-14T14:00:00Z",
   },
   {
     id: "ro_4",
@@ -1187,8 +1200,12 @@ export const restaurantOrders: RestaurantOrder[] = [
     status: "pending",
     createdAt: "2025-05-15T11:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
-    paymentMethod: "Free Money",
+    // Seule commande en espèces du jeu de données de démo : elle reste
+    // non payée tant qu'elle n'est pas réellement livrée (paiement à la
+    // livraison), ce qui permet de démontrer honnêtement le cas "à payer".
+    paymentMethod: "Espèces",
     statusHistory: [{ status: "pending", at: "2025-05-15T11:00:00Z" }],
+    paid: false,
   },
 ];
 

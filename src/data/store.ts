@@ -662,12 +662,20 @@ export const restaurantOrderActions = {
    * ne pouvait jamais être associé à la livraison (le suivi affichait un nom
    * de livreur codé en dur, sans rapport avec une vraie affectation). */
   create: (
-    o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status" | "statusHistory">,
+    o: Omit<
+      RestaurantOrder,
+      "id" | "reference" | "createdAt" | "status" | "statusHistory" | "paid" | "paidAt"
+    >,
     opts?: { forceUrgency?: Mission["urgency"] },
   ) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
     const createdAt = new Date().toISOString();
+    // Wave / Orange Money / Free Money : un vrai gateway confirmerait le
+    // paiement à l'instant de la commande, donc la facture est payée dès
+    // la création. En espèces, rien n'est réellement encaissé avant la
+    // livraison : `paid` ne bascule que dans setStatus() ci-dessous.
+    const paidNow = o.paymentMethod !== "Espèces";
     const next: RestaurantOrder = {
       ...o,
       id,
@@ -675,6 +683,8 @@ export const restaurantOrderActions = {
       status: "pending",
       createdAt,
       statusHistory: [{ status: "pending", at: createdAt }],
+      paid: paidNow,
+      paidAt: paidNow ? createdAt : undefined,
     };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 
@@ -747,7 +757,17 @@ export const restaurantOrderActions = {
     restaurantOrdersStore.set((arr) =>
       arr.map((o) => {
         if (o.id !== id) return o;
-        updated = { ...o, status, statusHistory: [...o.statusHistory, { status, at }] };
+        // Paiement à la livraison réel : une commande en espèces n'est
+        // considérée payée qu'au moment où elle passe effectivement à
+        // "delivered", jamais avant.
+        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
+        updated = {
+          ...o,
+          status,
+          statusHistory: [...o.statusHistory, { status, at }],
+          paid: settlesCash ? true : o.paid,
+          paidAt: settlesCash ? at : o.paidAt,
+        };
         return updated;
       }),
     );
@@ -829,11 +849,17 @@ export const orderActions = {
     // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
     const at = new Date().toISOString();
     restaurantOrdersStore.set((arr) =>
-      arr.map((o) =>
-        o.reference === updated!.reference
-          ? { ...o, status, statusHistory: [...o.statusHistory, { status, at }] }
-          : o,
-      ),
+      arr.map((o) => {
+        if (o.reference !== updated!.reference) return o;
+        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
+        return {
+          ...o,
+          status,
+          statusHistory: [...o.statusHistory, { status, at }],
+          paid: settlesCash ? true : o.paid,
+          paidAt: settlesCash ? at : o.paidAt,
+        };
+      }),
     );
     const notif = RESTAURANT_STATUS_NOTIF[status];
     if (notif) {
