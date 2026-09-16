@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { farmers, restaurants } from "@/data/mocks";
 import { useProducts, useAllProductReviews, useRestaurantOrders, useSuppliers } from "@/data/store";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
+import { useReviews as useBusinessReviews } from "@/data/business";
 
 export const Route = createFileRoute("/restaurant/suppliers/compare")({
   validateSearch: z.object({ ids: z.string().optional() }),
@@ -31,6 +32,7 @@ function SuppliersComparePage() {
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const products = useProducts();
   const reviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const orders = useRestaurantOrders();
   const suppliers = useSuppliers();
 
@@ -68,7 +70,13 @@ function SuppliersComparePage() {
 
   const stats = rows.map((f) => {
     const offer = products.filter((p) => p.farmerId === f.id);
-    const { avgRating, reviewCount } = farmerReviewStats(f.id, products, reviews, f.rating);
+    const { avgRating, reviewCount } = farmerReviewStats(
+      f.id,
+      products,
+      reviews,
+      f.rating,
+      businessReviews,
+    );
     const delivery = farmerDeliveryEstimate(f.id, f.city, myRestaurant?.city ?? "", orders);
     const inCarnet = suppliers.some(
       (s) => s.restaurantId === myRestaurant?.id && s.farmerId === f.id,

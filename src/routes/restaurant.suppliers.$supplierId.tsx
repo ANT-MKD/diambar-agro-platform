@@ -33,6 +33,7 @@ import {
 } from "@/data/store";
 import { farmers, products, restaurants } from "@/data/mocks";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
+import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId")({
@@ -54,6 +55,7 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
   const s = useSupplier(supplierId);
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   // Un fournisseur n'appartient qu'au carnet du restaurant qui l'a créé :
   // un accès direct par URL à la fiche d'un autre restaurant doit échouer,
   // comme pour les conversations de messagerie.
@@ -67,7 +69,7 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
   const offer = f ? products.filter((p) => p.farmerId === f.id) : [];
   const stats = supplierOrderStats(orders, s.farmerId);
   const { avgRating, reviewCount } = f
-    ? farmerReviewStats(f.id, products, reviews, f.rating)
+    ? farmerReviewStats(f.id, products, reviews, f.rating, businessReviews)
     : { avgRating: 0, reviewCount: 0 };
   const delivery = f
     ? farmerDeliveryEstimate(f.id, f.city, myRestaurant?.city ?? "", orders)

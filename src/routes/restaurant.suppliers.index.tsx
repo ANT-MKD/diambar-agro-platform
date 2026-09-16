@@ -29,6 +29,7 @@ import {
   supplierOrderStats,
 } from "@/data/store";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
+import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,7 @@ function SuppliersList() {
   const allSuppliers = useSuppliers();
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const suppliers = useMemo(
     () => allSuppliers.filter((s) => s.restaurantId === myRestaurant?.id),
     [allSuppliers, myRestaurant],
@@ -119,13 +121,18 @@ function SuppliersList() {
           products,
           reviews,
           farmers.find((f) => f.id === s.farmerId)?.rating ?? 0,
+          businessReviews,
         ).avgRating,
     );
   const avgRating =
     carnetRatings.length > 0 ? carnetRatings.reduce((a, b) => a + b, 0) / carnetRatings.length : 0;
   const totalReviews = suppliers
     .filter((s) => s.farmerId)
-    .reduce((s, sup) => s + farmerReviewStats(sup.farmerId!, products, reviews, 0).reviewCount, 0);
+    .reduce(
+      (s, sup) =>
+        s + farmerReviewStats(sup.farmerId!, products, reviews, 0, businessReviews).reviewCount,
+      0,
+    );
 
   const filteredSuppliers = useMemo(() => {
     return suppliers
@@ -162,12 +169,13 @@ function SuppliersList() {
           products,
           reviews,
           farmers.find((f) => f.id === s.farmerId)?.rating ?? 0,
+          businessReviews,
         );
         return { supplier: s, rating, totalOrders: stats.totalOrders };
       })
       .sort((a, b) => b.rating - a.rating || b.totalOrders - a.totalOrders)
       .slice(0, 3);
-  }, [suppliers, orders, reviews]);
+  }, [suppliers, orders, reviews, businessReviews]);
 
   const addToCarnet = (farmerId: string) => {
     if (!myRestaurant) return;
@@ -332,7 +340,7 @@ function SuppliersList() {
                 const offer = f ? products.filter((p) => p.farmerId === f.id) : [];
                 const stats = supplierOrderStats(orders, s.farmerId);
                 const { avgRating: rating, reviewCount } = f
-                  ? farmerReviewStats(f.id, products, reviews, f.rating)
+                  ? farmerReviewStats(f.id, products, reviews, f.rating, businessReviews)
                   : { avgRating: 0, reviewCount: 0 };
                 const delivery = f
                   ? farmerDeliveryEstimate(f.id, f.city, myRestaurant?.city ?? "", orders)
@@ -503,6 +511,7 @@ function SuppliersList() {
                       products,
                       reviews,
                       f.rating,
+                      businessReviews,
                     );
                     const delivery = farmerDeliveryEstimate(
                       f.id,

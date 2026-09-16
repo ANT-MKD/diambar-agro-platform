@@ -192,21 +192,23 @@ function ReturnsPage() {
               <p className="text-sm">{r.description}</p>
               {r.photos && r.photos.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {r.photos.map((p) => (
-                    <a
-                      key={p.id}
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-16 w-16 rounded-lg overflow-hidden border border-border shrink-0"
-                    >
-                      <img
-                        src={p.url}
-                        alt={`Preuve envoyée par ${p.by}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </a>
-                  ))}
+                  {r.photos.map((p) =>
+                    p.dataUrl ? (
+                      <a
+                        key={p.id}
+                        href={p.dataUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block h-16 w-16 rounded-lg overflow-hidden border border-border shrink-0"
+                      >
+                        <img
+                          src={p.dataUrl}
+                          alt={`Preuve envoyée par ${p.by}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </a>
+                    ) : null,
+                  )}
                 </div>
               )}
               {r.decisionNote && (

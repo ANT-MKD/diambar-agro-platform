@@ -79,12 +79,18 @@ export type Dispute = {
 export type CreditNote = {
   id: string;
   reference: string;
-  disputeId: string;
+  source: "dispute" | "return";
+  disputeId?: string;
+  returnId?: string;
   beneficiaryRole: DisputeParty;
   beneficiaryName: string;
   amount: number;
   at: string;
+  // Un avoir litige est un geste immédiat sans expiration ; un avoir retour
+  // suit une vraie règle métier (90 jours), pour rester crédible.
+  expiresAt?: string;
   status: "issued" | "applied";
+  usedOnOrderRef?: string;
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -457,6 +463,7 @@ const seedCredits: CreditNote[] = [
   {
     id: "cn1",
     reference: "AV-0031",
+    source: "dispute",
     disputeId: "dp3",
     beneficiaryRole: "restaurant",
     beneficiaryName: "Chez Aminata",
@@ -514,6 +521,60 @@ export function useDisputesForRole(role: DisputeParty) {
 export function useCreditNotes() {
   return useSyncExternalStore(creditsStore.subscribe, creditsStore.get, creditsStore.get);
 }
+/** Avoirs d'un restaurant donné, litiges + retours confondus (un seul
+ * registre réel plutôt que deux systèmes déconnectés). */
+export function useCreditNotesForRestaurant(restaurantName: string) {
+  return useCreditNotes().filter(
+    (c) => c.beneficiaryRole === "restaurant" && c.beneficiaryName === restaurantName,
+  );
+}
+export function isCreditExpired(c: CreditNote) {
+  return !!c.expiresAt && new Date(c.expiresAt).getTime() < Date.now();
+}
+function nextCreditRef(arr: CreditNote[]) {
+  const max = arr.reduce(
+    (n, c) => Math.max(n, parseInt(c.reference.split("-")[1] ?? "0", 10) || 0),
+    31,
+  );
+  return `AV-${String(max + 1).padStart(4, "0")}`;
+}
+export const creditActions = {
+  /** Émet un vrai avoir suite à un retour accepté par le producteur — plus
+   * une simple chaîne de texte posée sur le retour, mais une entrée réelle
+   * du registre d'avoirs, avec solde et expiration réels. */
+  issueForReturn: (returnId: string, beneficiaryName: string, amount: number) => {
+    const id = `cn_${Date.now()}`;
+    const reference = nextCreditRef(creditsStore.get());
+    const at = new Date().toISOString();
+    creditsStore.set((arr) => [
+      {
+        id,
+        reference,
+        source: "return",
+        returnId,
+        beneficiaryRole: "restaurant",
+        beneficiaryName,
+        amount,
+        at,
+        expiresAt: new Date(Date.now() + 90 * 86_400_000).toISOString(),
+        status: "issued",
+      },
+      ...arr,
+    ]);
+    return { id, reference };
+  },
+  /** Applique réellement un avoir à une commande (au checkout) : le solde
+   * disponible baisse pour de vrai, pas juste visuellement. */
+  redeem: (id: string, orderRef: string) => {
+    creditsStore.set((arr) =>
+      arr.map((c) =>
+        c.id === id && c.status === "issued" && !isCreditExpired(c)
+          ? { ...c, status: "applied", usedOnOrderRef: orderRef }
+          : c,
+      ),
+    );
+  },
+};
 
 export const PARTY_LABEL: Record<DisputeParty, string> = {
   restaurant: "Restaurant",
@@ -817,7 +878,8 @@ export const disputeActions = {
       creditsStore.set((arr) => [
         {
           id: `cn_${Date.now()}`,
-          reference: `AV-${String(31 + arr.length + 1).padStart(4, "0")}`,
+          reference: nextCreditRef(arr),
+          source: "dispute",
           disputeId: id,
           beneficiaryRole: d.openedByRole,
           beneficiaryName: d.openedByName,

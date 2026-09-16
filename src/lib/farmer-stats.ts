@@ -1,23 +1,31 @@
 import { cityCoords } from "@/lib/tracking/geo";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import type { Product, ProductReview, RestaurantOrder } from "@/data/mocks";
+import { reviewScore, type Review } from "@/data/business";
 
-/** Note + nombre d'avis réels d'un producteur, agrégés depuis les vrais
- * avis laissés sur ses produits (pas un chiffre affiché au hasard). Se
- * rabat sur la note de base du producteur tant qu'aucun avis n'existe. */
+/** Note + nombre d'avis réels d'un producteur, agrégés depuis les avis
+ * produits (marketplace) ET les évaluations post-livraison (page
+ * Évaluations) — les deux alimentaient auparavant deux notes différentes
+ * et déconnectées pour le même producteur. Se rabat sur la note de base
+ * du producteur tant qu'aucun avis n'existe. */
 export function farmerReviewStats(
   farmerId: string,
   products: Product[],
   reviews: ProductReview[],
   fallbackRating: number,
+  businessReviews: Review[] = [],
 ): { avgRating: number; reviewCount: number } {
   const farmerProductIds = new Set(
     products.filter((p) => p.farmerId === farmerId).map((p) => p.id),
   );
-  const farmerReviews = reviews.filter((r) => farmerProductIds.has(r.productId));
-  if (farmerReviews.length === 0) return { avgRating: fallbackRating, reviewCount: 0 };
-  const avgRating = farmerReviews.reduce((s, r) => s + r.rating, 0) / farmerReviews.length;
-  return { avgRating, reviewCount: farmerReviews.length };
+  const productRatings = reviews
+    .filter((r) => farmerProductIds.has(r.productId))
+    .map((r) => r.rating);
+  const deliveryRatings = businessReviews.filter((r) => r.supplierId === farmerId).map(reviewScore);
+  const all = [...productRatings, ...deliveryRatings];
+  if (all.length === 0) return { avgRating: fallbackRating, reviewCount: 0 };
+  const avgRating = all.reduce((s, v) => s + v, 0) / all.length;
+  return { avgRating, reviewCount: all.length };
 }
 
 /** Estimation réelle du délai de livraison d'un producteur : basée sur la

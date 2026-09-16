@@ -22,7 +22,9 @@ import {
   restaurantProfileActions,
   onboardingActions,
   useSuppliers,
+  getRestaurantOrderById,
 } from "@/data/store";
+import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
 import { farmers, restaurants, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -62,7 +64,16 @@ function Checkout() {
   const delivery = Math.round(subtotal * 0.03);
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
-  const total = Math.max(0, subtotal + delivery - promoDiscount);
+
+  const credits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
+  const availableCredits = credits.filter((c) => c.status === "issued" && !isCreditExpired(c));
+  const [appliedCreditId, setAppliedCreditId] = useState<string | null>(null);
+  const appliedCredit = availableCredits.find((c) => c.id === appliedCreditId) ?? null;
+  const creditDiscount = appliedCredit
+    ? Math.min(appliedCredit.amount, Math.max(0, subtotal + delivery - promoDiscount))
+    : 0;
+
+  const total = Math.max(0, subtotal + delivery - promoDiscount - creditDiscount);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [orderIds, setOrderIds] = useState<string[]>([]);
@@ -74,6 +85,7 @@ function Checkout() {
     subtotal: number;
     delivery: number;
     discount: number;
+    creditApplied: number;
     total: number;
   } | null>(null);
   const [address, setAddress] = useState(profile.deliveryAddress);
@@ -120,9 +132,11 @@ function Checkout() {
         .filter((l) => l.product.farmerId === f.id)
         .map((l) => ({ productId: l.productId, qty: l.qty, price: l.product.pricePerKg }));
       const fSubtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
-      // Une remise ne se répartit pas naturellement entre plusieurs
-      // producteurs : on l'impute simplement à la première commande créée.
-      const fTotal = idx === 0 ? Math.max(0, fSubtotal - promoDiscount) : fSubtotal;
+      // Une remise (promo ou avoir) ne se répartit pas naturellement entre
+      // plusieurs producteurs : on l'impute simplement à la première
+      // commande créée.
+      const fTotal =
+        idx === 0 ? Math.max(0, fSubtotal - promoDiscount - creditDiscount) : fSubtotal;
       const id = restaurantOrderActions.create({
         farmerId: f.id,
         items,
@@ -133,12 +147,19 @@ function Checkout() {
       });
       created.push(id);
     });
+    if (appliedCredit && created[0]) {
+      // Applique réellement l'avoir : son solde baisse pour de vrai et il
+      // est marqué utilisé, plus une simple réduction visuelle.
+      const ref = getRestaurantOrderById(created[0])?.reference ?? created[0];
+      creditActions.redeem(appliedCredit.id, ref);
+    }
     setOrderIds(created);
     setConfirmedSummary({
       count: farmerGroups.length,
       subtotal,
       delivery,
       discount: promoDiscount,
+      creditApplied: creditDiscount,
       total,
     });
     cartActions.clear();
@@ -310,6 +331,39 @@ function Checkout() {
             />
           )}
 
+          {step !== 3 && availableCredits.length > 0 && (
+            <div className="border-t border-border pt-3 space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">
+                Avoirs disponibles ({formatFCFA(availableCredits.reduce((s, c) => s + c.amount, 0))}
+                )
+              </div>
+              {appliedCredit ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs">
+                  <span>
+                    {appliedCredit.reference} appliqué · −{formatFCFA(creditDiscount)}
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => setAppliedCreditId(null)}>
+                    Retirer
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {availableCredits.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setAppliedCreditId(c.id)}
+                      className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent/40 transition"
+                    >
+                      <span className="font-mono">{c.reference}</span>
+                      <span className="font-semibold">{formatFCFA(c.amount)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="border-t border-border pt-2 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sous-total</span>
@@ -323,6 +377,14 @@ function Checkout() {
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                 <span>Remise{!confirmedSummary && promoCode ? ` (${promoCode})` : ""}</span>
                 <span>−{formatFCFA(confirmedSummary?.discount ?? promoDiscount)}</span>
+              </div>
+            )}
+            {(confirmedSummary?.creditApplied ?? creditDiscount) > 0 && (
+              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                <span>
+                  Avoir{!confirmedSummary && appliedCredit ? ` (${appliedCredit.reference})` : ""}
+                </span>
+                <span>−{formatFCFA(confirmedSummary?.creditApplied ?? creditDiscount)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-lg pt-1">

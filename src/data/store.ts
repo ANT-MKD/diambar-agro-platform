@@ -204,6 +204,12 @@ export function useRestaurantOrders() {
 export function useRestaurantOrder(id: string) {
   return useRestaurantOrders().find((o) => o.id === id) ?? null;
 }
+/** Lecture directe (hors React) pour retrouver la vraie référence d'une
+ * commande juste après sa création, sans changer la signature historique
+ * de restaurantOrderActions.create() utilisée à plusieurs endroits. */
+export function getRestaurantOrderById(id: string) {
+  return restaurantOrdersStore.get().find((o) => o.id === id) ?? null;
+}
 
 export function useSuppliers() {
   return useSyncExternalStore(suppliersStore.subscribe, suppliersStore.get, suppliersStore.get);
