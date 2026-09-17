@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useRestaurantOrders } from "@/data/store";
+import { useRestaurantOrders, useRestaurantProfile } from "@/data/store";
 import { farmers } from "@/data/mocks";
 import { useAllDisputes } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/restaurant/invoices")({
 function InvoicesLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const orders = useRestaurantOrders();
+  const profile = useRestaurantProfile();
   const disputes = useAllDisputes();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "paid" | "pending" | "disputed">("all");
@@ -38,7 +39,7 @@ function InvoicesLayout() {
   );
 
   const nowYear = new Date().getFullYear();
-  const overdue = orders.filter(isInvoiceOverdue);
+  const overdue = orders.filter((o) => isInvoiceOverdue(o, profile.paymentTermsDays));
   const unpaidCash = orders.filter((o) => !o.paid);
   const paidOrders = orders.filter((o) => o.paid);
   const totalInvoiced = orders.reduce((s, o) => s + o.total, 0);
@@ -112,8 +113,8 @@ function InvoicesLayout() {
         <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-amber-500/30 bg-amber-500/5">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
           <div className="flex-1 text-sm">
-            <b>{overdue.length} facture(s) en espèces en retard</b> — plus de 14 jours sans
-            livraison, donc sans règlement réel.
+            <b>{overdue.length} facture(s) en espèces en retard</b> — plus de{" "}
+            {profile.paymentTermsDays} jours sans livraison, donc sans règlement réel.
           </div>
         </div>
       )}
@@ -230,7 +231,7 @@ function InvoicesLayout() {
                       {disputed ? "Contestée" : o.paid ? "Payée" : "En attente"}
                     </span>
                   </div>
-                  {isInvoiceOverdue(o) && !disputed && (
+                  {isInvoiceOverdue(o, profile.paymentTermsDays) && !disputed && (
                     <span className="inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                       Retard
                     </span>

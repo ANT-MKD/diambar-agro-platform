@@ -40,6 +40,7 @@ import {
   useSuppliers,
   useRestaurantBudget,
   restaurantBudgetActions,
+  useRestaurantProfile,
 } from "@/data/store";
 import { useReturns } from "@/data/business";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
@@ -83,6 +84,7 @@ function Dashboard() {
   const suppliers = useSuppliers();
   const returns = useReturns();
   const budget = useRestaurantBudget();
+  const profile = useRestaurantProfile();
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget.monthly));
 
@@ -146,7 +148,7 @@ function Dashboard() {
   const lateOrders = orders.filter(isLate);
   const pendingOrders = orders.filter((o) => o.status === "pending");
   const outOfStock = products.filter((p) => p.status === "out");
-  const overdueInvoices = orders.filter(isInvoiceOverdue);
+  const overdueInvoices = orders.filter((o) => isInvoiceOverdue(o, profile.paymentTermsDays));
   const pendingReturns = returns.filter(
     (r) => r.restaurantName === user.name && r.status === "pending",
   );

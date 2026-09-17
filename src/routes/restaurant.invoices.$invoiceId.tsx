@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, Download, Printer, Repeat, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRestaurantOrder, useRecurringOrders } from "@/data/store";
+import { useRestaurantOrder, useRecurringOrders, useRestaurantProfile } from "@/data/store";
 import { farmers, restaurants } from "@/data/mocks";
 import { useAllDisputes, STATUS_LABEL } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
@@ -19,6 +19,7 @@ function InvoiceDetail() {
   const order = useRestaurantOrder(invoiceId);
   const disputes = useAllDisputes();
   const recurringOrders = useRecurringOrders();
+  const profile = useRestaurantProfile();
 
   if (!order)
     return <div className="p-12 text-center text-muted-foreground">Facture introuvable</div>;
@@ -28,7 +29,7 @@ function InvoiceDetail() {
   const dispute = disputes.find((d) => d.orderId === order.id);
   const originRecurring = recurringOrders.find((ro) => ro.generatedOrderIds.includes(order.id));
   const invoiceNo = invoiceNumberFor(order.id);
-  const invoiceData = buildInvoiceData(order, farmer, myRestaurant);
+  const invoiceData = buildInvoiceData(order, farmer, myRestaurant, profile.paymentTermsDays);
   const fmtLongDate = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",

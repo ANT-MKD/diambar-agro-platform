@@ -384,6 +384,7 @@ export const faq = [
 ];
 
 export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
+export const PAYMENT_METHODS: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 export type Transaction = {
   id: string;
   date: string;
@@ -788,13 +789,69 @@ export const teamMembers: TeamMember[] = [
   { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
 ];
 
+export type RestaurantTeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "owner" | "buyer" | "chef" | "accountant" | "viewer";
+  status: "active" | "invited";
+};
+
+export const restaurantTeamMembers: RestaurantTeamMember[] = [
+  { id: "rt1", name: "Fatou Sarr", email: "fatou@lebaobab.sn", role: "owner", status: "active" },
+  { id: "rt2", name: "Cheikh Fall", email: "cheikh@lebaobab.sn", role: "chef", status: "active" },
+  {
+    id: "rt3",
+    name: "Mariama Ba",
+    email: "compta@lebaobab.sn",
+    role: "accountant",
+    status: "active",
+  },
+  { id: "rt4", name: "—", email: "achat@lebaobab.sn", role: "buyer", status: "invited" },
+];
+
 export type RestaurantBudget = {
   monthly: number;
 };
 
+export type ReceptionDay =
+  "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
+export const RECEPTION_DAYS: ReceptionDay[] = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
+export type ReceptionSlot = { open: boolean; from: string; to: string };
+
 export type RestaurantProfile = {
+  // Préférences de commande (déjà utilisées au checkout)
   deliveryAddress: string;
   paymentMethod: PaymentMethod;
+
+  // Profil
+  displayName: string;
+  cuisine: string;
+  phone: string;
+  email: string;
+  manager: string;
+  bio: string;
+  avatarUrl: string;
+  newsletter: boolean;
+
+  // Établissement
+  city: string;
+  capacity: number;
+  ninea: string;
+  receptionHours: Record<ReceptionDay, ReceptionSlot>;
+
+  // Paiements
+  enabledPaymentMethods: PaymentMethod[];
+  billingEmail: string;
+  paymentTermsDays: number;
 };
 
 // Reprend l'adresse déjà utilisée dans l'historique réel des commandes de ce
@@ -803,6 +860,26 @@ export type RestaurantProfile = {
 export const restaurantProfile: RestaurantProfile = {
   deliveryAddress: "Le Baobab, Dakar Plateau",
   paymentMethod: "Wave",
+
+  displayName: "Le Baobab",
+  cuisine: "Sénégalaise",
+  phone: "+221 77 123 45 67",
+  email: "contact@lebaobab.sn",
+  manager: "Fatou Sarr",
+  bio: "Cuisine sénégalaise contemporaine, 80 couverts, approvisionnement local.",
+  avatarUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200",
+  newsletter: true,
+
+  city: "Dakar",
+  capacity: 80,
+  ninea: "00512345 2A2",
+  receptionHours: Object.fromEntries(
+    RECEPTION_DAYS.map((d) => [d, { open: d !== "Dimanche", from: "07:00", to: "11:00" }]),
+  ) as Record<ReceptionDay, ReceptionSlot>,
+
+  enabledPaymentMethods: ["Wave", "Orange Money", "Free Money"],
+  billingEmail: "compta@lebaobab.sn",
+  paymentTermsDays: 14,
 };
 
 export type ProductReview = {

@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SettingsCard, ToggleRow } from "@/components/common/settings-shell";
 import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
+
+const STORAGE_KEY = "diambar:notif-prefs:restaurant-settings";
 
 export const Route = createFileRoute("/restaurant/settings/notifications")({
   head: () => ({
@@ -56,46 +58,82 @@ const RULES = [
     label: "Livreur proche",
     condition: "ETA livreur < 10 min",
     channel: "WhatsApp + in-app",
-    firedThisMonth: 21,
   },
   {
     key: "late",
     label: "Retard de livraison",
     condition: "livraison en retard de plus de 20 min",
     channel: "SMS + email au gérant",
-    firedThisMonth: 4,
   },
   {
     key: "invoice",
     label: "Facture à échéance",
     condition: "facture impayée à J-3",
     channel: "Email + in-app",
-    firedThisMonth: 6,
   },
   {
     key: "restock",
     label: "Produit suivi de retour",
     condition: "produit favori de nouveau en stock",
     channel: "In-app quotidien",
-    firedThisMonth: 9,
   },
 ] as const;
 
+const DEFAULT_EVENTS: Record<string, boolean> = {
+  orders: true,
+  delivery: true,
+  invoices: true,
+  stock: true,
+  messages: true,
+  promos: false,
+};
+const DEFAULT_CHANNELS: Record<string, boolean> = {
+  inapp: true,
+  email: true,
+  sms: false,
+  whatsapp: true,
+};
+
 function RestaurantNotificationSettings() {
-  const [events, setEvents] = useState<Record<string, boolean>>({
-    orders: true,
-    delivery: true,
-    invoices: true,
-    stock: true,
-    messages: true,
-    promos: false,
-  });
-  const [channels, setChannels] = useState<Record<string, boolean>>({
-    inapp: true,
-    email: true,
-    sms: false,
-    whatsapp: true,
-  });
+  const [events, setEvents] = useState<Record<string, boolean>>(DEFAULT_EVENTS);
+  const [channels, setChannels] = useState<Record<string, boolean>>(DEFAULT_CHANNELS);
+
+  // Hydratation après montage uniquement (localStorage indisponible au premier
+  // rendu), pour rester cohérent avec le pattern déjà utilisé par ChannelMatrix
+  // et TriggerRules (usePersisted) sur cette même page.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { events?: typeof events; channels?: typeof channels };
+        if (saved.events) setEvents({ ...DEFAULT_EVENTS, ...saved.events });
+        if (saved.channels) setChannels({ ...DEFAULT_CHANNELS, ...saved.channels });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persist = (nextEvents: typeof events, nextChannels: typeof channels) => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ events: nextEvents, channels: nextChannels }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const setEventsPersisted = (v: typeof events) => {
+    setEvents(v);
+    persist(v, channels);
+  };
+  const setChannelsPersisted = (v: typeof channels) => {
+    setChannels(v);
+    persist(events, v);
+  };
+
   return (
     <>
       <SettingsCard title="Événements" description="Choisissez ce dont vous voulez être averti.">
@@ -105,7 +143,7 @@ function RestaurantNotificationSettings() {
             label={e.label}
             description={e.description}
             checked={events[e.key]}
-            onChange={(v) => setEvents({ ...events, [e.key]: v })}
+            onChange={(v) => setEventsPersisted({ ...events, [e.key]: v })}
           />
         ))}
       </SettingsCard>
@@ -118,7 +156,7 @@ function RestaurantNotificationSettings() {
             key={c.key}
             label={c.label}
             checked={channels[c.key]}
-            onChange={(v) => setChannels({ ...channels, [c.key]: v })}
+            onChange={(v) => setChannelsPersisted({ ...channels, [c.key]: v })}
           />
         ))}
       </SettingsCard>

@@ -8,13 +8,14 @@ export function invoiceNumberFor(id: string) {
   return `FAC-2025-${id.slice(-3).toUpperCase().padStart(3, "0")}`;
 }
 
-/** En retard : uniquement une commande réellement non payée depuis plus de
- * 14 jours (les paiements Wave/Orange Money/Free Money sont déjà réglés à
- * la commande, donc jamais "en retard"). */
-export function isInvoiceOverdue(o: RestaurantOrder) {
+/** En retard : uniquement une commande réellement non payée depuis plus que
+ * le délai de règlement configuré dans les paramètres Paiements (les
+ * paiements Wave/Orange Money/Free Money sont déjà réglés à la commande,
+ * donc jamais "en retard"). */
+export function isInvoiceOverdue(o: RestaurantOrder, paymentTermsDays: number) {
   if (o.paid) return false;
   const days = (Date.now() - new Date(o.createdAt).getTime()) / 86400_000;
-  return days > 14;
+  return days > paymentTermsDays;
 }
 
 function slugify(s: string) {
@@ -32,12 +33,13 @@ export function buildInvoiceData(
   order: RestaurantOrder,
   farmer: Farmer | undefined,
   restaurant: Restaurant | undefined,
+  paymentTermsDays: number,
 ): InvoiceData {
   const subtotal = order.items.reduce((s, i) => s + i.qty * i.price, 0);
   const vat = Math.round(subtotal * 0.18);
   const total = subtotal + vat;
   const issued = new Date(order.createdAt);
-  const due = new Date(issued.getTime() + 14 * 86400_000);
+  const due = new Date(issued.getTime() + paymentTermsDays * 86400_000);
   const buyerName = restaurant?.name ?? "Restaurant";
 
   return {

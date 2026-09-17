@@ -50,7 +50,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { useBudget, budgetActions } from "@/data/budget";
-import { useRestaurantOrders, useProducts, useSuppliers, useRecurringOrders } from "@/data/store";
+import {
+  useRestaurantOrders,
+  useProducts,
+  useSuppliers,
+  useRecurringOrders,
+  useRestaurantProfile,
+} from "@/data/store";
 import { isInvoiceOverdue } from "@/lib/invoice-data";
 import { itemsSubtotal } from "@/lib/recurring-engine";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
@@ -145,6 +151,7 @@ function BudgetPage() {
   const orders = useRestaurantOrders();
   const products = useProducts();
   const suppliers = useSuppliers();
+  const profile = useRestaurantProfile();
   const recurringOrders = useRecurringOrders();
 
   const [tab, setTab] = useState("apercu");
@@ -228,7 +235,7 @@ function BudgetPage() {
 
   const donutData = Object.entries(current.byRawCategory).map(([name, value]) => ({ name, value }));
 
-  const overdueOrders = orders.filter(isInvoiceOverdue);
+  const overdueOrders = orders.filter((o) => isInvoiceOverdue(o, profile.paymentTermsDays));
 
   const alerts = useMemo(() => {
     const list: Alert[] = [];
@@ -314,7 +321,7 @@ function BudgetPage() {
         tone: "rose",
         icon: Receipt,
         title: "Facture en retard",
-        body: `${overdueOrders.length} facture(s) en espèces non réglées depuis plus de 14 jours.`,
+        body: `${overdueOrders.length} facture(s) en espèces non réglées depuis plus de ${profile.paymentTermsDays} jours.`,
         to: "/restaurant/invoices",
         ctaLabel: "Voir les factures",
       });
@@ -332,6 +339,7 @@ function BudgetPage() {
     products,
     overdueOrders,
     budget.categories,
+    profile.paymentTermsDays,
   ]);
 
   const recentInMonth = [...current.ordersInMonth]

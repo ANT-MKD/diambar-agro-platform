@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cities } from "@/data/mocks";
+import { cities, RECEPTION_DAYS, type ReceptionDay, type ReceptionSlot } from "@/data/mocks";
+import { useRestaurantProfile, restaurantProfileActions } from "@/data/store";
 
 export const Route = createFileRoute("/restaurant/settings/establishment")({
   head: () => ({
@@ -30,25 +32,46 @@ export const Route = createFileRoute("/restaurant/settings/establishment")({
   component: EstablishmentSettings,
 });
 
-const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
-
 function EstablishmentSettings() {
+  const profile = useRestaurantProfile();
   const [form, setForm] = useState({
-    address: "Place de l'Indépendance, Dakar Plateau",
-    city: "Dakar",
-    capacity: "80",
-    ninea: "00512345 2A2",
+    address: profile.deliveryAddress,
+    city: profile.city,
+    capacity: String(profile.capacity),
+    ninea: profile.ninea,
   });
-  const [slots, setSlots] = useState<Record<string, { from: string; to: string; open: boolean }>>(
-    Object.fromEntries(
-      DAYS.map((d) => [d, { from: "07:00", to: "11:00", open: d !== "Dimanche" }]),
-    ),
-  );
+  const [slots, setSlots] = useState<Record<ReceptionDay, ReceptionSlot>>(profile.receptionHours);
+
+  const saveInfo = () => {
+    const capacity = Number(form.capacity);
+    if (!form.address.trim() || form.address.trim().length < 10) {
+      toast.error("Adresse trop courte (min 10 caractères)");
+      return false;
+    }
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      toast.error("Capacité invalide");
+      return false;
+    }
+    restaurantProfileActions.update({
+      deliveryAddress: form.address,
+      city: form.city,
+      capacity,
+      ninea: form.ninea,
+    });
+    return true;
+  };
+
+  const saveSlots = () => {
+    restaurantProfileActions.update({ receptionHours: slots });
+    return true;
+  };
+
   return (
     <>
       <SettingsCard
         title="Établissement"
         description="Coordonnées utilisées pour vos livraisons et factures."
+        onSave={saveInfo}
       >
         <FieldRow label="Adresse">
           <Input
@@ -86,10 +109,11 @@ function EstablishmentSettings() {
 
       <SettingsCard
         title="Créneaux de réception"
-        description="Heures pendant lesquelles vous pouvez recevoir les livraisons."
+        description="Heures pendant lesquelles vous pouvez recevoir les livraisons. Ces créneaux alimentent directement le choix proposé à vos producteurs au moment de la commande."
+        onSave={saveSlots}
       >
         <div className="space-y-2">
-          {DAYS.map((d) => (
+          {RECEPTION_DAYS.map((d) => (
             <div
               key={d}
               className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3"

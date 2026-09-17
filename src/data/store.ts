@@ -21,6 +21,7 @@ import {
   farmerFarm as seedFarmerFarm,
   paymentPrefs as seedPaymentPrefs,
   teamMembers as seedTeamMembers,
+  restaurantTeamMembers as seedRestaurantTeamMembers,
   restaurantBudget as seedRestaurantBudget,
   productReviews as seedProductReviews,
   restaurantProfile as seedRestaurantProfile,
@@ -31,6 +32,7 @@ import {
   type FarmerFarm,
   type PaymentPrefs,
   type TeamMember,
+  type RestaurantTeamMember,
   type RestaurantBudget,
   type ProductReview,
   type RestaurantProfile,
@@ -140,6 +142,10 @@ const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diamba
 const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
 const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
 const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
+const restaurantTeamStore = createStore<RestaurantTeamMember[]>(
+  seedRestaurantTeamMembers,
+  "diambar:restaurant-team",
+);
 const restaurantBudgetStore = createStore<RestaurantBudget>(
   seedRestaurantBudget,
   "diambar:restaurant-budget",
@@ -453,6 +459,25 @@ export const teamActions = {
   setRole: (id: string, role: TeamMember["role"]) =>
     teamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
   remove: (id: string) => teamStore.set((arr) => arr.filter((m) => m.id !== id)),
+};
+
+export function useRestaurantTeam() {
+  return useSyncExternalStore(
+    restaurantTeamStore.subscribe,
+    restaurantTeamStore.get,
+    restaurantTeamStore.get,
+  );
+}
+
+export const restaurantTeamActions = {
+  invite: (email: string, role: RestaurantTeamMember["role"]) => {
+    const id = `rt_${Date.now()}`;
+    restaurantTeamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    return id;
+  },
+  setRole: (id: string, role: RestaurantTeamMember["role"]) =>
+    restaurantTeamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
+  remove: (id: string) => restaurantTeamStore.set((arr) => arr.filter((m) => m.id !== id)),
 };
 
 export function useRestaurantBudget() {

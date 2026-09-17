@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,8 +25,9 @@ import {
   getRestaurantOrderById,
 } from "@/data/store";
 import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
-import { farmers, restaurants, type PaymentMethod } from "@/data/mocks";
+import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { nextReceptionSlots } from "@/lib/reception-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,8 +36,6 @@ export const Route = createFileRoute("/restaurant/checkout")({
   head: () => ({ meta: [{ title: "Commander · Restaurant" }] }),
   component: Checkout,
 });
-
-const PAY: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 
 const step1Schema = z.object({
   address: z.string().trim().min(10, "Adresse trop courte (min 10 caractères)"),
@@ -88,9 +87,17 @@ function Checkout() {
     creditApplied: number;
     total: number;
   } | null>(null);
+  const availableSlots = useMemo(
+    () => nextReceptionSlots(profile.receptionHours),
+    [profile.receptionHours],
+  );
+  const availableMethods =
+    profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
   const [address, setAddress] = useState(profile.deliveryAddress);
-  const [slot, setSlot] = useState("Demain · 08:00 – 10:00");
-  const [method, setMethod] = useState<PaymentMethod>(profile.paymentMethod);
+  const [slot, setSlot] = useState(availableSlots[0] ?? "");
+  const [method, setMethod] = useState<PaymentMethod>(
+    availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const farmerGroups = useMemo(
@@ -218,22 +225,30 @@ function Checkout() {
                 <Calendar className="h-5 w-5 text-primary" />
                 Créneau souhaité
               </h3>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {[
-                  "Aujourd'hui · 14:00 – 16:00",
-                  "Aujourd'hui · 17:00 – 19:00",
-                  "Demain · 08:00 – 10:00",
-                  "Demain · 14:00 – 16:00",
-                ].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSlot(s)}
-                    className={`text-left p-3 rounded-xl border text-sm transition ${slot === s ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+              {availableSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aucun créneau de réception n'est configuré. Ouvrez au moins un jour dans{" "}
+                  <Link
+                    to="/restaurant/settings/establishment"
+                    className="text-primary hover:underline"
                   >
-                    {s}
-                  </button>
-                ))}
-              </div>
+                    Paramètres → Établissement
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {availableSlots.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSlot(s)}
+                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               {errors.slot && (
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
@@ -256,7 +271,7 @@ function Checkout() {
                 Méthode de paiement
               </h3>
               <div className="grid sm:grid-cols-2 gap-2">
-                {PAY.map((m) => (
+                {availableMethods.map((m) => (
                   <button
                     key={m}
                     onClick={() => setMethod(m)}
