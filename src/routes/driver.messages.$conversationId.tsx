@@ -92,7 +92,12 @@ function DriverConversation() {
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
           {conv.messages.map((m) => (
-            <ChatBubble key={m.id} message={m} />
+            <ChatBubble
+              key={m.id}
+              message={m}
+              mine={m.from === "me"}
+              label={m.senderName ?? r?.name}
+            />
           ))}
         </div>
 

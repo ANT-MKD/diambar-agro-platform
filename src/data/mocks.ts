@@ -470,15 +470,23 @@ export type ChatAttachment = { name: string; dataUrl: string; mime: string };
 export type Conversation = {
   id: string;
   restaurantId: string;
+  // Un restaurant peut avoir une conversation par fournisseur de son
+  // carnet, pas seulement avec un unique producteur codé en dur.
+  farmerId: string;
   lastMessage: string;
   lastAt: string;
   unread: number;
-  // senderName: renseigné uniquement pour les messages injectés par l'admin
-  // depuis la messagerie de supervision, pour ne pas les faire passer pour
-  // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
+  // "from" est un rôle absolu (pas relatif à qui regarde l'écran), pour
+  // qu'un message envoyé par le restaurant s'affiche bien comme "envoyé
+  // par le restaurant" côté producteur ET côté restaurant — auparavant
+  // "me"/"them" étaient interprétés côté producteur uniquement, donc un
+  // message du restaurant s'affichait par erreur comme si c'était le
+  // producteur qui l'avait écrit.
+  // senderName : renseigné pour les messages injectés par l'admin depuis
+  // la messagerie de supervision.
   messages: {
     id: string;
-    from: "me" | "them";
+    from: "restaurant" | "farmer" | "admin";
     text: string;
     at: string;
     senderName?: string;
@@ -490,26 +498,27 @@ export const conversations: Conversation[] = [
   {
     id: "c1",
     restaurantId: "r1",
+    farmerId: "f1",
     lastMessage: "Parfait, on confirme pour demain matin 8h.",
     lastAt: "2025-05-15T10:42:00Z",
     unread: 2,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Bonjour Mamadou, vous avez encore des tomates fraîches ?",
         at: "2025-05-15T10:30:00Z",
       },
       {
         id: "m2",
-        from: "me",
+        from: "farmer",
         text: "Oui chef, j'ai 60kg disponibles ce matin.",
         at: "2025-05-15T10:35:00Z",
       },
-      { id: "m3", from: "them", text: "Je prends 50kg.", at: "2025-05-15T10:38:00Z" },
+      { id: "m3", from: "restaurant", text: "Je prends 50kg.", at: "2025-05-15T10:38:00Z" },
       {
         id: "m4",
-        from: "them",
+        from: "restaurant",
         text: "Parfait, on confirme pour demain matin 8h.",
         at: "2025-05-15T10:42:00Z",
       },
@@ -518,29 +527,36 @@ export const conversations: Conversation[] = [
   {
     id: "c2",
     restaurantId: "r2",
+    farmerId: "f1",
     lastMessage: "Merci pour la livraison, tout est nickel !",
     lastAt: "2025-05-14T18:10:00Z",
     unread: 0,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Merci pour la livraison, tout est nickel !",
         at: "2025-05-14T18:10:00Z",
       },
-      { id: "m2", from: "me", text: "Merci à vous chef Aminata 🙏", at: "2025-05-14T18:12:00Z" },
+      {
+        id: "m2",
+        from: "farmer",
+        text: "Merci à vous chef Aminata 🙏",
+        at: "2025-05-14T18:12:00Z",
+      },
     ],
   },
   {
     id: "c3",
     restaurantId: "r3",
+    farmerId: "f1",
     lastMessage: "Vous pouvez livrer 20kg d'oignons mardi ?",
     lastAt: "2025-05-13T09:00:00Z",
     unread: 1,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Vous pouvez livrer 20kg d'oignons mardi ?",
         at: "2025-05-13T09:00:00Z",
       },
@@ -555,6 +571,11 @@ export type AppNotification = {
   body: string;
   at: string;
   read: boolean;
+  // Identifiant réel de la ressource concernée (ex : id de conversation
+  // pour une notification "message"), pour ouvrir directement le bon
+  // élément plutôt qu'une liste générique. Absent quand aucune ressource
+  // réelle précise n'y correspond.
+  refId?: string;
 };
 
 export const notifications: AppNotification[] = [
@@ -589,6 +610,7 @@ export const notifications: AppNotification[] = [
     body: "Chez Aminata vous a écrit",
     at: "2025-05-14T18:10:00Z",
     read: true,
+    refId: "c2",
   },
   {
     id: "n5",
@@ -1311,6 +1333,7 @@ export const restaurantNotifications: AppNotification[] = [
     body: "OK pour demain 8h",
     at: "2025-05-15T10:42:00Z",
     read: true,
+    refId: "c1",
   },
 ];
 
@@ -1777,7 +1800,27 @@ export const driverNotifications: AppNotification[] = [
   },
 ];
 
-export const driverConversations: Conversation[] = [
+// Conversation restaurant↔livreur : un domaine distinct de Conversation
+// (restaurant↔producteur), sans notion de fournisseur. Un seul livreur
+// connectable dans cette démo, donc pas de fuite "me"/"them" possible
+// côté restaurant (qui n'écrit jamais directement dans ce store).
+export type DriverConversation = {
+  id: string;
+  restaurantId: string;
+  lastMessage: string;
+  lastAt: string;
+  unread: number;
+  messages: {
+    id: string;
+    from: "me" | "them";
+    text: string;
+    at: string;
+    senderName?: string;
+    attachment?: ChatAttachment;
+  }[];
+};
+
+export const driverConversations: DriverConversation[] = [
   {
     id: "dc1",
     restaurantId: "r1",

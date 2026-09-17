@@ -35,6 +35,7 @@ export function DisputeDetailView({
   canDecide = false,
   links,
   breadcrumb,
+  quickActions,
 }: {
   dispute: Dispute;
   role: DisputeParty;
@@ -42,6 +43,7 @@ export function DisputeDetailView({
   canDecide?: boolean;
   links?: ReactNode;
   breadcrumb?: ReactNode;
+  quickActions?: ReactNode;
 }) {
   const [outcome, setOutcome] = useState<DisputeOutcome>("refund");
   const [granted, setGranted] = useState(String(d.claimedAmount));
@@ -136,6 +138,8 @@ export function DisputeDetailView({
         </div>
 
         <div className="space-y-4">
+          {quickActions}
+
           <div className="glass rounded-2xl p-5">
             <h2 className="font-semibold">Éléments liés</h2>
             <div className="mt-3 space-y-2 text-sm">

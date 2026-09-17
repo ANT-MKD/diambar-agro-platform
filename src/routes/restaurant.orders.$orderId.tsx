@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Phone,
@@ -19,8 +19,8 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
-import { useRestaurantOrder, useMissions } from "@/data/store";
-import { farmers, products, drivers } from "@/data/mocks";
+import { useRestaurantOrder, useMissions, conversationActions } from "@/data/store";
+import { farmers, products, drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { ORDER_LABEL } from "@/components/farmer/status-badge";
 
@@ -31,6 +31,9 @@ export const Route = createFileRoute("/restaurant/orders/$orderId")({
 
 function OrderDetail() {
   const { orderId } = Route.useParams();
+  const navigate = useNavigate();
+  const { user } = useRouteContext({ from: "/restaurant" });
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
   const order = useRestaurantOrder(orderId);
   const missions = useMissions();
   // La mission de livraison réelle liée à cette commande (créée en même
@@ -249,12 +252,26 @@ function OrderDetail() {
                   </a>
                 </Button>
               )}
-              <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
-                <Link to="/restaurant/messages">
+              {farmer && myRestaurant && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1"
+                  onClick={() => {
+                    const conversationId = conversationActions.startOrGet(
+                      myRestaurant.id,
+                      farmer.id,
+                    );
+                    navigate({
+                      to: "/restaurant/messages/$conversationId",
+                      params: { conversationId },
+                    });
+                  }}
+                >
                   <MessageSquare className="h-3.5 w-3.5" />
                   Message
-                </Link>
-              </Button>
+                </Button>
+              )}
             </div>
           </div>
 

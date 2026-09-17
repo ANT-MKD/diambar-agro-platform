@@ -34,7 +34,16 @@ function NotificationsPage() {
     if (n.type === "order") navigate({ to: "/restaurant/orders" });
     else if (n.type === "payment") navigate({ to: "/restaurant/invoices" });
     else if (n.type === "stock") navigate({ to: "/restaurant/marketplace" });
-    else if (n.type === "message") navigate({ to: "/restaurant/messages" });
+    else if (n.type === "message") {
+      if (n.refId) {
+        navigate({
+          to: "/restaurant/messages/$conversationId",
+          params: { conversationId: n.refId },
+        });
+      } else {
+        navigate({ to: "/restaurant/messages" });
+      }
+    }
   };
 
   return (

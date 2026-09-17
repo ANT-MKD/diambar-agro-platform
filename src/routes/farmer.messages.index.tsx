@@ -18,8 +18,14 @@ export const Route = createFileRoute("/farmer/messages/")({
   component: MessagesPage,
 });
 
+// Un seul producteur peut se connecter dans cette démo (Mamadou Diallo,
+// f1) : on ne montre donc que les conversations qui lui sont adressées,
+// pas celles ouvertes par des restaurants avec d'autres fournisseurs.
+const MY_FARMER_ID = "f1";
+
 function MessagesPage() {
-  const convs = useConversations();
+  const allConvs = useConversations();
+  const convs = allConvs.filter((c) => c.farmerId === MY_FARMER_ID);
   const [activeId, setActiveId] = useState<string | null>(convs[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
@@ -49,7 +55,7 @@ function MessagesPage() {
 
   const send = () => {
     if (!active || (!draft.trim() && !attachment)) return;
-    conversationActions.send(active.id, draft.trim(), "me", undefined, attachment ?? undefined);
+    conversationActions.send(active.id, draft.trim(), "farmer", undefined, attachment ?? undefined);
     setDraft("");
     setAttachment(null);
   };
@@ -126,7 +132,12 @@ function MessagesPage() {
                 </div>
                 <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
                   {active.messages.map((m) => (
-                    <ChatBubble key={m.id} message={m} />
+                    <ChatBubble
+                      key={m.id}
+                      message={m}
+                      mine={m.from === "farmer"}
+                      label={m.senderName ?? r?.name}
+                    />
                   ))}
                 </div>
                 <form

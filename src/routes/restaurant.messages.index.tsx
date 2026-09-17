@@ -1,13 +1,20 @@
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
-import { Send, Search, MessageSquare, Paperclip } from "lucide-react";
+import { Send, Search, MessageSquare, Paperclip, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
 import { farmers, restaurants } from "@/data/mocks";
-import { useConversations, conversationActions } from "@/data/store";
+import { useConversations, useSuppliers, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/messages/")({
@@ -15,22 +22,17 @@ export const Route = createFileRoute("/restaurant/messages/")({
   component: Messages,
 });
 
-// Le store `conversations` représente l'inbox d'un seul producteur (f1,
-// Mamadou Diallo) avec ses différents restaurants clients : chaque
-// conversation porte un restaurantId réel mais pas de farmerId (inutile
-// tant qu'il n'y a qu'un seul producteur dans ce fil). Le contre-parti
-// affiché est donc toujours ce même producteur, une fois qu'on a bien
-// filtré les conversations pour ne garder que celles de CE restaurant.
-const MESSAGES_FARMER_ID = "f1";
-
 function Messages() {
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.name === user.name);
-  const farmer = farmers.find((f) => f.id === MESSAGES_FARMER_ID);
+  const suppliers = useSuppliers();
   const convs = useConversations();
-  const enriched = farmer
-    ? convs.filter((c) => c.restaurantId === myRestaurant?.id).map((c) => ({ ...c, farmer }))
-    : [];
+  // Une conversation réelle par fournisseur du carnet — plus un unique
+  // producteur codé en dur.
+  const enriched = convs
+    .filter((c) => c.restaurantId === myRestaurant?.id)
+    .map((c) => ({ ...c, farmer: farmers.find((f) => f.id === c.farmerId) }))
+    .filter((c): c is typeof c & { farmer: NonNullable<(typeof c)["farmer"]> } => !!c.farmer);
   const [activeId, setActiveId] = useState<string | null>(enriched[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
@@ -42,19 +44,51 @@ function Messages() {
       c.lastMessage.toLowerCase().includes(q.toLowerCase()),
   );
 
+  const myCarnet = suppliers.filter((s) => s.restaurantId === myRestaurant?.id && s.farmerId);
+  const conversedFarmerIds = new Set(enriched.map((c) => c.farmerId));
+  const startableSuppliers = myCarnet.filter((s) => !conversedFarmerIds.has(s.farmerId!));
+
   const open = (id: string) => {
     setActiveId(id);
     conversationActions.markRead(id);
   };
+  const startConversation = (farmerId: string) => {
+    if (!myRestaurant) return;
+    const id = conversationActions.startOrGet(myRestaurant.id, farmerId);
+    setActiveId(id);
+    toast.success("Nouvelle conversation prête");
+  };
   const send = () => {
-    if (!active || !draft.trim()) return;
-    conversationActions.send(active.id, draft.trim(), "me");
+    if (!active || !draft.trim() || !myRestaurant) return;
+    conversationActions.send(active.id, draft.trim(), "restaurant");
     setDraft("");
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Messages" subtitle="Discutez directement avec vos producteurs" />
+      <PageHeader
+        title="Messages"
+        subtitle="Discutez directement avec vos producteurs"
+        actions={
+          startableSuppliers.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nouvelle conversation
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {startableSuppliers.map((s) => (
+                  <DropdownMenuItem key={s.id} onClick={() => startConversation(s.farmerId!)}>
+                    {s.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        }
+      />
       <div className="glass rounded-2xl overflow-hidden grid lg:grid-cols-[320px_1fr] h-[640px]">
         <div className="border-r border-border flex flex-col">
           <div className="p-3 border-b border-border">
@@ -69,6 +103,11 @@ function Messages() {
             </div>
           </div>
           <div className="flex-1 overflow-auto">
+            {filtered.length === 0 && (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                Aucune conversation. Démarrez-en une avec un fournisseur de votre carnet.
+              </div>
+            )}
             {filtered.map((c) => {
               const isActive = c.id === activeId;
               return (
@@ -91,7 +130,7 @@ function Messages() {
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-muted-foreground truncate">
-                        {c.lastMessage}
+                        {c.lastMessage || "Nouvelle conversation"}
                       </span>
                       {c.unread > 0 && (
                         <span className="grid h-5 min-w-5 px-1 place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
@@ -122,8 +161,18 @@ function Messages() {
               </div>
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
+              {active.messages.length === 0 && (
+                <p className="text-center text-xs text-muted-foreground pt-8">
+                  Écrivez le premier message à {active.farmer.farm}.
+                </p>
+              )}
               {active.messages.map((m) => (
-                <ChatBubble key={m.id} message={m} />
+                <ChatBubble
+                  key={m.id}
+                  message={m}
+                  mine={m.from === "restaurant"}
+                  label={m.senderName ?? active.farmer.farm}
+                />
               ))}
             </div>
             <form

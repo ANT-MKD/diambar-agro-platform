@@ -44,6 +44,7 @@ import {
   type Supplier,
   type AppNotification,
   type Conversation,
+  type DriverConversation,
   type ChatAttachment,
   type RecurringOrder,
   type RecurringOrderItem,
@@ -105,11 +106,27 @@ const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:move
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers, "diambar:suppliers");
-const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
-const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
-const driverNotifsStore = createStore<AppNotification[]>(seedDriverNotifs);
+// Sans persistance, le centre de notifications perdait tout son historique
+// (et l'état lu/non lu) au moindre rechargement — un comportement honnête
+// nulle part ailleurs dans l'app (messages, litiges, retours, avis sont
+// tous persistés).
+const farmerNotifsStore = createStore<AppNotification[]>(
+  seedFarmerNotifs,
+  "diambar:farmer-notifications",
+);
+const restoNotifsStore = createStore<AppNotification[]>(
+  seedRestoNotifs,
+  "diambar:restaurant-notifications",
+);
+const driverNotifsStore = createStore<AppNotification[]>(
+  seedDriverNotifs,
+  "diambar:driver-notifications",
+);
 const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
-const driverConvosStore = createStore<Conversation[]>(seedDriverConvos, "diambar:driver-convos");
+const driverConvosStore = createStore<DriverConversation[]>(
+  seedDriverConvos,
+  "diambar:driver-convos",
+);
 const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
 const driverWalletStore = createStore<DriverWallet>(seedDriverWallet, "diambar:driver-wallet");
 const driverVehicleStore = createStore<DriverVehicle>(seedDriverVehicle, "diambar:driver-vehicle");
@@ -508,6 +525,7 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
           type: n.type,
           title: n.title,
           body: n.body,
+          refId: n.refId,
         },
         ...arr,
       ]);
@@ -967,7 +985,7 @@ export const conversationActions = {
   send: (
     conversationId: string,
     text: string,
-    from: "me" | "them" = "me",
+    from: "restaurant" | "farmer" | "admin",
     senderName?: string,
     attachment?: ChatAttachment,
   ) => {
@@ -979,6 +997,7 @@ export const conversationActions = {
       senderName,
       attachment,
     };
+    const conv = conversationsStore.get().find((c) => c.id === conversationId);
     conversationsStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
@@ -991,6 +1010,53 @@ export const conversationActions = {
           : c,
       ),
     );
+    if (!conv) return;
+    // Notifie réellement le destinataire, avec un lien direct vers cette
+    // conversation — auparavant, envoyer un message ne prévenait jamais
+    // personne.
+    const restaurant = restaurants.find((r) => r.id === conv.restaurantId);
+    const farmer = farmers.find((f) => f.id === conv.farmerId);
+    const preview = text || attachment?.name || "Pièce jointe";
+    if (from !== "farmer" && farmer) {
+      farmerNotifActions.add({
+        type: "message",
+        title: `Message de ${restaurant?.name ?? "un restaurant"}`,
+        body: preview,
+        refId: conversationId,
+      });
+    }
+    if (from !== "restaurant" && restaurant) {
+      restaurantNotifActions.add({
+        type: "message",
+        title: `Message de ${farmer?.name ?? "un producteur"}`,
+        body: preview,
+        refId: conversationId,
+      });
+    }
+  },
+  /** Retrouve la conversation réelle restaurant↔producteur, ou en crée une
+   * nouvelle vide si le restaurant n'a encore jamais écrit à ce
+   * fournisseur — un restaurant peut ainsi avoir une conversation par
+   * fournisseur de son carnet, pas un seul producteur codé en dur. */
+  startOrGet: (restaurantId: string, farmerId: string) => {
+    const existing = conversationsStore
+      .get()
+      .find((c) => c.restaurantId === restaurantId && c.farmerId === farmerId);
+    if (existing) return existing.id;
+    const id = `c_${Date.now()}`;
+    conversationsStore.set((arr) => [
+      {
+        id,
+        restaurantId,
+        farmerId,
+        lastMessage: "",
+        lastAt: new Date().toISOString(),
+        unread: 0,
+        messages: [],
+      },
+      ...arr,
+    ]);
+    return id;
   },
   markRead: (conversationId: string) => {
     conversationsStore.set((arr) =>

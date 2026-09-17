@@ -40,7 +40,7 @@ export function DisputeThread({
   const visible = dispute.messages.filter((m) => !m.internal || canPostInternal);
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div id="fil-contradictoire" className="glass rounded-2xl p-5 scroll-mt-4">
       <h2 className="font-semibold">Fil contradictoire</h2>
       <p className="mt-1 text-xs text-muted-foreground">
         Restaurant, producteur, livreur et support échangent dans ce dossier.{" "}

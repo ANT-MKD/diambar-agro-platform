@@ -44,7 +44,13 @@ type Thread = {
   counterpartName: string;
   lastMessage: string;
   lastAt: string;
-  messages: { id: string; from: "me" | "them"; text: string; at: string; senderName?: string }[];
+  messages: {
+    id: string;
+    from: "restaurant" | "farmer" | "admin" | "me" | "them";
+    text: string;
+    at: string;
+    senderName?: string;
+  }[];
 };
 
 function AdminMessages() {
@@ -89,7 +95,7 @@ function AdminMessages() {
   const send = () => {
     if (!active || !draft.trim()) return;
     if (active.kind === "farmer") {
-      conversationActions.send(active.id, draft.trim(), "them", user.name);
+      conversationActions.send(active.id, draft.trim(), "admin", user.name);
     } else {
       driverConversationActions.send(active.id, draft.trim(), "them", user.name);
     }
@@ -175,9 +181,19 @@ function AdminMessages() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
-                  {active.messages.map((m) => (
-                    <ChatBubble key={m.id} message={m} />
-                  ))}
+                  {active.messages.map((m) => {
+                    // Chaque store de conversation a sa propre convention
+                    // ("restaurant"/"farmer"/"admin" pour les fils producteur,
+                    // "me"/"them" + senderName pour les fils livreur) : un
+                    // message de l'admin est donc identifié différemment
+                    // selon le fil, plutôt que par une étiquette partagée.
+                    const mine =
+                      active.kind === "farmer"
+                        ? m.from === "admin"
+                        : m.from === "them" && m.senderName === user.name;
+                    const label = m.senderName ?? (mine ? undefined : active.counterpartName);
+                    return <ChatBubble key={m.id} message={m} mine={mine} label={label} />;
+                  })}
                 </div>
                 <form
                   onSubmit={(e) => {

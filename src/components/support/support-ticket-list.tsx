@@ -1,4 +1,5 @@
 import { MessageCircleQuestion } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL, type SupportTicket } from "@/data/support";
 import { relativeTime } from "@/lib/format";
@@ -10,7 +11,16 @@ const STATUS_TONE: Record<SupportTicket["status"], string> = {
   closed: "bg-muted text-muted-foreground",
 };
 
-export function SupportTicketList({ tickets }: { tickets: SupportTicket[] }) {
+export function SupportTicketList({
+  tickets,
+  resolveOrderHref,
+}: {
+  tickets: SupportTicket[];
+  /** Résout une référence de commande vers un vrai lien de suivi, propre
+   * à chaque portail (restaurant/agriculteur/livreur) — absent quand la
+   * commande n'existe plus vraiment. */
+  resolveOrderHref?: (orderRef: string) => string | undefined;
+}) {
   if (tickets.length === 0) {
     return (
       <EmptyState
@@ -23,31 +33,44 @@ export function SupportTicketList({ tickets }: { tickets: SupportTicket[] }) {
 
   return (
     <div className="space-y-3">
-      {tickets.map((t) => (
-        <div key={t.id} className="glass rounded-2xl p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">{t.subject}</div>
-              <div className="text-xs text-muted-foreground">
-                {TICKET_CATEGORY_LABEL[t.category]}
-                {t.orderRef && <> · Commande {t.orderRef}</>}
+      {tickets.map((t) => {
+        const orderHref = t.orderRef ? resolveOrderHref?.(t.orderRef) : undefined;
+        return (
+          <div key={t.id} className="glass rounded-2xl p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">{t.subject}</div>
+                <div className="text-xs text-muted-foreground">
+                  {TICKET_CATEGORY_LABEL[t.category]}
+                  {t.orderRef &&
+                    (orderHref ? (
+                      <>
+                        {" · "}
+                        <Link to={orderHref as never} className="text-primary hover:underline">
+                          Commande {t.orderRef}
+                        </Link>
+                      </>
+                    ) : (
+                      <> · Commande {t.orderRef}</>
+                    ))}
+                </div>
               </div>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  STATUS_TONE[t.status],
+                )}
+              >
+                {TICKET_STATUS_LABEL[t.status]}
+              </span>
             </div>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                STATUS_TONE[t.status],
-              )}
-            >
-              {TICKET_STATUS_LABEL[t.status]}
-            </span>
+            <p className="mt-2 text-sm text-muted-foreground">{t.message}</p>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              {t.id.toUpperCase()} · {relativeTime(t.createdAt)}
+            </div>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">{t.message}</p>
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            {t.id.toUpperCase()} · {relativeTime(t.createdAt)}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
   useWishlist,
   wishlistActions,
   useSuppliers,
+  conversationActions,
 } from "@/data/store";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -236,12 +237,22 @@ function ProductDetail() {
             <Button disabled={blocked} onClick={orderNow} className="flex-1 h-12 gap-2 text-base">
               <Zap className="h-5 w-5" /> Commander maintenant
             </Button>
-            <Button asChild variant="outline" className="h-12 gap-2">
-              <Link to="/restaurant/messages">
+            {farmer && myRestaurant && (
+              <Button
+                variant="outline"
+                className="h-12 gap-2"
+                onClick={() => {
+                  const conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                  navigate({
+                    to: "/restaurant/messages/$conversationId",
+                    params: { conversationId },
+                  });
+                }}
+              >
                 <MessageSquare className="h-4 w-4" />
                 Message
-              </Link>
-            </Button>
+              </Button>
+            )}
           </div>
         </div>
       </div>

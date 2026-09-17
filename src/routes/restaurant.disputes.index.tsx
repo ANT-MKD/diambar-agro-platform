@@ -1,4 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { DisputeListView } from "@/components/disputes/dispute-list-view";
 import { useDisputesForRole } from "@/data/disputes";
 
@@ -28,6 +30,14 @@ function RestaurantDisputesIndex() {
       disputes={disputes}
       role="restaurant"
       detailPath="/restaurant/disputes/$disputeId"
+      actions={
+        <Button asChild className="gap-2">
+          <Link to="/restaurant/disputes/new">
+            <Plus className="h-4 w-4" />
+            Ouvrir un litige
+          </Link>
+        </Button>
+      }
     />
   );
 }
