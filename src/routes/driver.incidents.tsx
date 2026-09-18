@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 import { TriangleAlert, Send, ArrowUpRight, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -19,6 +20,7 @@ import {
 } from "@/data/business";
 
 export const Route = createFileRoute("/driver/incidents")({
+  validateSearch: z.object({ missionRef: z.string().optional() }),
   head: () => ({
     meta: [
       { title: "Incidents de course — Espace livreur Diambar Agro" },
@@ -47,9 +49,10 @@ const STATUS_CLASS: Record<IncidentStatus, string> = {
 };
 
 function IncidentsPage() {
+  const { missionRef: prefillMissionRef } = Route.useSearch();
   const incidents = useIncidents();
   const [form, setForm] = useState({
-    missionRef: "",
+    missionRef: prefillMissionRef ?? "",
     type: "client_absent" as IncidentType,
     description: "",
     waitedMinutes: "",

@@ -569,7 +569,11 @@ export const missionActions = {
     missionsStore.set((arr) =>
       arr.map((m) => {
         if (m.id !== id) return m;
-        updated = { ...m, status };
+        updated = {
+          ...m,
+          status,
+          statusHistory: [...(m.statusHistory ?? []), { status, at: new Date().toISOString() }],
+        };
         return updated;
       }),
     );
@@ -596,7 +600,19 @@ export const missionActions = {
   },
   accept: (id: string, driverId = "d1") => {
     missionsStore.set((arr) =>
-      arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)),
+      arr.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              driverId,
+              status: "accepted",
+              statusHistory: [
+                ...(m.statusHistory ?? []),
+                { status: "accepted" as MissionStatus, at: new Date().toISOString() },
+              ],
+            }
+          : m,
+      ),
     );
     const mission = missionsStore.get().find((m) => m.id === id);
     if (mission) {

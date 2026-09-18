@@ -35,6 +35,14 @@ import {
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
 import { driverProfile, restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import {
+  dayKey,
+  timeLabel,
+  daysUntil,
+  referenceDay,
+  gainsForDay,
+  MISSION_BADGE,
+} from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 
@@ -42,46 +50,6 @@ export const Route = createFileRoute("/driver/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Livreur Diambar" }] }),
   component: DriverDashboard,
 });
-
-function dayKey(iso: string) {
-  return iso.slice(0, 10);
-}
-function addDays(dayIso: string, delta: number) {
-  return dayKey(new Date(new Date(dayIso).getTime() + delta * 86400_000).toISOString());
-}
-function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-function daysUntil(iso: string) {
-  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400_000);
-}
-
-const MISSION_BADGE: Record<Mission["status"], { label: string; className: string }> = {
-  available: {
-    label: "Disponible",
-    className: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  },
-  accepted: {
-    label: "À récupérer",
-    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  },
-  pickup: {
-    label: "En pickup",
-    className: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  },
-  loaded: {
-    label: "En livraison",
-    className: "bg-primary/10 text-primary",
-  },
-  delivered: {
-    label: "Livrée",
-    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  },
-  cancelled: {
-    label: "Annulée",
-    className: "bg-muted text-muted-foreground",
-  },
-};
 
 function ProgressRing({ pct }: { pct: number }) {
   const r = 42;
@@ -140,19 +108,8 @@ function DriverDashboard() {
   const totalDistance = delivered.reduce((s, m) => s + m.distanceKm, 0);
 
   // Les missions de démo sont figées dans le passé : on ancre "aujourd'hui"
-  // sur le jour de la dernière mission réellement assignée au livreur
-  // (plutôt que la date système, qui donnerait un tableau de bord vide),
-  // même logique déjà utilisée pour les tableaux de bord restaurant/agriculteur.
-  const { today, yesterday } = useMemo(() => {
-    const assigned = missions.filter((m) => m.driverId === "d1" && m.status !== "cancelled");
-    if (assigned.length === 0) {
-      const now = new Date().toISOString();
-      return { today: dayKey(now), yesterday: addDays(dayKey(now), -1) };
-    }
-    const latest = assigned.reduce((a, b) => (a.scheduledFor > b.scheduledFor ? a : b));
-    const t = dayKey(latest.scheduledFor);
-    return { today: t, yesterday: addDays(t, -1) };
-  }, [missions]);
+  // sur le jour de la dernière mission réellement assignée au livreur.
+  const { today, yesterday } = useMemo(() => referenceDay(missions), [missions]);
 
   const todaysMissions = missions.filter(
     (m) => m.driverId === "d1" && dayKey(m.scheduledFor) === today,
@@ -174,12 +131,8 @@ function DriverDashboard() {
       : 0;
   const distanceToday = deliveredToday.reduce((s, m) => s + m.distanceKm, 0);
 
-  const gainsForDay = (day: string) =>
-    wallet.transactions
-      .filter((t) => dayKey(t.at) === day && (t.kind === "mission" || t.kind === "bonus"))
-      .reduce((s, t) => s + t.amount, 0);
-  const gainsToday = gainsForDay(today);
-  const gainsYesterday = gainsForDay(yesterday);
+  const gainsToday = gainsForDay(wallet.transactions, today);
+  const gainsYesterday = gainsForDay(wallet.transactions, yesterday);
   const gainsDeltaPct =
     gainsYesterday !== 0
       ? Math.round(((gainsToday - gainsYesterday) / Math.abs(gainsYesterday)) * 100)

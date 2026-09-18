@@ -1443,6 +1443,10 @@ export type Mission = {
   vehicleType: "Moto" | "Camionnette" | "Camion" | "Tricycle";
   urgency: "standard" | "priority" | "express";
   proof?: MissionProofPhoto[];
+  // Horodatage réel de chaque transition, alimenté à chaque changement de
+  // statut. Pour les missions de démo déjà avancées, on ne connaît que
+  // l'état observé à leur création — pas d'heures de transition inventées.
+  statusHistory?: { status: MissionStatus; at: string }[];
 };
 
 export type MissionProofPhoto = {

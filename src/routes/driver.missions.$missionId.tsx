@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   MapPin,
@@ -16,14 +15,24 @@ import {
   Navigation,
   User,
   Building2,
+  TriangleAlert,
+  Camera,
+  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useMission, missionActions } from "@/data/store";
+import {
+  useMission,
+  missionActions,
+  useDriverConversations,
+  useOrders,
+  useProducts,
+} from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
-import { farmers, restaurants } from "@/data/mocks";
+import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { timeLabel } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -51,16 +60,19 @@ const STEP_LABEL = {
 } as const;
 
 const FLOW: Array<{ status: "accepted" | "pickup" | "loaded" | "delivered"; label: string }> = [
-  { status: "accepted", label: "Acceptée" },
-  { status: "pickup", label: "En pickup" },
-  { status: "loaded", label: "Chargée" },
-  { status: "delivered", label: "Livrée" },
+  { status: "accepted", label: "Mission acceptée" },
+  { status: "pickup", label: "En route vers le producteur" },
+  { status: "loaded", label: "Marchandise récupérée" },
+  { status: "delivered", label: "Livraison confirmée" },
 ];
 
 function MissionDetail() {
   const navigate = useNavigate();
   const { missionId } = Route.useParams();
   const mission = useMission(missionId);
+  const conversations = useDriverConversations();
+  const orders = useOrders();
+  const products = useProducts();
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
@@ -79,6 +91,23 @@ function MissionDetail() {
   const r = restaurants.find((x) => x.id === mission.restaurantId);
   const f = farmers.find((x) => x.id === mission.farmerId);
   const activeIndex = FLOW.findIndex((s) => s.status === mission.status);
+  const stepAt = (status: MissionStatus) =>
+    mission.statusHistory?.find((h) => h.status === status)?.at;
+
+  // La correspondance orderRef ↔ commande réelle n'existe que pour une
+  // partie des missions de démo (données seedées indépendamment) : on
+  // enrichit avec le vrai contenu quand elle existe, sinon on garde le
+  // résumé agrégé plutôt que d'inventer une liste d'articles.
+  const linkedOrder = orders.find((o) => o.reference === mission.orderRef);
+  const orderItems = linkedOrder?.items.map((it) => ({
+    ...it,
+    name: products.find((p) => p.id === it.productId)?.name ?? it.productId,
+  }));
+
+  const conversation = conversations.find((c) => c.restaurantId === mission.restaurantId);
+
+  const navTarget = mission.status === "loaded" ? mission.dropoff : mission.pickup;
+  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`;
 
   const accept = () => {
     missionActions.accept(mission.id);
@@ -121,41 +150,74 @@ function MissionDetail() {
         }
       />
 
-      {/* Progress */}
-      {mission.status !== "available" && mission.status !== "cancelled" && (
-        <div className="glass rounded-2xl p-5">
-          <div className="flex items-center gap-2">
-            {FLOW.map((s, i) => {
-              const done = i <= activeIndex;
-              const current = i === activeIndex;
-              return (
-                <div key={s.status} className="flex-1 flex items-center gap-2">
-                  <motion.div
-                    initial={false}
-                    animate={{ scale: current ? 1.08 : 1 }}
-                    className={`h-9 w-9 rounded-full grid place-items-center text-xs font-bold shrink-0 ${done ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground"}`}
-                  >
-                    {i < activeIndex ? <Check className="h-4 w-4" /> : i + 1}
-                  </motion.div>
-                  <span
-                    className={`text-xs font-medium hidden sm:inline ${done ? "" : "text-muted-foreground"}`}
-                  >
-                    {s.label}
-                  </span>
-                  {i < FLOW.length - 1 && (
-                    <div
-                      className={`flex-1 h-px ${i < activeIndex ? "bg-primary" : "bg-border"}`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Barre de stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatPill icon={RouteIcon} label="Distance" value={`${mission.distanceKm} km`} />
+        <StatPill icon={Clock} label="Temps estimé" value={`~ ${mission.estimatedMinutes} min`} />
+        <StatPill icon={Package} label="Poids total" value={`${mission.weightKg} kg`} />
+        <StatPill
+          icon={Wallet}
+          label="Gain"
+          value={formatFCFA(mission.payout)}
+          tone="text-primary"
+        />
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-6">
+          {/* Avancement */}
+          {mission.status !== "available" && mission.status !== "cancelled" && (
+            <div className="glass rounded-2xl p-5">
+              <h3 className="font-display font-bold mb-4">Avancement de la mission</h3>
+              <ul className="space-y-3">
+                {FLOW.map((s, i) => {
+                  const done = i <= activeIndex;
+                  const current = i === activeIndex;
+                  const at = stepAt(s.status);
+                  return (
+                    <li key={s.status} className="flex items-start gap-3">
+                      <div
+                        className={`h-7 w-7 rounded-full grid place-items-center text-xs font-bold shrink-0 ${done ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground"}`}
+                      >
+                        {i < activeIndex ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div
+                          className={`text-sm font-medium ${done ? "" : "text-muted-foreground"}`}
+                        >
+                          {s.label}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {at
+                            ? `${new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · ${timeLabel(at)}`
+                            : current
+                              ? "En cours"
+                              : "À venir"}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {activeIndex >= 0 && activeIndex < FLOW.length - 1 && (
+                <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase font-semibold text-primary">
+                      Prochaine étape
+                    </div>
+                    <div className="text-sm font-medium">{FLOW[activeIndex + 1].label}</div>
+                  </div>
+                  <Button asChild size="sm" className="gap-2">
+                    <a href={navUrl} target="_blank" rel="noopener noreferrer">
+                      <Navigation className="h-3.5 w-3.5" />
+                      Démarrer la navigation
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Adresses */}
           <div className="glass rounded-2xl p-5 space-y-4">
             <h3 className="font-display font-bold flex items-center gap-2">
@@ -201,11 +263,60 @@ function MissionDetail() {
               <Package className="h-5 w-5 text-primary" />
               Contenu de la mission
             </h3>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-              <Stat label="Articles" value={`${mission.itemsCount}`} />
-              <Stat label="Poids" value={`${mission.weightKg} kg`} />
-              <Stat label="Véhicule" value={mission.vehicleType} />
-            </div>
+            {orderItems && orderItems.length > 0 ? (
+              <div className="mt-3 divide-y divide-border">
+                {orderItems.map((it) => (
+                  <div
+                    key={it.productId}
+                    className="flex items-center justify-between py-2 text-sm"
+                  >
+                    <span>{it.name}</span>
+                    <span className="text-muted-foreground">{it.qty} kg</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <Stat label="Articles" value={`${mission.itemsCount}`} />
+                <Stat label="Poids" value={`${mission.weightKg} kg`} />
+                <Stat label="Véhicule" value={mission.vehicleType} />
+              </div>
+            )}
+          </div>
+
+          {/* Preuve de livraison */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-display font-bold flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" />
+              Preuve de livraison
+            </h3>
+            {mission.proof && mission.proof.length > 0 ? (
+              <div className="mt-3 flex gap-2">
+                {mission.proof.map((p) =>
+                  p.dataUrl ? (
+                    <img
+                      key={p.id}
+                      src={p.dataUrl}
+                      alt="Preuve de livraison"
+                      className="h-20 w-20 rounded-lg object-cover border border-border"
+                    />
+                  ) : null,
+                )}
+              </div>
+            ) : mission.status === "loaded" ? (
+              <button
+                onClick={() => setProofOpen(true)}
+                className="mt-3 w-full rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground hover:bg-accent/40 transition"
+              >
+                Ajouter une photo (obligatoire à la livraison)
+              </button>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {mission.status === "delivered"
+                  ? "Aucune photo fournie pour cette livraison."
+                  : "Disponible une fois la marchandise récupérée."}
+              </p>
+            )}
           </div>
         </div>
 
@@ -259,25 +370,9 @@ function MissionDetail() {
                 </Button>
               )}
               {mission.status === "delivered" && (
-                <div className="space-y-2">
-                  <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
-                    <Check className="h-4 w-4" />
-                    Livraison terminée · paiement programmé
-                  </div>
-                  {mission.proof && mission.proof.length > 0 && (
-                    <div className="flex gap-2">
-                      {mission.proof.map((p) =>
-                        p.dataUrl ? (
-                          <img
-                            key={p.id}
-                            src={p.dataUrl}
-                            alt="Preuve de livraison"
-                            className="h-16 w-16 rounded-lg object-cover border border-border"
-                          />
-                        ) : null,
-                      )}
-                    </div>
-                  )}
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  Livraison terminée · paiement programmé
                 </div>
               )}
               {mission.status === "cancelled" && (
@@ -286,6 +381,43 @@ function MissionDetail() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Actions rapides */}
+          <div className="glass rounded-2xl p-4 space-y-2">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Actions rapides
+            </div>
+            <Button asChild variant="outline" className="w-full justify-start gap-2">
+              <Link to="/driver/incidents" search={{ missionRef: mission.reference }}>
+                <TriangleAlert className="h-4 w-4" />
+                Signaler un incident
+              </Link>
+            </Button>
+            {conversation ? (
+              <Button asChild variant="outline" className="w-full justify-start gap-2">
+                <Link
+                  to="/driver/messages/$conversationId"
+                  params={{ conversationId: conversation.id }}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Contacter le restaurant
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" className="w-full justify-start gap-2">
+                <Link to="/driver/messages">
+                  <MessageSquare className="h-4 w-4" />
+                  Contacter le restaurant
+                </Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" className="w-full justify-start gap-2">
+              <Link to="/driver/routes">
+                <RouteIcon className="h-4 w-4" />
+                Voir ma tournée
+              </Link>
+            </Button>
           </div>
 
           <div className="glass rounded-2xl p-4 space-y-2">
@@ -318,12 +450,6 @@ function MissionDetail() {
               </div>
               <Phone className="h-3.5 w-3.5 text-muted-foreground" />
             </a>
-            <Button asChild variant="outline" className="w-full gap-2 mt-2">
-              <Link to="/driver/messages">
-                <MessageSquare className="h-4 w-4" />
-                Ouvrir la messagerie
-              </Link>
-            </Button>
           </div>
         </div>
       </div>
@@ -451,6 +577,28 @@ function MiniStat({ icon: Icon, label }: { icon: typeof Truck; label: string }) 
     <div className="rounded-lg bg-muted/40 p-2 flex items-center gap-1.5 text-muted-foreground">
       <Icon className="h-3 w-3" />
       {label}
+    </div>
+  );
+}
+
+function StatPill({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof Truck;
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="glass rounded-2xl p-3.5">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className={`mt-1 font-display text-lg font-bold ${tone ?? ""}`}>{value}</div>
     </div>
   );
 }
