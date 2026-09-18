@@ -1997,6 +1997,15 @@ export const driverTransactions: DriverTx[] = [
     status: "Complété",
   },
   {
+    id: "dtx_inc701",
+    at: "2025-05-12T11:00:00Z",
+    label: "Indemnité incident INC-701",
+    ref: "INC-701",
+    kind: "adjustment",
+    amount: 1500,
+    status: "Complété",
+  },
+  {
     id: "dtx6",
     at: "2025-05-12T09:00:00Z",
     label: "Retrait Wave",

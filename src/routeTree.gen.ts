@@ -43,7 +43,6 @@ import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
 import { Route as DriverHistoryRouteImport } from './routes/driver.history'
-import { Route as DriverIncidentsRouteImport } from './routes/driver.incidents'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
 import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
@@ -77,6 +76,8 @@ import { Route as AdminValidationsIndexRouteImport } from './routes/admin.valida
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
 import { Route as DriverDisputesDisputeIdRouteImport } from './routes/driver.disputes.$disputeId'
+import { Route as DriverIncidentsIndexRouteImport } from './routes/driver.incidents.index'
+import { Route as DriverIncidentsIncidentIdRouteImport } from './routes/driver.incidents.$incidentId'
 import { Route as DriverMessagesIndexRouteImport } from './routes/driver.messages.index'
 import { Route as DriverMessagesConversationIdRouteImport } from './routes/driver.messages.$conversationId'
 import { Route as DriverMissionsIndexRouteImport } from './routes/driver.missions.index'
@@ -324,11 +325,6 @@ const DriverHistoryRoute = DriverHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => DriverRoute,
 } as any)
-const DriverIncidentsRoute = DriverIncidentsRouteImport.update({
-  id: '/incidents',
-  path: '/incidents',
-  getParentRoute: () => DriverRoute,
-} as any)
 const DriverMessagesRoute = DriverMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
@@ -495,6 +491,17 @@ const DriverDisputesDisputeIdRoute = DriverDisputesDisputeIdRouteImport.update({
   path: '/disputes/$disputeId',
   getParentRoute: () => DriverRoute,
 } as any)
+const DriverIncidentsIndexRoute = DriverIncidentsIndexRouteImport.update({
+  id: '/incidents/',
+  path: '/incidents/',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverIncidentsIncidentIdRoute =
+  DriverIncidentsIncidentIdRouteImport.update({
+    id: '/incidents/$incidentId',
+    path: '/incidents/$incidentId',
+    getParentRoute: () => DriverRoute,
+  } as any)
 const DriverMessagesIndexRoute = DriverMessagesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -943,7 +950,6 @@ export interface FileRoutesByFullPath {
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
-  '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRoute
@@ -974,6 +980,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
@@ -1022,6 +1029,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
   '/driver/disputes/': typeof DriverDisputesIndexRoute
+  '/driver/incidents/': typeof DriverIncidentsIndexRoute
   '/driver/messages/': typeof DriverMessagesIndexRoute
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
@@ -1089,7 +1097,6 @@ export interface FileRoutesByTo {
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
-  '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/settings': typeof DriverSettingsRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
@@ -1111,6 +1118,7 @@ export interface FileRoutesByTo {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
@@ -1159,6 +1167,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersIndexRoute
   '/admin/validations': typeof AdminValidationsIndexRoute
   '/driver/disputes': typeof DriverDisputesIndexRoute
+  '/driver/incidents': typeof DriverIncidentsIndexRoute
   '/driver/messages': typeof DriverMessagesIndexRoute
   '/driver/missions': typeof DriverMissionsIndexRoute
   '/driver/notifications': typeof DriverNotificationsIndexRoute
@@ -1227,7 +1236,6 @@ export interface FileRoutesById {
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
-  '/driver/incidents': typeof DriverIncidentsRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRoute
@@ -1258,6 +1266,7 @@ export interface FileRoutesById {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
@@ -1306,6 +1315,7 @@ export interface FileRoutesById {
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
   '/driver/disputes/': typeof DriverDisputesIndexRoute
+  '/driver/incidents/': typeof DriverIncidentsIndexRoute
   '/driver/messages/': typeof DriverMessagesIndexRoute
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
@@ -1375,7 +1385,6 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
-    | '/driver/incidents'
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
@@ -1406,6 +1415,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
@@ -1454,6 +1464,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/admin/validations/'
     | '/driver/disputes/'
+    | '/driver/incidents/'
     | '/driver/messages/'
     | '/driver/missions/'
     | '/driver/notifications/'
@@ -1521,7 +1532,6 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
-    | '/driver/incidents'
     | '/driver/settings'
     | '/driver/vehicle'
     | '/driver/wallet'
@@ -1543,6 +1553,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
@@ -1591,6 +1602,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/validations'
     | '/driver/disputes'
+    | '/driver/incidents'
     | '/driver/messages'
     | '/driver/missions'
     | '/driver/notifications'
@@ -1658,7 +1670,6 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
-    | '/driver/incidents'
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
@@ -1689,6 +1700,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
     | '/driver/notifications/rules'
@@ -1737,6 +1749,7 @@ export interface FileRouteTypes {
     | '/admin/users/'
     | '/admin/validations/'
     | '/driver/disputes/'
+    | '/driver/incidents/'
     | '/driver/messages/'
     | '/driver/missions/'
     | '/driver/notifications/'
@@ -2037,13 +2050,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DriverHistoryRouteImport
       parentRoute: typeof DriverRoute
     }
-    '/driver/incidents': {
-      id: '/driver/incidents'
-      path: '/incidents'
-      fullPath: '/driver/incidents'
-      preLoaderRoute: typeof DriverIncidentsRouteImport
-      parentRoute: typeof DriverRoute
-    }
     '/driver/messages': {
       id: '/driver/messages'
       path: '/messages'
@@ -2273,6 +2279,20 @@ declare module '@tanstack/react-router' {
       path: '/disputes/$disputeId'
       fullPath: '/driver/disputes/$disputeId'
       preLoaderRoute: typeof DriverDisputesDisputeIdRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/incidents/': {
+      id: '/driver/incidents/'
+      path: '/incidents'
+      fullPath: '/driver/incidents/'
+      preLoaderRoute: typeof DriverIncidentsIndexRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/incidents/$incidentId': {
+      id: '/driver/incidents/$incidentId'
+      path: '/incidents/$incidentId'
+      fullPath: '/driver/incidents/$incidentId'
+      preLoaderRoute: typeof DriverIncidentsIncidentIdRouteImport
       parentRoute: typeof DriverRoute
     }
     '/driver/messages/': {
@@ -2898,17 +2918,18 @@ const DriverMissionsMissionIdRouteWithChildren =
 interface DriverRouteChildren {
   DriverDashboardRoute: typeof DriverDashboardRoute
   DriverHistoryRoute: typeof DriverHistoryRoute
-  DriverIncidentsRoute: typeof DriverIncidentsRoute
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
   DriverNotificationsRoute: typeof DriverNotificationsRouteWithChildren
   DriverSettingsRoute: typeof DriverSettingsRoute
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
   DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
+  DriverIncidentsIncidentIdRoute: typeof DriverIncidentsIncidentIdRoute
   DriverMissionsMissionIdRoute: typeof DriverMissionsMissionIdRouteWithChildren
   DriverRoutesTourIdRoute: typeof DriverRoutesTourIdRoute
   DriverRoutesNewRoute: typeof DriverRoutesNewRoute
   DriverDisputesIndexRoute: typeof DriverDisputesIndexRoute
+  DriverIncidentsIndexRoute: typeof DriverIncidentsIndexRoute
   DriverMissionsIndexRoute: typeof DriverMissionsIndexRoute
   DriverRoutesIndexRoute: typeof DriverRoutesIndexRoute
 }
@@ -2916,17 +2937,18 @@ interface DriverRouteChildren {
 const DriverRouteChildren: DriverRouteChildren = {
   DriverDashboardRoute: DriverDashboardRoute,
   DriverHistoryRoute: DriverHistoryRoute,
-  DriverIncidentsRoute: DriverIncidentsRoute,
   DriverMessagesRoute: DriverMessagesRouteWithChildren,
   DriverNotificationsRoute: DriverNotificationsRouteWithChildren,
   DriverSettingsRoute: DriverSettingsRoute,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
   DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
+  DriverIncidentsIncidentIdRoute: DriverIncidentsIncidentIdRoute,
   DriverMissionsMissionIdRoute: DriverMissionsMissionIdRouteWithChildren,
   DriverRoutesTourIdRoute: DriverRoutesTourIdRoute,
   DriverRoutesNewRoute: DriverRoutesNewRoute,
   DriverDisputesIndexRoute: DriverDisputesIndexRoute,
+  DriverIncidentsIndexRoute: DriverIncidentsIndexRoute,
   DriverMissionsIndexRoute: DriverMissionsIndexRoute,
   DriverRoutesIndexRoute: DriverRoutesIndexRoute,
 }

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { creditActions, type DisputeAttachment } from "@/data/disputes";
+import { driverWalletActions } from "@/data/store";
 
 type Listener = () => void;
 
@@ -514,9 +515,11 @@ export type Incident = {
   waitedMinutes: number;
   compensationRequested: number;
   compensationAwarded?: number;
+  resolutionNote?: string;
   status: IncidentStatus;
   createdAt: string;
   history: { at: string; actor: string; text: string }[];
+  photos?: DisputeAttachment[];
 };
 
 const seedIncidents: Incident[] = [
@@ -596,7 +599,8 @@ export const incidentActions = {
       ),
     );
   },
-  resolve: (id: string, awarded: number) => {
+  resolve: (id: string, awarded: number, note?: string) => {
+    const incident = incidentsStore.get().find((i) => i.id === id);
     incidentsStore.set((arr) =>
       arr.map((i) =>
         i.id === id
@@ -604,16 +608,30 @@ export const incidentActions = {
               ...i,
               status: "resolved",
               compensationAwarded: awarded,
+              resolutionNote: note,
               history: [
                 ...i.history,
                 {
                   at: now(),
                   actor: "Support Diambar",
-                  text: `Clôturé — indemnité ${awarded} FCFA`,
+                  text:
+                    awarded > 0
+                      ? `Clôturé — indemnité ${awarded} FCFA accordée${note ? ` (${note})` : ""}`
+                      : `Clôturé — indemnité refusée${note ? ` (${note})` : ""}`,
                 },
               ],
             }
           : i,
+      ),
+    );
+    if (incident && awarded > 0) {
+      driverWalletActions.credit(`Indemnité incident ${incident.reference}`, awarded, "adjustment");
+    }
+  },
+  addComment: (id: string, text: string) => {
+    incidentsStore.set((arr) =>
+      arr.map((i) =>
+        i.id === id ? { ...i, history: [...i.history, { at: now(), actor: "Oumar Ba", text }] } : i,
       ),
     );
   },
