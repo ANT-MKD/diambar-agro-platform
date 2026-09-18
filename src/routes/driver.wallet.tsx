@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -11,6 +11,8 @@ import {
   Gift,
   Truck,
   Receipt,
+  CreditCard,
+  CalendarClock,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
@@ -24,8 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDriverWallet, driverWalletActions } from "@/data/store";
+import { useDriverWallet, driverWalletActions, useDriverSettings, useMissions } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
+import { dayKey, addDays, referenceDay, gainsForDay } from "@/lib/driver-day";
 import type { PaymentMethod } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/wallet")({
@@ -51,9 +54,46 @@ const KIND_META: Record<string, { label: string; icon: typeof Wallet; tone: stri
 
 function WalletPage() {
   const wallet = useDriverWallet();
+  const settings = useDriverSettings();
+  const missions = useMissions();
   const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("Wave");
+
+  // Les transactions de démo sont figées dans le passé : "maintenant" est
+  // ancré sur la dernière mission réelle du livreur, sinon "aujourd'hui" et
+  // "cette semaine" seraient toujours vides face à la date système.
+  const { today } = useMemo(() => referenceDay(missions), [missions]);
+  const gainsToday = gainsForDay(wallet.transactions, today);
+  const weekStart = addDays(today, -6);
+  const gainsWeek = wallet.transactions
+    .filter(
+      (t) =>
+        (t.kind === "mission" || t.kind === "bonus") &&
+        dayKey(t.at) >= weekStart &&
+        dayKey(t.at) <= today,
+    )
+    .reduce((s, t) => s + t.amount, 0);
+  const monthPrefix = today.slice(0, 7);
+  const gainsMonth = wallet.transactions
+    .filter(
+      (t) => (t.kind === "mission" || t.kind === "bonus") && dayKey(t.at).startsWith(monthPrefix),
+    )
+    .reduce((s, t) => s + t.amount, 0);
+  const missionTxs = wallet.transactions.filter((t) => t.kind === "mission");
+  const avgPerMission =
+    missionTxs.length > 0
+      ? Math.round(missionTxs.reduce((s, t) => s + t.amount, 0) / missionTxs.length)
+      : 0;
+
+  const activeMethod = settings.paymentMethods.find((m) => m.active);
+  const payoutLabel =
+    settings.payoutFrequency === "daily"
+      ? "Demain"
+      : settings.payoutFrequency === "weekly"
+        ? "La semaine prochaine"
+        : "Sur demande";
+  const withdrawals = wallet.transactions.filter((t) => t.kind === "withdrawal").slice(0, 5);
 
   const txs = useMemo(
     () =>
@@ -136,6 +176,34 @@ function WalletPage() {
           </Button>
         }
       />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MiniStat label="Aujourd'hui" value={formatFCFA(gainsToday)} />
+        <MiniStat label="Cette semaine" value={formatFCFA(gainsWeek)} />
+        <MiniStat label="Ce mois" value={formatFCFA(gainsMonth)} />
+        <MiniStat label="Gain moyen / mission" value={formatFCFA(avgPerMission)} />
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Button
+          variant="outline"
+          className="gap-2 justify-start"
+          onClick={() => document.getElementById("amt")?.focus()}
+        >
+          <ArrowDownLeft className="h-4 w-4" />
+          Retirer mes gains
+        </Button>
+        <Button asChild variant="outline" className="gap-2 justify-start">
+          <Link to="/driver/settings">
+            <CreditCard className="h-4 w-4" />
+            Ajouter un moyen de paiement
+          </Link>
+        </Button>
+        <Button variant="outline" className="gap-2 justify-start" onClick={exportCsv}>
+          <Download className="h-4 w-4" />
+          Télécharger mon relevé
+        </Button>
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -342,10 +410,57 @@ function WalletPage() {
             <div className="mt-1 font-display text-2xl font-bold text-primary flex items-center gap-2">
               {formatFCFA(wallet.pending)} <TrendingUp className="h-4 w-4 text-emerald-500" />
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">Programmé demain · Wave</p>
+            <p className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <CalendarClock className="h-3 w-3" />
+              {settings.payoutFrequency === "manual"
+                ? "Versement manuel · demandez un retrait à tout moment"
+                : `Programmé : ${payoutLabel}${activeMethod ? ` · ${activeMethod.method}` : ""}`}
+            </p>
+          </div>
+
+          <div className="glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-display font-bold text-sm">Mes retraits</h3>
+              <span className="text-xs text-muted-foreground">{withdrawals.length}</span>
+            </div>
+            {withdrawals.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Aucun retrait pour le moment.</p>
+            ) : (
+              <div className="space-y-2">
+                {withdrawals.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-border p-2.5 text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold">{t.method}</div>
+                      <div className="text-muted-foreground">
+                        {new Date(t.at).toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "short",
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{formatFCFA(Math.abs(t.amount))}</div>
+                      <div className="text-[10px] text-muted-foreground">{t.status}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-display text-xl font-bold mt-1">{value}</div>
     </div>
   );
 }
