@@ -71,6 +71,8 @@ import {
   type MissionProofPhoto as Attachment,
   type DriverSettings,
   type DriverPaymentMethod,
+  type WeekDay,
+  type WorkingHours,
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
@@ -512,7 +514,35 @@ export const driverSettingsActions = {
       ...s,
       paymentMethods: s.paymentMethods.map((m) => ({ ...m, active: m.id === id })),
     })),
+  setCriteria: (patch: Partial<DriverSettings["criteria"]>) =>
+    driverSettingsStore.set((s) => ({ ...s, criteria: { ...s.criteria, ...patch } })),
+  setWorkingDay: (day: WeekDay, patch: Partial<WorkingHours[WeekDay]>) =>
+    driverSettingsStore.set((s) => ({
+      ...s,
+      workingHours: { ...s.workingHours, [day]: { ...s.workingHours[day], ...patch } },
+    })),
+  setLocationSharing: (v: boolean) =>
+    driverSettingsStore.set((s) => ({ ...s, locationSharing: v })),
 };
+
+/** Missions "available" qui correspondent réellement aux critères
+ * d'acceptation automatique du livreur (rémunération, poids, type, ville) —
+ * aucune notion de distance en temps réel : le livreur n'a pas de position
+ * GPS suivie hors mission, donc on ne compare que des critères vérifiables. */
+export function autoAcceptableMissions(missions: Mission[], settings: DriverSettings) {
+  if (!settings.autoAccept) return [];
+  const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
+  return missions.filter(
+    (m) =>
+      m.status === "available" &&
+      m.payout >= minPayout &&
+      m.weightKg <= maxWeightKg &&
+      acceptedUrgencies.includes(m.urgency) &&
+      (acceptedCities.length === 0 ||
+        acceptedCities.includes(m.pickup.city) ||
+        acceptedCities.includes(m.dropoff.city)),
+  );
+}
 
 export function useWallets() {
   return useSyncExternalStore(walletsStore.subscribe, walletsStore.get, walletsStore.get);

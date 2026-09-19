@@ -7,38 +7,56 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/farmer/page-header";
 
-export type SettingsNavItem = { to: string; label: string; icon: LucideIcon };
+export type SettingsNavItem = { to: string; label: string; icon: LucideIcon; group?: string };
 
 export function SettingsShell({
   title,
   subtitle,
   items,
   children,
+  statusStrip,
 }: {
   title: string;
   subtitle: string;
   items: SettingsNavItem[];
   children: ReactNode;
+  statusStrip?: ReactNode;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const groups = new Map<string | undefined, SettingsNavItem[]>();
+  for (const it of items) {
+    const arr = groups.get(it.group) ?? [];
+    arr.push(it);
+    groups.set(it.group, arr);
+  }
   return (
     <div className="space-y-6">
       <PageHeader title={title} subtitle={subtitle} />
+      {statusStrip}
       <div className="grid lg:grid-cols-[230px_1fr] gap-6">
-        <aside className="glass rounded-2xl p-2 h-fit space-y-1 lg:sticky lg:top-20">
-          {items.map((it) => {
-            const active = path === it.to;
-            return (
-              <Link
-                key={it.to}
-                to={it.to}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${active ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
-              >
-                <it.icon className="h-4 w-4" />
-                {it.label}
-              </Link>
-            );
-          })}
+        <aside className="glass rounded-2xl p-2 h-fit space-y-3 lg:sticky lg:top-20">
+          {[...groups.entries()].map(([group, groupItems]) => (
+            <div key={group ?? "_"} className="space-y-1">
+              {group && (
+                <div className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {group}
+                </div>
+              )}
+              {groupItems.map((it) => {
+                const active = path === it.to;
+                return (
+                  <Link
+                    key={it.to}
+                    to={it.to}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${active ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                  >
+                    <it.icon className="h-4 w-4" />
+                    {it.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
           <Link
             to="/login"
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10"

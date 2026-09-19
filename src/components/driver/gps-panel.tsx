@@ -10,14 +10,18 @@ export function GpsPanel({
   estimatedMinutes,
   driverName,
   live,
+  defaultShare = true,
 }: {
   trackingId: string;
   distanceKm: number;
   estimatedMinutes: number;
   driverName: string;
   live: boolean;
+  /** Valeur initiale du partage, pilotée par la préférence de confidentialité
+   * des Paramètres — reste ajustable au cas par cas sur cette mission. */
+  defaultShare?: boolean;
 }) {
-  const [share, setShare] = useState(true);
+  const [share, setShare] = useState(defaultShare);
   const { snapshot } = useLiveTracking({
     trackingId,
     driverName,

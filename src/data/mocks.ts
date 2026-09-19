@@ -2149,10 +2149,40 @@ export type DriverPaymentMethod = {
   active: boolean;
 };
 
+export type WeekDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+export const WEEKDAY_LABEL: Record<WeekDay, string> = {
+  mon: "Lundi",
+  tue: "Mardi",
+  wed: "Mercredi",
+  thu: "Jeudi",
+  fri: "Vendredi",
+  sat: "Samedi",
+  sun: "Dimanche",
+};
+export const WEEKDAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export type WorkingHours = Record<WeekDay, { enabled: boolean; start: string; end: string }>;
+
+export type DriverWorkCriteria = {
+  minPayout: number;
+  maxWeightKg: number;
+  acceptedUrgencies: Mission["urgency"][];
+  acceptedCities: string[];
+};
+
 export type DriverSettings = {
-  profile: { name: string; phone: string; email: string; city: string; avatar: string };
+  profile: {
+    name: string;
+    phone: string;
+    email: string;
+    city: string;
+    address: string;
+    avatar: string;
+  };
   radius: number;
   autoAccept: boolean;
+  criteria: DriverWorkCriteria;
+  workingHours: WorkingHours;
+  locationSharing: boolean;
   notif: {
     push: boolean;
     sms: boolean;
@@ -2160,10 +2190,24 @@ export type DriverSettings = {
     missions: boolean;
     payments: boolean;
     messages: boolean;
+    docExpiry: boolean;
+    maintenance: boolean;
+    vehicleIssue: boolean;
+    nonCompliant: boolean;
   };
   payoutFrequency: "daily" | "weekly" | "manual";
   paymentMethods: DriverPaymentMethod[];
 };
+
+const defaultWorkingHours = (): WorkingHours => ({
+  mon: { enabled: true, start: "08:00", end: "18:00" },
+  tue: { enabled: true, start: "08:00", end: "18:00" },
+  wed: { enabled: true, start: "08:00", end: "18:00" },
+  thu: { enabled: true, start: "08:00", end: "18:00" },
+  fri: { enabled: true, start: "08:00", end: "18:00" },
+  sat: { enabled: true, start: "08:00", end: "14:00" },
+  sun: { enabled: false, start: "08:00", end: "18:00" },
+});
 
 export const driverSettings: DriverSettings = {
   profile: {
@@ -2171,11 +2215,31 @@ export const driverSettings: DriverSettings = {
     phone: driverProfile.phone,
     email: driverProfile.email,
     city: driverProfile.city,
+    address: "",
     avatar: driverProfile.avatar,
   },
   radius: 50,
   autoAccept: false,
-  notif: { push: true, sms: true, email: false, missions: true, payments: true, messages: true },
+  criteria: {
+    minPayout: 3000,
+    maxWeightKg: 800,
+    acceptedUrgencies: ["standard", "priority", "express"],
+    acceptedCities: ["Dakar", "Thiès", "Mbour"],
+  },
+  workingHours: defaultWorkingHours(),
+  locationSharing: true,
+  notif: {
+    push: true,
+    sms: true,
+    email: false,
+    missions: true,
+    payments: true,
+    messages: true,
+    docExpiry: true,
+    maintenance: true,
+    vehicleIssue: true,
+    nonCompliant: true,
+  },
   payoutFrequency: "weekly",
   paymentMethods: [{ id: "pm1", method: "Wave", label: driverProfile.phone, active: true }],
 };

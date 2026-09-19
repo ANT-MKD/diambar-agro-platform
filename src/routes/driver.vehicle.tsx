@@ -42,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
 import { dayKey, referenceDay } from "@/lib/driver-day";
+import { vehicleCompliance, VEHICLE_STATUS_LABEL } from "@/lib/vehicle-status";
 import {
   Dialog,
   DialogContent,
@@ -127,33 +128,22 @@ function DriverVehiclePage() {
   const goodCount = conditionEntries.filter(([, s]) => s === "good").length;
   const mechanicalPct = Math.round((goodCount / conditionEntries.length) * 100);
 
-  const openIssues = issues.filter((i) => i.status !== "resolved");
-  const hasCriticalIssue = openIssues.some((i) => i.severity === "high");
-
   const activeMission = missions.find(
     (m) => m.driverId === "d1" && ["pickup", "loaded"].includes(m.status),
   );
 
-  const globalStatus: "ok" | "warning" | "blocked" =
-    insStatus === "expired" || inspStatus === "expired"
-      ? "blocked"
-      : insStatus === "expiring" ||
-          inspStatus === "expiring" ||
-          hasCriticalIssue ||
-          goodCount < conditionEntries.length
-        ? "warning"
-        : "ok";
+  const { status: globalStatus } = vehicleCompliance(v, issues);
   const GLOBAL_STATUS = {
     ok: {
-      label: "Véhicule opérationnel",
+      label: VEHICLE_STATUS_LABEL.ok,
       cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     },
     warning: {
-      label: "Action requise",
+      label: VEHICLE_STATUS_LABEL.warning,
       cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
     },
     blocked: {
-      label: "Véhicule non conforme",
+      label: VEHICLE_STATUS_LABEL.blocked,
       cls: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
     },
   }[globalStatus];

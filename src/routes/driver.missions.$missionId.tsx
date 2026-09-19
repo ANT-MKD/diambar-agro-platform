@@ -27,6 +27,7 @@ import {
   useOrders,
   useProducts,
   useDriverVehicle,
+  useDriverSettings,
 } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
@@ -75,6 +76,7 @@ function MissionDetail() {
   const orders = useOrders();
   const products = useProducts();
   const vehicle = useDriverVehicle();
+  const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
@@ -274,6 +276,7 @@ function MissionDetail() {
             estimatedMinutes={mission.estimatedMinutes}
             driverName="Vous"
             live={mission.status === "pickup" || mission.status === "loaded"}
+            defaultShare={settings.locationSharing}
           />
 
           {/* Récap commande */}

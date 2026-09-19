@@ -88,6 +88,15 @@ import { Route as DriverNotificationsRulesRouteImport } from './routes/driver.no
 import { Route as DriverRoutesIndexRouteImport } from './routes/driver.routes.index'
 import { Route as DriverRoutesTourIdRouteImport } from './routes/driver.routes.$tourId'
 import { Route as DriverRoutesNewRouteImport } from './routes/driver.routes.new'
+import { Route as DriverSettingsIndexRouteImport } from './routes/driver.settings.index'
+import { Route as DriverSettingsAppearanceRouteImport } from './routes/driver.settings.appearance'
+import { Route as DriverSettingsHelpRouteImport } from './routes/driver.settings.help'
+import { Route as DriverSettingsNotificationsRouteImport } from './routes/driver.settings.notifications'
+import { Route as DriverSettingsPaymentsRouteImport } from './routes/driver.settings.payments'
+import { Route as DriverSettingsPrivacyRouteImport } from './routes/driver.settings.privacy'
+import { Route as DriverSettingsProfileRouteImport } from './routes/driver.settings.profile'
+import { Route as DriverSettingsSecurityRouteImport } from './routes/driver.settings.security'
+import { Route as DriverSettingsWorkRouteImport } from './routes/driver.settings.work'
 import { Route as FarmerDisputesIndexRouteImport } from './routes/farmer.disputes.index'
 import { Route as FarmerDisputesDisputeIdRouteImport } from './routes/farmer.disputes.$disputeId'
 import { Route as FarmerMessagesIndexRouteImport } from './routes/farmer.messages.index'
@@ -556,6 +565,53 @@ const DriverRoutesNewRoute = DriverRoutesNewRouteImport.update({
   path: '/routes/new',
   getParentRoute: () => DriverRoute,
 } as any)
+const DriverSettingsIndexRoute = DriverSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsAppearanceRoute =
+  DriverSettingsAppearanceRouteImport.update({
+    id: '/appearance',
+    path: '/appearance',
+    getParentRoute: () => DriverSettingsRoute,
+  } as any)
+const DriverSettingsHelpRoute = DriverSettingsHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsNotificationsRoute =
+  DriverSettingsNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => DriverSettingsRoute,
+  } as any)
+const DriverSettingsPaymentsRoute = DriverSettingsPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsPrivacyRoute = DriverSettingsPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsProfileRoute = DriverSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsSecurityRoute = DriverSettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
+const DriverSettingsWorkRoute = DriverSettingsWorkRouteImport.update({
+  id: '/work',
+  path: '/work',
+  getParentRoute: () => DriverSettingsRoute,
+} as any)
 const FarmerDisputesIndexRoute = FarmerDisputesIndexRouteImport.update({
   id: '/disputes/',
   path: '/disputes/',
@@ -958,7 +1014,7 @@ export interface FileRoutesByFullPath {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
-  '/driver/settings': typeof DriverSettingsRoute
+  '/driver/settings': typeof DriverSettingsRouteWithChildren
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -993,6 +1049,14 @@ export interface FileRoutesByFullPath {
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
   '/driver/routes/$tourId': typeof DriverRoutesTourIdRoute
   '/driver/routes/new': typeof DriverRoutesNewRoute
+  '/driver/settings/appearance': typeof DriverSettingsAppearanceRoute
+  '/driver/settings/help': typeof DriverSettingsHelpRoute
+  '/driver/settings/notifications': typeof DriverSettingsNotificationsRoute
+  '/driver/settings/payments': typeof DriverSettingsPaymentsRoute
+  '/driver/settings/privacy': typeof DriverSettingsPrivacyRoute
+  '/driver/settings/profile': typeof DriverSettingsProfileRoute
+  '/driver/settings/security': typeof DriverSettingsSecurityRoute
+  '/driver/settings/work': typeof DriverSettingsWorkRoute
   '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
@@ -1041,6 +1105,7 @@ export interface FileRoutesByFullPath {
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
   '/driver/routes/': typeof DriverRoutesIndexRoute
+  '/driver/settings/': typeof DriverSettingsIndexRoute
   '/farmer/disputes/': typeof FarmerDisputesIndexRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
   '/farmer/notifications/': typeof FarmerNotificationsIndexRoute
@@ -1104,7 +1169,6 @@ export interface FileRoutesByTo {
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
-  '/driver/settings': typeof DriverSettingsRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -1132,6 +1196,14 @@ export interface FileRoutesByTo {
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
   '/driver/routes/$tourId': typeof DriverRoutesTourIdRoute
   '/driver/routes/new': typeof DriverRoutesNewRoute
+  '/driver/settings/appearance': typeof DriverSettingsAppearanceRoute
+  '/driver/settings/help': typeof DriverSettingsHelpRoute
+  '/driver/settings/notifications': typeof DriverSettingsNotificationsRoute
+  '/driver/settings/payments': typeof DriverSettingsPaymentsRoute
+  '/driver/settings/privacy': typeof DriverSettingsPrivacyRoute
+  '/driver/settings/profile': typeof DriverSettingsProfileRoute
+  '/driver/settings/security': typeof DriverSettingsSecurityRoute
+  '/driver/settings/work': typeof DriverSettingsWorkRoute
   '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
@@ -1180,6 +1252,7 @@ export interface FileRoutesByTo {
   '/driver/missions': typeof DriverMissionsIndexRoute
   '/driver/notifications': typeof DriverNotificationsIndexRoute
   '/driver/routes': typeof DriverRoutesIndexRoute
+  '/driver/settings': typeof DriverSettingsIndexRoute
   '/farmer/disputes': typeof FarmerDisputesIndexRoute
   '/farmer/messages': typeof FarmerMessagesIndexRoute
   '/farmer/notifications': typeof FarmerNotificationsIndexRoute
@@ -1246,7 +1319,7 @@ export interface FileRoutesById {
   '/driver/history': typeof DriverHistoryRoute
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
-  '/driver/settings': typeof DriverSettingsRoute
+  '/driver/settings': typeof DriverSettingsRouteWithChildren
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -1281,6 +1354,14 @@ export interface FileRoutesById {
   '/driver/notifications/rules': typeof DriverNotificationsRulesRoute
   '/driver/routes/$tourId': typeof DriverRoutesTourIdRoute
   '/driver/routes/new': typeof DriverRoutesNewRoute
+  '/driver/settings/appearance': typeof DriverSettingsAppearanceRoute
+  '/driver/settings/help': typeof DriverSettingsHelpRoute
+  '/driver/settings/notifications': typeof DriverSettingsNotificationsRoute
+  '/driver/settings/payments': typeof DriverSettingsPaymentsRoute
+  '/driver/settings/privacy': typeof DriverSettingsPrivacyRoute
+  '/driver/settings/profile': typeof DriverSettingsProfileRoute
+  '/driver/settings/security': typeof DriverSettingsSecurityRoute
+  '/driver/settings/work': typeof DriverSettingsWorkRoute
   '/farmer/disputes/$disputeId': typeof FarmerDisputesDisputeIdRoute
   '/farmer/messages/$conversationId': typeof FarmerMessagesConversationIdRoute
   '/farmer/notifications/rules': typeof FarmerNotificationsRulesRoute
@@ -1329,6 +1410,7 @@ export interface FileRoutesById {
   '/driver/missions/': typeof DriverMissionsIndexRoute
   '/driver/notifications/': typeof DriverNotificationsIndexRoute
   '/driver/routes/': typeof DriverRoutesIndexRoute
+  '/driver/settings/': typeof DriverSettingsIndexRoute
   '/farmer/disputes/': typeof FarmerDisputesIndexRoute
   '/farmer/messages/': typeof FarmerMessagesIndexRoute
   '/farmer/notifications/': typeof FarmerNotificationsIndexRoute
@@ -1431,6 +1513,14 @@ export interface FileRouteTypes {
     | '/driver/notifications/rules'
     | '/driver/routes/$tourId'
     | '/driver/routes/new'
+    | '/driver/settings/appearance'
+    | '/driver/settings/help'
+    | '/driver/settings/notifications'
+    | '/driver/settings/payments'
+    | '/driver/settings/privacy'
+    | '/driver/settings/profile'
+    | '/driver/settings/security'
+    | '/driver/settings/work'
     | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
@@ -1479,6 +1569,7 @@ export interface FileRouteTypes {
     | '/driver/missions/'
     | '/driver/notifications/'
     | '/driver/routes/'
+    | '/driver/settings/'
     | '/farmer/disputes/'
     | '/farmer/messages/'
     | '/farmer/notifications/'
@@ -1542,7 +1633,6 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
-    | '/driver/settings'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
@@ -1570,6 +1660,14 @@ export interface FileRouteTypes {
     | '/driver/notifications/rules'
     | '/driver/routes/$tourId'
     | '/driver/routes/new'
+    | '/driver/settings/appearance'
+    | '/driver/settings/help'
+    | '/driver/settings/notifications'
+    | '/driver/settings/payments'
+    | '/driver/settings/privacy'
+    | '/driver/settings/profile'
+    | '/driver/settings/security'
+    | '/driver/settings/work'
     | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
@@ -1618,6 +1716,7 @@ export interface FileRouteTypes {
     | '/driver/missions'
     | '/driver/notifications'
     | '/driver/routes'
+    | '/driver/settings'
     | '/farmer/disputes'
     | '/farmer/messages'
     | '/farmer/notifications'
@@ -1718,6 +1817,14 @@ export interface FileRouteTypes {
     | '/driver/notifications/rules'
     | '/driver/routes/$tourId'
     | '/driver/routes/new'
+    | '/driver/settings/appearance'
+    | '/driver/settings/help'
+    | '/driver/settings/notifications'
+    | '/driver/settings/payments'
+    | '/driver/settings/privacy'
+    | '/driver/settings/profile'
+    | '/driver/settings/security'
+    | '/driver/settings/work'
     | '/farmer/disputes/$disputeId'
     | '/farmer/messages/$conversationId'
     | '/farmer/notifications/rules'
@@ -1766,6 +1873,7 @@ export interface FileRouteTypes {
     | '/driver/missions/'
     | '/driver/notifications/'
     | '/driver/routes/'
+    | '/driver/settings/'
     | '/farmer/disputes/'
     | '/farmer/messages/'
     | '/farmer/notifications/'
@@ -2377,6 +2485,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DriverRoutesNewRouteImport
       parentRoute: typeof DriverRoute
     }
+    '/driver/settings/': {
+      id: '/driver/settings/'
+      path: '/'
+      fullPath: '/driver/settings/'
+      preLoaderRoute: typeof DriverSettingsIndexRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/appearance': {
+      id: '/driver/settings/appearance'
+      path: '/appearance'
+      fullPath: '/driver/settings/appearance'
+      preLoaderRoute: typeof DriverSettingsAppearanceRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/help': {
+      id: '/driver/settings/help'
+      path: '/help'
+      fullPath: '/driver/settings/help'
+      preLoaderRoute: typeof DriverSettingsHelpRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/notifications': {
+      id: '/driver/settings/notifications'
+      path: '/notifications'
+      fullPath: '/driver/settings/notifications'
+      preLoaderRoute: typeof DriverSettingsNotificationsRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/payments': {
+      id: '/driver/settings/payments'
+      path: '/payments'
+      fullPath: '/driver/settings/payments'
+      preLoaderRoute: typeof DriverSettingsPaymentsRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/privacy': {
+      id: '/driver/settings/privacy'
+      path: '/privacy'
+      fullPath: '/driver/settings/privacy'
+      preLoaderRoute: typeof DriverSettingsPrivacyRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/profile': {
+      id: '/driver/settings/profile'
+      path: '/profile'
+      fullPath: '/driver/settings/profile'
+      preLoaderRoute: typeof DriverSettingsProfileRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/security': {
+      id: '/driver/settings/security'
+      path: '/security'
+      fullPath: '/driver/settings/security'
+      preLoaderRoute: typeof DriverSettingsSecurityRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
+    '/driver/settings/work': {
+      id: '/driver/settings/work'
+      path: '/work'
+      fullPath: '/driver/settings/work'
+      preLoaderRoute: typeof DriverSettingsWorkRouteImport
+      parentRoute: typeof DriverSettingsRoute
+    }
     '/farmer/disputes/': {
       id: '/farmer/disputes/'
       path: '/disputes'
@@ -2920,6 +3091,34 @@ const DriverNotificationsRouteChildren: DriverNotificationsRouteChildren = {
 const DriverNotificationsRouteWithChildren =
   DriverNotificationsRoute._addFileChildren(DriverNotificationsRouteChildren)
 
+interface DriverSettingsRouteChildren {
+  DriverSettingsAppearanceRoute: typeof DriverSettingsAppearanceRoute
+  DriverSettingsHelpRoute: typeof DriverSettingsHelpRoute
+  DriverSettingsNotificationsRoute: typeof DriverSettingsNotificationsRoute
+  DriverSettingsPaymentsRoute: typeof DriverSettingsPaymentsRoute
+  DriverSettingsPrivacyRoute: typeof DriverSettingsPrivacyRoute
+  DriverSettingsProfileRoute: typeof DriverSettingsProfileRoute
+  DriverSettingsSecurityRoute: typeof DriverSettingsSecurityRoute
+  DriverSettingsWorkRoute: typeof DriverSettingsWorkRoute
+  DriverSettingsIndexRoute: typeof DriverSettingsIndexRoute
+}
+
+const DriverSettingsRouteChildren: DriverSettingsRouteChildren = {
+  DriverSettingsAppearanceRoute: DriverSettingsAppearanceRoute,
+  DriverSettingsHelpRoute: DriverSettingsHelpRoute,
+  DriverSettingsNotificationsRoute: DriverSettingsNotificationsRoute,
+  DriverSettingsPaymentsRoute: DriverSettingsPaymentsRoute,
+  DriverSettingsPrivacyRoute: DriverSettingsPrivacyRoute,
+  DriverSettingsProfileRoute: DriverSettingsProfileRoute,
+  DriverSettingsSecurityRoute: DriverSettingsSecurityRoute,
+  DriverSettingsWorkRoute: DriverSettingsWorkRoute,
+  DriverSettingsIndexRoute: DriverSettingsIndexRoute,
+}
+
+const DriverSettingsRouteWithChildren = DriverSettingsRoute._addFileChildren(
+  DriverSettingsRouteChildren,
+)
+
 interface DriverMissionsMissionIdRouteChildren {
   DriverMissionsMissionIdDisputeRoute: typeof DriverMissionsMissionIdDisputeRoute
 }
@@ -2939,7 +3138,7 @@ interface DriverRouteChildren {
   DriverHistoryRoute: typeof DriverHistoryRoute
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
   DriverNotificationsRoute: typeof DriverNotificationsRouteWithChildren
-  DriverSettingsRoute: typeof DriverSettingsRoute
+  DriverSettingsRoute: typeof DriverSettingsRouteWithChildren
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
   DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
@@ -2959,7 +3158,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverHistoryRoute: DriverHistoryRoute,
   DriverMessagesRoute: DriverMessagesRouteWithChildren,
   DriverNotificationsRoute: DriverNotificationsRouteWithChildren,
-  DriverSettingsRoute: DriverSettingsRoute,
+  DriverSettingsRoute: DriverSettingsRouteWithChildren,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
   DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
