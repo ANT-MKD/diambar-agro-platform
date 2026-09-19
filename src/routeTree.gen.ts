@@ -76,6 +76,7 @@ import { Route as AdminValidationsIndexRouteImport } from './routes/admin.valida
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
 import { Route as DriverDisputesDisputeIdRouteImport } from './routes/driver.disputes.$disputeId'
+import { Route as DriverDisputesNewRouteImport } from './routes/driver.disputes.new'
 import { Route as DriverIncidentsIndexRouteImport } from './routes/driver.incidents.index'
 import { Route as DriverIncidentsIncidentIdRouteImport } from './routes/driver.incidents.$incidentId'
 import { Route as DriverMessagesIndexRouteImport } from './routes/driver.messages.index'
@@ -489,6 +490,11 @@ const DriverDisputesIndexRoute = DriverDisputesIndexRouteImport.update({
 const DriverDisputesDisputeIdRoute = DriverDisputesDisputeIdRouteImport.update({
   id: '/disputes/$disputeId',
   path: '/disputes/$disputeId',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverDisputesNewRoute = DriverDisputesNewRouteImport.update({
+  id: '/disputes/new',
+  path: '/disputes/new',
   getParentRoute: () => DriverRoute,
 } as any)
 const DriverIncidentsIndexRoute = DriverIncidentsIndexRouteImport.update({
@@ -980,6 +986,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/disputes/new': typeof DriverDisputesNewRoute
   '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
@@ -1118,6 +1125,7 @@ export interface FileRoutesByTo {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/disputes/new': typeof DriverDisputesNewRoute
   '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
@@ -1266,6 +1274,7 @@ export interface FileRoutesById {
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
+  '/driver/disputes/new': typeof DriverDisputesNewRoute
   '/driver/incidents/$incidentId': typeof DriverIncidentsIncidentIdRoute
   '/driver/messages/$conversationId': typeof DriverMessagesConversationIdRoute
   '/driver/missions/$missionId': typeof DriverMissionsMissionIdRouteWithChildren
@@ -1415,6 +1424,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/disputes/new'
     | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
@@ -1553,6 +1563,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/disputes/new'
     | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
@@ -1700,6 +1711,7 @@ export interface FileRouteTypes {
     | '/admin/users/$userId'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
+    | '/driver/disputes/new'
     | '/driver/incidents/$incidentId'
     | '/driver/messages/$conversationId'
     | '/driver/missions/$missionId'
@@ -2279,6 +2291,13 @@ declare module '@tanstack/react-router' {
       path: '/disputes/$disputeId'
       fullPath: '/driver/disputes/$disputeId'
       preLoaderRoute: typeof DriverDisputesDisputeIdRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/disputes/new': {
+      id: '/driver/disputes/new'
+      path: '/disputes/new'
+      fullPath: '/driver/disputes/new'
+      preLoaderRoute: typeof DriverDisputesNewRouteImport
       parentRoute: typeof DriverRoute
     }
     '/driver/incidents/': {
@@ -2924,6 +2943,7 @@ interface DriverRouteChildren {
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
   DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
+  DriverDisputesNewRoute: typeof DriverDisputesNewRoute
   DriverIncidentsIncidentIdRoute: typeof DriverIncidentsIncidentIdRoute
   DriverMissionsMissionIdRoute: typeof DriverMissionsMissionIdRouteWithChildren
   DriverRoutesTourIdRoute: typeof DriverRoutesTourIdRoute
@@ -2943,6 +2963,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
   DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
+  DriverDisputesNewRoute: DriverDisputesNewRoute,
   DriverIncidentsIncidentIdRoute: DriverIncidentsIncidentIdRoute,
   DriverMissionsMissionIdRoute: DriverMissionsMissionIdRouteWithChildren,
   DriverRoutesTourIdRoute: DriverRoutesTourIdRoute,

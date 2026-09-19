@@ -91,6 +91,11 @@ function DriverConversation() {
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
+          {conv.messages.length === 0 && (
+            <p className="text-center text-xs text-muted-foreground pt-8">
+              Écrivez le premier message à {r?.name}.
+            </p>
+          )}
           {conv.messages.map((m) => (
             <ChatBubble
               key={m.id}

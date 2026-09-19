@@ -32,7 +32,16 @@ function NotificationsPage() {
     driverNotifActions.markRead(n.id);
     if (n.type === "order") navigate({ to: "/driver/missions" });
     else if (n.type === "payment") navigate({ to: "/driver/wallet" });
-    else if (n.type === "message") navigate({ to: "/driver/messages" });
+    else if (n.type === "message") {
+      if (n.refId) {
+        navigate({
+          to: "/driver/messages/$conversationId",
+          params: { conversationId: n.refId },
+        });
+      } else {
+        navigate({ to: "/driver/messages" });
+      }
+    }
   };
 
   return (

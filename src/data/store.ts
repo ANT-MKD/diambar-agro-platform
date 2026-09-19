@@ -632,6 +632,23 @@ export const missionActions = {
 };
 
 export const driverConversationActions = {
+  startOrGet: (restaurantId: string) => {
+    const existing = driverConvosStore.get().find((c) => c.restaurantId === restaurantId);
+    if (existing) return existing.id;
+    const id = `dc_${Date.now()}`;
+    driverConvosStore.set((arr) => [
+      {
+        id,
+        restaurantId,
+        lastMessage: "",
+        lastAt: new Date().toISOString(),
+        unread: 0,
+        messages: [],
+      },
+      ...arr,
+    ]);
+    return id;
+  },
   send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
     const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
     driverConvosStore.set((arr) =>

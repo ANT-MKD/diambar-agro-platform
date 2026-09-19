@@ -391,11 +391,11 @@ const seedDisputes: Dispute[] = [
     category: "delivery",
     subcategory: "Client absent",
     description: "Restaurant fermé à l'arrivée, 40 min d'attente puis retour à la ferme.",
-    orderRef: "CMD-2812",
-    missionId: "m2",
+    orderRef: "CMD-2844",
+    missionId: "mi7",
     hasGpsTrack: true,
     openedByRole: "driver",
-    openedByName: "Modou Sarr",
+    openedByName: "Oumar Ba",
     againstRole: "restaurant",
     againstName: "Le Baobab",
     claimedAmount: 6000,
@@ -414,12 +414,12 @@ const seedDisputes: Dispute[] = [
         id: "m8",
         at: iso(6),
         authorRole: "driver",
-        authorName: "Modou Sarr",
+        authorName: "Oumar Ba",
         text: "Personne sur place, appels sans réponse. Je demande l'indemnité de course à vide.",
         internal: false,
       },
     ],
-    events: [{ id: "e10", at: iso(6), actor: "Modou Sarr", label: "Litige ouvert" }],
+    events: [{ id: "e10", at: iso(6), actor: "Oumar Ba", label: "Litige ouvert" }],
   },
   {
     id: "dp6",
@@ -895,6 +895,12 @@ export const disputeActions = {
           -Math.abs(decision.grantedAmount),
           "adjustment",
         );
+      } else if (d.openedByRole === "driver") {
+        driverWalletActions.credit(
+          `Indemnité litige ${d.reference}`,
+          Math.abs(decision.grantedAmount),
+          "adjustment",
+        );
       }
     }
   },
@@ -943,12 +949,30 @@ export function disputeStats(list: Dispute[]) {
     if (d.liableParty === d.againstRole) e.liable += 1;
     byParty.set(key, e);
   }
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+  const lastMonthStart = new Date(monthStart);
+  lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
   return {
     total: list.length,
     open: list.filter(
       (d) =>
         d.status === "open" || d.status === "investigating" || d.status === "awaiting_response",
     ).length,
+    // "Litiges ouverts" au sens strict du mockup (hors instruction/réponse
+    // attendue, qui forment le compteur "En traitement" séparé).
+    openStrict: list.filter((d) => d.status === "open").length,
+    inTreatment: list.filter(
+      (d) => d.status === "investigating" || d.status === "awaiting_response",
+    ).length,
+    resolvedCount: list.filter((d) => d.status === "resolved").length,
+    openedThisWeek: list.filter((d) => new Date(d.openedAt) >= weekAgo).length,
+    resolvedThisMonthCount: resolved.filter((d) => new Date(d.decision!.at) >= monthStart).length,
+    claimedThisMonth: list
+      .filter((d) => new Date(d.openedAt) >= monthStart)
+      .reduce((s, d) => s + d.claimedAmount, 0),
+    claimedLastMonth: list
+      .filter((d) => new Date(d.openedAt) >= lastMonthStart && new Date(d.openedAt) < monthStart)
+      .reduce((s, d) => s + d.claimedAmount, 0),
     overdue: list.filter(
       (d) => d.status !== "resolved" && d.status !== "rejected" && slaRemaining(d).overdue,
     ).length,

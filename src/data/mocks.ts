@@ -1862,6 +1862,7 @@ export const driverNotifications: AppNotification[] = [
     body: "Merci pour la livraison !",
     at: "2025-05-15T11:40:00Z",
     read: false,
+    refId: "dc1",
   },
   {
     id: "dn4",
