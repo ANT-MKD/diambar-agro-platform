@@ -23,6 +23,7 @@ import {
   useDriverWallet,
   useDriverOnline,
   driverOnlineActions,
+  useDriverVehicle,
 } from "@/data/store";
 import { restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -66,6 +67,7 @@ function MissionsPage() {
   const all = useMissions();
   const wallet = useDriverWallet();
   const online = useDriverOnline();
+  const vehicle = useDriverVehicle();
   const [tab, setTab] = useState<Tab>("available");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("all");
@@ -289,6 +291,11 @@ function MissionsPage() {
                           <Package className="h-3 w-3" />
                           {m.weightKg} kg
                         </span>
+                        {m.weightKg > vehicle.capacityKg && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                            Véhicule incompatible
+                          </span>
+                        )}
                       </div>
                       <div className="text-muted-foreground">
                         {timeLabel(m.scheduledFor)} - {timeLabel(windowEnd)} ·{" "}

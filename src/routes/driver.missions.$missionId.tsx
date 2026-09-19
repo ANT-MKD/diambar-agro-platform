@@ -26,6 +26,7 @@ import {
   useDriverConversations,
   useOrders,
   useProducts,
+  useDriverVehicle,
 } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
@@ -73,6 +74,7 @@ function MissionDetail() {
   const conversations = useDriverConversations();
   const orders = useOrders();
   const products = useProducts();
+  const vehicle = useDriverVehicle();
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
@@ -154,7 +156,14 @@ function MissionDetail() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatPill icon={RouteIcon} label="Distance" value={`${mission.distanceKm} km`} />
         <StatPill icon={Clock} label="Temps estimé" value={`~ ${mission.estimatedMinutes} min`} />
-        <StatPill icon={Package} label="Poids total" value={`${mission.weightKg} kg`} />
+        <StatPill
+          icon={Package}
+          label="Poids total"
+          value={`${mission.weightKg} kg`}
+          tone={
+            mission.weightKg > vehicle.capacityKg ? "text-rose-600 dark:text-rose-400" : undefined
+          }
+        />
         <StatPill
           icon={Wallet}
           label="Gain"
@@ -162,6 +171,16 @@ function MissionDetail() {
           tone="text-primary"
         />
       </div>
+
+      {mission.weightKg > vehicle.capacityKg && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
+          <TriangleAlert className="h-5 w-5 shrink-0" />
+          <span>
+            Véhicule incompatible : {mission.weightKg} kg à transporter pour une capacité de{" "}
+            {vehicle.capacityKg} kg ({vehicle.type} {vehicle.brand} {vehicle.model}).
+          </span>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 space-y-6">

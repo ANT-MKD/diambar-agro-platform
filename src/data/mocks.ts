@@ -1794,17 +1794,81 @@ export type DriverVehicle = {
   plate: string;
   color: string;
   capacityKg: number;
+  mileageKm: number;
   insuranceExpiry: string;
   inspectionExpiry: string;
   photo: string;
+  photos: MissionProofPhoto[];
   nextMaintenanceAt?: string;
+  // Auto-déclaré par le livreur au fil des signalements (résolu = bon état,
+  // signalé = à vérifier) — pas de capteur simulé.
+  condition: {
+    tires: "good" | "check";
+    brakes: "good" | "check";
+    battery: "good" | "check";
+    oil: "good" | "check";
+    lights: "good" | "check";
+    body: "good" | "check";
+  };
+};
+
+export type VehicleIssueType = "tires" | "brakes" | "battery" | "engine" | "lights" | "other";
+export type VehicleIssueSeverity = "low" | "medium" | "high";
+
+export const VEHICLE_ISSUE_TYPE_LABEL: Record<VehicleIssueType, string> = {
+  tires: "Pneus",
+  brakes: "Freins",
+  battery: "Batterie",
+  engine: "Moteur",
+  lights: "Éclairage",
+  other: "Autre",
 };
 
 export type VehicleIssue = {
   id: string;
+  reference: string;
+  type: VehicleIssueType;
+  severity: VehicleIssueSeverity;
   description: string;
   at: string;
-  status: "reported" | "resolved";
+  status: "reported" | "in_progress" | "resolved";
+  photos?: MissionProofPhoto[];
+};
+
+export type MaintenanceEntry = {
+  id: string;
+  label: string;
+  at: string;
+  mileageKm: number;
+  status: "done";
+};
+
+export type VehicleChangeReason = "sold" | "breakdown" | "new_vehicle" | "rental" | "other";
+
+export const VEHICLE_CHANGE_REASON_LABEL: Record<VehicleChangeReason, string> = {
+  sold: "Véhicule vendu",
+  breakdown: "Panne",
+  new_vehicle: "Nouveau véhicule",
+  rental: "Location",
+  other: "Autre",
+};
+
+export type VehicleChangeRequest = {
+  id: string;
+  reference: string;
+  reason: VehicleChangeReason;
+  newVehicle: {
+    type: DriverVehicle["type"];
+    brand: string;
+    model: string;
+    year: number;
+    plate: string;
+    capacityKg: number;
+    mileageKm: number;
+  };
+  docs: MissionProofPhoto[];
+  status: "pending" | "approved" | "rejected";
+  submittedAt: string;
 };
 
 export const driverProfile = {
@@ -1833,10 +1897,39 @@ export const driverVehicle: DriverVehicle = {
   plate: "DK 4587 AB",
   color: "Blanc",
   capacityKg: 800,
-  insuranceExpiry: "2026-03-15",
-  inspectionExpiry: "2025-11-20",
+  mileageKm: 48250,
+  insuranceExpiry: "2027-03-15",
+  inspectionExpiry: "2026-11-20",
   photo: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800",
+  photos: [],
+  nextMaintenanceAt: "2026-10-12",
+  condition: {
+    tires: "check",
+    brakes: "good",
+    battery: "good",
+    oil: "check",
+    lights: "good",
+    body: "good",
+  },
 };
+
+export const vehicleMaintenanceHistory: MaintenanceEntry[] = [
+  { id: "vm1", label: "Révision générale", at: "2026-09-12", mileageKm: 45200, status: "done" },
+  { id: "vm2", label: "Vidange", at: "2026-06-18", mileageKm: 41800, status: "done" },
+  { id: "vm3", label: "Changement pneus", at: "2026-03-02", mileageKm: 38500, status: "done" },
+];
+
+export const vehicleIssues: VehicleIssue[] = [
+  {
+    id: "vi1",
+    reference: "INC-VH-0024",
+    type: "tires",
+    severity: "medium",
+    description: "Pneu avant droit usé, à surveiller avant le prochain long trajet.",
+    at: "2026-09-18T10:00:00Z",
+    status: "in_progress",
+  },
+];
 
 export const driverNotifications: AppNotification[] = [
   {

@@ -15,6 +15,8 @@ import {
   driverConversations as seedDriverConvos,
   driverWallet as seedDriverWallet,
   driverVehicle as seedDriverVehicle,
+  vehicleMaintenanceHistory as seedMaintenanceHistory,
+  vehicleIssues as seedVehicleIssues,
   driverSettings as seedDriverSettings,
   wallets as seedWallets,
   farmerProfile as seedFarmerProfile,
@@ -61,6 +63,12 @@ import {
   type PaymentMethod as PayMethod,
   type DriverVehicle,
   type VehicleIssue,
+  type VehicleIssueType,
+  type VehicleIssueSeverity,
+  type MaintenanceEntry,
+  type VehicleChangeRequest,
+  type VehicleChangeReason,
+  type MissionProofPhoto as Attachment,
   type DriverSettings,
   type DriverPaymentMethod,
 } from "./mocks";
@@ -132,7 +140,18 @@ const driverConvosStore = createStore<DriverConversation[]>(
 const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
 const driverWalletStore = createStore<DriverWallet>(seedDriverWallet, "diambar:driver-wallet");
 const driverVehicleStore = createStore<DriverVehicle>(seedDriverVehicle, "diambar:driver-vehicle");
-const vehicleIssuesStore = createStore<VehicleIssue[]>([], "diambar:driver-vehicle-issues");
+const vehicleIssuesStore = createStore<VehicleIssue[]>(
+  seedVehicleIssues,
+  "diambar:driver-vehicle-issues",
+);
+const maintenanceHistoryStore = createStore<MaintenanceEntry[]>(
+  seedMaintenanceHistory,
+  "diambar:driver-vehicle-maintenance",
+);
+const vehicleChangeRequestsStore = createStore<VehicleChangeRequest[]>(
+  [],
+  "diambar:driver-vehicle-change-requests",
+);
 const driverSettingsStore = createStore<DriverSettings>(
   seedDriverSettings,
   "diambar:driver-settings",
@@ -351,20 +370,112 @@ export function useVehicleIssues() {
   );
 }
 
+const VEHICLE_ISSUE_TO_CONDITION: Partial<
+  Record<VehicleIssueType, keyof DriverVehicle["condition"]>
+> = {
+  tires: "tires",
+  brakes: "brakes",
+  battery: "battery",
+  engine: "oil",
+  lights: "lights",
+};
+
+export function useMaintenanceHistory() {
+  return useSyncExternalStore(
+    maintenanceHistoryStore.subscribe,
+    maintenanceHistoryStore.get,
+    maintenanceHistoryStore.get,
+  );
+}
+
+export function useVehicleChangeRequests() {
+  return useSyncExternalStore(
+    vehicleChangeRequestsStore.subscribe,
+    vehicleChangeRequestsStore.get,
+    vehicleChangeRequestsStore.get,
+  );
+}
+
 export const vehicleActions = {
   update: (patch: Partial<DriverVehicle>) => driverVehicleStore.set((v) => ({ ...v, ...patch })),
   setPhoto: (dataUrl: string) => driverVehicleStore.set((v) => ({ ...v, photo: dataUrl })),
+  setPhotos: (photos: Attachment[]) => driverVehicleStore.set((v) => ({ ...v, photos })),
+  updateMileage: (mileageKm: number) => driverVehicleStore.set((v) => ({ ...v, mileageKm })),
   scheduleMaintenance: (date: string) =>
     driverVehicleStore.set((v) => ({ ...v, nextMaintenanceAt: date })),
-  reportIssue: (description: string) => {
+  logMaintenance: (label: string) => {
+    const vehicle = driverVehicleStore.get();
+    const entry: MaintenanceEntry = {
+      id: `vm_${Date.now()}`,
+      label,
+      at: new Date().toISOString(),
+      mileageKm: vehicle.mileageKm,
+      status: "done",
+    };
+    maintenanceHistoryStore.set((arr) => [entry, ...arr]);
+    return entry.id;
+  },
+  reportIssue: (input: {
+    type: VehicleIssueType;
+    severity: VehicleIssueSeverity;
+    description: string;
+    photos?: Attachment[];
+  }) => {
+    const reference = `INC-VH-${25 + vehicleIssuesStore.get().length}`;
     const issue: VehicleIssue = {
       id: `vi_${Date.now()}`,
-      description,
+      reference,
+      type: input.type,
+      severity: input.severity,
+      description: input.description,
       at: new Date().toISOString(),
       status: "reported",
+      photos: input.photos,
     };
     vehicleIssuesStore.set((arr) => [issue, ...arr]);
-    return issue.id;
+    // Le point du véhicule concerné passe "à vérifier" tant que l'incident
+    // n'est pas résolu — pas de capteur, juste le reflet du signalement.
+    const conditionKey = VEHICLE_ISSUE_TO_CONDITION[input.type];
+    if (conditionKey) {
+      driverVehicleStore.set((v) => ({
+        ...v,
+        condition: { ...v.condition, [conditionKey]: "check" },
+      }));
+    }
+    return issue;
+  },
+  resolveIssue: (id: string) => {
+    const issue = vehicleIssuesStore.get().find((i) => i.id === id);
+    vehicleIssuesStore.set((arr) =>
+      arr.map((i) => (i.id === id ? { ...i, status: "resolved" } : i)),
+    );
+    if (issue) {
+      const conditionKey = VEHICLE_ISSUE_TO_CONDITION[issue.type];
+      if (conditionKey) {
+        driverVehicleStore.set((v) => ({
+          ...v,
+          condition: { ...v.condition, [conditionKey]: "good" },
+        }));
+      }
+    }
+  },
+  requestChange: (input: {
+    reason: VehicleChangeReason;
+    newVehicle: VehicleChangeRequest["newVehicle"];
+    docs: Attachment[];
+  }) => {
+    const reference = `VH-2026-${42 + vehicleChangeRequestsStore.get().length}`;
+    const req: VehicleChangeRequest = {
+      id: `vcr_${Date.now()}`,
+      reference,
+      reason: input.reason,
+      newVehicle: input.newVehicle,
+      docs: input.docs,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+    };
+    vehicleChangeRequestsStore.set((arr) => [req, ...arr]);
+    return req;
   },
 };
 
