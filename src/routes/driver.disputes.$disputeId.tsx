@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
 import { useDisputeById } from "@/data/disputes";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/disputes/$disputeId")({
   head: () => ({
@@ -39,7 +40,7 @@ function DriverDisputeDetail() {
     <DisputeDetailView
       dispute={d}
       role="driver"
-      name="Modou Sarr"
+      name={driverProfile.name}
       breadcrumb={
         <Link
           to="/driver/disputes"
@@ -61,7 +62,7 @@ function DriverDisputeDetail() {
             </Link>
           )}
           <Link to="/driver/wallet" className="block text-primary hover:underline">
-            Portefeuille (retenues éventuelles)
+            Portefeuille (retenue ou indemnité éventuelle)
           </Link>
           {d.hasGpsTrack && (
             <span className="block text-muted-foreground">Trajet GPS enregistré</span>

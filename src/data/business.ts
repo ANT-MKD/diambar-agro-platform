@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from "react";
+import { creditActions, type DisputeAttachment } from "@/data/disputes";
+import { driverWalletActions } from "@/data/store";
 
 type Listener = () => void;
 
@@ -59,18 +61,22 @@ export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   credited: "Avoir émis",
 };
 
-export type ReturnProofPhoto = {
+export type ReturnMessage = {
   id: string;
-  url: string;
-  by: string;
   at: string;
+  authorRole: "restaurant" | "farmer";
+  authorName: string;
+  text: string;
 };
 
 export type ReturnRequest = {
   id: string;
   reference: string;
   orderRef: string;
+  orderId?: string;
+  restaurantId: string;
   restaurantName: string;
+  productId?: string;
   productName: string;
   qty: number;
   unit: string;
@@ -83,7 +89,8 @@ export type ReturnRequest = {
   decidedAt?: string;
   decisionNote?: string;
   creditNoteRef?: string;
-  photos?: ReturnProofPhoto[];
+  photos?: DisputeAttachment[];
+  messages: ReturnMessage[];
   history: { at: string; actor: string; text: string }[];
 };
 
@@ -92,7 +99,9 @@ const seedReturns: ReturnRequest[] = [
     id: "rt1",
     reference: "RET-1042",
     orderRef: "CMD-2851",
+    restaurantId: "r1",
     restaurantName: "Le Baobab",
+    productId: "p1",
     productName: "Tomates fraîches",
     qty: 8,
     unit: "kg",
@@ -104,11 +113,16 @@ const seedReturns: ReturnRequest[] = [
     photos: [
       {
         id: "rtp1",
-        url: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400",
+        name: "photo-reception.jpg",
+        size: 214000,
+        mime: "image/jpeg",
+        kind: "photo",
+        dataUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400",
         by: "Le Baobab",
         at: "2025-05-15T12:10:00Z",
       },
     ],
+    messages: [],
     history: [
       { at: "2025-05-15T12:10:00Z", actor: "Le Baobab", text: "Demande de retour ouverte" },
     ],
@@ -117,7 +131,9 @@ const seedReturns: ReturnRequest[] = [
     id: "rt2",
     reference: "RET-1041",
     orderRef: "CMD-2847",
+    restaurantId: "r2",
     restaurantName: "Chez Aminata",
+    productId: "p2",
     productName: "Oignons rouges",
     qty: 5,
     unit: "kg",
@@ -130,6 +146,7 @@ const seedReturns: ReturnRequest[] = [
     decidedAt: "2025-05-14T17:20:00Z",
     decisionNote: "Écart confirmé sur le bon de pesée.",
     creditNoteRef: "AV-2214",
+    messages: [],
     history: [
       { at: "2025-05-14T15:00:00Z", actor: "Chez Aminata", text: "Demande de retour ouverte" },
       {
@@ -143,7 +160,9 @@ const seedReturns: ReturnRequest[] = [
     id: "rt3",
     reference: "RET-1040",
     orderRef: "CMD-2848",
-    restaurantName: "Teranga Food",
+    restaurantId: "r3",
+    restaurantName: "Restaurant Téranga",
+    productId: "p3",
     productName: "Poulet fermier",
     qty: 2,
     unit: "kg",
@@ -155,15 +174,24 @@ const seedReturns: ReturnRequest[] = [
     photos: [
       {
         id: "rtp2",
-        url: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400",
-        by: "Teranga Food",
+        name: "photo-livraison.jpg",
+        size: 198000,
+        mime: "image/jpeg",
+        kind: "photo",
+        dataUrl: "https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400",
+        by: "Restaurant Téranga",
         at: "2025-05-13T09:30:00Z",
       },
     ],
     decidedAt: "2025-05-13T18:00:00Z",
     decisionNote: "Retard imputable au transporteur, dossier basculé en litige livreur.",
+    messages: [],
     history: [
-      { at: "2025-05-13T09:30:00Z", actor: "Teranga Food", text: "Demande de retour ouverte" },
+      {
+        at: "2025-05-13T09:30:00Z",
+        actor: "Restaurant Téranga",
+        text: "Demande de retour ouverte",
+      },
       {
         at: "2025-05-13T18:00:00Z",
         actor: "Mamadou Diallo",
@@ -181,19 +209,56 @@ export function useReturns() {
 export function useReturn(id: string) {
   return useReturns().find((r) => r.id === id) ?? null;
 }
+/** Retours du seul restaurant connecté — sans ce filtre, un restaurant
+ * voyait les demandes de retour de tous les autres restaurants. */
+export function useReturnsForRestaurant(restaurantId: string) {
+  return useReturns().filter((r) => r.restaurantId === restaurantId);
+}
 
 export const returnActions = {
-  create: (input: Omit<ReturnRequest, "id" | "reference" | "status" | "createdAt" | "history">) => {
+  create: (
+    input: Omit<
+      ReturnRequest,
+      "id" | "reference" | "status" | "createdAt" | "history" | "messages"
+    >,
+  ) => {
     const item: ReturnRequest = {
       ...input,
       id: uid("rt"),
       reference: `RET-${1043 + returnsStore.get().length}`,
       status: "pending",
       createdAt: now(),
+      messages: [],
       history: [{ at: now(), actor: input.restaurantName, text: "Demande de retour ouverte" }],
     };
     returnsStore.set((arr) => [item, ...arr]);
     return item;
+  },
+  reply: (id: string, msg: { role: "restaurant" | "farmer"; name: string; text: string }) => {
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              messages: [
+                ...x.messages,
+                {
+                  id: uid("rtm"),
+                  at: now(),
+                  authorRole: msg.role,
+                  authorName: msg.name,
+                  text: msg.text,
+                },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  addPhotos: (id: string, files: DisputeAttachment[]) => {
+    returnsStore.set((arr) =>
+      arr.map((x) => (x.id === id ? { ...x, photos: [...(x.photos ?? []), ...files] } : x)),
+    );
   },
   accept: (id: string, awardedAmount: number, note?: string) => {
     const r = returnsStore.get().find((x) => x.id === id);
@@ -248,16 +313,24 @@ export const returnActions = {
     );
   },
   issueCredit: (id: string) => {
+    const r = returnsStore.get().find((x) => x.id === id);
+    if (!r) return;
+    const amount = r.awardedAmount ?? r.requestedAmount;
+    const { reference } = creditActions.issueForReturn(r.id, r.restaurantName, amount);
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
           ? {
               ...x,
               status: "credited",
-              creditNoteRef: `AV-${2215 + arr.length}`,
+              creditNoteRef: reference,
               history: [
                 ...x.history,
-                { at: now(), actor: "Mamadou Diallo", text: "Avoir émis au restaurant" },
+                {
+                  at: now(),
+                  actor: "Mamadou Diallo",
+                  text: `Avoir ${reference} émis au restaurant (${amount} FCFA)`,
+                },
               ],
             }
           : x,
@@ -270,16 +343,43 @@ export const returnActions = {
 /* Notations post-livraison — espace restaurant                        */
 /* ------------------------------------------------------------------ */
 
+export type ReviewCriterion =
+  "quality" | "quantity" | "freshness" | "timeliness" | "packaging" | "communication";
+
+export const REVIEW_CRITERION_LABEL: Record<ReviewCriterion, string> = {
+  quality: "Qualité des produits",
+  quantity: "Respect des quantités",
+  freshness: "Fraîcheur",
+  timeliness: "Respect des délais",
+  packaging: "Emballage",
+  communication: "Communication",
+};
+
+export const REVIEW_TAGS = [
+  "Produits frais",
+  "Livraison rapide",
+  "Bonne communication",
+  "Quantité conforme",
+  "Bon emballage",
+  "Bon rapport qualité/prix",
+] as const;
+
 export type Review = {
   id: string;
+  restaurantId: string;
   orderRef: string;
   supplierId: string;
   supplierName: string;
   driverName?: string;
   quality: number; // 1..5
-  delivery: number; // 1..5
+  quantity: number; // 1..5
+  freshness: number; // 1..5
+  timeliness: number; // 1..5
   packaging: number; // 1..5
+  communication: number; // 1..5
   comment: string;
+  tags?: string[];
+  photos?: DisputeAttachment[];
   createdAt: string;
   reply?: { at: string; text: string };
 };
@@ -287,27 +387,37 @@ export type Review = {
 const seedReviews: Review[] = [
   {
     id: "rv1",
+    restaurantId: "r1",
     orderRef: "CMD-3049",
     supplierId: "f3",
     supplierName: "Niayes Ndoye",
     driverName: "Oumar Ba",
     quality: 5,
-    delivery: 4,
+    quantity: 5,
+    freshness: 5,
+    timeliness: 4,
     packaging: 5,
+    communication: 4,
     comment: "Manioc impeccable, livraison quasi à l'heure.",
+    tags: ["Produits frais", "Bonne communication"],
     createdAt: "2025-05-14T16:00:00Z",
     reply: { at: "2025-05-14T18:30:00Z", text: "Merci beaucoup, à très vite !" },
   },
   {
     id: "rv2",
+    restaurantId: "r2",
     orderRef: "CMD-3045",
     supplierId: "f1",
     supplierName: "Ferme Diallo",
     driverName: "Oumar Ba",
     quality: 4,
-    delivery: 5,
+    quantity: 4,
+    freshness: 4,
+    timeliness: 5,
     packaging: 3,
+    communication: 4,
     comment: "Très bons légumes, emballage à améliorer.",
+    tags: ["Quantité conforme"],
     createdAt: "2025-05-12T10:00:00Z",
   },
 ];
@@ -317,13 +427,26 @@ const reviewsStore = createStore<Review[]>(seedReviews, "diambar:reviews");
 export function useReviews() {
   return useSyncExternalStore(reviewsStore.subscribe, reviewsStore.get, reviewsStore.get);
 }
-
-export function reviewScore(r: Review) {
-  return (r.quality + r.delivery + r.packaging) / 3;
+/** Avis d'un seul restaurant — sans ce filtre, chaque restaurant voyait et
+ * comptait les avis de tous les autres (fuite de données entre comptes). */
+export function useReviewsForRestaurant(restaurantId: string) {
+  return useReviews().filter((r) => r.restaurantId === restaurantId);
 }
 
-export function useSupplierScores() {
-  const reviews = useReviews();
+const REVIEW_CRITERIA: ReviewCriterion[] = [
+  "quality",
+  "quantity",
+  "freshness",
+  "timeliness",
+  "packaging",
+  "communication",
+];
+
+export function reviewScore(r: Review) {
+  return REVIEW_CRITERIA.reduce((s, c) => s + r[c], 0) / REVIEW_CRITERIA.length;
+}
+
+function scoreBySupplier(reviews: Review[]) {
   const map = new Map<string, { name: string; count: number; avg: number }>();
   reviews.forEach((r) => {
     const prev = map.get(r.supplierId) ?? { name: r.supplierName, count: 0, avg: 0 };
@@ -335,6 +458,16 @@ export function useSupplierScores() {
     });
   });
   return [...map.entries()].map(([id, v]) => ({ id, ...v })).sort((a, b) => b.avg - a.avg);
+}
+/** Score d'un producteur agrégé sur tous les restaurants clients (utilisé
+ * côté agriculteur : sa réputation ne dépend pas d'un seul restaurant). */
+export function useSupplierScores() {
+  return scoreBySupplier(useReviews());
+}
+/** Score par fournisseur pour UN restaurant donné (utilisé côté
+ * restaurant : ses propres avis seulement). */
+export function useSupplierScoresForRestaurant(restaurantId: string) {
+  return scoreBySupplier(useReviewsForRestaurant(restaurantId));
 }
 
 export const reviewActions = {
@@ -382,16 +515,18 @@ export type Incident = {
   waitedMinutes: number;
   compensationRequested: number;
   compensationAwarded?: number;
+  resolutionNote?: string;
   status: IncidentStatus;
   createdAt: string;
   history: { at: string; actor: string; text: string }[];
+  photos?: DisputeAttachment[];
 };
 
 const seedIncidents: Incident[] = [
   {
     id: "in1",
     reference: "INC-702",
-    missionRef: "MIS-4203",
+    missionRef: "MIS-4180",
     type: "client_absent",
     description: "Restaurant fermé à l'arrivée, 35 min d'attente sans réponse au téléphone.",
     waitedMinutes: 35,
@@ -410,7 +545,7 @@ const seedIncidents: Incident[] = [
   {
     id: "in2",
     reference: "INC-701",
-    missionRef: "MIS-4198",
+    missionRef: "MIS-4175",
     type: "breakdown",
     description: "Crevaison sur la VDN, mission reprise par un autre livreur.",
     waitedMinutes: 50,
@@ -464,7 +599,8 @@ export const incidentActions = {
       ),
     );
   },
-  resolve: (id: string, awarded: number) => {
+  resolve: (id: string, awarded: number, note?: string) => {
+    const incident = incidentsStore.get().find((i) => i.id === id);
     incidentsStore.set((arr) =>
       arr.map((i) =>
         i.id === id
@@ -472,16 +608,35 @@ export const incidentActions = {
               ...i,
               status: "resolved",
               compensationAwarded: awarded,
+              resolutionNote: note,
               history: [
                 ...i.history,
                 {
                   at: now(),
                   actor: "Support Diambar",
-                  text: `Clôturé — indemnité ${awarded} FCFA`,
+                  text:
+                    awarded > 0
+                      ? `Clôturé — indemnité ${awarded} FCFA accordée${note ? ` (${note})` : ""}`
+                      : `Clôturé — indemnité refusée${note ? ` (${note})` : ""}`,
                 },
               ],
             }
           : i,
+      ),
+    );
+    if (incident && awarded > 0) {
+      driverWalletActions.credit(
+        `Indemnité incident ${incident.reference}`,
+        awarded,
+        "adjustment",
+        incident.reference,
+      );
+    }
+  },
+  addComment: (id: string, text: string) => {
+    incidentsStore.set((arr) =>
+      arr.map((i) =>
+        i.id === id ? { ...i, history: [...i.history, { at: now(), actor: "Oumar Ba", text }] } : i,
       ),
     );
   },

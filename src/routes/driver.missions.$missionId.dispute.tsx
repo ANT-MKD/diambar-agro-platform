@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { DisputeForm } from "@/components/disputes/dispute-form";
 import { useMission } from "@/data/store";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/missions/$missionId/dispute")({
   head: () => ({
@@ -46,7 +47,7 @@ function DriverOpenDispute() {
       />
       <DisputeForm
         openedByRole="driver"
-        openedByName="Modou Sarr"
+        openedByName={driverProfile.name}
         againstOptions={[
           { role: "restaurant", name: mission.dropoff.address },
           { role: "farmer", name: mission.pickup.address },

@@ -17,6 +17,9 @@ import {
   Mail,
   MapPin,
   Package,
+  ShieldCheck,
+  Star,
+  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,10 +27,13 @@ import { PageHeader } from "@/components/farmer/page-header";
 import {
   useSupplier,
   useRestaurantOrders,
+  useAllProductReviews,
   supplierActions,
   supplierOrderStats,
 } from "@/data/store";
 import { farmers, products, restaurants } from "@/data/mocks";
+import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
+import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId")({
@@ -48,6 +54,8 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const s = useSupplier(supplierId);
   const orders = useRestaurantOrders();
+  const reviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   // Un fournisseur n'appartient qu'au carnet du restaurant qui l'a créé :
   // un accès direct par URL à la fiche d'un autre restaurant doit échouer,
   // comme pour les conversations de messagerie.
@@ -60,14 +68,36 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
   const f = s.farmerId ? farmers.find((x) => x.id === s.farmerId) : null;
   const offer = f ? products.filter((p) => p.farmerId === f.id) : [];
   const stats = supplierOrderStats(orders, s.farmerId);
+  const { avgRating, reviewCount } = f
+    ? farmerReviewStats(f.id, products, reviews, f.rating, businessReviews)
+    : { avgRating: 0, reviewCount: 0 };
+  const delivery = f
+    ? farmerDeliveryEstimate(f.id, f.city, myRestaurant?.city ?? "", orders)
+    : null;
 
   return (
     <div className="space-y-6 max-w-5xl">
       <PageHeader
-        title={s.name}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {s.name}
+            {f?.verified && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500">
+                <ShieldCheck className="h-3 w-3" /> Vérifié
+              </span>
+            )}
+          </span>
+        }
         subtitle={`${s.city} · ${s.contact}`}
         actions={
           <>
+            {f && (
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/restaurant/marketplace" search={{ supplier: f.id }}>
+                  Voir les produits
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="outline" className="gap-2">
               <Link to="/restaurant/suppliers">
                 <ArrowLeft className="h-4 w-4" />
@@ -155,6 +185,20 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
                 <Package className="h-4 w-4 text-muted-foreground" />
                 <span>{offer.length} produits proposés</span>
               </div>
+              {f && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span>
+                      {avgRating.toFixed(1)}/5{reviewCount > 0 ? ` (${reviewCount} avis)` : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <span>Livraison estimée : {delivery}</span>
+                  </div>
+                </>
+              )}
             </div>
             {s.notes && (
               <div className="mt-4 pt-4 border-t border-border text-sm text-muted-foreground">

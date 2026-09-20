@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { SupportTicketList } from "@/components/support/support-ticket-list";
 import { useSupportTicketsFor } from "@/data/support";
+import { useRestaurantOrders } from "@/data/store";
 
 export const Route = createFileRoute("/restaurant/support")({
   head: () => ({
@@ -20,6 +21,12 @@ export const Route = createFileRoute("/restaurant/support")({
 function RestaurantSupportPage() {
   const { user } = useRouteContext({ from: "/restaurant" });
   const tickets = useSupportTicketsFor(user.name);
+  const orders = useRestaurantOrders();
+
+  const resolveOrderHref = (orderRef: string) => {
+    const order = orders.find((o) => o.reference === orderRef);
+    return order ? `/restaurant/orders/${order.id}` : undefined;
+  };
 
   return (
     <div className="space-y-6">
@@ -31,7 +38,7 @@ function RestaurantSupportPage() {
         <SupportTicketForm role="restaurant" fromName={user.name} />
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground">Mes demandes</h3>
-          <SupportTicketList tickets={tickets} />
+          <SupportTicketList tickets={tickets} resolveOrderHref={resolveOrderHref} />
         </div>
       </div>
     </div>

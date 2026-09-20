@@ -17,13 +17,21 @@ import {
   Navigation,
   TriangleAlert,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useDriverNotifications, useDriverOnline, driverOnlineActions } from "@/data/store";
+import {
+  useDriverNotifications,
+  useDriverOnline,
+  driverOnlineActions,
+  useMissions,
+  useDriverSettings,
+  missionActions,
+  autoAcceptableMissions,
+} from "@/data/store";
 import { driverProfile } from "@/data/mocks";
 import { requireRole } from "@/lib/auth/functions";
 
@@ -71,6 +79,21 @@ function DriverLayout() {
   const notifs = useDriverNotifications();
   const online = useDriverOnline();
   const unread = notifs.filter((n) => !n.read).length;
+  const missions = useMissions();
+  const settings = useDriverSettings();
+
+  // Acceptation automatique réelle : dès qu'une mission "disponible" respecte
+  // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
+  useEffect(() => {
+    if (!online) return;
+    const matches = autoAcceptableMissions(missions, settings);
+    for (const m of matches) {
+      missionActions.accept(m.id);
+      toast.success(
+        `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
+      );
+    }
+  }, [missions, settings, online]);
 
   const toggleOnline = () => {
     driverOnlineActions.toggle();

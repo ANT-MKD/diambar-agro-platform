@@ -15,12 +15,15 @@ import {
   driverConversations as seedDriverConvos,
   driverWallet as seedDriverWallet,
   driverVehicle as seedDriverVehicle,
+  vehicleMaintenanceHistory as seedMaintenanceHistory,
+  vehicleIssues as seedVehicleIssues,
   driverSettings as seedDriverSettings,
   wallets as seedWallets,
   farmerProfile as seedFarmerProfile,
   farmerFarm as seedFarmerFarm,
   paymentPrefs as seedPaymentPrefs,
   teamMembers as seedTeamMembers,
+  restaurantTeamMembers as seedRestaurantTeamMembers,
   restaurantBudget as seedRestaurantBudget,
   productReviews as seedProductReviews,
   restaurantProfile as seedRestaurantProfile,
@@ -31,6 +34,7 @@ import {
   type FarmerFarm,
   type PaymentPrefs,
   type TeamMember,
+  type RestaurantTeamMember,
   type RestaurantBudget,
   type ProductReview,
   type RestaurantProfile,
@@ -44,6 +48,7 @@ import {
   type Supplier,
   type AppNotification,
   type Conversation,
+  type DriverConversation,
   type ChatAttachment,
   type RecurringOrder,
   type RecurringOrderItem,
@@ -58,8 +63,16 @@ import {
   type PaymentMethod as PayMethod,
   type DriverVehicle,
   type VehicleIssue,
+  type VehicleIssueType,
+  type VehicleIssueSeverity,
+  type MaintenanceEntry,
+  type VehicleChangeRequest,
+  type VehicleChangeReason,
+  type MissionProofPhoto as Attachment,
   type DriverSettings,
   type DriverPaymentMethod,
+  type WeekDay,
+  type WorkingHours,
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
@@ -105,15 +118,42 @@ const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:move
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers, "diambar:suppliers");
-const farmerNotifsStore = createStore<AppNotification[]>(seedFarmerNotifs);
-const restoNotifsStore = createStore<AppNotification[]>(seedRestoNotifs);
-const driverNotifsStore = createStore<AppNotification[]>(seedDriverNotifs);
+// Sans persistance, le centre de notifications perdait tout son historique
+// (et l'état lu/non lu) au moindre rechargement — un comportement honnête
+// nulle part ailleurs dans l'app (messages, litiges, retours, avis sont
+// tous persistés).
+const farmerNotifsStore = createStore<AppNotification[]>(
+  seedFarmerNotifs,
+  "diambar:farmer-notifications",
+);
+const restoNotifsStore = createStore<AppNotification[]>(
+  seedRestoNotifs,
+  "diambar:restaurant-notifications",
+);
+const driverNotifsStore = createStore<AppNotification[]>(
+  seedDriverNotifs,
+  "diambar:driver-notifications",
+);
 const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
-const driverConvosStore = createStore<Conversation[]>(seedDriverConvos, "diambar:driver-convos");
+const driverConvosStore = createStore<DriverConversation[]>(
+  seedDriverConvos,
+  "diambar:driver-convos",
+);
 const driverOnlineStore = createStore<boolean>(true, "diambar:driver-online");
 const driverWalletStore = createStore<DriverWallet>(seedDriverWallet, "diambar:driver-wallet");
 const driverVehicleStore = createStore<DriverVehicle>(seedDriverVehicle, "diambar:driver-vehicle");
-const vehicleIssuesStore = createStore<VehicleIssue[]>([], "diambar:driver-vehicle-issues");
+const vehicleIssuesStore = createStore<VehicleIssue[]>(
+  seedVehicleIssues,
+  "diambar:driver-vehicle-issues",
+);
+const maintenanceHistoryStore = createStore<MaintenanceEntry[]>(
+  seedMaintenanceHistory,
+  "diambar:driver-vehicle-maintenance",
+);
+const vehicleChangeRequestsStore = createStore<VehicleChangeRequest[]>(
+  [],
+  "diambar:driver-vehicle-change-requests",
+);
 const driverSettingsStore = createStore<DriverSettings>(
   seedDriverSettings,
   "diambar:driver-settings",
@@ -123,6 +163,10 @@ const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diamba
 const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
 const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
 const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
+const restaurantTeamStore = createStore<RestaurantTeamMember[]>(
+  seedRestaurantTeamMembers,
+  "diambar:restaurant-team",
+);
 const restaurantBudgetStore = createStore<RestaurantBudget>(
   seedRestaurantBudget,
   "diambar:restaurant-budget",
@@ -203,6 +247,12 @@ export function useRestaurantOrders() {
 }
 export function useRestaurantOrder(id: string) {
   return useRestaurantOrders().find((o) => o.id === id) ?? null;
+}
+/** Lecture directe (hors React) pour retrouver la vraie référence d'une
+ * commande juste après sa création, sans changer la signature historique
+ * de restaurantOrderActions.create() utilisée à plusieurs endroits. */
+export function getRestaurantOrderById(id: string) {
+  return restaurantOrdersStore.get().find((o) => o.id === id) ?? null;
 }
 
 export function useSuppliers() {
@@ -286,7 +336,7 @@ export const driverWalletActions = {
     }));
     return tx.id;
   },
-  credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission") => {
+  credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission", ref?: string) => {
     driverWalletStore.set((w) => ({
       ...w,
       balance: w.balance + amount,
@@ -295,6 +345,7 @@ export const driverWalletActions = {
           id: `dtx_${Date.now()}`,
           at: new Date().toISOString(),
           label,
+          ref,
           kind,
           amount,
           status: "Complété",
@@ -322,20 +373,112 @@ export function useVehicleIssues() {
   );
 }
 
+const VEHICLE_ISSUE_TO_CONDITION: Partial<
+  Record<VehicleIssueType, keyof DriverVehicle["condition"]>
+> = {
+  tires: "tires",
+  brakes: "brakes",
+  battery: "battery",
+  engine: "oil",
+  lights: "lights",
+};
+
+export function useMaintenanceHistory() {
+  return useSyncExternalStore(
+    maintenanceHistoryStore.subscribe,
+    maintenanceHistoryStore.get,
+    maintenanceHistoryStore.get,
+  );
+}
+
+export function useVehicleChangeRequests() {
+  return useSyncExternalStore(
+    vehicleChangeRequestsStore.subscribe,
+    vehicleChangeRequestsStore.get,
+    vehicleChangeRequestsStore.get,
+  );
+}
+
 export const vehicleActions = {
   update: (patch: Partial<DriverVehicle>) => driverVehicleStore.set((v) => ({ ...v, ...patch })),
   setPhoto: (dataUrl: string) => driverVehicleStore.set((v) => ({ ...v, photo: dataUrl })),
+  setPhotos: (photos: Attachment[]) => driverVehicleStore.set((v) => ({ ...v, photos })),
+  updateMileage: (mileageKm: number) => driverVehicleStore.set((v) => ({ ...v, mileageKm })),
   scheduleMaintenance: (date: string) =>
     driverVehicleStore.set((v) => ({ ...v, nextMaintenanceAt: date })),
-  reportIssue: (description: string) => {
+  logMaintenance: (label: string) => {
+    const vehicle = driverVehicleStore.get();
+    const entry: MaintenanceEntry = {
+      id: `vm_${Date.now()}`,
+      label,
+      at: new Date().toISOString(),
+      mileageKm: vehicle.mileageKm,
+      status: "done",
+    };
+    maintenanceHistoryStore.set((arr) => [entry, ...arr]);
+    return entry.id;
+  },
+  reportIssue: (input: {
+    type: VehicleIssueType;
+    severity: VehicleIssueSeverity;
+    description: string;
+    photos?: Attachment[];
+  }) => {
+    const reference = `INC-VH-${25 + vehicleIssuesStore.get().length}`;
     const issue: VehicleIssue = {
       id: `vi_${Date.now()}`,
-      description,
+      reference,
+      type: input.type,
+      severity: input.severity,
+      description: input.description,
       at: new Date().toISOString(),
       status: "reported",
+      photos: input.photos,
     };
     vehicleIssuesStore.set((arr) => [issue, ...arr]);
-    return issue.id;
+    // Le point du véhicule concerné passe "à vérifier" tant que l'incident
+    // n'est pas résolu — pas de capteur, juste le reflet du signalement.
+    const conditionKey = VEHICLE_ISSUE_TO_CONDITION[input.type];
+    if (conditionKey) {
+      driverVehicleStore.set((v) => ({
+        ...v,
+        condition: { ...v.condition, [conditionKey]: "check" },
+      }));
+    }
+    return issue;
+  },
+  resolveIssue: (id: string) => {
+    const issue = vehicleIssuesStore.get().find((i) => i.id === id);
+    vehicleIssuesStore.set((arr) =>
+      arr.map((i) => (i.id === id ? { ...i, status: "resolved" } : i)),
+    );
+    if (issue) {
+      const conditionKey = VEHICLE_ISSUE_TO_CONDITION[issue.type];
+      if (conditionKey) {
+        driverVehicleStore.set((v) => ({
+          ...v,
+          condition: { ...v.condition, [conditionKey]: "good" },
+        }));
+      }
+    }
+  },
+  requestChange: (input: {
+    reason: VehicleChangeReason;
+    newVehicle: VehicleChangeRequest["newVehicle"];
+    docs: Attachment[];
+  }) => {
+    const reference = `VH-2026-${42 + vehicleChangeRequestsStore.get().length}`;
+    const req: VehicleChangeRequest = {
+      id: `vcr_${Date.now()}`,
+      reference,
+      reason: input.reason,
+      newVehicle: input.newVehicle,
+      docs: input.docs,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+    };
+    vehicleChangeRequestsStore.set((arr) => [req, ...arr]);
+    return req;
   },
 };
 
@@ -372,7 +515,35 @@ export const driverSettingsActions = {
       ...s,
       paymentMethods: s.paymentMethods.map((m) => ({ ...m, active: m.id === id })),
     })),
+  setCriteria: (patch: Partial<DriverSettings["criteria"]>) =>
+    driverSettingsStore.set((s) => ({ ...s, criteria: { ...s.criteria, ...patch } })),
+  setWorkingDay: (day: WeekDay, patch: Partial<WorkingHours[WeekDay]>) =>
+    driverSettingsStore.set((s) => ({
+      ...s,
+      workingHours: { ...s.workingHours, [day]: { ...s.workingHours[day], ...patch } },
+    })),
+  setLocationSharing: (v: boolean) =>
+    driverSettingsStore.set((s) => ({ ...s, locationSharing: v })),
 };
+
+/** Missions "available" qui correspondent réellement aux critères
+ * d'acceptation automatique du livreur (rémunération, poids, type, ville) —
+ * aucune notion de distance en temps réel : le livreur n'a pas de position
+ * GPS suivie hors mission, donc on ne compare que des critères vérifiables. */
+export function autoAcceptableMissions(missions: Mission[], settings: DriverSettings) {
+  if (!settings.autoAccept) return [];
+  const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
+  return missions.filter(
+    (m) =>
+      m.status === "available" &&
+      m.payout >= minPayout &&
+      m.weightKg <= maxWeightKg &&
+      acceptedUrgencies.includes(m.urgency) &&
+      (acceptedCities.length === 0 ||
+        acceptedCities.includes(m.pickup.city) ||
+        acceptedCities.includes(m.dropoff.city)),
+  );
+}
 
 export function useWallets() {
   return useSyncExternalStore(walletsStore.subscribe, walletsStore.get, walletsStore.get);
@@ -430,6 +601,25 @@ export const teamActions = {
   setRole: (id: string, role: TeamMember["role"]) =>
     teamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
   remove: (id: string) => teamStore.set((arr) => arr.filter((m) => m.id !== id)),
+};
+
+export function useRestaurantTeam() {
+  return useSyncExternalStore(
+    restaurantTeamStore.subscribe,
+    restaurantTeamStore.get,
+    restaurantTeamStore.get,
+  );
+}
+
+export const restaurantTeamActions = {
+  invite: (email: string, role: RestaurantTeamMember["role"]) => {
+    const id = `rt_${Date.now()}`;
+    restaurantTeamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    return id;
+  },
+  setRole: (id: string, role: RestaurantTeamMember["role"]) =>
+    restaurantTeamStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, role } : m))),
+  remove: (id: string) => restaurantTeamStore.set((arr) => arr.filter((m) => m.id !== id)),
 };
 
 export function useRestaurantBudget() {
@@ -502,6 +692,7 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
           type: n.type,
           title: n.title,
           body: n.body,
+          refId: n.refId,
         },
         ...arr,
       ]);
@@ -520,7 +711,11 @@ export const missionActions = {
     missionsStore.set((arr) =>
       arr.map((m) => {
         if (m.id !== id) return m;
-        updated = { ...m, status };
+        updated = {
+          ...m,
+          status,
+          statusHistory: [...(m.statusHistory ?? []), { status, at: new Date().toISOString() }],
+        };
         return updated;
       }),
     );
@@ -547,7 +742,19 @@ export const missionActions = {
   },
   accept: (id: string, driverId = "d1") => {
     missionsStore.set((arr) =>
-      arr.map((m) => (m.id === id ? { ...m, driverId, status: "accepted" } : m)),
+      arr.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              driverId,
+              status: "accepted",
+              statusHistory: [
+                ...(m.statusHistory ?? []),
+                { status: "accepted" as MissionStatus, at: new Date().toISOString() },
+              ],
+            }
+          : m,
+      ),
     );
     const mission = missionsStore.get().find((m) => m.id === id);
     if (mission) {
@@ -567,6 +774,23 @@ export const missionActions = {
 };
 
 export const driverConversationActions = {
+  startOrGet: (restaurantId: string) => {
+    const existing = driverConvosStore.get().find((c) => c.restaurantId === restaurantId);
+    if (existing) return existing.id;
+    const id = `dc_${Date.now()}`;
+    driverConvosStore.set((arr) => [
+      {
+        id,
+        restaurantId,
+        lastMessage: "",
+        lastAt: new Date().toISOString(),
+        unread: 0,
+        messages: [],
+      },
+      ...arr,
+    ]);
+    return id;
+  },
   send: (conversationId: string, text: string, from: "me" | "them" = "me", senderName?: string) => {
     const msg = { id: `m_${Date.now()}`, from, text, at: new Date().toISOString(), senderName };
     driverConvosStore.set((arr) =>
@@ -662,12 +886,20 @@ export const restaurantOrderActions = {
    * ne pouvait jamais être associé à la livraison (le suivi affichait un nom
    * de livreur codé en dur, sans rapport avec une vraie affectation). */
   create: (
-    o: Omit<RestaurantOrder, "id" | "reference" | "createdAt" | "status" | "statusHistory">,
+    o: Omit<
+      RestaurantOrder,
+      "id" | "reference" | "createdAt" | "status" | "statusHistory" | "paid" | "paidAt"
+    >,
     opts?: { forceUrgency?: Mission["urgency"] },
   ) => {
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
     const createdAt = new Date().toISOString();
+    // Wave / Orange Money / Free Money : un vrai gateway confirmerait le
+    // paiement à l'instant de la commande, donc la facture est payée dès
+    // la création. En espèces, rien n'est réellement encaissé avant la
+    // livraison : `paid` ne bascule que dans setStatus() ci-dessous.
+    const paidNow = o.paymentMethod !== "Espèces";
     const next: RestaurantOrder = {
       ...o,
       id,
@@ -675,6 +907,8 @@ export const restaurantOrderActions = {
       status: "pending",
       createdAt,
       statusHistory: [{ status: "pending", at: createdAt }],
+      paid: paidNow,
+      paidAt: paidNow ? createdAt : undefined,
     };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 
@@ -747,7 +981,17 @@ export const restaurantOrderActions = {
     restaurantOrdersStore.set((arr) =>
       arr.map((o) => {
         if (o.id !== id) return o;
-        updated = { ...o, status, statusHistory: [...o.statusHistory, { status, at }] };
+        // Paiement à la livraison réel : une commande en espèces n'est
+        // considérée payée qu'au moment où elle passe effectivement à
+        // "delivered", jamais avant.
+        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
+        updated = {
+          ...o,
+          status,
+          statusHistory: [...o.statusHistory, { status, at }],
+          paid: settlesCash ? true : o.paid,
+          paidAt: settlesCash ? at : o.paidAt,
+        };
         return updated;
       }),
     );
@@ -829,11 +1073,17 @@ export const orderActions = {
     // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
     const at = new Date().toISOString();
     restaurantOrdersStore.set((arr) =>
-      arr.map((o) =>
-        o.reference === updated!.reference
-          ? { ...o, status, statusHistory: [...o.statusHistory, { status, at }] }
-          : o,
-      ),
+      arr.map((o) => {
+        if (o.reference !== updated!.reference) return o;
+        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
+        return {
+          ...o,
+          status,
+          statusHistory: [...o.statusHistory, { status, at }],
+          paid: settlesCash ? true : o.paid,
+          paidAt: settlesCash ? at : o.paidAt,
+        };
+      }),
     );
     const notif = RESTAURANT_STATUS_NOTIF[status];
     if (notif) {
@@ -935,7 +1185,7 @@ export const conversationActions = {
   send: (
     conversationId: string,
     text: string,
-    from: "me" | "them" = "me",
+    from: "restaurant" | "farmer" | "admin",
     senderName?: string,
     attachment?: ChatAttachment,
   ) => {
@@ -947,6 +1197,7 @@ export const conversationActions = {
       senderName,
       attachment,
     };
+    const conv = conversationsStore.get().find((c) => c.id === conversationId);
     conversationsStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
@@ -959,6 +1210,53 @@ export const conversationActions = {
           : c,
       ),
     );
+    if (!conv) return;
+    // Notifie réellement le destinataire, avec un lien direct vers cette
+    // conversation — auparavant, envoyer un message ne prévenait jamais
+    // personne.
+    const restaurant = restaurants.find((r) => r.id === conv.restaurantId);
+    const farmer = farmers.find((f) => f.id === conv.farmerId);
+    const preview = text || attachment?.name || "Pièce jointe";
+    if (from !== "farmer" && farmer) {
+      farmerNotifActions.add({
+        type: "message",
+        title: `Message de ${restaurant?.name ?? "un restaurant"}`,
+        body: preview,
+        refId: conversationId,
+      });
+    }
+    if (from !== "restaurant" && restaurant) {
+      restaurantNotifActions.add({
+        type: "message",
+        title: `Message de ${farmer?.name ?? "un producteur"}`,
+        body: preview,
+        refId: conversationId,
+      });
+    }
+  },
+  /** Retrouve la conversation réelle restaurant↔producteur, ou en crée une
+   * nouvelle vide si le restaurant n'a encore jamais écrit à ce
+   * fournisseur — un restaurant peut ainsi avoir une conversation par
+   * fournisseur de son carnet, pas un seul producteur codé en dur. */
+  startOrGet: (restaurantId: string, farmerId: string) => {
+    const existing = conversationsStore
+      .get()
+      .find((c) => c.restaurantId === restaurantId && c.farmerId === farmerId);
+    if (existing) return existing.id;
+    const id = `c_${Date.now()}`;
+    conversationsStore.set((arr) => [
+      {
+        id,
+        restaurantId,
+        farmerId,
+        lastMessage: "",
+        lastAt: new Date().toISOString(),
+        unread: 0,
+        messages: [],
+      },
+      ...arr,
+    ]);
+    return id;
   },
   markRead: (conversationId: string) => {
     conversationsStore.set((arr) =>

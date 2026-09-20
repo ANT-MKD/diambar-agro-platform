@@ -19,6 +19,7 @@ import {
   Truck,
   BarChart3,
   MessageSquare,
+  TriangleAlert,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -26,8 +27,10 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useAdminNotifications, useDisputes, useValidations } from "@/data/admin-store";
+import { useAdminNotifications, useValidations } from "@/data/admin-store";
+import { useAllDisputes } from "@/data/disputes";
 import { useConversations, useDriverConversations } from "@/data/store";
+import { useIncidents } from "@/data/business";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
 
@@ -41,7 +44,8 @@ function AdminLayout() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const validations = useValidations();
-  const disputes = useDisputes();
+  const disputes = useAllDisputes();
+  const incidents = useIncidents();
   const supportTickets = useSupportTickets();
   const notifications = useAdminNotifications();
   const farmerConvos = useConversations();
@@ -50,6 +54,7 @@ function AdminLayout() {
   const openDisputes = disputes.filter(
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
+  const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;
   const unreadNotifications = notifications.filter((n) => !n.read).length;
   const unreadMessages =
@@ -76,6 +81,12 @@ function AdminLayout() {
       items: [
         { to: "/admin/orders", label: "Commandes", icon: ShoppingBag, badge: 0 },
         { to: "/admin/deliveries", label: "Livraisons", icon: Truck, badge: 0 },
+        {
+          to: "/admin/incidents",
+          label: "Incidents",
+          icon: TriangleAlert,
+          badge: escalatedIncidents,
+        },
         { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
         { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },

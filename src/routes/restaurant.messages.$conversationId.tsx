@@ -7,7 +7,7 @@ import { ChatBubble } from "@/components/common/chat-bubble";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { farmers, restaurants } from "@/data/mocks";
-import { useConversations, conversationActions } from "@/data/store";
+import { useConversations, useSuppliers, conversationActions } from "@/data/store";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/messages/$conversationId")({
@@ -25,21 +25,21 @@ export const Route = createFileRoute("/restaurant/messages/$conversationId")({
   component: RestaurantConversation,
 });
 
-// Même limite de modèle que la page liste : ce store ne représente que
-// l'inbox du producteur f1 avec ses restaurants clients.
-const MESSAGES_FARMER_ID = "f1";
-
 function RestaurantConversation() {
   const { conversationId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const convs = useConversations();
+  const suppliers = useSuppliers();
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
 
   const conv =
     convs.find((c) => c.id === conversationId && c.restaurantId === myRestaurant?.id) ?? null;
-  const farmer = farmers.find((f) => f.id === MESSAGES_FARMER_ID);
+  const farmer = conv ? farmers.find((f) => f.id === conv.farmerId) : null;
+  const supplier = farmer
+    ? suppliers.find((s) => s.restaurantId === myRestaurant?.id && s.farmerId === farmer.id)
+    : null;
 
   if (!conv || !farmer) {
     return (
@@ -61,7 +61,7 @@ function RestaurantConversation() {
 
   const send = () => {
     if (!draft.trim()) return;
-    conversationActions.send(conv.id, draft.trim(), "me");
+    conversationActions.send(conv.id, draft.trim(), "restaurant");
     setDraft("");
   };
 
@@ -97,16 +97,28 @@ function RestaurantConversation() {
               </a>
             </Button>
           )}
-          <Link to="/restaurant/suppliers/$supplierId" params={{ supplierId: farmer.id }}>
-            <Button variant="outline" size="sm">
-              Voir ses produits
-            </Button>
-          </Link>
+          {supplier && (
+            <Link to="/restaurant/suppliers/$supplierId" params={{ supplierId: supplier.id }}>
+              <Button variant="outline" size="sm">
+                Voir ses produits
+              </Button>
+            </Link>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
+          {conv.messages.length === 0 && (
+            <p className="text-center text-xs text-muted-foreground pt-8">
+              Écrivez le premier message à {farmer.farm}.
+            </p>
+          )}
           {conv.messages.map((m) => (
-            <ChatBubble key={m.id} message={m} />
+            <ChatBubble
+              key={m.id}
+              message={m}
+              mine={m.from === "restaurant"}
+              label={m.senderName ?? farmer.farm}
+            />
           ))}
         </div>
 

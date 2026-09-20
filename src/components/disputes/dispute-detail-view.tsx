@@ -35,6 +35,7 @@ export function DisputeDetailView({
   canDecide = false,
   links,
   breadcrumb,
+  quickActions,
 }: {
   dispute: Dispute;
   role: DisputeParty;
@@ -42,6 +43,7 @@ export function DisputeDetailView({
   canDecide?: boolean;
   links?: ReactNode;
   breadcrumb?: ReactNode;
+  quickActions?: ReactNode;
 }) {
   const [outcome, setOutcome] = useState<DisputeOutcome>("refund");
   const [granted, setGranted] = useState(String(d.claimedAmount));
@@ -136,6 +138,8 @@ export function DisputeDetailView({
         </div>
 
         <div className="space-y-4">
+          {quickActions}
+
           <div className="glass rounded-2xl p-5">
             <h2 className="font-semibold">Éléments liés</h2>
             <div className="mt-3 space-y-2 text-sm">
@@ -180,17 +184,15 @@ export function DisputeDetailView({
           </div>
 
           <div className="glass rounded-2xl p-5">
-            <h2 className="font-semibold">Historique des états</h2>
-            <ol className="mt-3 space-y-3">
+            <h2 className="font-semibold">Suivi du litige</h2>
+            <ol className="mt-3 space-y-4 border-l-2 border-border pl-4">
               {d.events.map((e) => (
-                <li key={e.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <div className="text-sm font-medium">{e.label}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {e.actor} · {relativeTime(e.at)}
-                      {e.detail ? ` · ${e.detail}` : ""}
-                    </div>
+                <li key={e.id} className="relative">
+                  <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                  <div className="text-sm font-medium">{e.label}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {e.actor} · {relativeTime(e.at)}
+                    {e.detail ? ` · ${e.detail}` : ""}
                   </div>
                 </li>
               ))}

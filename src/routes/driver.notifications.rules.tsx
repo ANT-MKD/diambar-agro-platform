@@ -38,28 +38,24 @@ const RULES: TriggerRule[] = [
     label: "Mission proche",
     condition: "Pickup à moins de 5 km",
     channel: "In-app + SMS",
-    firedThisMonth: 31,
   },
   {
     key: "r2",
     label: "Mission bien rémunérée",
     condition: "Gain > 10 000 FCFA",
     channel: "In-app + WhatsApp",
-    firedThisMonth: 8,
   },
   {
     key: "r3",
     label: "Versement Wave",
     condition: "Retrait validé",
     channel: "SMS + In-app",
-    firedThisMonth: 4,
   },
   {
     key: "r4",
     label: "Assurance à renouveler",
     condition: "Expiration < 30 jours",
     channel: "Email",
-    firedThisMonth: 1,
   },
 ];
 
@@ -81,9 +77,7 @@ function RulesPage() {
 
       <div className="glass rounded-2xl p-5">
         <h3 className="font-display font-bold">Canaux par événement</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          In-app, Email, WhatsApp et SMS · données simulées
-        </p>
+        <p className="text-xs text-muted-foreground mb-4">In-app, Email, WhatsApp et SMS</p>
         <ChannelMatrix events={EVENTS} storageKey="driver-rules" />
       </div>
 

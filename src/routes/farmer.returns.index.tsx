@@ -1,34 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  RotateCcw,
-  Check,
-  X,
-  ReceiptText,
-  Download,
-  ClipboardList,
-  Clock,
-  CheckCheck,
-  Wallet,
-} from "lucide-react";
-import { toast } from "sonner";
+import { RotateCcw, Download, ClipboardList, Clock, CheckCheck, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import {
   useReturns,
-  returnActions,
   RETURN_REASON_LABEL,
   RETURN_STATUS_LABEL,
   type ReturnStatus,
 } from "@/data/business";
 
-export const Route = createFileRoute("/farmer/returns")({
+export const Route = createFileRoute("/farmer/returns/")({
   head: () => ({
     meta: [
       { title: "Retours & avoirs — Espace agriculteur Diambar Agro" },
@@ -66,10 +52,6 @@ const STATUS_CLASS: Record<ReturnStatus, string> = {
 function ReturnsPage() {
   const returns = useReturns();
   const [tab, setTab] = useState<ReturnStatus | "all">("all");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-
   const list = tab === "all" ? returns : returns.filter((r) => r.status === tab);
   const pending = returns.filter((r) => r.status === "pending").length;
   const processed = returns.filter((r) => r.status !== "pending").length;
@@ -160,7 +142,12 @@ function ReturnsPage() {
       ) : (
         <div className="space-y-3">
           {list.map((r) => (
-            <div key={r.id} className="glass rounded-2xl p-4 space-y-3">
+            <Link
+              key={r.id}
+              to="/farmer/returns/$returnId"
+              params={{ returnId: r.id }}
+              className="block glass rounded-2xl p-4 hover:bg-accent/40 transition"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -170,12 +157,16 @@ function ReturnsPage() {
                     >
                       {RETURN_STATUS_LABEL[r.status]}
                     </span>
+                    {r.status === "pending" && (
+                      <span className="text-[10px] font-semibold text-primary">À traiter →</span>
+                    )}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     {r.restaurantName} · {r.orderRef} · {r.productName} ({r.qty} {r.unit})
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {RETURN_REASON_LABEL[r.reason]} · {relativeTime(r.createdAt)}
+                    {r.messages.length > 0 ? ` · ${r.messages.length} message(s)` : ""}
                   </div>
                 </div>
                 <div className="text-right">
@@ -188,129 +179,7 @@ function ReturnsPage() {
                   )}
                 </div>
               </div>
-
-              <p className="text-sm">{r.description}</p>
-              {r.photos && r.photos.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {r.photos.map((p) => (
-                    <a
-                      key={p.id}
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block h-16 w-16 rounded-lg overflow-hidden border border-border shrink-0"
-                    >
-                      <img
-                        src={p.url}
-                        alt={`Preuve envoyée par ${p.by}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </a>
-                  ))}
-                </div>
-              )}
-              {r.decisionNote && (
-                <p className="text-xs text-muted-foreground">Décision : {r.decisionNote}</p>
-              )}
-              {r.creditNoteRef && (
-                <p className="text-xs">
-                  Avoir <span className="font-mono">{r.creditNoteRef}</span>
-                </p>
-              )}
-
-              <ul className="space-y-1 border-l-2 border-border pl-3">
-                {r.history.map((h, i) => (
-                  <li key={i} className="text-[11px] text-muted-foreground">
-                    <span className="font-medium text-foreground">{h.actor}</span> · {h.text} ·{" "}
-                    {relativeTime(h.at)}
-                  </li>
-                ))}
-              </ul>
-
-              {r.status === "pending" &&
-                (openId === r.id ? (
-                  <div className="space-y-2 rounded-xl border border-border p-3">
-                    <Input
-                      inputMode="numeric"
-                      placeholder="Montant accordé (FCFA)"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
-                    <Textarea
-                      placeholder="Note de décision (obligatoire en cas de refus)"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => {
-                          const val = Number(amount) || r.requestedAmount;
-                          returnActions.accept(r.id, val, note || undefined);
-                          setOpenId(null);
-                          setAmount("");
-                          setNote("");
-                          toast.success("Retour accepté", {
-                            description: `Demande de remboursement de ${formatFCFA(val)} envoyée à la plateforme.`,
-                          });
-                        }}
-                      >
-                        <Check className="h-4 w-4" />
-                        Accepter
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="gap-2"
-                        onClick={() => {
-                          if (!note.trim()) {
-                            toast.error("Indiquez un motif de refus");
-                            return;
-                          }
-                          returnActions.refuse(r.id, note);
-                          setOpenId(null);
-                          setAmount("");
-                          setNote("");
-                          toast.success("Retour refusé");
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                        Refuser
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setOpenId(null)}>
-                        Annuler
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setOpenId(r.id);
-                      setAmount(String(r.requestedAmount));
-                      setNote("");
-                    }}
-                  >
-                    Traiter la demande
-                  </Button>
-                ))}
-
-              {r.status === "accepted" && (
-                <Button
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
-                    returnActions.issueCredit(r.id);
-                    toast.success("Avoir émis");
-                  }}
-                >
-                  <ReceiptText className="h-4 w-4" />
-                  Émettre l'avoir
-                </Button>
-              )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -1,11 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Search, MessageSquare, ChevronRight } from "lucide-react";
+import { Search, MessageSquare, ChevronRight, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { restaurants } from "@/data/mocks";
-import { useDriverConversations } from "@/data/store";
+import { useDriverConversations, useMissions, driverConversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/driver/messages/")({
@@ -25,6 +33,8 @@ export const Route = createFileRoute("/driver/messages/")({
 
 function DriverMessagesList() {
   const convs = useDriverConversations();
+  const missions = useMissions();
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const enriched = convs.map((c) => ({
     ...c,
@@ -37,11 +47,47 @@ function DriverMessagesList() {
   );
   const unread = convs.reduce((s, c) => s + c.unread, 0);
 
+  // Restaurants réellement livrés (au moins une mission) mais sans
+  // conversation encore ouverte — plutôt qu'une liste arbitraire de tous
+  // les restaurants de la plateforme.
+  const conversedRestaurantIds = new Set(convs.map((c) => c.restaurantId));
+  const deliveredRestaurantIds = new Set(
+    missions.filter((m) => m.driverId === "d1").map((m) => m.restaurantId),
+  );
+  const startableRestaurants = restaurants.filter(
+    (r) => deliveredRestaurantIds.has(r.id) && !conversedRestaurantIds.has(r.id),
+  );
+
+  const startConversation = (restaurantId: string) => {
+    const id = driverConversationActions.startOrGet(restaurantId);
+    toast.success("Nouvelle conversation prête");
+    navigate({ to: "/driver/messages/$conversationId", params: { conversationId: id } });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Messages"
         subtitle={`${convs.length} conversation(s) · ${unread} non lue(s)`}
+        actions={
+          startableRestaurants.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nouvelle conversation
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {startableRestaurants.map((r) => (
+                  <DropdownMenuItem key={r.id} onClick={() => startConversation(r.id)}>
+                    {r.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        }
       />
 
       <div className="glass rounded-2xl p-3">

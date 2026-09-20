@@ -79,12 +79,18 @@ export type Dispute = {
 export type CreditNote = {
   id: string;
   reference: string;
-  disputeId: string;
+  source: "dispute" | "return";
+  disputeId?: string;
+  returnId?: string;
   beneficiaryRole: DisputeParty;
   beneficiaryName: string;
   amount: number;
   at: string;
+  // Un avoir litige est un geste immédiat sans expiration ; un avoir retour
+  // suit une vraie règle métier (90 jours), pour rester crédible.
+  expiresAt?: string;
   status: "issued" | "applied";
+  usedOnOrderRef?: string;
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -385,11 +391,11 @@ const seedDisputes: Dispute[] = [
     category: "delivery",
     subcategory: "Client absent",
     description: "Restaurant fermé à l'arrivée, 40 min d'attente puis retour à la ferme.",
-    orderRef: "CMD-2812",
-    missionId: "m2",
+    orderRef: "CMD-2844",
+    missionId: "mi7",
     hasGpsTrack: true,
     openedByRole: "driver",
-    openedByName: "Modou Sarr",
+    openedByName: "Oumar Ba",
     againstRole: "restaurant",
     againstName: "Le Baobab",
     claimedAmount: 6000,
@@ -408,12 +414,12 @@ const seedDisputes: Dispute[] = [
         id: "m8",
         at: iso(6),
         authorRole: "driver",
-        authorName: "Modou Sarr",
+        authorName: "Oumar Ba",
         text: "Personne sur place, appels sans réponse. Je demande l'indemnité de course à vide.",
         internal: false,
       },
     ],
-    events: [{ id: "e10", at: iso(6), actor: "Modou Sarr", label: "Litige ouvert" }],
+    events: [{ id: "e10", at: iso(6), actor: "Oumar Ba", label: "Litige ouvert" }],
   },
   {
     id: "dp6",
@@ -457,6 +463,7 @@ const seedCredits: CreditNote[] = [
   {
     id: "cn1",
     reference: "AV-0031",
+    source: "dispute",
     disputeId: "dp3",
     beneficiaryRole: "restaurant",
     beneficiaryName: "Chez Aminata",
@@ -514,6 +521,60 @@ export function useDisputesForRole(role: DisputeParty) {
 export function useCreditNotes() {
   return useSyncExternalStore(creditsStore.subscribe, creditsStore.get, creditsStore.get);
 }
+/** Avoirs d'un restaurant donné, litiges + retours confondus (un seul
+ * registre réel plutôt que deux systèmes déconnectés). */
+export function useCreditNotesForRestaurant(restaurantName: string) {
+  return useCreditNotes().filter(
+    (c) => c.beneficiaryRole === "restaurant" && c.beneficiaryName === restaurantName,
+  );
+}
+export function isCreditExpired(c: CreditNote) {
+  return !!c.expiresAt && new Date(c.expiresAt).getTime() < Date.now();
+}
+function nextCreditRef(arr: CreditNote[]) {
+  const max = arr.reduce(
+    (n, c) => Math.max(n, parseInt(c.reference.split("-")[1] ?? "0", 10) || 0),
+    31,
+  );
+  return `AV-${String(max + 1).padStart(4, "0")}`;
+}
+export const creditActions = {
+  /** Émet un vrai avoir suite à un retour accepté par le producteur — plus
+   * une simple chaîne de texte posée sur le retour, mais une entrée réelle
+   * du registre d'avoirs, avec solde et expiration réels. */
+  issueForReturn: (returnId: string, beneficiaryName: string, amount: number) => {
+    const id = `cn_${Date.now()}`;
+    const reference = nextCreditRef(creditsStore.get());
+    const at = new Date().toISOString();
+    creditsStore.set((arr) => [
+      {
+        id,
+        reference,
+        source: "return",
+        returnId,
+        beneficiaryRole: "restaurant",
+        beneficiaryName,
+        amount,
+        at,
+        expiresAt: new Date(Date.now() + 90 * 86_400_000).toISOString(),
+        status: "issued",
+      },
+      ...arr,
+    ]);
+    return { id, reference };
+  },
+  /** Applique réellement un avoir à une commande (au checkout) : le solde
+   * disponible baisse pour de vrai, pas juste visuellement. */
+  redeem: (id: string, orderRef: string) => {
+    creditsStore.set((arr) =>
+      arr.map((c) =>
+        c.id === id && c.status === "issued" && !isCreditExpired(c)
+          ? { ...c, status: "applied", usedOnOrderRef: orderRef }
+          : c,
+      ),
+    );
+  },
+};
 
 export const PARTY_LABEL: Record<DisputeParty, string> = {
   restaurant: "Restaurant",
@@ -817,7 +878,8 @@ export const disputeActions = {
       creditsStore.set((arr) => [
         {
           id: `cn_${Date.now()}`,
-          reference: `AV-${String(31 + arr.length + 1).padStart(4, "0")}`,
+          reference: nextCreditRef(arr),
+          source: "dispute",
           disputeId: id,
           beneficiaryRole: d.openedByRole,
           beneficiaryName: d.openedByName,
@@ -831,6 +893,12 @@ export const disputeActions = {
         driverWalletActions.credit(
           `Retenue litige ${d.reference}`,
           -Math.abs(decision.grantedAmount),
+          "adjustment",
+        );
+      } else if (d.openedByRole === "driver") {
+        driverWalletActions.credit(
+          `Indemnité litige ${d.reference}`,
+          Math.abs(decision.grantedAmount),
           "adjustment",
         );
       }
@@ -881,12 +949,30 @@ export function disputeStats(list: Dispute[]) {
     if (d.liableParty === d.againstRole) e.liable += 1;
     byParty.set(key, e);
   }
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600_000);
+  const lastMonthStart = new Date(monthStart);
+  lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
   return {
     total: list.length,
     open: list.filter(
       (d) =>
         d.status === "open" || d.status === "investigating" || d.status === "awaiting_response",
     ).length,
+    // "Litiges ouverts" au sens strict du mockup (hors instruction/réponse
+    // attendue, qui forment le compteur "En traitement" séparé).
+    openStrict: list.filter((d) => d.status === "open").length,
+    inTreatment: list.filter(
+      (d) => d.status === "investigating" || d.status === "awaiting_response",
+    ).length,
+    resolvedCount: list.filter((d) => d.status === "resolved").length,
+    openedThisWeek: list.filter((d) => new Date(d.openedAt) >= weekAgo).length,
+    resolvedThisMonthCount: resolved.filter((d) => new Date(d.decision!.at) >= monthStart).length,
+    claimedThisMonth: list
+      .filter((d) => new Date(d.openedAt) >= monthStart)
+      .reduce((s, d) => s + d.claimedAmount, 0),
+    claimedLastMonth: list
+      .filter((d) => new Date(d.openedAt) >= lastMonthStart && new Date(d.openedAt) < monthStart)
+      .reduce((s, d) => s + d.claimedAmount, 0),
     overdue: list.filter(
       (d) => d.status !== "resolved" && d.status !== "rejected" && slaRemaining(d).overdue,
     ).length,

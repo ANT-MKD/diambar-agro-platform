@@ -384,6 +384,7 @@ export const faq = [
 ];
 
 export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
+export const PAYMENT_METHODS: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 export type Transaction = {
   id: string;
   date: string;
@@ -470,15 +471,23 @@ export type ChatAttachment = { name: string; dataUrl: string; mime: string };
 export type Conversation = {
   id: string;
   restaurantId: string;
+  // Un restaurant peut avoir une conversation par fournisseur de son
+  // carnet, pas seulement avec un unique producteur codé en dur.
+  farmerId: string;
   lastMessage: string;
   lastAt: string;
   unread: number;
-  // senderName: renseigné uniquement pour les messages injectés par l'admin
-  // depuis la messagerie de supervision, pour ne pas les faire passer pour
-  // un message de l'autre partie ("them" seul ne dirait pas que c'est l'admin).
+  // "from" est un rôle absolu (pas relatif à qui regarde l'écran), pour
+  // qu'un message envoyé par le restaurant s'affiche bien comme "envoyé
+  // par le restaurant" côté producteur ET côté restaurant — auparavant
+  // "me"/"them" étaient interprétés côté producteur uniquement, donc un
+  // message du restaurant s'affichait par erreur comme si c'était le
+  // producteur qui l'avait écrit.
+  // senderName : renseigné pour les messages injectés par l'admin depuis
+  // la messagerie de supervision.
   messages: {
     id: string;
-    from: "me" | "them";
+    from: "restaurant" | "farmer" | "admin";
     text: string;
     at: string;
     senderName?: string;
@@ -490,26 +499,27 @@ export const conversations: Conversation[] = [
   {
     id: "c1",
     restaurantId: "r1",
+    farmerId: "f1",
     lastMessage: "Parfait, on confirme pour demain matin 8h.",
     lastAt: "2025-05-15T10:42:00Z",
     unread: 2,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Bonjour Mamadou, vous avez encore des tomates fraîches ?",
         at: "2025-05-15T10:30:00Z",
       },
       {
         id: "m2",
-        from: "me",
+        from: "farmer",
         text: "Oui chef, j'ai 60kg disponibles ce matin.",
         at: "2025-05-15T10:35:00Z",
       },
-      { id: "m3", from: "them", text: "Je prends 50kg.", at: "2025-05-15T10:38:00Z" },
+      { id: "m3", from: "restaurant", text: "Je prends 50kg.", at: "2025-05-15T10:38:00Z" },
       {
         id: "m4",
-        from: "them",
+        from: "restaurant",
         text: "Parfait, on confirme pour demain matin 8h.",
         at: "2025-05-15T10:42:00Z",
       },
@@ -518,29 +528,36 @@ export const conversations: Conversation[] = [
   {
     id: "c2",
     restaurantId: "r2",
+    farmerId: "f1",
     lastMessage: "Merci pour la livraison, tout est nickel !",
     lastAt: "2025-05-14T18:10:00Z",
     unread: 0,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Merci pour la livraison, tout est nickel !",
         at: "2025-05-14T18:10:00Z",
       },
-      { id: "m2", from: "me", text: "Merci à vous chef Aminata 🙏", at: "2025-05-14T18:12:00Z" },
+      {
+        id: "m2",
+        from: "farmer",
+        text: "Merci à vous chef Aminata 🙏",
+        at: "2025-05-14T18:12:00Z",
+      },
     ],
   },
   {
     id: "c3",
     restaurantId: "r3",
+    farmerId: "f1",
     lastMessage: "Vous pouvez livrer 20kg d'oignons mardi ?",
     lastAt: "2025-05-13T09:00:00Z",
     unread: 1,
     messages: [
       {
         id: "m1",
-        from: "them",
+        from: "restaurant",
         text: "Vous pouvez livrer 20kg d'oignons mardi ?",
         at: "2025-05-13T09:00:00Z",
       },
@@ -555,6 +572,11 @@ export type AppNotification = {
   body: string;
   at: string;
   read: boolean;
+  // Identifiant réel de la ressource concernée (ex : id de conversation
+  // pour une notification "message"), pour ouvrir directement le bon
+  // élément plutôt qu'une liste générique. Absent quand aucune ressource
+  // réelle précise n'y correspond.
+  refId?: string;
 };
 
 export const notifications: AppNotification[] = [
@@ -589,6 +611,7 @@ export const notifications: AppNotification[] = [
     body: "Chez Aminata vous a écrit",
     at: "2025-05-14T18:10:00Z",
     read: true,
+    refId: "c2",
   },
   {
     id: "n5",
@@ -766,13 +789,69 @@ export const teamMembers: TeamMember[] = [
   { id: "t3", name: "—", email: "ibrahima@diallo-farm.sn", role: "viewer", status: "invited" },
 ];
 
+export type RestaurantTeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: "owner" | "buyer" | "chef" | "accountant" | "viewer";
+  status: "active" | "invited";
+};
+
+export const restaurantTeamMembers: RestaurantTeamMember[] = [
+  { id: "rt1", name: "Fatou Sarr", email: "fatou@lebaobab.sn", role: "owner", status: "active" },
+  { id: "rt2", name: "Cheikh Fall", email: "cheikh@lebaobab.sn", role: "chef", status: "active" },
+  {
+    id: "rt3",
+    name: "Mariama Ba",
+    email: "compta@lebaobab.sn",
+    role: "accountant",
+    status: "active",
+  },
+  { id: "rt4", name: "—", email: "achat@lebaobab.sn", role: "buyer", status: "invited" },
+];
+
 export type RestaurantBudget = {
   monthly: number;
 };
 
+export type ReceptionDay =
+  "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
+export const RECEPTION_DAYS: ReceptionDay[] = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
+export type ReceptionSlot = { open: boolean; from: string; to: string };
+
 export type RestaurantProfile = {
+  // Préférences de commande (déjà utilisées au checkout)
   deliveryAddress: string;
   paymentMethod: PaymentMethod;
+
+  // Profil
+  displayName: string;
+  cuisine: string;
+  phone: string;
+  email: string;
+  manager: string;
+  bio: string;
+  avatarUrl: string;
+  newsletter: boolean;
+
+  // Établissement
+  city: string;
+  capacity: number;
+  ninea: string;
+  receptionHours: Record<ReceptionDay, ReceptionSlot>;
+
+  // Paiements
+  enabledPaymentMethods: PaymentMethod[];
+  billingEmail: string;
+  paymentTermsDays: number;
 };
 
 // Reprend l'adresse déjà utilisée dans l'historique réel des commandes de ce
@@ -781,6 +860,26 @@ export type RestaurantProfile = {
 export const restaurantProfile: RestaurantProfile = {
   deliveryAddress: "Le Baobab, Dakar Plateau",
   paymentMethod: "Wave",
+
+  displayName: "Le Baobab",
+  cuisine: "Sénégalaise",
+  phone: "+221 77 123 45 67",
+  email: "contact@lebaobab.sn",
+  manager: "Fatou Sarr",
+  bio: "Cuisine sénégalaise contemporaine, 80 couverts, approvisionnement local.",
+  avatarUrl: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=200",
+  newsletter: true,
+
+  city: "Dakar",
+  capacity: 80,
+  ninea: "00512345 2A2",
+  receptionHours: Object.fromEntries(
+    RECEPTION_DAYS.map((d) => [d, { open: d !== "Dimanche", from: "07:00", to: "11:00" }]),
+  ) as Record<ReceptionDay, ReceptionSlot>,
+
+  enabledPaymentMethods: ["Wave", "Orange Money", "Free Money"],
+  billingEmail: "compta@lebaobab.sn",
+  paymentTermsDays: 14,
 };
 
 export type ProductReview = {
@@ -1132,6 +1231,13 @@ export type RestaurantOrder = {
   // statut. Pour les commandes de démo déjà existantes, on ne connaît que
   // l'état observé à leur création — pas d'heures de transition inventées.
   statusHistory: { status: OrderStatus; at: string }[];
+  // Avec un vrai gateway (Wave/Orange Money/Free Money), le paiement est
+  // confirmé immédiatement à la commande — pas d'action manuelle possible
+  // ensuite. En espèces, le règlement n'est réel qu'à la livraison
+  // effective (paiement à la livraison), donc `paid` ne bascule qu'au
+  // moment où le statut passe réellement à "delivered".
+  paid: boolean;
+  paidAt?: string;
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -1150,6 +1256,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
     statusHistory: [{ status: "delivering", at: "2025-05-15T09:00:00Z" }],
+    paid: true,
+    paidAt: "2025-05-15T09:00:00Z",
   },
   {
     id: "ro_2",
@@ -1162,6 +1270,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Orange Money",
     statusHistory: [{ status: "preparing", at: "2025-05-15T08:15:00Z" }],
+    paid: true,
+    paidAt: "2025-05-15T08:15:00Z",
   },
   {
     id: "ro_3",
@@ -1174,6 +1284,8 @@ export const restaurantOrders: RestaurantOrder[] = [
     deliveryAddress: "Le Baobab, Dakar Plateau",
     paymentMethod: "Wave",
     statusHistory: [{ status: "delivered", at: "2025-05-14T14:00:00Z" }],
+    paid: true,
+    paidAt: "2025-05-14T14:00:00Z",
   },
   {
     id: "ro_4",
@@ -1187,8 +1299,12 @@ export const restaurantOrders: RestaurantOrder[] = [
     status: "pending",
     createdAt: "2025-05-15T11:00:00Z",
     deliveryAddress: "Le Baobab, Dakar Plateau",
-    paymentMethod: "Free Money",
+    // Seule commande en espèces du jeu de données de démo : elle reste
+    // non payée tant qu'elle n'est pas réellement livrée (paiement à la
+    // livraison), ce qui permet de démontrer honnêtement le cas "à payer".
+    paymentMethod: "Espèces",
     statusHistory: [{ status: "pending", at: "2025-05-15T11:00:00Z" }],
+    paid: false,
   },
 ];
 
@@ -1294,6 +1410,7 @@ export const restaurantNotifications: AppNotification[] = [
     body: "OK pour demain 8h",
     at: "2025-05-15T10:42:00Z",
     read: true,
+    refId: "c1",
   },
 ];
 
@@ -1326,6 +1443,10 @@ export type Mission = {
   vehicleType: "Moto" | "Camionnette" | "Camion" | "Tricycle";
   urgency: "standard" | "priority" | "express";
   proof?: MissionProofPhoto[];
+  // Horodatage réel de chaque transition, alimenté à chaque changement de
+  // statut. Pour les missions de démo déjà avancées, on ne connaît que
+  // l'état observé à leur création — pas d'heures de transition inventées.
+  statusHistory?: { status: MissionStatus; at: string }[];
 };
 
 export type MissionProofPhoto = {
@@ -1673,17 +1794,81 @@ export type DriverVehicle = {
   plate: string;
   color: string;
   capacityKg: number;
+  mileageKm: number;
   insuranceExpiry: string;
   inspectionExpiry: string;
   photo: string;
+  photos: MissionProofPhoto[];
   nextMaintenanceAt?: string;
+  // Auto-déclaré par le livreur au fil des signalements (résolu = bon état,
+  // signalé = à vérifier) — pas de capteur simulé.
+  condition: {
+    tires: "good" | "check";
+    brakes: "good" | "check";
+    battery: "good" | "check";
+    oil: "good" | "check";
+    lights: "good" | "check";
+    body: "good" | "check";
+  };
+};
+
+export type VehicleIssueType = "tires" | "brakes" | "battery" | "engine" | "lights" | "other";
+export type VehicleIssueSeverity = "low" | "medium" | "high";
+
+export const VEHICLE_ISSUE_TYPE_LABEL: Record<VehicleIssueType, string> = {
+  tires: "Pneus",
+  brakes: "Freins",
+  battery: "Batterie",
+  engine: "Moteur",
+  lights: "Éclairage",
+  other: "Autre",
 };
 
 export type VehicleIssue = {
   id: string;
+  reference: string;
+  type: VehicleIssueType;
+  severity: VehicleIssueSeverity;
   description: string;
   at: string;
-  status: "reported" | "resolved";
+  status: "reported" | "in_progress" | "resolved";
+  photos?: MissionProofPhoto[];
+};
+
+export type MaintenanceEntry = {
+  id: string;
+  label: string;
+  at: string;
+  mileageKm: number;
+  status: "done";
+};
+
+export type VehicleChangeReason = "sold" | "breakdown" | "new_vehicle" | "rental" | "other";
+
+export const VEHICLE_CHANGE_REASON_LABEL: Record<VehicleChangeReason, string> = {
+  sold: "Véhicule vendu",
+  breakdown: "Panne",
+  new_vehicle: "Nouveau véhicule",
+  rental: "Location",
+  other: "Autre",
+};
+
+export type VehicleChangeRequest = {
+  id: string;
+  reference: string;
+  reason: VehicleChangeReason;
+  newVehicle: {
+    type: DriverVehicle["type"];
+    brand: string;
+    model: string;
+    year: number;
+    plate: string;
+    capacityKg: number;
+    mileageKm: number;
+  };
+  docs: MissionProofPhoto[];
+  status: "pending" | "approved" | "rejected";
+  submittedAt: string;
 };
 
 export const driverProfile = {
@@ -1712,10 +1897,39 @@ export const driverVehicle: DriverVehicle = {
   plate: "DK 4587 AB",
   color: "Blanc",
   capacityKg: 800,
-  insuranceExpiry: "2026-03-15",
-  inspectionExpiry: "2025-11-20",
+  mileageKm: 48250,
+  insuranceExpiry: "2027-03-15",
+  inspectionExpiry: "2026-11-20",
   photo: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800",
+  photos: [],
+  nextMaintenanceAt: "2026-10-12",
+  condition: {
+    tires: "check",
+    brakes: "good",
+    battery: "good",
+    oil: "check",
+    lights: "good",
+    body: "good",
+  },
 };
+
+export const vehicleMaintenanceHistory: MaintenanceEntry[] = [
+  { id: "vm1", label: "Révision générale", at: "2026-09-12", mileageKm: 45200, status: "done" },
+  { id: "vm2", label: "Vidange", at: "2026-06-18", mileageKm: 41800, status: "done" },
+  { id: "vm3", label: "Changement pneus", at: "2026-03-02", mileageKm: 38500, status: "done" },
+];
+
+export const vehicleIssues: VehicleIssue[] = [
+  {
+    id: "vi1",
+    reference: "INC-VH-0024",
+    type: "tires",
+    severity: "medium",
+    description: "Pneu avant droit usé, à surveiller avant le prochain long trajet.",
+    at: "2026-09-18T10:00:00Z",
+    status: "in_progress",
+  },
+];
 
 export const driverNotifications: AppNotification[] = [
   {
@@ -1741,6 +1955,7 @@ export const driverNotifications: AppNotification[] = [
     body: "Merci pour la livraison !",
     at: "2025-05-15T11:40:00Z",
     read: false,
+    refId: "dc1",
   },
   {
     id: "dn4",
@@ -1760,7 +1975,27 @@ export const driverNotifications: AppNotification[] = [
   },
 ];
 
-export const driverConversations: Conversation[] = [
+// Conversation restaurant↔livreur : un domaine distinct de Conversation
+// (restaurant↔producteur), sans notion de fournisseur. Un seul livreur
+// connectable dans cette démo, donc pas de fuite "me"/"them" possible
+// côté restaurant (qui n'écrit jamais directement dans ce store).
+export type DriverConversation = {
+  id: string;
+  restaurantId: string;
+  lastMessage: string;
+  lastAt: string;
+  unread: number;
+  messages: {
+    id: string;
+    from: "me" | "them";
+    text: string;
+    at: string;
+    senderName?: string;
+    attachment?: ChatAttachment;
+  }[];
+};
+
+export const driverConversations: DriverConversation[] = [
   {
     id: "dc1",
     restaurantId: "r1",
@@ -1856,6 +2091,15 @@ export const driverTransactions: DriverTx[] = [
     status: "Complété",
   },
   {
+    id: "dtx_inc701",
+    at: "2025-05-12T11:00:00Z",
+    label: "Indemnité incident INC-701",
+    ref: "INC-701",
+    kind: "adjustment",
+    amount: 1500,
+    status: "Complété",
+  },
+  {
     id: "dtx6",
     at: "2025-05-12T09:00:00Z",
     label: "Retrait Wave",
@@ -1905,10 +2149,40 @@ export type DriverPaymentMethod = {
   active: boolean;
 };
 
+export type WeekDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+export const WEEKDAY_LABEL: Record<WeekDay, string> = {
+  mon: "Lundi",
+  tue: "Mardi",
+  wed: "Mercredi",
+  thu: "Jeudi",
+  fri: "Vendredi",
+  sat: "Samedi",
+  sun: "Dimanche",
+};
+export const WEEKDAYS: WeekDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export type WorkingHours = Record<WeekDay, { enabled: boolean; start: string; end: string }>;
+
+export type DriverWorkCriteria = {
+  minPayout: number;
+  maxWeightKg: number;
+  acceptedUrgencies: Mission["urgency"][];
+  acceptedCities: string[];
+};
+
 export type DriverSettings = {
-  profile: { name: string; phone: string; email: string; city: string; avatar: string };
+  profile: {
+    name: string;
+    phone: string;
+    email: string;
+    city: string;
+    address: string;
+    avatar: string;
+  };
   radius: number;
   autoAccept: boolean;
+  criteria: DriverWorkCriteria;
+  workingHours: WorkingHours;
+  locationSharing: boolean;
   notif: {
     push: boolean;
     sms: boolean;
@@ -1916,10 +2190,24 @@ export type DriverSettings = {
     missions: boolean;
     payments: boolean;
     messages: boolean;
+    docExpiry: boolean;
+    maintenance: boolean;
+    vehicleIssue: boolean;
+    nonCompliant: boolean;
   };
   payoutFrequency: "daily" | "weekly" | "manual";
   paymentMethods: DriverPaymentMethod[];
 };
+
+const defaultWorkingHours = (): WorkingHours => ({
+  mon: { enabled: true, start: "08:00", end: "18:00" },
+  tue: { enabled: true, start: "08:00", end: "18:00" },
+  wed: { enabled: true, start: "08:00", end: "18:00" },
+  thu: { enabled: true, start: "08:00", end: "18:00" },
+  fri: { enabled: true, start: "08:00", end: "18:00" },
+  sat: { enabled: true, start: "08:00", end: "14:00" },
+  sun: { enabled: false, start: "08:00", end: "18:00" },
+});
 
 export const driverSettings: DriverSettings = {
   profile: {
@@ -1927,11 +2215,31 @@ export const driverSettings: DriverSettings = {
     phone: driverProfile.phone,
     email: driverProfile.email,
     city: driverProfile.city,
+    address: "",
     avatar: driverProfile.avatar,
   },
   radius: 50,
   autoAccept: false,
-  notif: { push: true, sms: true, email: false, missions: true, payments: true, messages: true },
+  criteria: {
+    minPayout: 3000,
+    maxWeightKg: 800,
+    acceptedUrgencies: ["standard", "priority", "express"],
+    acceptedCities: ["Dakar", "Thiès", "Mbour"],
+  },
+  workingHours: defaultWorkingHours(),
+  locationSharing: true,
+  notif: {
+    push: true,
+    sms: true,
+    email: false,
+    missions: true,
+    payments: true,
+    messages: true,
+    docExpiry: true,
+    maintenance: true,
+    vehicleIssue: true,
+    nonCompliant: true,
+  },
   payoutFrequency: "weekly",
   paymentMethods: [{ id: "pm1", method: "Wave", label: driverProfile.phone, active: true }],
 };

@@ -54,7 +54,10 @@ export type TriggerRule = {
   label: string;
   condition: string;
   channel: string;
-  firedThisMonth: number;
+  /** Nombre réel de déclenchements ce mois-ci, si disponible. Omis quand la
+   * granularité des notifications réelles ne permet pas de le distinguer
+   * proprement d'autres événements (plutôt que d'afficher une valeur inventée). */
+  firedThisMonth?: number;
 };
 
 type Matrix = Record<string, Record<ChannelKey, boolean>>;
@@ -197,9 +200,11 @@ export function TriggerRules({
               <span className="font-mono">SI</span> {r.condition}{" "}
               <span className="font-mono">ALORS</span> {r.channel}
             </div>
-            <div className="text-[10px] text-muted-foreground/70 mt-1">
-              Déclenchée {r.firedThisMonth} fois ce mois-ci
-            </div>
+            {typeof r.firedThisMonth === "number" && (
+              <div className="text-[10px] text-muted-foreground/70 mt-1">
+                Déclenchée {r.firedThisMonth} fois ce mois-ci
+              </div>
+            )}
           </div>
           <Switch
             checked={enabled[r.key]}

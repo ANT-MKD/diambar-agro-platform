@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { useRestaurantTeam, restaurantTeamActions } from "@/data/store";
+import type { RestaurantTeamMember } from "@/data/mocks";
 
 export const Route = createFileRoute("/restaurant/settings/team")({
   head: () => ({
@@ -32,15 +34,7 @@ export const Route = createFileRoute("/restaurant/settings/team")({
   component: RestaurantTeamSettings,
 });
 
-type Member = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "active" | "invited";
-};
-
-const ROLES = [
+const ROLES: { value: RestaurantTeamMember["role"]; label: string }[] = [
   { value: "owner", label: "Propriétaire" },
   { value: "buyer", label: "Acheteur" },
   { value: "chef", label: "Chef de cuisine" },
@@ -49,35 +43,22 @@ const ROLES = [
 ];
 
 function RestaurantTeamSettings() {
-  const [members, setMembers] = useState<Member[]>([
-    { id: "t1", name: "Fatou Sarr", email: "fatou@lebaobab.sn", role: "owner", status: "active" },
-    { id: "t2", name: "Cheikh Fall", email: "cheikh@lebaobab.sn", role: "chef", status: "active" },
-    {
-      id: "t3",
-      name: "Mariama Ba",
-      email: "compta@lebaobab.sn",
-      role: "accountant",
-      status: "active",
-    },
-    { id: "t4", name: "—", email: "achat@lebaobab.sn", role: "buyer", status: "invited" },
-  ]);
-  const [invite, setInvite] = useState({ email: "", role: "buyer" });
+  const members = useRestaurantTeam();
+  const [invite, setInvite] = useState<{ email: string; role: RestaurantTeamMember["role"] }>({
+    email: "",
+    role: "buyer",
+  });
 
   const sendInvite = () => {
     if (!/^\S+@\S+\.\S+$/.test(invite.email)) {
       toast.error("Email invalide");
       return false;
     }
-    setMembers((m) => [
-      ...m,
-      {
-        id: `t_${Date.now()}`,
-        name: "—",
-        email: invite.email,
-        role: invite.role,
-        status: "invited",
-      },
-    ]);
+    if (members.some((m) => m.email.toLowerCase() === invite.email.toLowerCase())) {
+      toast.error("Ce collaborateur a déjà accès");
+      return false;
+    }
+    restaurantTeamActions.invite(invite.email, invite.role);
     setInvite({ email: "", role: "buyer" });
     return true;
   };
@@ -100,7 +81,12 @@ function RestaurantTeamSettings() {
             />
           </FieldRow>
           <FieldRow label="Rôle">
-            <Select value={invite.role} onValueChange={(v) => setInvite({ ...invite, role: v })}>
+            <Select
+              value={invite.role}
+              onValueChange={(v) =>
+                setInvite({ ...invite, role: v as RestaurantTeamMember["role"] })
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -141,7 +127,7 @@ function RestaurantTeamSettings() {
               <Select
                 value={m.role}
                 onValueChange={(v) => {
-                  setMembers((arr) => arr.map((x) => (x.id === m.id ? { ...x, role: v } : x)));
+                  restaurantTeamActions.setRole(m.id, v as RestaurantTeamMember["role"]);
                   toast.success("Rôle mis à jour");
                 }}
                 disabled={m.role === "owner"}
@@ -169,7 +155,7 @@ function RestaurantTeamSettings() {
                   destructive
                   confirmLabel="Retirer"
                   onConfirm={() => {
-                    setMembers((arr) => arr.filter((x) => x.id !== m.id));
+                    restaurantTeamActions.remove(m.id);
                     toast.success("Membre retiré");
                   }}
                 />

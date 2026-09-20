@@ -61,6 +61,91 @@ describe("restaurantOrderActions.create (order bridge)", () => {
   });
 });
 
+describe("restaurantOrderActions.create / setStatus (paiement à la commande vs à la livraison)", () => {
+  it("marks a Wave order paid immediately, simulating an instant gateway confirmation", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current[1];
+    const restaurantOrders = renderHook(() => useRestaurantOrders());
+
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 1, price: target.pricePerKg }],
+        total: target.pricePerKg,
+        deliveryAddress: "Chez Test Wave, Test City",
+        paymentMethod: "Wave",
+      });
+    });
+
+    const created = restaurantOrders.result.current.find((o) => o.id === id);
+    expect(created?.paid).toBe(true);
+    expect(created?.paidAt).toBeTruthy();
+  });
+
+  it("keeps a cash order unpaid until it is genuinely delivered, then settles it", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current[1];
+    const restaurantOrders = renderHook(() => useRestaurantOrders());
+
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 1, price: target.pricePerKg }],
+        total: target.pricePerKg,
+        deliveryAddress: "Chez Test Especes, Test City",
+        paymentMethod: "Espèces",
+      });
+    });
+
+    const created = restaurantOrders.result.current.find((o) => o.id === id);
+    expect(created?.paid).toBe(false);
+    expect(created?.paidAt).toBeUndefined();
+
+    act(() => {
+      restaurantOrderActions.setStatus(id, "preparing");
+    });
+    const stillUnpaid = restaurantOrders.result.current.find((o) => o.id === id);
+    expect(stillUnpaid?.paid).toBe(false);
+
+    act(() => {
+      restaurantOrderActions.setStatus(id, "delivered");
+    });
+    const settled = restaurantOrders.result.current.find((o) => o.id === id);
+    expect(settled?.paid).toBe(true);
+    expect(settled?.paidAt).toBeTruthy();
+  });
+
+  it("also settles a cash order when delivered is propagated from the farmer side", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current[1];
+    const orders = renderHook(() => useOrders());
+    const restaurantOrders = renderHook(() => useRestaurantOrders());
+
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 1, price: target.pricePerKg }],
+        total: target.pricePerKg,
+        deliveryAddress: "Chez Test Especes 2, Test City",
+        paymentMethod: "Espèces",
+      });
+    });
+    const created = restaurantOrders.result.current.find((o) => o.id === id)!;
+    const farmerOrder = orders.result.current.find((o) => o.reference === created.reference)!;
+
+    act(() => {
+      orderActions.setStatus(farmerOrder.id, "delivered");
+    });
+
+    const settled = restaurantOrders.result.current.find((o) => o.id === id);
+    expect(settled?.paid).toBe(true);
+    expect(settled?.paidAt).toBeTruthy();
+  });
+});
+
 describe("orderActions.setStatus (farmer -> restaurant propagation)", () => {
   function createBridgedOrder() {
     const products = renderHook(() => useProducts());

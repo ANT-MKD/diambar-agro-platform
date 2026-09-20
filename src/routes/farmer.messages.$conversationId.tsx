@@ -28,9 +28,13 @@ export const Route = createFileRoute("/farmer/messages/$conversationId")({
   component: FarmerConversation,
 });
 
+// Un seul producteur peut se connecter dans cette démo (Mamadou Diallo, f1).
+const MY_FARMER_ID = "f1";
+
 function FarmerConversation() {
   const { conversationId } = Route.useParams();
-  const conv = useConversation(conversationId);
+  const found = useConversation(conversationId);
+  const conv = found && found.farmerId === MY_FARMER_ID ? found : null;
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
@@ -70,7 +74,7 @@ function FarmerConversation() {
 
   const send = () => {
     if (!draft.trim() && !attachment) return;
-    conversationActions.send(conv.id, draft.trim(), "me", undefined, attachment ?? undefined);
+    conversationActions.send(conv.id, draft.trim(), "farmer", undefined, attachment ?? undefined);
     setDraft("");
     setAttachment(null);
   };
@@ -119,7 +123,12 @@ function FarmerConversation() {
 
         <div className="flex-1 overflow-auto p-4 space-y-3 bg-muted/20">
           {conv.messages.map((m) => (
-            <ChatBubble key={m.id} message={m} />
+            <ChatBubble
+              key={m.id}
+              message={m}
+              mine={m.from === "farmer"}
+              label={m.senderName ?? r?.name}
+            />
           ))}
         </div>
 

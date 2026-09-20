@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, SlidersHorizontal, Heart, ShoppingCart, ArrowRight, Star } from "lucide-react";
 import { useMemo, useState } from "react";
+import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
 import { RestaurantProductCard } from "@/components/restaurant/product-card";
 import { useProducts, useWishlist, useCart, useRestaurantOrders } from "@/data/store";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/restaurant/marketplace")({
+  validateSearch: z.object({ supplier: z.string().optional() }),
   head: () => ({ meta: [{ title: "Marketplace · Restaurant" }] }),
   component: Marketplace,
 });
@@ -30,6 +32,7 @@ const AVAILABILITY = [
 ];
 
 function Marketplace() {
+  const { supplier: supplierParam } = Route.useSearch();
   const products = useProducts();
   const wishlist = useWishlist();
   const cart = useCart();
@@ -37,7 +40,7 @@ function Marketplace() {
   const [q, setQ] = useState("");
   const [cats, setCats] = useState<Set<string>>(new Set());
   const [region, setRegion] = useState<string>("Toutes");
-  const [supplier, setSupplier] = useState<string>("Tous");
+  const [supplier, setSupplier] = useState<string>(supplierParam ?? "Tous");
   const [sort, setSort] = useState<(typeof SORTS)[number]>("Pertinence");
   const [onlyFav, setOnlyFav] = useState(false);
   const [availability, setAvailability] = useState<Set<"active" | "low" | "out">>(
@@ -46,7 +49,7 @@ function Marketplace() {
   const [minRating, setMinRating] = useState(0);
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(!!supplierParam);
 
   const catalog = useMemo(() => products.filter((p) => p.status !== "draft"), [products]);
   const regions = useMemo(() => ["Toutes", ...new Set(farmers.map((f) => f.city))], []);

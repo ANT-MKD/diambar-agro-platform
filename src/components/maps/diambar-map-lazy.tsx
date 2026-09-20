@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { ClientOnly } from "@/components/common/client-only";
-import type { MapMarkerConfig } from "./diambar-map";
+import type { MapMarkerConfig, RouteLayer } from "./diambar-map";
 
 // Leaflet touche `window`/`document` : import différé + rendu client-only
 // uniquement, sinon le SSR de TanStack Start plante.
@@ -16,6 +16,7 @@ export function DiambarMapLazy(props: {
   center?: [number, number];
   zoom?: number;
   markers?: MapMarkerConfig[];
+  routes?: RouteLayer[];
   className?: string;
   minHeight?: number;
   fitBounds?: boolean;

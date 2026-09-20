@@ -40,11 +40,13 @@ import {
   useSuppliers,
   useRestaurantBudget,
   restaurantBudgetActions,
+  useRestaurantProfile,
 } from "@/data/store";
 import { useReturns } from "@/data/business";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { farmers } from "@/data/mocks";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
+import { isInvoiceOverdue } from "@/lib/invoice-data";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +84,7 @@ function Dashboard() {
   const suppliers = useSuppliers();
   const returns = useReturns();
   const budget = useRestaurantBudget();
+  const profile = useRestaurantProfile();
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget.monthly));
 
@@ -145,12 +148,7 @@ function Dashboard() {
   const lateOrders = orders.filter(isLate);
   const pendingOrders = orders.filter((o) => o.status === "pending");
   const outOfStock = products.filter((p) => p.status === "out");
-  const isOverdueInvoice = (o: (typeof orders)[number]) => {
-    if (o.status === "delivered") return false;
-    const days = (Date.now() - new Date(o.createdAt).getTime()) / 86_400_000;
-    return days > 14;
-  };
-  const overdueInvoices = orders.filter(isOverdueInvoice);
+  const overdueInvoices = orders.filter((o) => isInvoiceOverdue(o, profile.paymentTermsDays));
   const pendingReturns = returns.filter(
     (r) => r.restaurantName === user.name && r.status === "pending",
   );

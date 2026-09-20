@@ -42,6 +42,8 @@ import {
 } from "@/data/mocks";
 import { CATEGORIES } from "@/components/farmer/product-form";
 import { formatFCFA } from "@/lib/format";
+import { farmerReviewStats } from "@/lib/farmer-stats";
+import { useReviews as useBusinessReviews } from "@/data/business";
 
 export const Route = createFileRoute("/restaurant/recurring/new")({
   head: () => ({ meta: [{ title: "Nouvelle commande récurrente · Restaurant" }] }),
@@ -61,6 +63,7 @@ function NewRecurringOrder() {
   const navigate = useNavigate();
   const products = useProducts();
   const reviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const profile = useRestaurantProfile();
   const restaurantOrders = useRestaurantOrders();
 
@@ -101,19 +104,21 @@ function NewRecurringOrder() {
     return farmers.map((f) => {
       const farmerProducts = products.filter((p) => p.farmerId === f.id);
       const available = farmerProducts.filter((p) => p.status !== "out" && p.status !== "draft");
-      const farmerReviews = reviews.filter((r) => farmerProducts.some((p) => p.id === r.productId));
-      const avgRating =
-        farmerReviews.length > 0
-          ? farmerReviews.reduce((s, r) => s + r.rating, 0) / farmerReviews.length
-          : f.rating;
+      const { avgRating, reviewCount } = farmerReviewStats(
+        f.id,
+        products,
+        reviews,
+        f.rating,
+        businessReviews,
+      );
       return {
         farmer: f,
         available: available.length,
-        reviewCount: farmerReviews.length,
+        reviewCount,
         avgRating,
       };
     });
-  }, [products, reviews]);
+  }, [products, reviews, businessReviews]);
 
   const filteredFarmers = farmerStats.filter((s) =>
     `${s.farmer.farm} ${s.farmer.city}`.toLowerCase().includes(supplierSearch.toLowerCase()),

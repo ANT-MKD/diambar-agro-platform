@@ -1,10 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Printer } from "lucide-react";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { AlertTriangle, ArrowLeft, Download, Printer, Repeat, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useRestaurantOrder } from "@/data/store";
-import { farmers, products } from "@/data/mocks";
+import { useRestaurantOrder, useRecurringOrders, useRestaurantProfile } from "@/data/store";
+import { farmers, restaurants } from "@/data/mocks";
+import { useAllDisputes, STATUS_LABEL } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
-import { downloadDiambarInvoice, type InvoiceData } from "@/lib/invoice-pdf";
+import { downloadDiambarInvoice } from "@/lib/invoice-pdf";
+import { buildInvoiceData, invoiceNumberFor } from "@/lib/invoice-data";
 
 export const Route = createFileRoute("/restaurant/invoices/$invoiceId")({
   head: () => ({ meta: [{ title: "Facture · Restaurant" }] }),
@@ -13,77 +15,38 @@ export const Route = createFileRoute("/restaurant/invoices/$invoiceId")({
 
 function InvoiceDetail() {
   const { invoiceId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/restaurant" });
   const order = useRestaurantOrder(invoiceId);
+  const disputes = useAllDisputes();
+  const recurringOrders = useRecurringOrders();
+  const profile = useRestaurantProfile();
 
   if (!order)
-    return (
-      <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
-        Facture introuvable
-      </div>
-    );
+    return <div className="p-12 text-center text-muted-foreground">Facture introuvable</div>;
 
-  const invoiceNo = `FAC-2025-${order.id.slice(-3).toUpperCase().padStart(3, "0")}`;
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
   const farmer = farmers.find((f) => f.id === order.farmerId);
-  const subtotal = order.items.reduce((s, i) => s + i.qty * i.price, 0);
-  const vat = Math.round(subtotal * 0.18);
-  const total = subtotal + vat;
-  const paid = order.status === "delivered" || order.status === "delivering";
-  const issued = new Date(order.createdAt);
-  const due = new Date(issued.getTime() + 14 * 86400_000);
+  const dispute = disputes.find((d) => d.orderId === order.id);
+  const originRecurring = recurringOrders.find((ro) => ro.generatedOrderIds.includes(order.id));
+  const invoiceNo = invoiceNumberFor(order.id);
+  const invoiceData = buildInvoiceData(order, farmer, myRestaurant, profile.paymentTermsDays);
   const fmtLongDate = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const invoiceData: InvoiceData = {
-    number: invoiceNo,
-    issuedAt: issued,
-    dueAt: due,
-    orderRef: order.reference,
-    seller: {
-      name: "DIAMBAR AGRO SARL",
-      addressLines: ["Immeuble Plateau, Avenue Léopold Sédar Senghor,", "Dakar, Sénégal"],
-      email: "contact@diambar.sn",
-      legal: "NINEA 008772341 · RC DKR-2024-B-12847",
-    },
-    buyer: {
-      label: "Destinataire",
-      name: "Le Baobab SARL",
-      addressLines: ["12 Avenue Léopold Sédar Senghor, Dakar Plateau,", "Sénégal"],
-      email: "baobab@diambar.sn",
-    },
-    paidBanner: paid
-      ? `${new Intl.NumberFormat("fr-FR").format(total)} FCFA payés`
-      : `${new Intl.NumberFormat("fr-FR").format(total)} FCFA à payer`,
-    items: order.items.map((it) => {
-      const p = products.find((x) => x.id === it.productId);
-      return {
-        name: p?.name ?? it.productId,
-        sub: `Commande ${order.reference} · ${farmer?.name ?? ""}`,
-        qty: String(it.qty),
-        qtyUnit: p?.unit,
-        unitPrice: it.price,
-        amount: it.qty * it.price,
-      };
-    }),
-    subtotalHT: subtotal,
-    vat,
-    vatRate: 18,
-    totalTTC: total,
-    amountDue: paid ? 0 : total,
-  };
-
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
-        <Button asChild variant="ghost" size="sm" className="gap-2">
-          <Link to="/restaurant/invoices">
-            <ArrowLeft className="h-4 w-4" />
-            Retour aux factures
-          </Link>
-        </Button>
-        <div className="flex items-center gap-2">
+        <Link
+          to="/restaurant/invoices"
+          className="lg:hidden inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour aux factures
+        </Link>
+        <div className="flex items-center gap-2 ml-auto">
           <Button variant="outline" className="gap-2" onClick={() => window.print()}>
             <Printer className="h-4 w-4" />
             Imprimer
@@ -96,6 +59,37 @@ function InvoiceDetail() {
             Télécharger PDF
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <Link
+          to="/restaurant/orders/$orderId"
+          params={{ orderId: order.id }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition"
+        >
+          <Truck className="h-3.5 w-3.5" />
+          Voir le suivi de la commande
+        </Link>
+        {originRecurring && (
+          <Link
+            to="/restaurant/recurring/$recurringOrderId"
+            params={{ recurringOrderId: originRecurring.id }}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border hover:bg-accent transition"
+          >
+            <Repeat className="h-3.5 w-3.5" />
+            Générée depuis "{originRecurring.name}"
+          </Link>
+        )}
+        {dispute && (
+          <Link
+            to="/restaurant/disputes/$disputeId"
+            params={{ disputeId: dispute.id }}
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 transition"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Litige {dispute.reference} · {STATUS_LABEL[dispute.status]}
+          </Link>
+        )}
       </div>
 
       {/* On-screen preview — pixel-mirror of the generated PDF */}
@@ -120,36 +114,54 @@ function InvoiceDetail() {
             <dt className="text-neutral-500">Numéro de facture</dt>
             <dd className="font-semibold text-neutral-900">{invoiceNo}</dd>
             <dt className="text-neutral-500">Date d'émission</dt>
-            <dd className="font-semibold text-neutral-900">{fmtLongDate.format(issued)}</dd>
+            <dd className="font-semibold text-neutral-900">
+              {fmtLongDate.format(invoiceData.issuedAt)}
+            </dd>
             <dt className="text-neutral-500">Date d'échéance</dt>
-            <dd className="font-semibold text-neutral-900">{fmtLongDate.format(due)}</dd>
+            <dd className="font-semibold text-neutral-900">
+              {fmtLongDate.format(invoiceData.dueAt)}
+            </dd>
             <dt className="text-neutral-500">Commande</dt>
             <dd className="font-semibold text-neutral-900">{order.reference}</dd>
+            <dt className="text-neutral-500">Mode de paiement</dt>
+            <dd className="font-semibold text-neutral-900">{order.paymentMethod}</dd>
+            {order.paid && order.paidAt && (
+              <>
+                <dt className="text-neutral-500">Payée le</dt>
+                <dd className="font-semibold text-emerald-600">
+                  {fmtLongDate.format(new Date(order.paidAt))}
+                </dd>
+              </>
+            )}
           </dl>
 
           {/* Seller / Buyer */}
           <div className="grid grid-cols-2 gap-8 text-[13px]">
             <div className="space-y-1">
-              <div className="font-semibold text-neutral-900">DIAMBAR AGRO SARL</div>
+              <div className="font-semibold text-neutral-900">{invoiceData.seller.name}</div>
               <div className="text-neutral-500">
-                Immeuble Plateau, Avenue Léopold Sédar Senghor,
-                <br />
-                Dakar, Sénégal
+                {invoiceData.seller.addressLines.map((l, i) => (
+                  <span key={i}>
+                    {l}
+                    <br />
+                  </span>
+                ))}
               </div>
-              <div className="text-neutral-500">contact@diambar.sn</div>
-              <div className="text-[11px] text-neutral-400">
-                NINEA 008772341 · RC DKR-2024-B-12847
-              </div>
+              <div className="text-neutral-500">{invoiceData.seller.email}</div>
+              <div className="text-[11px] text-neutral-400">{invoiceData.seller.legal}</div>
             </div>
             <div className="space-y-1">
-              <div className="text-neutral-500">Destinataire</div>
-              <div className="font-semibold text-neutral-900 pt-1">Le Baobab SARL</div>
+              <div className="text-neutral-500">{invoiceData.buyer.label}</div>
+              <div className="font-semibold text-neutral-900 pt-1">{invoiceData.buyer.name}</div>
               <div className="text-neutral-500">
-                12 Avenue Léopold Sédar Senghor, Dakar Plateau,
-                <br />
-                Sénégal
+                {invoiceData.buyer.addressLines.map((l, i) => (
+                  <span key={i}>
+                    {l}
+                    <br />
+                  </span>
+                ))}
               </div>
-              <div className="text-neutral-500">baobab@diambar.sn</div>
+              <div className="text-neutral-500">{invoiceData.buyer.email}</div>
             </div>
           </div>
 
@@ -193,26 +205,26 @@ function InvoiceDetail() {
             <div className="w-72 space-y-2 text-[13px]">
               <div className="flex justify-between text-neutral-500">
                 <span>Sous-total HT</span>
-                <span>{formatFCFA(subtotal)}</span>
+                <span>{formatFCFA(invoiceData.subtotalHT)}</span>
               </div>
               <div className="flex justify-between text-neutral-500">
-                <span>TVA (18%)</span>
-                <span>{formatFCFA(vat)}</span>
+                <span>TVA ({invoiceData.vatRate}%)</span>
+                <span>{formatFCFA(invoiceData.vat)}</span>
               </div>
               <div className="flex justify-between font-semibold text-neutral-900">
                 <span>Total TTC</span>
-                <span>{formatFCFA(total)}</span>
+                <span>{formatFCFA(invoiceData.totalTTC)}</span>
               </div>
               <div className="flex justify-between font-bold text-neutral-900">
                 <span>Montant dû</span>
-                <span>{formatFCFA(paid ? 0 : total)} FCFA</span>
+                <span>{formatFCFA(invoiceData.amountDue)}</span>
               </div>
             </div>
           </div>
 
           {/* Footer */}
           <footer className="border-t border-neutral-200 pt-4 flex justify-between text-[11px] text-neutral-400">
-            <span>NINEA 008772341 · RC DKR-2024-B-12847</span>
+            <span>{invoiceData.seller.legal}</span>
             <span>Page 1 sur 1</span>
           </footer>
         </div>
