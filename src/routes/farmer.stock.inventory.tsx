@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Save, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { useProducts, productActions } from "@/data/store";
+import { useProducts, movementActions, useFarmerProfile } from "@/data/store";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,15 +24,28 @@ export const Route = createFileRoute("/farmer/stock/inventory")({
 function InventoryPage() {
   const navigate = useNavigate();
   const items = useProducts().filter((p) => p.farmerId === "f1");
+  const profile = useFarmerProfile();
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(items.map((p) => [p.id, p.stock])),
   );
 
   const validate = () => {
+    let changed = 0;
     items.forEach((p) => {
-      if (counts[p.id] !== p.stock) productActions.setStock(p.id, counts[p.id]);
+      if (counts[p.id] !== p.stock) {
+        movementActions.create({
+          productId: p.id,
+          type: "adjust",
+          qty: counts[p.id],
+          reason: "Inventaire",
+          operator: profile.firstName,
+        });
+        changed += 1;
+      }
     });
-    toast.success("Inventaire validé");
+    toast.success(
+      changed > 0 ? `Inventaire validé · ${changed} écart(s) corrigé(s)` : "Inventaire validé",
+    );
     navigate({ to: "/farmer/stock" });
   };
 

@@ -86,6 +86,13 @@ function Dashboard() {
         orders: v.orders,
       }));
   }, [orders]);
+  // Même logique que la page Revenus : on garde les N derniers jours
+  // *disponibles* (pas calendaires, les dates de démo étant figées dans le
+  // passé) — "12M" montre tout l'historique faute de recul suffisant.
+  const chartData = useMemo(() => {
+    const days = period === "7" ? 7 : period === "30" ? 30 : null;
+    return days ? revenueByDay.slice(-days) : revenueByDay;
+  }, [revenueByDay, period]);
   const revenueThisMonth = delivered.reduce((s, o) => s + o.total, 0);
 
   // Répartition réelle du CA livré par catégorie de produit (via les lignes
@@ -282,7 +289,7 @@ function Dashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer>
-              <AreaChart data={revenueByDay}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="oklch(0.7 0.17 155)" stopOpacity={0.4} />

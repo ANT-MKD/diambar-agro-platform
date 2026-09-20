@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Printer, Receipt } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
-import { transactions, restaurants, orders, products } from "@/data/mocks";
+import { restaurants, orders, products } from "@/data/mocks";
+import { useTransactions } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { downloadHtml } from "@/lib/export";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/farmer/revenue/$txId")({
 
 function TxPage() {
   const { txId } = Route.useParams();
-  const tx = transactions.find((t) => t.id === txId);
+  const tx = useTransactions().find((t) => t.id === txId);
   if (!tx)
     return <p className="text-center text-muted-foreground py-12">Transaction introuvable</p>;
   const r = restaurants.find((x) => x.id === tx.restaurantId);

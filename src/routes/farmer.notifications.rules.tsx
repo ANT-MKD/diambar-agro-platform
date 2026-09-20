@@ -38,28 +38,24 @@ const RULES: TriggerRule[] = [
     label: "Stock critique",
     condition: "Quantité < seuil minimum",
     channel: "In-app + WhatsApp",
-    firedThisMonth: 12,
   },
   {
     key: "r2",
     label: "Commande urgente",
     condition: "Livraison demandée < 24h",
     channel: "In-app + SMS",
-    firedThisMonth: 5,
   },
   {
     key: "r3",
     label: "Paiement crédité",
     condition: "Virement Wave confirmé",
     channel: "Email + In-app",
-    firedThisMonth: 18,
   },
   {
     key: "r4",
     label: "Récap hebdomadaire",
     condition: "Chaque lundi 08h00",
     channel: "Email",
-    firedThisMonth: 4,
   },
 ];
 

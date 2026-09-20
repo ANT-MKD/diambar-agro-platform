@@ -3,12 +3,20 @@ import { useState } from "react";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
-import { transactions, type PaymentMethod } from "@/data/mocks";
-import { useWithdrawals, withdrawalActions, useWallets, usePaymentPrefs } from "@/data/store";
+import { type PaymentMethod } from "@/data/mocks";
+import {
+  useWithdrawals,
+  withdrawalActions,
+  useWallets,
+  usePaymentPrefs,
+  useTransactions,
+} from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const MY_FARMER_ID = "f1";
 
 export const Route = createFileRoute("/farmer/revenue/withdraw")({
   head: () => ({ meta: [{ title: "Retirer · Diambar Agro" }] }),
@@ -20,9 +28,12 @@ function WithdrawPage() {
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
   const paymentPrefs = usePaymentPrefs();
+  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
+  // Un retrait "En cours" réserve déjà les fonds : seul un retrait en échec
+  // les rend disponibles à nouveau.
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
-    withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount + w.fee, 0);
+    withdrawals.filter((w) => w.status !== "Échec").reduce((a, w) => a + w.amount + w.fee, 0);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);

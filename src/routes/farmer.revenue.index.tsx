@@ -11,6 +11,7 @@ import {
   Plus,
   FileText,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import {
   Area,
@@ -28,8 +29,8 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
-import { transactions, restaurants, wallets } from "@/data/mocks";
-import { useWithdrawals, useWallets } from "@/data/store";
+import { restaurants, wallets } from "@/data/mocks";
+import { useWithdrawals, useWallets, useTransactions, usePaymentPrefs } from "@/data/store";
 import { WalletWidget } from "@/components/farmer/wallet-widget";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,11 +67,15 @@ const quickActions: QuickAction[] = [
   },
 ];
 
+const MY_FARMER_ID = "f1";
+
 function RevenuePage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
+  const paymentPrefs = usePaymentPrefs();
+  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
 
   // Le graphique agrège les vraies transactions par jour réel, filtrées aux
   // N derniers jours disponibles (les dates de démo étant fixes, un filtre
@@ -88,7 +93,7 @@ function RevenuePage() {
         revenue: v.revenue,
         orders: v.orders,
       }));
-  }, []);
+  }, [transactions]);
   const data = useMemo(() => byDay.slice(-PERIOD_DAYS[period]), [byDay, period]);
 
   const total = data.reduce((a, x) => a + x.revenue, 0);
@@ -98,9 +103,12 @@ function RevenuePage() {
   const pending = transactions
     .filter((t) => t.status === "En attente")
     .reduce((a, t) => a + t.net, 0);
+  // Un retrait "En cours" réserve déjà les fonds : seul un retrait en échec
+  // les rend disponibles à nouveau (sinon un même solde pourrait être retiré
+  // plusieurs fois tant que le retrait précédent n'est pas marqué "Effectué").
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
-    withdrawals.filter((w) => w.status === "Effectué").reduce((a, w) => a + w.amount + w.fee, 0);
+    withdrawals.filter((w) => w.status !== "Échec").reduce((a, w) => a + w.amount + w.fee, 0);
   const totalWithdrawn = withdrawals
     .filter((w) => w.status === "Effectué")
     .reduce((a, w) => a + w.amount, 0);
@@ -113,7 +121,7 @@ function RevenuePage() {
     return Array.from(totals.entries())
       .map(([method, value]) => ({ method, value }))
       .sort((a, b) => b.value - a.value);
-  }, []);
+  }, [transactions]);
 
   const recentWithdrawals = [...withdrawals]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -171,6 +179,26 @@ function RevenuePage() {
           </div>
         }
       />
+
+      {available >= paymentPrefs.withdrawThreshold && (
+        <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-primary/30 bg-primary/5">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0 text-sm">
+            <span className="font-semibold">Solde disponible : {formatFCFA(available)}.</span>{" "}
+            <span className="text-muted-foreground">
+              Il dépasse votre seuil de retrait ({formatFCFA(paymentPrefs.withdrawThreshold)}).
+            </span>
+          </div>
+          <Button asChild size="sm" className="gap-2 shrink-0">
+            <Link to="/farmer/revenue/withdraw">
+              <Plus className="h-4 w-4" />
+              Retirer
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4">
         <WalletWidget

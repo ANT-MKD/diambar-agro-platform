@@ -10,7 +10,10 @@ import { Slider } from "@/components/ui/slider";
  * valeur par défaut). La valeur persistée est donc appliquée après coup, dans un
  * effet qui ne s'exécute que côté client une fois l'hydratation terminée.
  */
-function usePersisted<T>(key: string | undefined, initial: T | (() => T)): [T, (v: T) => void] {
+export function usePersisted<T>(
+  key: string | undefined,
+  initial: T | (() => T),
+): [T, (v: T) => void] {
   const [state, setState] = useState<T>(() =>
     typeof initial === "function" ? (initial as () => T)() : initial,
   );
