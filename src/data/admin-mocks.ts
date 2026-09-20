@@ -348,10 +348,38 @@ export const auditLogs: AuditLog[] = [
 ];
 
 export const commissionTiers = [
-  { id: "ct1", label: "Standard", range: "0 – 250 000 FCFA / mois", rate: 15 },
-  { id: "ct2", label: "Volume", range: "250 001 – 500 000 FCFA / mois", rate: 12 },
-  { id: "ct3", label: "Volume +", range: "500 001 – 1 500 000 FCFA / mois", rate: 8 },
-  { id: "ct4", label: "Partenaire", range: "> 1 500 000 FCFA / mois", rate: 5 },
+  {
+    id: "ct1",
+    label: "Standard",
+    range: "0 – 250 000 FCFA / mois",
+    rate: 15,
+    min: 0,
+    max: 250_000,
+  },
+  {
+    id: "ct2",
+    label: "Volume",
+    range: "250 001 – 500 000 FCFA / mois",
+    rate: 12,
+    min: 250_001,
+    max: 500_000,
+  },
+  {
+    id: "ct3",
+    label: "Volume +",
+    range: "500 001 – 1 500 000 FCFA / mois",
+    rate: 8,
+    min: 500_001,
+    max: 1_500_000,
+  },
+  {
+    id: "ct4",
+    label: "Partenaire",
+    range: "> 1 500 000 FCFA / mois",
+    rate: 5,
+    min: 1_500_001,
+    max: null,
+  },
 ];
 
 export const deliveryZones = [

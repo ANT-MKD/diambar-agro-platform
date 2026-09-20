@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { AdminBadge } from "@/components/admin/admin-badge";
 import { formatFCFA } from "@/lib/format";
 import { farmers, restaurants } from "@/data/mocks";
 import { useOrders } from "@/data/store";
+import { useCommissionTiers } from "@/data/admin-store";
+import { commissionForOrder, deliveredVolumeByFarmer } from "@/lib/commission";
 
 export const Route = createFileRoute("/admin/orders")({
   head: () => ({
@@ -22,11 +24,13 @@ export const Route = createFileRoute("/admin/orders")({
 
 function AdminOrders() {
   const orders = useOrders();
+  const tiers = useCommissionTiers();
   const [q, setQ] = useState("");
   const rows = orders.filter(
     (o) => q === "" || o.reference.toLowerCase().includes(q.toLowerCase()),
   );
   const gmv = rows.reduce((s, o) => s + o.total, 0);
+  const volumeByFarmer = useMemo(() => deliveredVolumeByFarmer(orders), [orders]);
 
   return (
     <div className="space-y-6">
@@ -66,7 +70,9 @@ function AdminOrders() {
                 </td>
                 <td className="px-4 py-3 text-right font-medium">{formatFCFA(o.total)}</td>
                 <td className="px-4 py-3 text-right hidden lg:table-cell text-muted-foreground">
-                  {formatFCFA(Math.round(o.total * 0.1))}
+                  {o.status === "delivered"
+                    ? formatFCFA(commissionForOrder(o, tiers, volumeByFarmer))
+                    : "—"}
                 </td>
                 <td className="px-4 py-3">
                   <AdminBadge value={o.status} label={o.status} />
