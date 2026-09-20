@@ -111,6 +111,81 @@ export const adminUserActions = {
   remove: (id: string) => usersStore.set((arr) => arr.filter((u) => u.id !== id)),
 };
 
+export type AdminRoleName =
+  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
+
+export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
+  "Super Administrateur",
+  "Finance",
+  "Opérations",
+  "Support",
+  "Modération",
+];
+
+export type AdminPermissionCategory = "Utilisateurs" | "Finance" | "Commandes" | "Paramètres";
+
+/**
+ * Détermine ce que chaque rôle admin peut voir/modifier — configure
+ * l'affichage de la page Administrateurs, ce n'est pas (encore) un moteur
+ * qui bloque les routes : un vrai RBAC appliqué partout serait un chantier
+ * séparé, plus large que cette page.
+ */
+export const ADMIN_ROLE_PERMISSIONS: Record<
+  AdminRoleName,
+  Record<AdminPermissionCategory, { view: boolean; edit: boolean }>
+> = {
+  "Super Administrateur": {
+    Utilisateurs: { view: true, edit: true },
+    Finance: { view: true, edit: true },
+    Commandes: { view: true, edit: true },
+    Paramètres: { view: true, edit: true },
+  },
+  Finance: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: true, edit: true },
+    Commandes: { view: true, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+  Opérations: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: true, edit: true },
+    Paramètres: { view: false, edit: false },
+  },
+  Support: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: true, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+  Modération: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: false, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+};
+
+const adminRolesStore = createStore<Record<string, AdminRoleName>>(
+  { u13: "Super Administrateur" },
+  "diambar:admin-roles",
+);
+
+export function useAdminRoles(): Record<string, AdminRoleName> {
+  return useSyncExternalStore(adminRolesStore.subscribe, adminRolesStore.get, adminRolesStore.get);
+}
+
+export function useAdminRole(userId: string): AdminRoleName {
+  return useAdminRoles()[userId] ?? "Support";
+}
+
+export const adminRoleActions = {
+  setRole: (userId: string, role: AdminRoleName, actor: string) => {
+    adminRolesStore.set((r) => ({ ...r, [userId]: role }));
+    auditActions.log(`Rôle admin changé pour "${role}"`, actor, "critical");
+  },
+};
+
 export const validationActions = {
   approve: (id: string) => {
     const req = validationsStore.get().find((v) => v.id === id);

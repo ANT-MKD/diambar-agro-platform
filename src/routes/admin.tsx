@@ -20,6 +20,9 @@ import {
   BarChart3,
   MessageSquare,
   TriangleAlert,
+  Sprout,
+  Utensils,
+  UserCog,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -66,7 +69,6 @@ function AdminLayout() {
       items: [
         { to: "/admin/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard, badge: 0 },
         { to: "/admin/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
-        { to: "/admin/users", label: "Utilisateurs", icon: Users, badge: 0 },
         {
           to: "/admin/validations",
           label: "Validations",
@@ -74,6 +76,16 @@ function AdminLayout() {
           badge: pendingValidations,
         },
         { to: "/admin/moderation", label: "Modération", icon: PackageSearch, badge: 0 },
+      ],
+    },
+    {
+      label: "UTILISATEURS",
+      items: [
+        { to: "/admin/users", label: "Tous les utilisateurs", icon: Users, badge: 0 },
+        { to: "/admin/users/farmers", label: "Agriculteurs", icon: Sprout, badge: 0 },
+        { to: "/admin/users/restaurants", label: "Restaurants", icon: Utensils, badge: 0 },
+        { to: "/admin/users/drivers", label: "Livreurs", icon: Truck, badge: 0 },
+        { to: "/admin/users/admins", label: "Administrateurs", icon: UserCog, badge: 0 },
       ],
     },
     {
@@ -109,6 +121,19 @@ function AdminLayout() {
     },
   ];
 
+  // Certaines entrées (ex. "Tous les utilisateurs") ont maintenant des
+  // sous-pages sœurs dont le chemin les préfixe ("/admin/users/farmers"…) :
+  // un simple startsWith ferait s'allumer les deux à la fois. On ne retient
+  // le préfixe que si aucune autre entrée, plus précise, ne correspond déjà.
+  const allPaths = navSections.flatMap((s) => s.items.map((it) => it.to));
+  const isNavActive = (to: string) => {
+    if (path === to) return true;
+    if (!path.startsWith(to + "/")) return false;
+    return !allPaths.some(
+      (other) => other !== to && other.startsWith(to + "/") && path.startsWith(other),
+    );
+  };
+
   const bottomNav = [
     { to: "/admin/dashboard", label: "Accueil", icon: LayoutDashboard },
     { to: "/admin/users", label: "Users", icon: Users },
@@ -133,7 +158,7 @@ function AdminLayout() {
                 {section.label}
               </div>
               {section.items.map((it) => {
-                const active = path === it.to || path.startsWith(it.to + "/");
+                const active = isNavActive(it.to);
                 return (
                   <Link
                     key={it.to}

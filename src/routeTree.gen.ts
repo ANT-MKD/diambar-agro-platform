@@ -73,6 +73,10 @@ import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
+import { Route as AdminUsersAdminsRouteImport } from './routes/admin.users.admins'
+import { Route as AdminUsersDriversRouteImport } from './routes/admin.users.drivers'
+import { Route as AdminUsersFarmersRouteImport } from './routes/admin.users.farmers'
+import { Route as AdminUsersRestaurantsRouteImport } from './routes/admin.users.restaurants'
 import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
@@ -484,6 +488,26 @@ const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
 const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
   id: '/users/$userId',
   path: '/users/$userId',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersAdminsRoute = AdminUsersAdminsRouteImport.update({
+  id: '/users/admins',
+  path: '/users/admins',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersDriversRoute = AdminUsersDriversRouteImport.update({
+  id: '/users/drivers',
+  path: '/users/drivers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersFarmersRoute = AdminUsersFarmersRouteImport.update({
+  id: '/users/farmers',
+  path: '/users/farmers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRestaurantsRoute = AdminUsersRestaurantsRouteImport.update({
+  id: '/users/restaurants',
+  path: '/users/restaurants',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
@@ -1047,6 +1071,10 @@ export interface FileRoutesByFullPath {
   '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/admin/users/admins': typeof AdminUsersAdminsRoute
+  '/admin/users/drivers': typeof AdminUsersDriversRoute
+  '/admin/users/farmers': typeof AdminUsersFarmersRoute
+  '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1195,6 +1223,10 @@ export interface FileRoutesByTo {
   '/blog': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/admin/users/admins': typeof AdminUsersAdminsRoute
+  '/admin/users/drivers': typeof AdminUsersDriversRoute
+  '/admin/users/farmers': typeof AdminUsersFarmersRoute
+  '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1354,6 +1386,10 @@ export interface FileRoutesById {
   '/blog/': typeof BlogIndexRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/admin/users/admins': typeof AdminUsersAdminsRoute
+  '/admin/users/drivers': typeof AdminUsersDriversRoute
+  '/admin/users/farmers': typeof AdminUsersFarmersRoute
+  '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1514,6 +1550,10 @@ export interface FileRouteTypes {
     | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
+    | '/admin/users/admins'
+    | '/admin/users/drivers'
+    | '/admin/users/farmers'
+    | '/admin/users/restaurants'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1662,6 +1702,10 @@ export interface FileRouteTypes {
     | '/blog'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
+    | '/admin/users/admins'
+    | '/admin/users/drivers'
+    | '/admin/users/farmers'
+    | '/admin/users/restaurants'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1820,6 +1864,10 @@ export interface FileRouteTypes {
     | '/blog/'
     | '/admin/disputes/$disputeId'
     | '/admin/users/$userId'
+    | '/admin/users/admins'
+    | '/admin/users/drivers'
+    | '/admin/users/farmers'
+    | '/admin/users/restaurants'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -2390,6 +2438,34 @@ declare module '@tanstack/react-router' {
       path: '/users/$userId'
       fullPath: '/admin/users/$userId'
       preLoaderRoute: typeof AdminUsersUserIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/admins': {
+      id: '/admin/users/admins'
+      path: '/users/admins'
+      fullPath: '/admin/users/admins'
+      preLoaderRoute: typeof AdminUsersAdminsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/drivers': {
+      id: '/admin/users/drivers'
+      path: '/users/drivers'
+      fullPath: '/admin/users/drivers'
+      preLoaderRoute: typeof AdminUsersDriversRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/farmers': {
+      id: '/admin/users/farmers'
+      path: '/users/farmers'
+      fullPath: '/admin/users/farmers'
+      preLoaderRoute: typeof AdminUsersFarmersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/restaurants': {
+      id: '/admin/users/restaurants'
+      path: '/users/restaurants'
+      fullPath: '/admin/users/restaurants'
+      preLoaderRoute: typeof AdminUsersRestaurantsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/validations/': {
@@ -3055,6 +3131,10 @@ interface AdminRouteChildren {
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
+  AdminUsersAdminsRoute: typeof AdminUsersAdminsRoute
+  AdminUsersDriversRoute: typeof AdminUsersDriversRoute
+  AdminUsersFarmersRoute: typeof AdminUsersFarmersRoute
+  AdminUsersRestaurantsRoute: typeof AdminUsersRestaurantsRoute
   AdminValidationsValidationIdRoute: typeof AdminValidationsValidationIdRoute
   AdminDisputesIndexRoute: typeof AdminDisputesIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
@@ -3077,6 +3157,10 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSupportRoute: AdminSupportRoute,
   AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
+  AdminUsersAdminsRoute: AdminUsersAdminsRoute,
+  AdminUsersDriversRoute: AdminUsersDriversRoute,
+  AdminUsersFarmersRoute: AdminUsersFarmersRoute,
+  AdminUsersRestaurantsRoute: AdminUsersRestaurantsRoute,
   AdminValidationsValidationIdRoute: AdminValidationsValidationIdRoute,
   AdminDisputesIndexRoute: AdminDisputesIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
