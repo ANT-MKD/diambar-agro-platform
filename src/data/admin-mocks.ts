@@ -231,14 +231,16 @@ export const platformUsers: PlatformUser[] = [
   },
 ];
 
-export type ValidationDoc = { label: string; file: string; ok: boolean };
+export type ValidationDoc = { label: string; file: string; ok: boolean; note?: string };
+
+export type ValidationStatus = "pending" | "needs_correction" | "approved" | "rejected";
 
 export type ValidationRequest = {
   id: string;
   userId: string;
   type: "farmer" | "driver" | "restaurant";
   submittedAt: string;
-  status: "pending" | "approved" | "rejected";
+  status: ValidationStatus;
   docs: ValidationDoc[];
   note?: string;
 };

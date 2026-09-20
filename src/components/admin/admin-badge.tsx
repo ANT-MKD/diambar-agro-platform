@@ -4,6 +4,7 @@ const MAP: Record<string, string> = {
   resolved: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   Payé: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  needs_correction: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   open: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   "En cours": "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   investigating: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -16,6 +17,7 @@ const MAP: Record<string, string> = {
 const LABELS: Record<string, string> = {
   active: "Actif",
   pending: "En attente",
+  needs_correction: "À revoir",
   suspended: "Suspendu",
   rejected: "Rejeté",
   approved: "Approuvé",

@@ -14,6 +14,7 @@ import {
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
 import { useIncidents } from "./business";
+import { farmerNotifActions, restaurantNotifActions, driverNotifActions } from "./store";
 
 type Listener = () => void;
 
@@ -186,6 +187,20 @@ export const adminRoleActions = {
   },
 };
 
+function notifyApplicant(type: ValidationRequest["type"], title: string, body: string) {
+  const actions =
+    type === "farmer"
+      ? farmerNotifActions
+      : type === "driver"
+        ? driverNotifActions
+        : restaurantNotifActions;
+  actions.add({ type: "system", title, body });
+}
+
+function nameFor(userId: string) {
+  return usersStore.get().find((u) => u.id === userId)?.name ?? userId;
+}
+
 export const validationActions = {
   approve: (id: string) => {
     const req = validationsStore.get().find((v) => v.id === id);
@@ -193,7 +208,12 @@ export const validationActions = {
     if (req) {
       adminUserActions.setStatus(req.userId, "active");
       adminUserActions.setVerified(req.userId, true);
-      auditActions.log("Validation de compte approuvée", req.userId, "info");
+      auditActions.log("Validation de compte approuvée", nameFor(req.userId), "info");
+      notifyApplicant(
+        req.type,
+        "Compte activé",
+        "Votre dossier a été validé : vous avez maintenant accès à toutes les fonctionnalités de votre espace.",
+      );
     }
   },
   reject: (id: string, note?: string) => {
@@ -203,8 +223,66 @@ export const validationActions = {
     );
     if (req) {
       adminUserActions.setStatus(req.userId, "rejected");
-      auditActions.log("Validation de compte rejetée", req.userId, "warning");
+      auditActions.log("Validation de compte rejetée", nameFor(req.userId), "warning");
+      notifyApplicant(
+        req.type,
+        "Dossier refusé",
+        note
+          ? `Votre dossier d'inscription a été refusé : ${note}`
+          : "Votre dossier d'inscription a été refusé.",
+      );
     }
+  },
+  setDocStatus: (id: string, docLabel: string, ok: boolean) => {
+    const req = validationsStore.get().find((v) => v.id === id);
+    validationsStore.set((arr) =>
+      arr.map((v) =>
+        v.id === id
+          ? {
+              ...v,
+              docs: v.docs.map((d) =>
+                d.label === docLabel ? { ...d, ok, note: ok ? undefined : d.note } : d,
+              ),
+            }
+          : v,
+      ),
+    );
+    if (req) {
+      auditActions.log(
+        ok ? `Document conforme : ${docLabel}` : `Document marqué non conforme : ${docLabel}`,
+        nameFor(req.userId),
+        ok ? "info" : "warning",
+      );
+    }
+  },
+  requestCorrection: (id: string, docLabel: string, reasons: string[], comment: string) => {
+    const req = validationsStore.get().find((v) => v.id === id);
+    if (!req) return;
+    const reasonText = reasons.length ? reasons.join(", ") : "Autre";
+    const noteText = comment.trim() ? `${reasonText} — ${comment.trim()}` : reasonText;
+    validationsStore.set((arr) =>
+      arr.map((v) =>
+        v.id === id
+          ? {
+              ...v,
+              status: "needs_correction",
+              docs: v.docs.map((d) =>
+                d.label === docLabel ? { ...d, ok: false, note: noteText } : d,
+              ),
+            }
+          : v,
+      ),
+    );
+    auditActions.log(
+      `Correction demandée : ${docLabel} (${reasonText})`,
+      nameFor(req.userId),
+      "warning",
+    );
+    notifyApplicant(
+      req.type,
+      "Document à corriger",
+      `« ${docLabel} » nécessite une correction : ${noteText}`,
+    );
   },
 };
 
