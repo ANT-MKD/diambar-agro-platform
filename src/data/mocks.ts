@@ -803,6 +803,7 @@ export type RestaurantTeamMember = {
   email: string;
   role: "owner" | "buyer" | "chef" | "accountant" | "viewer";
   status: "active" | "invited";
+  expiresAt?: string;
 };
 
 export const restaurantTeamMembers: RestaurantTeamMember[] = [

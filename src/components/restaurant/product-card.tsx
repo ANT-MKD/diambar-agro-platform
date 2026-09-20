@@ -3,7 +3,16 @@ import { Plus, Star, MapPin, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { type Product, farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { cartActions, useWishlist, wishlistActions, useSuppliers } from "@/data/store";
+import {
+  cartActions,
+  useWishlist,
+  wishlistActions,
+  useSuppliers,
+  useProducts,
+  useAllProductReviews,
+} from "@/data/store";
+import { useReviews as useBusinessReviews } from "@/data/business";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 
 export function RestaurantProductCard({ product }: { product: Product }) {
   const farmer = farmers.find((f) => f.id === product.farmerId);
@@ -11,6 +20,13 @@ export function RestaurantProductCard({ product }: { product: Product }) {
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const suppliers = useSuppliers();
+  const allProducts = useProducts();
+  const productReviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
+  const rating = farmer
+    ? farmerReviewStats(farmer.id, allProducts, productReviews, farmer.rating, businessReviews)
+        .avgRating
+    : 0;
   const supplierSuspended = suppliers.some(
     (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId && s.suspended,
   );
@@ -78,7 +94,7 @@ export function RestaurantProductCard({ product }: { product: Product }) {
             <span className="truncate">{farmer.farm}</span>
             <span className="flex items-center gap-0.5">
               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              {farmer.rating}
+              {rating.toFixed(1)}
             </span>
           </div>
         )}

@@ -19,7 +19,15 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
-import { useRestaurantOrder, useMissions, conversationActions } from "@/data/store";
+import {
+  useRestaurantOrder,
+  useMissions,
+  conversationActions,
+  useProducts,
+  useAllProductReviews,
+} from "@/data/store";
+import { useReviews as useBusinessReviews } from "@/data/business";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, products, drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { ORDER_LABEL } from "@/components/farmer/status-badge";
@@ -36,6 +44,9 @@ function OrderDetail() {
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const order = useRestaurantOrder(orderId);
   const missions = useMissions();
+  const allProducts = useProducts();
+  const allProductReviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   // La mission de livraison réelle liée à cette commande (créée en même
   // temps qu'elle) — tant qu'aucun livreur ne l'a acceptée, il n'existe
   // aucun vrai livreur à afficher, contrairement à l'ancien code qui
@@ -57,6 +68,10 @@ function OrderDetail() {
     );
 
   const farmer = farmers.find((f) => f.id === order.farmerId);
+  const farmerRating = farmer
+    ? farmerReviewStats(farmer.id, allProducts, allProductReviews, farmer.rating, businessReviews)
+        .avgRating
+    : null;
   const publicId = `TRK-${order.id
     .replace(/[^a-z0-9]/gi, "")
     .slice(-6)
@@ -239,7 +254,7 @@ function OrderDetail() {
                 <div className="font-semibold text-sm">{farmer?.farm}</div>
                 <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                   <span>{farmer?.city}</span>
-                  {farmer?.rating != null && <span>★ {farmer.rating}</span>}
+                  {farmerRating != null && <span>★ {farmerRating.toFixed(1)}</span>}
                 </div>
               </div>
             </div>

@@ -627,7 +627,11 @@ export function useRestaurantTeam() {
 export const restaurantTeamActions = {
   invite: (email: string, role: RestaurantTeamMember["role"]) => {
     const id = `rt_${Date.now()}`;
-    restaurantTeamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600_000).toISOString();
+    restaurantTeamStore.set((arr) => [
+      ...arr,
+      { id, name: "—", email, role, status: "invited", expiresAt },
+    ]);
     return id;
   },
   setRole: (id: string, role: RestaurantTeamMember["role"]) =>

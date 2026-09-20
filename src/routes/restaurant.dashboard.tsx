@@ -41,10 +41,12 @@ import {
   useRestaurantBudget,
   restaurantBudgetActions,
   useRestaurantProfile,
+  useAllProductReviews,
 } from "@/data/store";
-import { useReturns } from "@/data/business";
+import { useReturns, useReviews as useBusinessReviews } from "@/data/business";
 import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
 import { farmers } from "@/data/mocks";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
 import { isInvoiceOverdue } from "@/lib/invoice-data";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -83,6 +85,8 @@ function Dashboard() {
   const products = useProducts();
   const suppliers = useSuppliers();
   const returns = useReturns();
+  const productReviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const budget = useRestaurantBudget();
   const profile = useRestaurantProfile();
   const [budgetOpen, setBudgetOpen] = useState(false);
@@ -133,7 +137,11 @@ function Dashboard() {
     suppliers.length > 0
       ? suppliers.reduce((s, sup) => {
           const f = farmers.find((x) => x.id === sup.farmerId);
-          return s + (f?.rating ?? 0);
+          if (!f) return s;
+          return (
+            s +
+            farmerReviewStats(f.id, products, productReviews, f.rating, businessReviews).avgRating
+          );
         }, 0) / suppliers.length
       : 0;
 
@@ -545,6 +553,10 @@ function Dashboard() {
           ) : (
             favoriteSuppliers.map((s) => {
               const f = farmers.find((x) => x.id === s.farmerId);
+              const rating = f
+                ? farmerReviewStats(f.id, products, productReviews, f.rating, businessReviews)
+                    .avgRating
+                : null;
               return (
                 <div
                   key={s.id}
@@ -554,10 +566,10 @@ function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{s.name}</div>
                     <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                      {f?.rating != null && (
+                      {rating != null && (
                         <>
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                          {f.rating} · {s.totalOrders} cmd
+                          {rating.toFixed(1)} · {s.totalOrders} cmd
                         </>
                       )}
                     </div>

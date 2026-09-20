@@ -38,28 +38,24 @@ const RULES: TriggerRule[] = [
     label: "Livraison imminente",
     condition: "ETA < 15 minutes",
     channel: "In-app + WhatsApp",
-    firedThisMonth: 22,
   },
   {
     key: "r2",
     label: "Facture impayée",
     condition: "Échéance dépassée de 3 jours",
     channel: "Email + SMS",
-    firedThisMonth: 2,
   },
   {
     key: "r3",
     label: "Produit favori disponible",
     condition: "Réapprovisionnement fournisseur suivi",
     channel: "In-app",
-    firedThisMonth: 9,
   },
   {
     key: "r4",
     label: "Commande récurrente",
     condition: "24h avant déclenchement automatique",
     channel: "Email + In-app",
-    firedThisMonth: 6,
   },
 ];
 

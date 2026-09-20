@@ -24,7 +24,14 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
-import { useCart, useRestaurantNotifications, recurringOrderActions } from "@/data/store";
+import {
+  useCart,
+  useRestaurantNotifications,
+  recurringOrderActions,
+  useRestaurantOrders,
+  useConversations,
+} from "@/data/store";
+import { restaurants } from "@/data/mocks";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { requireRole } from "@/lib/auth/functions";
@@ -33,34 +40,6 @@ export const Route = createFileRoute("/restaurant")({
   beforeLoad: () => requireRole("restaurant"),
   component: RestaurantLayout,
 });
-
-const navSections = [
-  {
-    label: "NAVIGATION",
-    items: [
-      { to: "/restaurant/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-      { to: "/restaurant/marketplace", label: "Marketplace", icon: Store },
-      { to: "/restaurant/cart", label: "Panier", icon: ShoppingCart, cart: true },
-      { to: "/restaurant/orders", label: "Mes Commandes", icon: ShoppingBag, badge: 3 },
-      { to: "/restaurant/recurring", label: "Commandes récurrentes", icon: Repeat },
-      { to: "/restaurant/suppliers", label: "Fournisseurs", icon: Users },
-      { to: "/restaurant/invoices", label: "Factures", icon: FileText },
-      { to: "/restaurant/budget", label: "Budget d'achat", icon: PiggyBank },
-      { to: "/restaurant/returns", label: "Retours & avoirs", icon: RotateCcw },
-      { to: "/restaurant/reviews", label: "Évaluations", icon: Star },
-      { to: "/restaurant/disputes", label: "Litiges", icon: Scale },
-      { to: "/restaurant/messages", label: "Messages", icon: MessageSquare, badge: 1 },
-      { to: "/restaurant/notifications", label: "Notifications", icon: Bell },
-    ],
-  },
-  {
-    label: "COMPTE",
-    items: [
-      { to: "/restaurant/support", label: "Support", icon: LifeBuoy },
-      { to: "/restaurant/settings", label: "Paramètres", icon: Settings },
-    ],
-  },
-] as const;
 
 const bottomNav = [
   { to: "/restaurant/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -78,6 +57,11 @@ function RestaurantLayout() {
   const [open, setOpen] = useState(false);
   const notifs = useRestaurantNotifications();
   const unread = notifs.filter((n) => !n.read).length;
+  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const pendingOrders = useRestaurantOrders().filter((o) => o.status === "pending").length;
+  const unreadMessages = useConversations()
+    .filter((c) => c.restaurantId === myRestaurant?.id)
+    .reduce((s, c) => s + c.unread, 0);
   // Il n'existe pas de vrai scheduler côté serveur dans cette démo : on
   // vérifie donc les commandes récurrentes en retard à chaque ouverture du
   // portail restaurant, et on les traite réellement à ce moment-là plutôt
@@ -85,6 +69,45 @@ function RestaurantLayout() {
   useEffect(() => {
     recurringOrderActions.tick();
   }, []);
+
+  const navSections = [
+    {
+      label: "NAVIGATION",
+      items: [
+        { to: "/restaurant/dashboard", label: "Tableau de bord", icon: LayoutDashboard, badge: 0 },
+        { to: "/restaurant/marketplace", label: "Marketplace", icon: Store, badge: 0 },
+        { to: "/restaurant/cart", label: "Panier", icon: ShoppingCart, cart: true, badge: 0 },
+        {
+          to: "/restaurant/orders",
+          label: "Mes Commandes",
+          icon: ShoppingBag,
+          badge: pendingOrders,
+        },
+        { to: "/restaurant/recurring", label: "Commandes récurrentes", icon: Repeat, badge: 0 },
+        { to: "/restaurant/suppliers", label: "Fournisseurs", icon: Users, badge: 0 },
+        { to: "/restaurant/invoices", label: "Factures", icon: FileText, badge: 0 },
+        { to: "/restaurant/budget", label: "Budget d'achat", icon: PiggyBank, badge: 0 },
+        { to: "/restaurant/returns", label: "Retours & avoirs", icon: RotateCcw, badge: 0 },
+        { to: "/restaurant/reviews", label: "Évaluations", icon: Star, badge: 0 },
+        { to: "/restaurant/disputes", label: "Litiges", icon: Scale, badge: 0 },
+        {
+          to: "/restaurant/messages",
+          label: "Messages",
+          icon: MessageSquare,
+          badge: unreadMessages,
+        },
+        { to: "/restaurant/notifications", label: "Notifications", icon: Bell, badge: 0 },
+      ],
+    },
+    {
+      label: "COMPTE",
+      items: [
+        { to: "/restaurant/support", label: "Support", icon: LifeBuoy, badge: 0 },
+        { to: "/restaurant/settings", label: "Paramètres", icon: Settings, badge: 0 },
+      ],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar">
