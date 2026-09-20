@@ -2,7 +2,6 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
   platformUsers as seedUsers,
   validationRequests as seedValidations,
-  disputes as seedDisputes,
   auditLogs as seedLogs,
   moderationQueue as seedModeration,
   commissionTiers as seedTiers,
@@ -10,10 +9,11 @@ import {
   type PlatformUser,
   type PlatformUserStatus,
   type ValidationRequest,
-  type Dispute,
   type AuditLog,
   type ModerationItem,
 } from "./admin-mocks";
+import { useAllDisputes } from "./disputes";
+import { useIncidents } from "./business";
 
 type Listener = () => void;
 
@@ -53,7 +53,6 @@ const validationsStore = createStore<ValidationRequest[]>(
   seedValidations,
   "diambar:admin-validations",
 );
-const disputesStore = createStore<Dispute[]>(seedDisputes, "diambar:admin-disputes");
 const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
 const tiersStore = createStore(seedTiers, "diambar:admin-tiers");
@@ -74,12 +73,6 @@ export function useValidations() {
 }
 export function useValidation(id: string) {
   return useValidations().find((v) => v.id === id) ?? null;
-}
-export function useDisputes() {
-  return useSyncExternalStore(disputesStore.subscribe, disputesStore.get, disputesStore.get);
-}
-export function useDispute(id: string) {
-  return useDisputes().find((d) => d.id === id) ?? null;
 }
 export function useAuditLogs() {
   return useSyncExternalStore(logsStore.subscribe, logsStore.get, logsStore.get);
@@ -140,45 +133,6 @@ export const validationActions = {
   },
 };
 
-export const disputeActions = {
-  setStatus: (id: string, status: Dispute["status"], text?: string) => {
-    disputesStore.set((arr) =>
-      arr.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              status,
-              timeline: [
-                ...d.timeline,
-                {
-                  at: new Date().toISOString(),
-                  actor: "Support Diambar",
-                  text: text ?? `Statut mis à jour : ${status}`,
-                },
-              ],
-            }
-          : d,
-      ),
-    );
-    auditActions.log("Litige mis à jour", id, status === "resolved" ? "info" : "warning");
-  },
-  comment: (id: string, text: string) => {
-    disputesStore.set((arr) =>
-      arr.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              timeline: [
-                ...d.timeline,
-                { at: new Date().toISOString(), actor: "Support Diambar", text },
-              ],
-            }
-          : d,
-      ),
-    );
-  },
-};
-
 export const moderationActions = {
   approve: (id: string) => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
@@ -206,7 +160,7 @@ export const platformSettingsActions = {
 
 export type AdminNotification = {
   id: string;
-  kind: "validation" | "dispute" | "moderation";
+  kind: "validation" | "dispute" | "moderation" | "incident";
   refId: string;
   title: string;
   body: string;
@@ -246,8 +200,9 @@ function persistReadIds(ids: string[]) {
  */
 export function useAdminNotifications(): (AdminNotification & { read: boolean })[] {
   const validations = useValidations();
-  const disputes = useDisputes();
+  const disputes = useAllDisputes();
   const moderation = useModerationQueue();
+  const incidents = useIncidents();
   const readIds = useSyncExternalStore(
     notifsReadStore.subscribe,
     notifsReadStore.get,
@@ -277,7 +232,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         kind: "dispute" as const,
         refId: d.id,
         title: "Litige ouvert",
-        body: `${d.reference} — ${d.reason} (${d.openedBy} vs ${d.against})`,
+        body: `${d.reference} — ${d.subcategory} (${d.openedByName} vs ${d.againstName})`,
         at: d.openedAt,
       })),
     ...moderation
@@ -289,6 +244,16 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Produit signalé",
         body: `${m.name} — ${m.reason}`,
         at: m.reportedAt,
+      })),
+    ...incidents
+      .filter((i) => i.status === "escalated")
+      .map((i) => ({
+        id: `incident-${i.id}`,
+        kind: "incident" as const,
+        refId: i.id,
+        title: "Incident escaladé au support",
+        body: `${i.reference} — mission ${i.missionRef}, indemnité demandée ${i.compensationRequested.toLocaleString("fr-FR")} FCFA`,
+        at: i.createdAt,
       })),
   ];
 

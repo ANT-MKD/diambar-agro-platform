@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, ShieldCheck, Scale, PackageSearch, Check } from "lucide-react";
+import { Bell, ShieldCheck, Scale, PackageSearch, TriangleAlert, Check } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ export const Route = createFileRoute("/admin/notifications")({
       { title: "Notifications — Administration Diambar Agro" },
       {
         name: "description",
-        content: "Centre de notifications : validations, litiges et signalements en attente.",
+        content:
+          "Centre de notifications : validations, litiges, incidents et signalements en attente.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -24,6 +25,7 @@ const ICON = {
   validation: ShieldCheck,
   dispute: Scale,
   moderation: PackageSearch,
+  incident: TriangleAlert,
 } as const;
 
 const LINK: Record<string, (refId: string) => { to: string; params?: Record<string, string> }> = {
@@ -33,6 +35,7 @@ const LINK: Record<string, (refId: string) => { to: string; params?: Record<stri
   }),
   dispute: (refId) => ({ to: "/admin/disputes/$disputeId", params: { disputeId: refId } }),
   moderation: () => ({ to: "/admin/moderation" }),
+  incident: () => ({ to: "/admin/incidents" }),
 };
 
 function AdminNotifications() {
@@ -43,7 +46,7 @@ function AdminNotifications() {
     <div className="space-y-6">
       <PageHeader
         title="Notifications"
-        subtitle="Validations, litiges et signalements nécessitant votre attention"
+        subtitle="Validations, litiges, incidents et signalements nécessitant votre attention"
         actions={
           unreadIds.length > 0 ? (
             <Button

@@ -526,7 +526,7 @@ const seedIncidents: Incident[] = [
   {
     id: "in1",
     reference: "INC-702",
-    missionRef: "MIS-4203",
+    missionRef: "MIS-4180",
     type: "client_absent",
     description: "Restaurant fermé à l'arrivée, 35 min d'attente sans réponse au téléphone.",
     waitedMinutes: 35,
@@ -545,7 +545,7 @@ const seedIncidents: Incident[] = [
   {
     id: "in2",
     reference: "INC-701",
-    missionRef: "MIS-4198",
+    missionRef: "MIS-4175",
     type: "breakdown",
     description: "Crevaison sur la VDN, mission reprise par un autre livreur.",
     waitedMinutes: 50,
@@ -625,7 +625,12 @@ export const incidentActions = {
       ),
     );
     if (incident && awarded > 0) {
-      driverWalletActions.credit(`Indemnité incident ${incident.reference}`, awarded, "adjustment");
+      driverWalletActions.credit(
+        `Indemnité incident ${incident.reference}`,
+        awarded,
+        "adjustment",
+        incident.reference,
+      );
     }
   },
   addComment: (id: string, text: string) => {

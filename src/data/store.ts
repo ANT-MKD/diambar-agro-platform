@@ -336,7 +336,7 @@ export const driverWalletActions = {
     }));
     return tx.id;
   },
-  credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission") => {
+  credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission", ref?: string) => {
     driverWalletStore.set((w) => ({
       ...w,
       balance: w.balance + amount,
@@ -345,6 +345,7 @@ export const driverWalletActions = {
           id: `dtx_${Date.now()}`,
           at: new Date().toISOString(),
           label,
+          ref,
           kind,
           amount,
           status: "Complété",

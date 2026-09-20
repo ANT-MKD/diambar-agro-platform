@@ -15,9 +15,11 @@ import {
 } from "recharts";
 import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
-import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
+import { RoleBadge } from "@/components/admin/admin-badge";
+import { DisputeStatusBadge } from "@/components/disputes/dispute-badges";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { useAuditLogs, useDisputes, usePlatformUsers, useValidations } from "@/data/admin-store";
+import { useAuditLogs, usePlatformUsers, useValidations } from "@/data/admin-store";
+import { useAllDisputes } from "@/data/disputes";
 import { useOrders } from "@/data/store";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
 
@@ -39,7 +41,7 @@ export const Route = createFileRoute("/admin/dashboard")({
 function AdminDashboard() {
   const users = usePlatformUsers();
   const validations = useValidations();
-  const disputes = useDisputes();
+  const disputes = useAllDisputes();
   const logs = useAuditLogs();
   const orders = useOrders();
 
@@ -263,13 +265,13 @@ function AdminDashboard() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">
-                      {d.reference} · {d.reason}
+                      {d.reference} · {d.subcategory}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {d.openedBy} vs {d.against} · {formatFCFA(d.amount)}
+                      {d.openedByName} vs {d.againstName} · {formatFCFA(d.claimedAmount)}
                     </div>
                   </div>
-                  <AdminBadge value={d.status} />
+                  <DisputeStatusBadge status={d.status} />
                 </Link>
               </li>
             ))}

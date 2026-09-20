@@ -31,6 +31,7 @@ import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDeliveriesRouteImport } from './routes/admin.deliveries'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
+import { Route as AdminIncidentsRouteImport } from './routes/admin.incidents'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
@@ -273,6 +274,11 @@ const AdminDeliveriesRoute = AdminDeliveriesRouteImport.update({
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminIncidentsRoute = AdminIncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLogsRoute = AdminLogsRouteImport.update({
@@ -1001,6 +1007,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
+  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/moderation': typeof AdminModerationRoute
@@ -1158,6 +1165,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
+  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/moderation': typeof AdminModerationRoute
@@ -1306,6 +1314,7 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
+  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/moderation': typeof AdminModerationRoute
@@ -1465,6 +1474,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/deliveries'
     | '/admin/finance'
+    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/moderation'
@@ -1622,6 +1632,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/deliveries'
     | '/admin/finance'
+    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/moderation'
@@ -1769,6 +1780,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/deliveries'
     | '/admin/finance'
+    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/moderation'
@@ -2084,6 +2096,13 @@ declare module '@tanstack/react-router' {
       path: '/finance'
       fullPath: '/admin/finance'
       preLoaderRoute: typeof AdminFinanceRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/incidents': {
+      id: '/admin/incidents'
+      path: '/incidents'
+      fullPath: '/admin/incidents'
+      preLoaderRoute: typeof AdminIncidentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/logs': {
@@ -3025,6 +3044,7 @@ interface AdminRouteChildren {
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDeliveriesRoute: typeof AdminDeliveriesRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
+  AdminIncidentsRoute: typeof AdminIncidentsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminModerationRoute: typeof AdminModerationRoute
@@ -3046,6 +3066,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDeliveriesRoute: AdminDeliveriesRoute,
   AdminFinanceRoute: AdminFinanceRoute,
+  AdminIncidentsRoute: AdminIncidentsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminModerationRoute: AdminModerationRoute,
