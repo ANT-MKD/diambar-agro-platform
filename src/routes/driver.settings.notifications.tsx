@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { ToggleRow } from "@/components/common/settings-shell";
 import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
 import { useDriverSettings, driverSettingsActions } from "@/data/store";
-import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
 
 export const Route = createFileRoute("/driver/settings/notifications")({
   head: () => ({ meta: [{ title: "Notifications · Paramètres livreur" }] }),
@@ -63,21 +60,11 @@ function NotificationSettings() {
   const notif = settings.notif;
   const set = (patch: Partial<typeof notif>) => driverSettingsActions.setNotif(patch);
 
-  const save = () => {
-    toast.success("Préférences de notifications enregistrées");
-  };
-
   return (
     <div className="space-y-6">
       <div className="glass rounded-2xl p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Matrice événements × canaux
-          </div>
-          <Button size="sm" onClick={save} className="gap-2">
-            <Save className="h-3.5 w-3.5" />
-            Enregistrer
-          </Button>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+          Matrice événements × canaux
         </div>
         <ChannelMatrix events={DRIVER_EVENTS} storageKey="driver-settings" />
       </div>

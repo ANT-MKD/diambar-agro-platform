@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Zap, ZapOff } from "lucide-react";
-import { SettingsCard, FieldRow, ToggleRow } from "@/components/common/settings-shell";
+import { FieldRow, ToggleRow } from "@/components/common/settings-shell";
 import { WEEKDAYS, WEEKDAY_LABEL, type WeekDay } from "@/data/mocks";
 import {
   useDriverSettings,
@@ -167,11 +167,11 @@ function WorkSettings() {
         </div>
       </div>
 
-      <SettingsCard
-        title="Horaires de travail"
-        description="Vos disponibilités habituelles."
-        onSave={() => true}
-      >
+      <div className="glass rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 className="font-semibold">Horaires de travail</h3>
+          <p className="text-sm text-muted-foreground mt-1">Vos disponibilités habituelles.</p>
+        </div>
         <div className="space-y-2">
           {WEEKDAYS.map((day: WeekDay) => {
             const h = settings.workingHours[day];
@@ -212,7 +212,7 @@ function WorkSettings() {
             );
           })}
         </div>
-      </SettingsCard>
+      </div>
     </div>
   );
 }
