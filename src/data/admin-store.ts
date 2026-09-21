@@ -6,6 +6,7 @@ import {
   moderationQueue as seedModeration,
   commissionTiers as seedTiers,
   deliveryZones as seedZones,
+  refundSettings as seedRefundSettings,
   type PlatformUser,
   type PlatformUserStatus,
   type ValidationRequest,
@@ -14,6 +15,13 @@ import {
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
 import { useIncidents } from "./business";
+import {
+  farmerNotifActions,
+  restaurantNotifActions,
+  driverNotifActions,
+  productActions,
+} from "./store";
+import { products, farmers } from "./mocks";
 
 type Listener = () => void;
 
@@ -57,6 +65,7 @@ const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
 const tiersStore = createStore(seedTiers, "diambar:admin-tiers");
 const zonesStore = createStore(seedZones, "diambar:admin-zones");
+const refundSettingsStore = createStore(seedRefundSettings, "diambar:admin-refund-settings");
 
 export function usePlatformUsers() {
   return useSyncExternalStore(usersStore.subscribe, usersStore.get, usersStore.get);
@@ -80,11 +89,21 @@ export function useAuditLogs() {
 export function useModerationQueue() {
   return useSyncExternalStore(moderationStore.subscribe, moderationStore.get, moderationStore.get);
 }
+export function useModerationItem(id: string) {
+  return useModerationQueue().find((m) => m.id === id) ?? null;
+}
 export function useCommissionTiers() {
   return useSyncExternalStore(tiersStore.subscribe, tiersStore.get, tiersStore.get);
 }
 export function useDeliveryZones() {
   return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
+}
+export function useRefundSettings() {
+  return useSyncExternalStore(
+    refundSettingsStore.subscribe,
+    refundSettingsStore.get,
+    refundSettingsStore.get,
+  );
 }
 
 export const auditActions = {
@@ -111,6 +130,95 @@ export const adminUserActions = {
   remove: (id: string) => usersStore.set((arr) => arr.filter((u) => u.id !== id)),
 };
 
+export type AdminRoleName =
+  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
+
+export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
+  "Super Administrateur",
+  "Finance",
+  "Opérations",
+  "Support",
+  "Modération",
+];
+
+export type AdminPermissionCategory = "Utilisateurs" | "Finance" | "Commandes" | "Paramètres";
+
+/**
+ * Détermine ce que chaque rôle admin peut voir/modifier — configure
+ * l'affichage de la page Administrateurs, ce n'est pas (encore) un moteur
+ * qui bloque les routes : un vrai RBAC appliqué partout serait un chantier
+ * séparé, plus large que cette page.
+ */
+export const ADMIN_ROLE_PERMISSIONS: Record<
+  AdminRoleName,
+  Record<AdminPermissionCategory, { view: boolean; edit: boolean }>
+> = {
+  "Super Administrateur": {
+    Utilisateurs: { view: true, edit: true },
+    Finance: { view: true, edit: true },
+    Commandes: { view: true, edit: true },
+    Paramètres: { view: true, edit: true },
+  },
+  Finance: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: true, edit: true },
+    Commandes: { view: true, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+  Opérations: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: true, edit: true },
+    Paramètres: { view: false, edit: false },
+  },
+  Support: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: true, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+  Modération: {
+    Utilisateurs: { view: true, edit: false },
+    Finance: { view: false, edit: false },
+    Commandes: { view: false, edit: false },
+    Paramètres: { view: false, edit: false },
+  },
+};
+
+const adminRolesStore = createStore<Record<string, AdminRoleName>>(
+  { u13: "Super Administrateur" },
+  "diambar:admin-roles",
+);
+
+export function useAdminRoles(): Record<string, AdminRoleName> {
+  return useSyncExternalStore(adminRolesStore.subscribe, adminRolesStore.get, adminRolesStore.get);
+}
+
+export function useAdminRole(userId: string): AdminRoleName {
+  return useAdminRoles()[userId] ?? "Support";
+}
+
+export const adminRoleActions = {
+  setRole: (userId: string, role: AdminRoleName, actor: string) => {
+    adminRolesStore.set((r) => ({ ...r, [userId]: role }));
+    auditActions.log(`Rôle admin changé pour "${role}"`, actor, "critical");
+  },
+};
+
+function notifyApplicant(type: ValidationRequest["type"], title: string, body: string) {
+  const actions =
+    type === "farmer"
+      ? farmerNotifActions
+      : type === "driver"
+        ? driverNotifActions
+        : restaurantNotifActions;
+  actions.add({ type: "system", title, body });
+}
+
+function nameFor(userId: string) {
+  return usersStore.get().find((u) => u.id === userId)?.name ?? userId;
+}
+
 export const validationActions = {
   approve: (id: string) => {
     const req = validationsStore.get().find((v) => v.id === id);
@@ -118,7 +226,12 @@ export const validationActions = {
     if (req) {
       adminUserActions.setStatus(req.userId, "active");
       adminUserActions.setVerified(req.userId, true);
-      auditActions.log("Validation de compte approuvée", req.userId, "info");
+      auditActions.log("Validation de compte approuvée", nameFor(req.userId), "info");
+      notifyApplicant(
+        req.type,
+        "Compte activé",
+        "Votre dossier a été validé : vous avez maintenant accès à toutes les fonctionnalités de votre espace.",
+      );
     }
   },
   reject: (id: string, note?: string) => {
@@ -128,19 +241,123 @@ export const validationActions = {
     );
     if (req) {
       adminUserActions.setStatus(req.userId, "rejected");
-      auditActions.log("Validation de compte rejetée", req.userId, "warning");
+      auditActions.log("Validation de compte rejetée", nameFor(req.userId), "warning");
+      notifyApplicant(
+        req.type,
+        "Dossier refusé",
+        note
+          ? `Votre dossier d'inscription a été refusé : ${note}`
+          : "Votre dossier d'inscription a été refusé.",
+      );
     }
   },
+  setDocStatus: (id: string, docLabel: string, ok: boolean) => {
+    const req = validationsStore.get().find((v) => v.id === id);
+    validationsStore.set((arr) =>
+      arr.map((v) =>
+        v.id === id
+          ? {
+              ...v,
+              docs: v.docs.map((d) =>
+                d.label === docLabel ? { ...d, ok, note: ok ? undefined : d.note } : d,
+              ),
+            }
+          : v,
+      ),
+    );
+    if (req) {
+      auditActions.log(
+        ok ? `Document conforme : ${docLabel}` : `Document marqué non conforme : ${docLabel}`,
+        nameFor(req.userId),
+        ok ? "info" : "warning",
+      );
+    }
+  },
+  requestCorrection: (id: string, docLabel: string, reasons: string[], comment: string) => {
+    const req = validationsStore.get().find((v) => v.id === id);
+    if (!req) return;
+    const reasonText = reasons.length ? reasons.join(", ") : "Autre";
+    const noteText = comment.trim() ? `${reasonText} — ${comment.trim()}` : reasonText;
+    validationsStore.set((arr) =>
+      arr.map((v) =>
+        v.id === id
+          ? {
+              ...v,
+              status: "needs_correction",
+              docs: v.docs.map((d) =>
+                d.label === docLabel ? { ...d, ok: false, note: noteText } : d,
+              ),
+            }
+          : v,
+      ),
+    );
+    auditActions.log(
+      `Correction demandée : ${docLabel} (${reasonText})`,
+      nameFor(req.userId),
+      "warning",
+    );
+    notifyApplicant(
+      req.type,
+      "Document à corriger",
+      `« ${docLabel} » nécessite une correction : ${noteText}`,
+    );
+  },
 };
+
+function moderationItem(id: string) {
+  return moderationStore.get().find((m) => m.id === id);
+}
+function addModerationEvent(id: string, actor: string, label: string) {
+  moderationStore.set((arr) =>
+    arr.map((m) =>
+      m.id === id
+        ? { ...m, events: [...m.events, { at: new Date().toISOString(), actor, label }] }
+        : m,
+    ),
+  );
+}
 
 export const moderationActions = {
   approve: (id: string) => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
-    auditActions.log("Produit approuvé (modération)", id, "info");
+    addModerationEvent(id, "Admin Diambar", "Produit conservé");
+    auditActions.log("Produit conservé (modération)", id, "info");
   },
-  remove: (id: string) => {
-    moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "removed" } : m)));
-    auditActions.log("Produit retiré (modération)", id, "warning");
+  // Dépublier retire réellement le produit du catalogue (comme un producteur
+  // qui le passerait en brouillon), pas seulement l'entrée de la file de
+  // modération — sinon le produit resterait visible et commandable.
+  unpublish: (id: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
+    productActions.update(m.productId, { status: "draft" });
+    addModerationEvent(id, "Admin Diambar", "Produit dépublié");
+    auditActions.log("Produit dépublié (modération)", id, "warning");
+  },
+  requestChange: (id: string, note: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    addModerationEvent(id, "Admin Diambar", `Modification demandée : ${note}`);
+    auditActions.log(`Modification demandée (modération) : ${note}`, id, "info");
+    farmerNotifActions.add({
+      type: "system",
+      title: "Modification demandée",
+      body: `« ${m.name} » nécessite une modification : ${note}`,
+    });
+  },
+  // Suspendre le producteur est une action distincte de dépublier un seul
+  // produit : ça bloque tout son compte, pas uniquement cette annonce.
+  suspendFarmer: (id: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    const product = products.find((p) => p.id === m.productId);
+    const farmer = product ? farmers.find((f) => f.id === product.farmerId) : undefined;
+    const account = farmer
+      ? usersStore.get().find((u) => u.name === farmer.name)
+      : usersStore.get().find((u) => u.name === m.farmer);
+    if (account) adminUserActions.setStatus(account.id, "suspended");
+    addModerationEvent(id, "Admin Diambar", `Producteur suspendu (${m.farmer})`);
+    auditActions.log("Producteur suspendu (modération)", account?.id ?? m.farmer, "critical");
   },
 };
 
@@ -155,6 +372,10 @@ export const platformSettingsActions = {
   },
   setZoneFee: (id: string, baseFee: number) => {
     zonesStore.set((arr) => arr.map((z) => (z.id === id ? { ...z, baseFee } : z)));
+  },
+  setRefundJustificationThreshold: (amount: number) => {
+    refundSettingsStore.set((s) => ({ ...s, justificationThreshold: amount }));
+    auditActions.log("Seuil de justification des remboursements modifié", String(amount), "info");
   },
 };
 
@@ -237,14 +458,17 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
       })),
     ...moderation
       .filter((m) => m.status === "pending")
-      .map((m) => ({
-        id: `moderation-${m.id}`,
-        kind: "moderation" as const,
-        refId: m.id,
-        title: "Produit signalé",
-        body: `${m.name} — ${m.reason}`,
-        at: m.reportedAt,
-      })),
+      .map((m) => {
+        const latest = m.reports[m.reports.length - 1];
+        return {
+          id: `moderation-${m.id}`,
+          kind: "moderation" as const,
+          refId: m.id,
+          title: "Produit signalé",
+          body: `${m.name} — ${latest?.reason ?? "Signalement"}`,
+          at: latest?.at ?? m.events[0]?.at ?? new Date().toISOString(),
+        };
+      }),
     ...incidents
       .filter((i) => i.status === "escalated")
       .map((i) => ({

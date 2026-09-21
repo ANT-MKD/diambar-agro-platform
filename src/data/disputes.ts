@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { driverWalletActions } from "./store";
+import { refundActions } from "./finance";
 
 export type DisputeParty = "restaurant" | "farmer" | "driver" | "platform";
 export type DisputeStatus =
@@ -875,20 +876,54 @@ export const disputeActions = {
     );
 
     if (decision.grantedAmount > 0 && decision.outcome !== "rejected") {
-      creditsStore.set((arr) => [
-        {
-          id: `cn_${Date.now()}`,
-          reference: nextCreditRef(arr),
-          source: "dispute",
-          disputeId: id,
-          beneficiaryRole: d.openedByRole,
-          beneficiaryName: d.openedByName,
-          amount: decision.grantedAmount,
-          at,
-          status: "issued",
-        },
-        ...arr,
-      ]);
+      // "refund"/"partial" impliquent un vrai virement au plaignant (sauf un
+      // livreur, déjà compensé via son wallet ci-dessous) : un vrai dossier
+      // Remboursement, suivi et payé depuis le centre de résolution, pas
+      // seulement un avoir consommable au prochain checkout restaurant.
+      // "credit"/"goodwill" restent des avoirs, comme avant.
+      const isRealRefund =
+        (decision.outcome === "refund" || decision.outcome === "partial") &&
+        d.openedByRole !== "driver";
+      if (isRealRefund) {
+        // Le livreur responsable est déjà débité de son wallet ci-dessous —
+        // "farmer" est le seul cas où ce dossier doit encore déduire un vrai
+        // compte (ses revenus, au moment du paiement) ; les autres finissent
+        // à la charge de la plateforme, faute d'un tiers réellement débité.
+        const bornBy =
+          decision.liableParty === "farmer"
+            ? "farmer"
+            : decision.liableParty === "driver"
+              ? "driver"
+              : "platform";
+        refundActions.create(
+          {
+            source: "dispute",
+            disputeId: id,
+            orderRef: d.orderRef,
+            bornBy,
+            requester: d.openedByName,
+            amount: decision.grantedAmount,
+            method: "Wave",
+            reason: `Litige ${d.reference} — ${decision.reason}`,
+          },
+          "approved",
+        );
+      } else {
+        creditsStore.set((arr) => [
+          {
+            id: `cn_${Date.now()}`,
+            reference: nextCreditRef(arr),
+            source: "dispute",
+            disputeId: id,
+            beneficiaryRole: d.openedByRole,
+            beneficiaryName: d.openedByName,
+            amount: decision.grantedAmount,
+            at,
+            status: "issued",
+          },
+          ...arr,
+        ]);
+      }
       if (decision.liableParty === "driver") {
         driverWalletActions.credit(
           `Retenue litige ${d.reference}`,

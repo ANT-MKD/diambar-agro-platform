@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
 import { RestaurantProductCard } from "@/components/restaurant/product-card";
-import { useProducts, useWishlist, useCart, useRestaurantOrders } from "@/data/store";
+import {
+  useProducts,
+  useWishlist,
+  useCart,
+  useRestaurantOrders,
+  useAllProductReviews,
+} from "@/data/store";
+import { useReviews as useBusinessReviews } from "@/data/business";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers } from "@/data/mocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +45,8 @@ function Marketplace() {
   const wishlist = useWishlist();
   const cart = useCart();
   const orders = useRestaurantOrders();
+  const productReviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const [q, setQ] = useState("");
   const [cats, setCats] = useState<Set<string>>(new Set());
   const [region, setRegion] = useState<string>("Toutes");
@@ -105,7 +115,11 @@ function Marketplace() {
     if (minRating > 0) {
       r = r.filter((p) => {
         const f = farmers.find((x) => x.id === p.farmerId);
-        return (f?.rating ?? 0) >= minRating;
+        if (!f) return false;
+        return (
+          farmerReviewStats(f.id, products, productReviews, f.rating, businessReviews).avgRating >=
+          minRating
+        );
       });
     }
     const min = Number(priceMin);
@@ -132,6 +146,9 @@ function Marketplace() {
     priceMin,
     priceMax,
     salesQty,
+    products,
+    productReviews,
+    businessReviews,
   ]);
 
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);

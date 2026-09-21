@@ -231,14 +231,16 @@ export const platformUsers: PlatformUser[] = [
   },
 ];
 
-export type ValidationDoc = { label: string; file: string; ok: boolean };
+export type ValidationDoc = { label: string; file: string; ok: boolean; note?: string };
+
+export type ValidationStatus = "pending" | "needs_correction" | "approved" | "rejected";
 
 export type ValidationRequest = {
   id: string;
   userId: string;
   type: "farmer" | "driver" | "restaurant";
   submittedAt: string;
-  status: "pending" | "approved" | "rejected";
+  status: ValidationStatus;
   docs: ValidationDoc[];
   note?: string;
 };
@@ -261,11 +263,16 @@ export const validationRequests: ValidationRequest[] = [
     userId: "u11",
     type: "driver",
     submittedAt: "2025-05-15T06:10:00Z",
-    status: "pending",
+    status: "needs_correction",
     docs: [
       { label: "Permis de conduire", file: "permis-modou-sarr.pdf", ok: true },
       { label: "Carte grise", file: "carte-grise-moto.pdf", ok: true },
-      { label: "Assurance véhicule", file: "assurance-2025.pdf", ok: false },
+      {
+        label: "Assurance véhicule",
+        file: "assurance-2025.pdf",
+        ok: false,
+        note: "Document expiré — attestation datée de 2023.",
+      },
     ],
   },
   {
@@ -276,6 +283,18 @@ export const validationRequests: ValidationRequest[] = [
     status: "rejected",
     docs: [{ label: "Permis de conduire", file: "permis-illisible.jpg", ok: false }],
     note: "Documents illisibles, relance envoyée sans réponse.",
+  },
+  {
+    id: "v4",
+    userId: "u1",
+    type: "farmer",
+    submittedAt: "2024-11-02T09:00:00Z",
+    status: "approved",
+    docs: [
+      { label: "Carte nationale d'identité", file: "cni-mamadou-diallo.pdf", ok: true },
+      { label: "Attestation d'exploitation", file: "exploitation-thies.pdf", ok: true },
+      { label: "Photos de la parcelle", file: "parcelle-diallo-01.jpg", ok: true },
+    ],
   },
 ];
 
@@ -348,11 +367,47 @@ export const auditLogs: AuditLog[] = [
 ];
 
 export const commissionTiers = [
-  { id: "ct1", label: "Standard", range: "0 – 250 000 FCFA / mois", rate: 15 },
-  { id: "ct2", label: "Volume", range: "250 001 – 500 000 FCFA / mois", rate: 12 },
-  { id: "ct3", label: "Volume +", range: "500 001 – 1 500 000 FCFA / mois", rate: 8 },
-  { id: "ct4", label: "Partenaire", range: "> 1 500 000 FCFA / mois", rate: 5 },
+  {
+    id: "ct1",
+    label: "Standard",
+    range: "0 – 250 000 FCFA / mois",
+    rate: 15,
+    min: 0,
+    max: 250_000,
+  },
+  {
+    id: "ct2",
+    label: "Volume",
+    range: "250 001 – 500 000 FCFA / mois",
+    rate: 12,
+    min: 250_001,
+    max: 500_000,
+  },
+  {
+    id: "ct3",
+    label: "Volume +",
+    range: "500 001 – 1 500 000 FCFA / mois",
+    rate: 8,
+    min: 500_001,
+    max: 1_500_000,
+  },
+  {
+    id: "ct4",
+    label: "Partenaire",
+    range: "> 1 500 000 FCFA / mois",
+    rate: 5,
+    min: 1_500_001,
+    max: null,
+  },
 ];
+
+// Seuil au-delà duquel une justification écrite est obligatoire pour
+// approuver un remboursement — remplace la chaîne d'approbateurs fictive
+// (support/responsable/administrateur) qui supposerait plusieurs comptes
+// admin alors que la démo n'en modélise qu'un seul.
+export const refundSettings = {
+  justificationThreshold: 50_000,
+};
 
 export const deliveryZones = [
   { id: "dz1", name: "Dakar intra-muros", baseFee: 1000, perKm: 120, active: true },
@@ -426,6 +481,9 @@ export const payouts: Payout[] = [
   },
 ];
 
+export type ModerationReport = { by: string; reason: string; at: string };
+export type ModerationEventEntry = { at: string; actor: string; label: string };
+
 export type ModerationItem = {
   id: string;
   productId: string;
@@ -433,9 +491,12 @@ export type ModerationItem = {
   farmer: string;
   image: string;
   price: number;
-  reason: string;
-  reportedAt: string;
+  // Plusieurs restaurants peuvent signaler le même produit indépendamment :
+  // on garde chaque signalement (qui, pourquoi, quand) plutôt qu'un motif
+  // unique qui écraserait les signalements suivants.
+  reports: ModerationReport[];
   status: "pending" | "approved" | "removed";
+  events: ModerationEventEntry[];
 };
 
 export const moderationQueue: ModerationItem[] = [
@@ -446,9 +507,16 @@ export const moderationQueue: ModerationItem[] = [
     farmer: "Niayes Ndoye",
     image: "https://images.unsplash.com/photo-1605027990121-cbae9e0642db?w=400",
     price: 600,
-    reason: "Photo non représentative signalée par 2 restaurants",
-    reportedAt: "2025-05-13T15:00:00Z",
+    reports: [
+      { by: "Le Baobab", reason: "Photo non représentative", at: "2025-05-12T10:00:00Z" },
+      { by: "Chez Aminata", reason: "Photo non représentative", at: "2025-05-13T15:00:00Z" },
+    ],
     status: "pending",
+    events: [
+      { at: "2025-05-11T08:00:00Z", actor: "Niayes Ndoye", label: "Produit publié" },
+      { at: "2025-05-12T10:00:00Z", actor: "Le Baobab", label: "1er signalement" },
+      { at: "2025-05-13T15:00:00Z", actor: "Chez Aminata", label: "2e signalement" },
+    ],
   },
   {
     id: "mo2",
@@ -457,9 +525,14 @@ export const moderationQueue: ModerationItem[] = [
     farmer: "Coopérative Sow",
     image: "https://images.unsplash.com/photo-1610632380989-680fe40816c6?w=400",
     price: 1200,
-    reason: "Prix suspect (−60% du marché)",
-    reportedAt: "2025-05-12T09:30:00Z",
+    reports: [
+      { by: "Hôtel Téranga", reason: "Prix suspect (−60% du marché)", at: "2025-05-12T09:30:00Z" },
+    ],
     status: "pending",
+    events: [
+      { at: "2025-05-09T08:00:00Z", actor: "Coopérative Sow", label: "Produit publié" },
+      { at: "2025-05-12T09:30:00Z", actor: "Hôtel Téranga", label: "1er signalement" },
+    ],
   },
   {
     id: "mo3",
@@ -468,8 +541,12 @@ export const moderationQueue: ModerationItem[] = [
     farmer: "Ferme Diallo",
     image: "https://images.unsplash.com/photo-1620574387735-3624d75b2dbc?w=400",
     price: 450,
-    reason: "Description incomplète",
-    reportedAt: "2025-05-10T11:00:00Z",
+    reports: [{ by: "Le Baobab", reason: "Description incomplète", at: "2025-05-10T11:00:00Z" }],
     status: "approved",
+    events: [
+      { at: "2025-05-08T08:00:00Z", actor: "Ferme Diallo", label: "Produit publié" },
+      { at: "2025-05-10T11:00:00Z", actor: "Le Baobab", label: "1er signalement" },
+      { at: "2025-05-10T16:00:00Z", actor: "Admin Diambar", label: "Produit conservé" },
+    ],
   },
 ];

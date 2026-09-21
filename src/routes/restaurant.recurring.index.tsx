@@ -123,7 +123,7 @@ function RecurringDashboard() {
       projectedSpend,
       paused: paused.length,
     };
-  }, [recurring, products, restaurantOrders]);
+  }, [recurring, restaurantOrders, priceOf, in7Days]);
 
   const filtered = useMemo(() => {
     return recurring
@@ -144,7 +144,7 @@ function RecurringDashboard() {
         const f = farmers.find((x) => x.id === r.farmerId);
         return `${r.name} ${f?.farm ?? ""}`.toLowerCase().includes(q.trim().toLowerCase());
       });
-  }, [recurring, tab, q]);
+  }, [recurring, tab, q, in7Days]);
 
   return (
     <div className="space-y-6">

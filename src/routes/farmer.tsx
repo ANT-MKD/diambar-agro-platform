@@ -23,7 +23,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useFarmerNotifications } from "@/data/store";
+import { useFarmerNotifications, useOrders, useConversations } from "@/data/store";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/farmer")({
@@ -31,30 +31,7 @@ export const Route = createFileRoute("/farmer")({
   component: FarmerLayout,
 });
 
-const navSections = [
-  {
-    label: "NAVIGATION",
-    items: [
-      { to: "/farmer/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-      { to: "/farmer/disputes", label: "Litiges", icon: Scale },
-      { to: "/farmer/products", label: "Mes Produits", icon: Package },
-      { to: "/farmer/stock", label: "Gestion du Stock", icon: Warehouse },
-      { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag, badge: 5 },
-      { to: "/farmer/returns", label: "Retours & avoirs", icon: RotateCcw },
-      { to: "/farmer/revenue", label: "Mes Revenus", icon: TrendingUp },
-      { to: "/farmer/analytics", label: "Analytics", icon: BarChart3 },
-      { to: "/farmer/messages", label: "Messages", icon: MessageSquare, badge: 2 },
-      { to: "/farmer/notifications", label: "Notifications", icon: Bell },
-    ],
-  },
-  {
-    label: "COMPTE",
-    items: [
-      { to: "/farmer/support", label: "Support", icon: LifeBuoy },
-      { to: "/farmer/settings", label: "Paramètres", icon: Settings },
-    ],
-  },
-] as const;
+const MY_FARMER_ID = "f1";
 
 const bottomNav = [
   { to: "/farmer/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -70,6 +47,38 @@ function FarmerLayout() {
   const [open, setOpen] = useState(false);
   const notifs = useFarmerNotifications();
   const unread = notifs.filter((n) => !n.read).length;
+  const pendingOrders = useOrders().filter(
+    (o) => o.farmerId === MY_FARMER_ID && o.status === "pending",
+  ).length;
+  const unreadMessages = useConversations()
+    .filter((c) => c.farmerId === MY_FARMER_ID)
+    .reduce((s, c) => s + c.unread, 0);
+
+  const navSections = [
+    {
+      label: "NAVIGATION",
+      items: [
+        { to: "/farmer/dashboard", label: "Tableau de bord", icon: LayoutDashboard, badge: 0 },
+        { to: "/farmer/disputes", label: "Litiges", icon: Scale, badge: 0 },
+        { to: "/farmer/products", label: "Mes Produits", icon: Package, badge: 0 },
+        { to: "/farmer/stock", label: "Gestion du Stock", icon: Warehouse, badge: 0 },
+        { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag, badge: pendingOrders },
+        { to: "/farmer/returns", label: "Retours & avoirs", icon: RotateCcw, badge: 0 },
+        { to: "/farmer/revenue", label: "Mes Revenus", icon: TrendingUp, badge: 0 },
+        { to: "/farmer/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
+        { to: "/farmer/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
+        { to: "/farmer/notifications", label: "Notifications", icon: Bell, badge: 0 },
+      ],
+    },
+    {
+      label: "COMPTE",
+      items: [
+        { to: "/farmer/support", label: "Support", icon: LifeBuoy, badge: 0 },
+        { to: "/farmer/settings", label: "Paramètres", icon: Settings, badge: 0 },
+      ],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar desktop */}

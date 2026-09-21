@@ -390,11 +390,17 @@ export type Transaction = {
   date: string;
   orderRef: string;
   restaurantId: string;
+  farmerId: string;
   gross: number;
   commission: number;
   net: number;
   method: PaymentMethod;
   status: "Payé" | "En attente" | "Échec";
+  // Absent = "delivery" (ligne de livraison classique). Une écriture
+  // "refund_adjustment" reprend une partie déjà versée suite à un
+  // remboursement client dont le producteur est responsable — gross et
+  // commission y sont négatifs (montants repris), voir store.ts.
+  kind?: "delivery" | "refund_adjustment";
 };
 
 export const transactions: Transaction[] = [
@@ -403,6 +409,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-15",
     orderRef: "CMD-2851",
     restaurantId: "r1",
+    farmerId: "f1",
     gross: 56000,
     commission: 5600,
     net: 50400,
@@ -414,6 +421,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-14",
     orderRef: "CMD-2847",
     restaurantId: "r2",
+    farmerId: "f1",
     gross: 56000,
     commission: 5600,
     net: 50400,
@@ -425,6 +433,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-13",
     orderRef: "CMD-2842",
     restaurantId: "r3",
+    farmerId: "f1",
     gross: 32500,
     commission: 3250,
     net: 29250,
@@ -436,6 +445,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-12",
     orderRef: "CMD-2838",
     restaurantId: "r1",
+    farmerId: "f1",
     gross: 18000,
     commission: 1800,
     net: 16200,
@@ -447,6 +457,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-10",
     orderRef: "CMD-2829",
     restaurantId: "r2",
+    farmerId: "f1",
     gross: 42000,
     commission: 4200,
     net: 37800,
@@ -458,6 +469,7 @@ export const transactions: Transaction[] = [
     date: "2025-05-08",
     orderRef: "CMD-2820",
     restaurantId: "r3",
+    farmerId: "f1",
     gross: 73000,
     commission: 7300,
     net: 65700,
@@ -775,6 +787,7 @@ export type TeamMember = {
   email: string;
   role: "owner" | "manager" | "stock" | "viewer";
   status: "active" | "invited";
+  expiresAt?: string;
 };
 
 export const teamMembers: TeamMember[] = [
@@ -795,6 +808,7 @@ export type RestaurantTeamMember = {
   email: string;
   role: "owner" | "buyer" | "chef" | "accountant" | "viewer";
   status: "active" | "invited";
+  expiresAt?: string;
 };
 
 export const restaurantTeamMembers: RestaurantTeamMember[] = [

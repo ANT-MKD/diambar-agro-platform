@@ -3,7 +3,12 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Switch } from "@/components/ui/switch";
 import { formatFCFA } from "@/lib/format";
-import { platformSettingsActions, useCommissionTiers, useDeliveryZones } from "@/data/admin-store";
+import {
+  platformSettingsActions,
+  useCommissionTiers,
+  useDeliveryZones,
+  useRefundSettings,
+} from "@/data/admin-store";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
@@ -22,6 +27,7 @@ export const Route = createFileRoute("/admin/settings")({
 function AdminSettings() {
   const tiers = useCommissionTiers();
   const zones = useDeliveryZones();
+  const refundSettings = useRefundSettings();
 
   return (
     <div className="space-y-6">
@@ -96,6 +102,37 @@ function AdminSettings() {
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="glass rounded-2xl p-5">
+        <h2 className="font-semibold">Remboursements</h2>
+        <p className="text-xs text-muted-foreground">
+          Au-delà de ce montant, une justification écrite devient obligatoire pour approuver un
+          remboursement ou un geste commercial.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
+          <div className="flex-1 min-w-40">
+            <div className="text-sm font-medium">Seuil de justification obligatoire</div>
+            <div className="text-[11px] text-muted-foreground">
+              Actuellement {formatFCFA(refundSettings.justificationThreshold)}
+            </div>
+          </div>
+          <input
+            type="number"
+            min={0}
+            step={5000}
+            defaultValue={refundSettings.justificationThreshold}
+            onBlur={(e) => {
+              const value = Number(e.target.value);
+              if (Number.isFinite(value) && value >= 0) {
+                platformSettingsActions.setRefundJustificationThreshold(value);
+                toast.success("Seuil mis à jour");
+              }
+            }}
+            className="w-32 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right"
+          />
+          <span className="text-sm text-muted-foreground">FCFA</span>
         </div>
       </div>
     </div>

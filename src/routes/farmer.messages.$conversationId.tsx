@@ -114,7 +114,7 @@ function FarmerConversation() {
               </a>
             </Button>
           )}
-          <Link to="/farmer/orders">
+          <Link to="/farmer/orders" search={{ q: r?.name }}>
             <Button variant="outline" size="sm">
               Voir ses commandes
             </Button>

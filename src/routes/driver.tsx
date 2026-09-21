@@ -29,6 +29,7 @@ import {
   driverOnlineActions,
   useMissions,
   useDriverSettings,
+  useDriverConversations,
   missionActions,
   autoAcceptableMissions,
 } from "@/data/store";
@@ -40,29 +41,7 @@ export const Route = createFileRoute("/driver")({
   component: DriverLayout,
 });
 
-const navSections = [
-  {
-    label: "NAVIGATION",
-    items: [
-      { to: "/driver/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-      { to: "/driver/missions", label: "Missions", icon: Truck, badge: 3 },
-      { to: "/driver/routes", label: "Tournées", icon: Navigation },
-      { to: "/driver/history", label: "Historique", icon: History },
-      { to: "/driver/wallet", label: "Portefeuille", icon: Wallet },
-      { to: "/driver/incidents", label: "Incidents", icon: TriangleAlert },
-      { to: "/driver/disputes", label: "Litiges", icon: Scale },
-      { to: "/driver/messages", label: "Messages", icon: MessageSquare, badge: 1 },
-      { to: "/driver/notifications", label: "Notifications", icon: Bell },
-    ],
-  },
-  {
-    label: "COMPTE",
-    items: [
-      { to: "/driver/vehicle", label: "Véhicule", icon: Car },
-      { to: "/driver/settings", label: "Paramètres", icon: Settings },
-    ],
-  },
-] as const;
+const MY_DRIVER_ID = "d1";
 
 const bottomNav = [
   { to: "/driver/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -81,6 +60,10 @@ function DriverLayout() {
   const unread = notifs.filter((n) => !n.read).length;
   const missions = useMissions();
   const settings = useDriverSettings();
+  const activeMissions = missions.filter(
+    (m) => m.driverId === MY_DRIVER_ID && ["accepted", "pickup", "loaded"].includes(m.status),
+  ).length;
+  const unreadMessages = useDriverConversations().reduce((s, c) => s + c.unread, 0);
 
   // Acceptation automatique réelle : dès qu'une mission "disponible" respecte
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
@@ -103,6 +86,30 @@ function DriverLayout() {
         : "Vous êtes en ligne · missions activées",
     );
   };
+
+  const navSections = [
+    {
+      label: "NAVIGATION",
+      items: [
+        { to: "/driver/dashboard", label: "Tableau de bord", icon: LayoutDashboard, badge: 0 },
+        { to: "/driver/missions", label: "Missions", icon: Truck, badge: activeMissions },
+        { to: "/driver/routes", label: "Tournées", icon: Navigation, badge: 0 },
+        { to: "/driver/history", label: "Historique", icon: History, badge: 0 },
+        { to: "/driver/wallet", label: "Portefeuille", icon: Wallet, badge: 0 },
+        { to: "/driver/incidents", label: "Incidents", icon: TriangleAlert, badge: 0 },
+        { to: "/driver/disputes", label: "Litiges", icon: Scale, badge: 0 },
+        { to: "/driver/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
+        { to: "/driver/notifications", label: "Notifications", icon: Bell, badge: 0 },
+      ],
+    },
+    {
+      label: "COMPTE",
+      items: [
+        { to: "/driver/vehicle", label: "Véhicule", icon: Car, badge: 0 },
+        { to: "/driver/settings", label: "Paramètres", icon: Settings, badge: 0 },
+      ],
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background flex">

@@ -47,6 +47,9 @@ function ReportPage() {
     return <p className="text-center text-muted-foreground py-12">Commande introuvable</p>;
   const r = restaurants.find((x) => x.id === order.restaurantId);
   const farmerName = `${profile.firstName} ${profile.lastName}`;
+  // Même barème que disputeActions.open (data/disputes.ts) : le SLA affiché
+  // doit rester cohérent avec celui réellement appliqué au litige créé.
+  const slaHours = severity === "high" ? 24 : severity === "medium" ? 48 : 72;
 
   const submit = () => {
     if (!description.trim()) {
@@ -109,7 +112,7 @@ function ReportPage() {
           <Flag className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
             <div className="font-semibold text-amber-500">
-              Support Diambar prendra contact sous 4h
+              Support Diambar prendra contact sous {slaHours}h
             </div>
             <div className="text-muted-foreground mt-0.5">
               Commande : <b>{formatFCFA(order.total)}</b>

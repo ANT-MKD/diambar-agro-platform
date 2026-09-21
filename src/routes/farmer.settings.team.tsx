@@ -116,6 +116,8 @@ function TeamSettings() {
               {m.status === "invited" && (
                 <span className="text-[10px] font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5">
                   Invitation envoyée
+                  {m.expiresAt &&
+                    ` · expire le ${new Date(m.expiresAt).toLocaleDateString("fr-FR")}`}
                 </span>
               )}
               <Select

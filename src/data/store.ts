@@ -4,6 +4,7 @@ import {
   orders as seedOrders,
   stockMovements as seedMovements,
   withdrawals as seedWithdrawals,
+  transactions as seedTransactions,
   restaurantOrders as seedRestaurantOrders,
   suppliers as seedSuppliers,
   notifications as seedFarmerNotifs,
@@ -43,6 +44,7 @@ import {
   type OrderStatus,
   type StockMovement,
   type Withdrawal,
+  type Transaction,
   type PaymentMethod,
   type RestaurantOrder,
   type Supplier,
@@ -78,6 +80,8 @@ import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
+import { tierRateForVolume } from "@/lib/commission";
+import { commissionTiers } from "@/data/admin-mocks";
 
 type Listener = () => void;
 
@@ -116,6 +120,7 @@ const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 const ordersStore = createStore<Order[]>(seedOrders);
 const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:movements");
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
+const transactionsStore = createStore<Transaction[]>(seedTransactions, "diambar:transactions");
 const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers, "diambar:suppliers");
 // Sans persistance, le centre de notifications perdait tout son historique
@@ -209,6 +214,13 @@ export function useWithdrawals() {
     withdrawalsStore.subscribe,
     withdrawalsStore.get,
     withdrawalsStore.get,
+  );
+}
+export function useTransactions() {
+  return useSyncExternalStore(
+    transactionsStore.subscribe,
+    transactionsStore.get,
+    transactionsStore.get,
   );
 }
 export function useCart() {
@@ -595,7 +607,8 @@ export function useTeam() {
 export const teamActions = {
   invite: (email: string, role: TeamMember["role"]) => {
     const id = `t_${Date.now()}`;
-    teamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600_000).toISOString();
+    teamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited", expiresAt }]);
     return id;
   },
   setRole: (id: string, role: TeamMember["role"]) =>
@@ -614,7 +627,11 @@ export function useRestaurantTeam() {
 export const restaurantTeamActions = {
   invite: (email: string, role: RestaurantTeamMember["role"]) => {
     const id = `rt_${Date.now()}`;
-    restaurantTeamStore.set((arr) => [...arr, { id, name: "—", email, role, status: "invited" }]);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600_000).toISOString();
+    restaurantTeamStore.set((arr) => [
+      ...arr,
+      { id, name: "—", email, role, status: "invited", expiresAt },
+    ]);
     return id;
   },
   setRole: (id: string, role: RestaurantTeamMember["role"]) =>
@@ -770,6 +787,46 @@ export const missionActions = {
   },
   attachProof: (id: string, photos: MissionProofPhoto[]) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));
+  },
+  // Réaffectation depuis l'admin : l'ancien livreur redevient disponible,
+  // le nouveau reprend la course là où elle en est (statut "accepted", pas
+  // "available" — la collecte a déjà pu être planifiée).
+  reassign: (id: string, newDriverId: string) => {
+    const before = missionsStore.get().find((m) => m.id === id);
+    if (!before) return;
+    const previousDriverId = before.driverId;
+    missionsStore.set((arr) =>
+      arr.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              driverId: newDriverId,
+              status: "accepted",
+              statusHistory: [
+                ...(m.statusHistory ?? []),
+                { status: "accepted" as MissionStatus, at: new Date().toISOString() },
+              ],
+            }
+          : m,
+      ),
+    );
+    // Le store de notifications livreur ne modélise qu'un seul livreur
+    // connecté ("d1") dans cette démo : on ne notifie donc que si ce
+    // livreur précis perd ou reçoit la course, pas les autres du vivier.
+    if (previousDriverId === "d1" && newDriverId !== "d1") {
+      driverNotifActions.add({
+        type: "order",
+        title: "Mission réaffectée",
+        body: `${before.reference} a été réaffectée à un autre livreur`,
+      });
+    }
+    if (newDriverId === "d1" && previousDriverId !== "d1") {
+      driverNotifActions.add({
+        type: "order",
+        title: "Nouvelle mission affectée",
+        body: `${before.reference} vous a été affectée par l'administration`,
+      });
+    }
   },
 };
 
@@ -1009,6 +1066,10 @@ export const restaurantOrderActions = {
         body: `${updated.reference} a été annulée par le restaurant`,
       });
     }
+    if (status === "delivered") {
+      const farmerOrder = ordersStore.get().find((o) => o.reference === updated!.reference);
+      if (farmerOrder) recordDeliveryTransaction(farmerOrder, updated.paymentMethod);
+    }
   },
 };
 
@@ -1058,6 +1119,79 @@ const RESTAURANT_STATUS_NOTIF: Partial<
   cancelled: { title: "Commande annulée", body: (ref) => `${ref} a été annulée par le producteur` },
 };
 
+/**
+ * Crédite une vraie transaction au producteur quand une commande est
+ * livrée — auparavant `transactions` était un tableau figé de mocks.ts,
+ * jamais alimenté par l'activité réelle des commandes. La commission
+ * applique le barème dégressif réel (par palier de volume livré cumulé du
+ * producteur, comme sur le tableau de bord admin), pas un pourcentage fixe.
+ */
+function recordDeliveryTransaction(order: Order, paymentMethod: PaymentMethod) {
+  const volume = ordersStore
+    .get()
+    .filter((o) => o.farmerId === order.farmerId && o.status === "delivered")
+    .reduce((s, o) => s + o.total, 0);
+  const rate = tierRateForVolume(commissionTiers, volume);
+  const commission = Math.round(order.total * (rate / 100));
+  transactionsStore.set((arr) => [
+    {
+      id: `tx_${Date.now()}`,
+      date: new Date().toISOString().slice(0, 10),
+      orderRef: order.reference,
+      restaurantId: order.restaurantId,
+      farmerId: order.farmerId,
+      gross: order.total,
+      commission,
+      net: order.total - commission,
+      method: paymentMethod,
+      status: "Payé",
+    },
+    ...arr,
+  ]);
+}
+
+export const transactionActions = {
+  /**
+   * Reprend une partie des revenus déjà versés au producteur suite à un
+   * remboursement client dont il est responsable (retour accepté, litige
+   * qualité…) — une écriture réelle et traçable dans son historique, pas
+   * une simple mutation silencieuse du montant déjà enregistré. Le taux de
+   * commission appliqué est le même barème réel que celui de la livraison
+   * d'origine, jamais un pourcentage recalculé pour l'occasion.
+   */
+  recordRefundAdjustment: (input: {
+    orderRef: string;
+    farmerId: string;
+    restaurantId: string;
+    method: PaymentMethod;
+    amount: number;
+    reason: string;
+  }) => {
+    const volume = ordersStore
+      .get()
+      .filter((o) => o.farmerId === input.farmerId && o.status === "delivered")
+      .reduce((s, o) => s + o.total, 0);
+    const rate = tierRateForVolume(commissionTiers, volume);
+    const commission = Math.round(input.amount * (rate / 100));
+    transactionsStore.set((arr) => [
+      {
+        id: `tx_${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        orderRef: input.orderRef,
+        restaurantId: input.restaurantId,
+        farmerId: input.farmerId,
+        gross: -input.amount,
+        commission: -commission,
+        net: -(input.amount - commission),
+        method: input.method,
+        status: "Payé",
+        kind: "refund_adjustment",
+      },
+      ...arr,
+    ]);
+  },
+};
+
 export const orderActions = {
   setStatus: (id: string, status: OrderStatus, note?: string) => {
     let updated: Order | undefined;
@@ -1072,9 +1206,11 @@ export const orderActions = {
 
     // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
     const at = new Date().toISOString();
+    let paymentMethod: PaymentMethod = "Wave";
     restaurantOrdersStore.set((arr) =>
       arr.map((o) => {
         if (o.reference !== updated!.reference) return o;
+        paymentMethod = o.paymentMethod;
         const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
         return {
           ...o,
@@ -1092,6 +1228,9 @@ export const orderActions = {
         title: notif.title,
         body: note ? `${notif.body(updated.reference)} — ${note}` : notif.body(updated.reference),
       });
+    }
+    if (status === "delivered") {
+      recordDeliveryTransaction(updated, paymentMethod);
     }
   },
   create: (o: Omit<Order, "id">) => {

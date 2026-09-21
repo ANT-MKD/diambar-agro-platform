@@ -17,6 +17,7 @@ import {
   useProduct,
   useProducts,
   useProductReviews,
+  useAllProductReviews,
   productReviewActions,
   cartActions,
   useWishlist,
@@ -24,6 +25,8 @@ import {
   useSuppliers,
   conversationActions,
 } from "@/data/store";
+import { useReviews as useBusinessReviews } from "@/data/business";
+import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -49,6 +52,8 @@ function ProductDetail() {
   const product = useProduct(productId);
   const all = useProducts();
   const reviews = useProductReviews(productId);
+  const allProductReviews = useAllProductReviews();
+  const businessReviews = useBusinessReviews();
   const wishlist = useWishlist();
   const suppliers = useSuppliers();
   const [qty, setQty] = useState(1);
@@ -63,6 +68,9 @@ function ProductDetail() {
       </div>
     );
   const farmer = farmers.find((f) => f.id === product.farmerId);
+  const farmerRating = farmer
+    ? farmerReviewStats(farmer.id, all, allProductReviews, farmer.rating, businessReviews).avgRating
+    : null;
   const out = product.stock === 0;
   const myRestaurant = restaurants.find((r) => r.name === user.name);
   const supplierRecord = suppliers.find(
@@ -172,7 +180,7 @@ function ProductDetail() {
             <div className="glass rounded-xl p-3 text-center">
               <Star className="h-5 w-5 mx-auto text-primary" />
               <div className="text-[11px] mt-1 text-muted-foreground">
-                {farmer?.rating != null ? `${farmer.rating}/5 producteur` : "—"}
+                {farmerRating != null ? `${farmerRating.toFixed(1)}/5 producteur` : "—"}
               </div>
             </div>
           </div>
