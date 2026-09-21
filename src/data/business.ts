@@ -1,7 +1,21 @@
 import { useSyncExternalStore } from "react";
-import { creditActions, type DisputeAttachment } from "@/data/disputes";
+import { creditActions, disputeActions, type DisputeAttachment } from "@/data/disputes";
 import { driverWalletActions } from "@/data/store";
-import { refundActions } from "@/data/finance";
+import {
+  refundActions,
+  refundForReturn,
+  REFUND_BORN_BY_LABEL,
+  type RefundBornBy,
+} from "@/data/finance";
+import { orders, farmers } from "@/data/mocks";
+
+/** Producteur réel concerné par un retour — dérivé de la commande d'origine
+ * (Order.farmerId), jamais stocké sur ReturnRequest pour éviter une source
+ * de vérité dupliquée avec la commande. */
+export function farmerForReturn(r: { orderRef: string }) {
+  const order = orders.find((o) => o.reference === r.orderRef);
+  return order ? farmers.find((f) => f.id === order.farmerId) : undefined;
+}
 
 type Listener = () => void;
 
@@ -70,6 +84,48 @@ export type ReturnMessage = {
   text: string;
 };
 
+// Récupération physique du produit par un livreur — champs additifs, ne
+// remplacent pas `status` : l'agriculteur garde son parcours accepter/
+// refuser/avoir tel quel, ceci n'est qu'une couche opérationnelle admin.
+export type ReturnPickup = {
+  driverId: string;
+  driverName: string;
+  scheduledFor: string;
+  address: string;
+  status: "scheduled" | "picked_up" | "received";
+  scheduledAt: string;
+  pickedUpAt?: string;
+  receivedAt?: string;
+  receivedCondition?: string;
+};
+
+export type ReturnInspection = {
+  conform: boolean;
+  note: string;
+  inspectedBy: string;
+  inspectedAt: string;
+};
+
+export type ReturnResolutionType = "refund" | "exchange" | "goodwill" | "reject";
+
+export const RETURN_RESOLUTION_LABEL: Record<ReturnResolutionType, string> = {
+  refund: "Remboursement",
+  exchange: "Échange produit",
+  goodwill: "Geste commercial",
+  reject: "Refus",
+};
+
+// Décision motivée de l'admin, distincte du simple accept()/refuse() de
+// l'agriculteur : détermine qui supporte réellement le coût au lieu du
+// "farmer" fixe utilisé par le parcours agriculteur d'origine.
+export type ReturnResolution = {
+  type: ReturnResolutionType;
+  bornBy: RefundBornBy;
+  note: string;
+  decidedBy: string;
+  decidedAt: string;
+};
+
 export type ReturnRequest = {
   id: string;
   reference: string;
@@ -93,7 +149,49 @@ export type ReturnRequest = {
   photos?: DisputeAttachment[];
   messages: ReturnMessage[];
   history: { at: string; actor: string; text: string }[];
+  pickup?: ReturnPickup;
+  inspection?: ReturnInspection;
+  resolution?: ReturnResolution;
+  escalatedDisputeId?: string;
+  closedAt?: string;
 };
+
+// Étape opérationnelle affichée (stepper) — dérivée des champs ci-dessus,
+// jamais stockée : évite un second état qui pourrait diverger de `status`.
+export type ReturnStage =
+  | "pending"
+  | "refused"
+  | "awaiting_pickup"
+  | "in_pickup"
+  | "received"
+  | "inspected"
+  | "resolved"
+  | "credited"
+  | "closed";
+
+export const RETURN_STAGE_LABEL: Record<ReturnStage, string> = {
+  pending: "Demande",
+  refused: "Refusé",
+  awaiting_pickup: "À organiser",
+  in_pickup: "En récupération",
+  received: "À inspecter",
+  inspected: "Inspecté — décision attendue",
+  resolved: "Décidé",
+  credited: "Avoir émis",
+  closed: "Clôturé",
+};
+
+export function returnStage(r: ReturnRequest): ReturnStage {
+  if (r.closedAt) return "closed";
+  if (r.status === "refused") return "refused";
+  if (r.status === "credited") return "credited";
+  if (r.resolution) return "resolved";
+  if (r.inspection) return "inspected";
+  if (r.pickup?.receivedAt) return "received";
+  if (r.pickup) return "in_pickup";
+  if (r.status === "accepted") return "awaiting_pickup";
+  return "pending";
+}
 
 const seedReturns: ReturnRequest[] = [
   {
@@ -261,7 +359,7 @@ export const returnActions = {
       arr.map((x) => (x.id === id ? { ...x, photos: [...(x.photos ?? []), ...files] } : x)),
     );
   },
-  accept: (id: string, awardedAmount: number, note?: string) => {
+  accept: (id: string, awardedAmount: number, note?: string, actor = "Mamadou Diallo") => {
     const r = returnsStore.get().find((x) => x.id === id);
     returnsStore.set((arr) =>
       arr.map((x) =>
@@ -276,7 +374,7 @@ export const returnActions = {
                 ...x.history,
                 {
                   at: now(),
-                  actor: "Mamadou Diallo",
+                  actor,
                   text: `Retour accepté — ${awardedAmount} FCFA`,
                 },
               ],
@@ -297,7 +395,7 @@ export const returnActions = {
       });
     }
   },
-  refuse: (id: string, note: string) => {
+  refuse: (id: string, note: string, actor = "Mamadou Diallo") => {
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -306,10 +404,254 @@ export const returnActions = {
               status: "refused",
               decidedAt: now(),
               decisionNote: note,
+              history: [...x.history, { at: now(), actor, text: `Retour refusé — ${note}` }],
+            }
+          : x,
+      ),
+    );
+  },
+  /* ---------------------------------------------------------------- */
+  /* Couche opérationnelle admin — récupération, inspection, décision  */
+  /* motivée. Additive : ne modifie jamais `status` en dehors des       */
+  /* transitions déjà gérées ci-dessus (accept/refuse/issueCredit).     */
+  /* ---------------------------------------------------------------- */
+  adminSchedulePickup: (
+    id: string,
+    input: { driverId: string; driverName: string; scheduledFor: string; address: string },
+  ) => {
+    const at = now();
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              pickup: {
+                driverId: input.driverId,
+                driverName: input.driverName,
+                scheduledFor: input.scheduledFor,
+                address: input.address,
+                status: "scheduled",
+                scheduledAt: at,
+              },
               history: [
                 ...x.history,
-                { at: now(), actor: "Mamadou Diallo", text: `Retour refusé — ${note}` },
+                {
+                  at,
+                  actor: "Admin Diambar",
+                  text: `Récupération programmée — ${input.driverName}, ${new Date(input.scheduledFor).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}`,
+                },
               ],
+            }
+          : x,
+      ),
+    );
+  },
+  adminMarkPickedUp: (id: string) => {
+    const at = now();
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id && x.pickup
+          ? {
+              ...x,
+              pickup: { ...x.pickup, status: "picked_up", pickedUpAt: at },
+              history: [
+                ...x.history,
+                { at, actor: x.pickup.driverName, text: "Produit récupéré chez le client" },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  adminMarkReceived: (id: string, condition: string) => {
+    const at = now();
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id && x.pickup
+          ? {
+              ...x,
+              pickup: {
+                ...x.pickup,
+                status: "received",
+                receivedAt: at,
+                receivedCondition: condition,
+              },
+              history: [
+                ...x.history,
+                { at, actor: "Admin Diambar", text: `Produit réceptionné — état : ${condition}` },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  adminSetInspection: (
+    id: string,
+    input: { conform: boolean; note: string; inspectedBy?: string },
+  ) => {
+    const at = now();
+    const inspectedBy = input.inspectedBy ?? "Admin Diambar";
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              inspection: {
+                conform: input.conform,
+                note: input.note,
+                inspectedBy,
+                inspectedAt: at,
+              },
+              history: [
+                ...x.history,
+                {
+                  at,
+                  actor: inspectedBy,
+                  text: `Inspection : ${input.conform ? "conforme au signalement" : "non conforme au signalement"} — ${input.note}`,
+                },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  /** Décision motivée de l'admin : détermine qui paie (au lieu du
+   * "farmer" fixe d'accept()) et couvre remboursement/échange/geste/refus. */
+  adminResolve: (
+    id: string,
+    input: {
+      type: ReturnResolutionType;
+      bornBy: RefundBornBy;
+      amount?: number;
+      note: string;
+      decidedBy?: string;
+    },
+  ) => {
+    const r = returnsStore.get().find((x) => x.id === id);
+    if (!r) return;
+    const decidedBy = input.decidedBy ?? "Admin Diambar";
+    const at = now();
+    const amount = input.amount ?? r.awardedAmount ?? r.requestedAmount;
+    const resolution: ReturnResolution = {
+      type: input.type,
+      bornBy: input.bornBy,
+      note: input.note,
+      decidedBy,
+      decidedAt: at,
+    };
+
+    if (input.type === "reject") {
+      returnsStore.set((arr) =>
+        arr.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                status: "refused",
+                decidedAt: at,
+                decisionNote: input.note,
+                resolution,
+                history: [
+                  ...x.history,
+                  { at, actor: decidedBy, text: `Retour refusé (décision admin) — ${input.note}` },
+                ],
+              }
+            : x,
+        ),
+      );
+      return;
+    }
+
+    const existingRefund = refundForReturn(id);
+    if (input.type === "exchange") {
+      if (
+        existingRefund &&
+        (existingRefund.status === "pending" || existingRefund.status === "approved")
+      ) {
+        refundActions.reject(existingRefund.id, "Converti en échange produit");
+      }
+    } else if (existingRefund) {
+      refundActions.setBornBy(existingRefund.id, input.bornBy, input.note);
+    } else {
+      refundActions.create(
+        {
+          source: "return",
+          orderRef: r.orderRef,
+          returnId: r.id,
+          bornBy: input.bornBy,
+          requester: r.restaurantName,
+          amount,
+          method: "Wave",
+          reason: `Retour ${r.reference} — décision admin (${input.note})`,
+        },
+        "approved",
+      );
+    }
+
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              status: "accepted",
+              awardedAmount: x.awardedAmount ?? amount,
+              decidedAt: at,
+              decisionNote: input.note,
+              resolution,
+              history: [
+                ...x.history,
+                {
+                  at,
+                  actor: decidedBy,
+                  text: `Décision admin — ${RETURN_RESOLUTION_LABEL[input.type]} (${amount.toLocaleString("fr-FR")} FCFA, à la charge de ${REFUND_BORN_BY_LABEL[input.bornBy]})`,
+                },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  adminEscalateToDispute: (id: string, note: string) => {
+    const r = returnsStore.get().find((x) => x.id === id);
+    if (!r || r.escalatedDisputeId) return;
+    const farmer = farmerForReturn(r);
+    const disputeId = disputeActions.open({
+      category: "quality",
+      subcategory: "Retour litigieux",
+      description: `Retour ${r.reference} escaladé en litige — ${note}`,
+      orderRef: r.orderRef,
+      orderId: r.orderId,
+      returnId: r.id,
+      openedByRole: "restaurant",
+      openedByName: r.restaurantName,
+      againstRole: "farmer",
+      againstName: farmer?.name ?? "Producteur",
+      claimedAmount: r.requestedAmount,
+      priority: "medium",
+    });
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              escalatedDisputeId: disputeId,
+              history: [
+                ...x.history,
+                { at: now(), actor: "Admin Diambar", text: `Escaladé en litige — ${note}` },
+              ],
+            }
+          : x,
+      ),
+    );
+  },
+  adminClose: (id: string) => {
+    const at = now();
+    returnsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              closedAt: at,
+              history: [...x.history, { at, actor: "Admin Diambar", text: "Dossier clôturé" }],
             }
           : x,
       ),

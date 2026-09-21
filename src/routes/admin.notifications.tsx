@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, ShieldCheck, Scale, PackageSearch, TriangleAlert, Check } from "lucide-react";
+import {
+  Bell,
+  ShieldCheck,
+  Scale,
+  PackageSearch,
+  TriangleAlert,
+  Check,
+  PackageMinus,
+} from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { Button } from "@/components/ui/button";
@@ -26,6 +34,7 @@ const ICON = {
   dispute: Scale,
   moderation: PackageSearch,
   incident: TriangleAlert,
+  return: PackageMinus,
 } as const;
 
 const LINK: Record<string, (refId: string) => { to: string; params?: Record<string, string> }> = {
@@ -36,6 +45,7 @@ const LINK: Record<string, (refId: string) => { to: string; params?: Record<stri
   dispute: (refId) => ({ to: "/admin/disputes/$disputeId", params: { disputeId: refId } }),
   moderation: () => ({ to: "/admin/moderation" }),
   incident: () => ({ to: "/admin/incidents" }),
+  return: (refId) => ({ to: "/admin/returns/$returnId", params: { returnId: refId } }),
 };
 
 function AdminNotifications() {

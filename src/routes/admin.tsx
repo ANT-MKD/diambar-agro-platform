@@ -65,7 +65,9 @@ function AdminLayout() {
   const refundsToHandle = refunds.filter(
     (r) => r.status === "pending" || r.status === "failed",
   ).length;
-  const pendingReturns = returns.filter((r) => r.status === "pending").length;
+  const pendingReturns = returns.filter(
+    (r) => r.status === "pending" || (r.pickup?.status === "received" && !r.inspection),
+  ).length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;
   const unreadNotifications = notifications.filter((n) => !n.read).length;
   const unreadMessages =

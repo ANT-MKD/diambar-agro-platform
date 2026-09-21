@@ -213,6 +213,12 @@ export function useRefunds() {
 export function useRefund(id: string) {
   return useRefunds().find((r) => r.id === id) ?? null;
 }
+/** Accès non réactif (hors composant React) au remboursement lié à un
+ * retour — utilisé par business.ts pour faire pointer la décision admin
+ * d'un retour sur le bon dossier de remboursement, sans dupliquer l'état. */
+export function refundForReturn(returnId: string) {
+  return refundsStore.get().find((r) => r.returnId === returnId);
+}
 
 function nextRefundRef(arr: Refund[]) {
   const max = arr.reduce(
@@ -324,6 +330,31 @@ export const refundActions = {
               failureReason: reason,
               attemptCount: r.attemptCount + 1,
               history: [...r.history, { at, actor: "Système", text: `Échec — ${reason}` }],
+            }
+          : r,
+      ),
+    );
+  },
+  /** Réattribue qui supporte le coût — utilisé quand une inspection admin
+   * (retour) établit une responsabilité différente de celle retenue au
+   * moment de la création du dossier. Bloqué une fois payé : l'argent a
+   * déjà bougé, la charge réelle ne peut plus être réécrite. */
+  setBornBy: (id: string, bornBy: RefundBornBy, note?: string) => {
+    const at = new Date().toISOString();
+    refundsStore.set((arr) =>
+      arr.map((r) =>
+        r.id === id && r.status !== "paid"
+          ? {
+              ...r,
+              bornBy,
+              history: [
+                ...r.history,
+                {
+                  at,
+                  actor: "Admin Diambar",
+                  text: `Prise en charge révisée — ${REFUND_BORN_BY_LABEL[bornBy]}${note ? ` (${note})` : ""}`,
+                },
+              ],
             }
           : r,
       ),

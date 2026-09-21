@@ -14,7 +14,7 @@ import {
   type ModerationItem,
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
-import { useIncidents } from "./business";
+import { useIncidents, useReturns } from "./business";
 import {
   farmerNotifActions,
   restaurantNotifActions,
@@ -381,7 +381,7 @@ export const platformSettingsActions = {
 
 export type AdminNotification = {
   id: string;
-  kind: "validation" | "dispute" | "moderation" | "incident";
+  kind: "validation" | "dispute" | "moderation" | "incident" | "return";
   refId: string;
   title: string;
   body: string;
@@ -424,6 +424,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
   const disputes = useAllDisputes();
   const moderation = useModerationQueue();
   const incidents = useIncidents();
+  const returns = useReturns();
   const readIds = useSyncExternalStore(
     notifsReadStore.subscribe,
     notifsReadStore.get,
@@ -478,6 +479,26 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Incident escaladé au support",
         body: `${i.reference} — mission ${i.missionRef}, indemnité demandée ${i.compensationRequested.toLocaleString("fr-FR")} FCFA`,
         at: i.createdAt,
+      })),
+    ...returns
+      .filter((r) => r.status === "pending")
+      .map((r) => ({
+        id: `return-${r.id}`,
+        kind: "return" as const,
+        refId: r.id,
+        title: "Retour à traiter",
+        body: `${r.reference} — ${r.restaurantName}, ${r.requestedAmount.toLocaleString("fr-FR")} FCFA demandés`,
+        at: r.createdAt,
+      })),
+    ...returns
+      .filter((r) => r.pickup?.status === "received" && !r.inspection)
+      .map((r) => ({
+        id: `return-inspect-${r.id}`,
+        kind: "return" as const,
+        refId: r.id,
+        title: "Retour à inspecter",
+        body: `${r.reference} — produit réceptionné, inspection en attente`,
+        at: r.pickup!.receivedAt!,
       })),
   ];
 
