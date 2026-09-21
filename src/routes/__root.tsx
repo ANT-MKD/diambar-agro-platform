@@ -7,10 +7,30 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { MotionConfig } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner";
+
+// Organisation réelle décrite avec les données déjà affichées ailleurs sur
+// le site (footer : email, téléphone, adresse) — aucune URL n'est inventée
+// puisqu'aucun domaine de production fixe n'est configuré (wrangler.jsonc
+// ne déclare pas de route/domaine).
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Diambar Agro",
+  description:
+    "Plateforme d'approvisionnement agricole qui connecte agriculteurs, restaurants et livreurs au Sénégal.",
+  email: "contact@diambar-agro.sn",
+  telephone: "+221770000000",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Dakar",
+    addressCountry: "SN",
+  },
+};
 
 import appCss from "../styles.css?url";
 
@@ -82,10 +102,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Diambar Agro — Du Champ à Votre Cuisine" },
       { property: "og:description", content: "Logistique alimentaire moderne au Sénégal." },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/og-image.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -105,6 +130,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="fr" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
+        />
       </head>
       <body>
         {children}
@@ -118,12 +147,17 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <ImpersonationBanner />
-        <Outlet />
-        <Toaster richColors position="top-right" />
-        <CookieConsentBanner />
-      </ThemeProvider>
+      {/* Respecte "réduire les animations" du système : neutralise les
+          animations non essentielles de framer-motion pour les visiteurs
+          qui l'ont activé, sans avoir à auditer chaque motion.div. */}
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
+          <ImpersonationBanner />
+          <Outlet />
+          <Toaster richColors position="top-right" />
+          <CookieConsentBanner />
+        </ThemeProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

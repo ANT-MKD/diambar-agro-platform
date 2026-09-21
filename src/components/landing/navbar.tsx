@@ -61,7 +61,8 @@ export function Navbar() {
             <button
               onClick={() => setOpen(!open)}
               className="lg:hidden p-2 rounded-lg hover:bg-accent"
-              aria-label="menu"
+              aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={open}
             >
               {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>

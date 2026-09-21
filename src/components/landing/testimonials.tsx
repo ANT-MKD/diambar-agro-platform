@@ -5,10 +5,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export function Testimonials() {
   const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
   useEffect(() => {
+    // Respecte à la fois "réduire les animations" du système et le survol :
+    // un carrousel qui avance tout seul sans possibilité de pause est un
+    // vrai problème d'accessibilité (WCAG 2.2.2), pas juste un détail visuel.
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (paused || reduceMotion) return;
     const id = setInterval(() => setI((x) => (x + 1) % testimonials.length), 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [paused]);
   const t = testimonials[i];
   return (
     <section className="py-24">
@@ -21,7 +27,11 @@ export function Testimonials() {
             Ce qu'ils disent de nous
           </h2>
         </div>
-        <div className="relative glass-strong rounded-3xl p-8 lg:p-12">
+        <div
+          className="relative glass-strong rounded-3xl p-8 lg:p-12"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={i}
