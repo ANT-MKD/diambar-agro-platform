@@ -31,10 +31,11 @@ import {
   useRefunds,
   REFUND_SOURCE_LABEL,
   REFUND_STATUS_LABEL,
+  REFUND_BORN_BY_LABEL,
   type RefundMethod,
   type RefundStatus,
 } from "@/data/finance";
-import { useOrders, useMissions } from "@/data/store";
+import { useOrders, useMissions, transactionActions } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import { useIncidents, useReturns } from "@/data/business";
 import { useRefundSettings } from "@/data/admin-store";
@@ -146,6 +147,24 @@ function AdminRefundDetail() {
 
   const markPaid = () => {
     refundActions.markPaid(refund.id);
+    // Le producteur ne paie que quand l'argent part réellement, pas dès la
+    // décision — tant que ce n'est pas "payé", rien n'a encore vraiment
+    // quitté la plateforme.
+    if (refund.bornBy === "farmer" && order) {
+      transactionActions.recordRefundAdjustment({
+        orderRef: order.reference,
+        farmerId: order.farmerId,
+        restaurantId: order.restaurantId,
+        method: refund.method === "Virement" ? "Wave" : refund.method,
+        amount: refund.amount,
+        reason: `Remboursement ${refund.reference}`,
+      });
+      auditActions.log(
+        `Revenus producteur ajustés (-${formatFCFA(farmerShare ?? refund.amount)})`,
+        refund.reference,
+        "info",
+      );
+    }
     auditActions.log("Remboursement exécuté", refund.reference, "info");
     toast.success("Remboursement exécuté", {
       description: `${formatFCFA(refund.amount)} via ${refund.method}`,
@@ -349,6 +368,11 @@ function AdminRefundDetail() {
               <div className="border-t border-border pt-1.5 mt-1.5" />
               <Row label="Commission plateforme (au prorata)" value={formatFCFA(commission)} />
               <Row label="Montant agriculteur concerné" value={formatFCFA(farmerShare)} />
+              <div className="border-t border-border pt-1.5 mt-1.5" />
+              <Row
+                label="Qui paie ce remboursement"
+                value={REFUND_BORN_BY_LABEL[refund.bornBy ?? "platform"]}
+              />
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

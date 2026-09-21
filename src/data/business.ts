@@ -289,6 +289,7 @@ export const returnActions = {
         source: "return",
         orderRef: r.orderRef,
         returnId: r.id,
+        bornBy: "farmer",
         requester: r.restaurantName,
         amount: awardedAmount,
         method: "Wave",

@@ -420,13 +420,21 @@ function RevenuePage() {
                   <TableCell className="text-sm">
                     {new Date(t.date).toLocaleDateString("fr-FR")}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{t.orderRef}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {t.orderRef}
+                    {t.kind === "refund_adjustment" && (
+                      <span className="ml-1.5 text-muted-foreground">(ajustement)</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm">{r?.name}</TableCell>
                   <TableCell className="text-right text-sm">{formatFCFA(t.gross)}</TableCell>
                   <TableCell className="text-right text-sm text-muted-foreground">
-                    -{formatFCFA(t.commission)}
+                    {t.commission >= 0 ? "-" : "+"}
+                    {formatFCFA(Math.abs(t.commission))}
                   </TableCell>
-                  <TableCell className="text-right text-sm font-semibold text-primary">
+                  <TableCell
+                    className={`text-right text-sm font-semibold ${t.net < 0 ? "text-destructive" : "text-primary"}`}
+                  >
                     {formatFCFA(t.net)}
                   </TableCell>
                   <TableCell className="text-sm">{t.method}</TableCell>

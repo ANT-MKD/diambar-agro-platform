@@ -1150,6 +1150,48 @@ function recordDeliveryTransaction(order: Order, paymentMethod: PaymentMethod) {
   ]);
 }
 
+export const transactionActions = {
+  /**
+   * Reprend une partie des revenus déjà versés au producteur suite à un
+   * remboursement client dont il est responsable (retour accepté, litige
+   * qualité…) — une écriture réelle et traçable dans son historique, pas
+   * une simple mutation silencieuse du montant déjà enregistré. Le taux de
+   * commission appliqué est le même barème réel que celui de la livraison
+   * d'origine, jamais un pourcentage recalculé pour l'occasion.
+   */
+  recordRefundAdjustment: (input: {
+    orderRef: string;
+    farmerId: string;
+    restaurantId: string;
+    method: PaymentMethod;
+    amount: number;
+    reason: string;
+  }) => {
+    const volume = ordersStore
+      .get()
+      .filter((o) => o.farmerId === input.farmerId && o.status === "delivered")
+      .reduce((s, o) => s + o.total, 0);
+    const rate = tierRateForVolume(commissionTiers, volume);
+    const commission = Math.round(input.amount * (rate / 100));
+    transactionsStore.set((arr) => [
+      {
+        id: `tx_${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        orderRef: input.orderRef,
+        restaurantId: input.restaurantId,
+        farmerId: input.farmerId,
+        gross: -input.amount,
+        commission: -commission,
+        net: -(input.amount - commission),
+        method: input.method,
+        status: "Payé",
+        kind: "refund_adjustment",
+      },
+      ...arr,
+    ]);
+  },
+};
+
 export const orderActions = {
   setStatus: (id: string, status: OrderStatus, note?: string) => {
     let updated: Order | undefined;

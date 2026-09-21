@@ -50,13 +50,16 @@ import {
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { cn } from "@/lib/utils";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useCommissionTiers } from "@/data/admin-store";
 import { useRefundSettings } from "@/data/admin-store";
+import { useOrders, transactionActions } from "@/data/store";
+import { commissionForAmount, deliveredVolumeByFarmer } from "@/lib/commission";
 import {
   useRefunds,
   refundActions,
   REFUND_SOURCE_LABEL,
   REFUND_STATUS_LABEL,
+  REFUND_BORN_BY_LABEL,
   type RefundStatus,
   type RefundSource,
   type RefundMethod,
@@ -190,6 +193,8 @@ function AmountForm({
 function RefundsPage() {
   const refunds = useRefunds();
   const settings = useRefundSettings();
+  const orders = useOrders();
+  const tiers = useCommissionTiers();
   const [tab, setTab] = useState<RefundStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<RefundSource | "all">("all");
   const [search, setSearch] = useState("");
@@ -295,6 +300,7 @@ function RefundsPage() {
     refundActions.create({
       source: "manual",
       orderRef: form.orderRef.trim() || "—",
+      bornBy: "platform",
       requester: form.requester.trim(),
       amount: Number(form.amount),
       method: form.method,
@@ -330,6 +336,36 @@ function RefundsPage() {
     setNoteId(null);
     setNote("");
     toast.success("Remboursement rejeté");
+  };
+
+  const markPaid = (r: Refund) => {
+    refundActions.markPaid(r.id);
+    // Le producteur ne paie que quand l'argent part réellement, pas dès
+    // l'approbation — c'est ce point précis qui touche ses revenus.
+    if (r.bornBy === "farmer") {
+      const order = orders.find((o) => o.reference === r.orderRef);
+      if (order) {
+        const volumeByFarmer = deliveredVolumeByFarmer(orders);
+        const commission = commissionForAmount(order, tiers, volumeByFarmer, r.amount);
+        transactionActions.recordRefundAdjustment({
+          orderRef: order.reference,
+          farmerId: order.farmerId,
+          restaurantId: order.restaurantId,
+          method: r.method === "Virement" ? "Wave" : r.method,
+          amount: r.amount,
+          reason: `Remboursement ${r.reference}`,
+        });
+        auditActions.log(
+          `Revenus producteur ajustés (-${formatFCFA(r.amount - commission)})`,
+          r.reference,
+          "info",
+        );
+      }
+    }
+    auditActions.log("Remboursement exécuté", r.reference, "info");
+    toast.success("Remboursement exécuté", {
+      description: `${formatFCFA(r.amount)} via ${r.method}`,
+    });
   };
 
   return (
@@ -625,7 +661,8 @@ function RefundsPage() {
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    {r.requester} · {r.orderRef} · {r.method} · {relativeTime(r.createdAt)}
+                    {r.requester} · {r.orderRef} · {r.method} · {relativeTime(r.createdAt)} · Payé
+                    par {REFUND_BORN_BY_LABEL[r.bornBy ?? "platform"]}
                   </div>
                   <p className="mt-1 text-sm">{r.reason}</p>
                   {r.note && <p className="mt-1 text-xs text-muted-foreground">Note : {r.note}</p>}
@@ -689,17 +726,7 @@ function RefundsPage() {
 
               {r.status === "approved" && (
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => {
-                      refundActions.markPaid(r.id);
-                      auditActions.log("Remboursement exécuté", r.reference, "info");
-                      toast.success("Remboursement exécuté", {
-                        description: `${formatFCFA(r.amount)} via ${r.method}`,
-                      });
-                    }}
-                  >
+                  <Button size="sm" className="gap-2" onClick={() => markPaid(r)}>
                     <Banknote className="h-4 w-4" />
                     Marquer comme remboursé
                   </Button>

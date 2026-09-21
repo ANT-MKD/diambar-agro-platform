@@ -184,6 +184,10 @@ function AdminIncidentDetail() {
       source: "incident",
       incidentId: incident.id,
       orderRef: order.reference,
+      // Un incident de livraison n'est pas imputable au producteur : la
+      // charge reste plateforme, sauf décision explicite contraire au cas
+      // par cas (pas de déduction automatique du livreur ou du producteur).
+      bornBy: "platform",
       requester: restaurant.name,
       amount: value,
       method: refundMethod,

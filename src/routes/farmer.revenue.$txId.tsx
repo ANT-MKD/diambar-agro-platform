@@ -20,15 +20,20 @@ function TxPage() {
   const r = restaurants.find((x) => x.id === tx.restaurantId);
   const order = orders.find((o) => o.reference === tx.orderRef);
 
+  const isAdjustment = tx.kind === "refund_adjustment";
+
   const downloadReceipt = () => {
-    const itemsHtml = order
-      ? order.items
-          .map((it) => {
-            const p = products.find((x) => x.id === it.productId);
-            return `<div class="row"><span>${p?.name ?? ""} ×${it.qty}${p?.unit ?? ""}</span><span>${formatFCFA(it.qty * it.price)}</span></div>`;
-          })
-          .join("")
-      : "";
+    const itemsHtml =
+      order && !isAdjustment
+        ? order.items
+            .map((it) => {
+              const p = products.find((x) => x.id === it.productId);
+              return `<div class="row"><span>${p?.name ?? ""} ×${it.qty}${p?.unit ?? ""}</span><span>${formatFCFA(it.qty * it.price)}</span></div>`;
+            })
+            .join("")
+        : "";
+    const commissionSign = tx.commission >= 0 ? "-" : "+";
+    const commissionLabel = tx.commission >= 0 ? "Commission Diambar" : "Commission restituée";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Reçu ${tx.orderRef}</title>
 <style>
 body{font-family:system-ui,sans-serif;max-width:560px;margin:32px auto;color:#111;padding:0 16px}
@@ -38,16 +43,16 @@ h1{font-size:1.25rem;margin-bottom:0}
 .section{border-top:1px solid #ddd;padding-top:12px;margin-top:16px}
 .total{font-weight:bold;font-size:1.15rem;border-top:2px solid #111;padding-top:10px;margin-top:10px}
 </style></head><body>
-<h1>Reçu de paiement — Diambar Agro</h1>
+<h1>${isAdjustment ? "Ajustement remboursement" : "Reçu de paiement"} — Diambar Agro</h1>
 <p class="muted">Transaction ${tx.id.toUpperCase()} · ${tx.orderRef} · ${new Date(tx.date).toLocaleDateString("fr-FR", { dateStyle: "long" })}</p>
 <div class="row"><span>Restaurant</span><span>${r?.name ?? ""} (${r?.city ?? ""})</span></div>
 <div class="row"><span>Méthode</span><span>${tx.method}</span></div>
 <div class="row"><span>Statut</span><span>${tx.status}</span></div>
 ${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
 <div class="section">
-<div class="row"><span>Sous-total</span><span>${formatFCFA(tx.gross)}</span></div>
-<div class="row"><span>Commission Diambar</span><span>-${formatFCFA(tx.commission)}</span></div>
-<div class="row total"><span>Net reçu</span><span>${formatFCFA(tx.net)}</span></div>
+<div class="row"><span>${isAdjustment ? "Montant remboursé" : "Sous-total"}</span><span>${formatFCFA(tx.gross)}</span></div>
+<div class="row"><span>${commissionLabel}</span><span>${commissionSign}${formatFCFA(Math.abs(tx.commission))}</span></div>
+<div class="row total"><span>${isAdjustment ? "Impact net" : "Net reçu"}</span><span>${formatFCFA(tx.net)}</span></div>
 </div>
 </body></html>`;
     downloadHtml(`recu-${tx.orderRef}`, html);
@@ -85,7 +90,9 @@ ${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
               <Receipt className="h-6 w-6" />
             </span>
             <div>
-              <div className="font-display text-xl font-bold">Reçu de paiement</div>
+              <div className="font-display text-xl font-bold">
+                {tx.kind === "refund_adjustment" ? "Ajustement remboursement" : "Reçu de paiement"}
+              </div>
               <div className="text-xs text-muted-foreground">Diambar Agro</div>
             </div>
           </div>
@@ -122,7 +129,15 @@ ${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
           </div>
         </div>
 
-        {order && (
+        {tx.kind === "refund_adjustment" && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+            Un client a été remboursé sur la commande {tx.orderRef} — votre part du montant
+            remboursé a été reprise sur vos revenus, au même taux de commission que la livraison
+            d'origine.
+          </div>
+        )}
+
+        {order && tx.kind !== "refund_adjustment" && (
           <div className="space-y-2 border-t border-border pt-5">
             <div className="text-xs font-semibold text-muted-foreground">ARTICLES</div>
             {order.items.map((it, i) => {
@@ -145,16 +160,25 @@ ${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
 
         <div className="border-t border-border pt-5 space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Sous-total</span>
+            <span className="text-muted-foreground">
+              {tx.kind === "refund_adjustment" ? "Montant remboursé" : "Sous-total"}
+            </span>
             <span>{formatFCFA(tx.gross)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Commission Diambar</span>
-            <span className="text-rose-500">-{formatFCFA(tx.commission)}</span>
+            <span className="text-muted-foreground">
+              {tx.commission >= 0 ? "Commission Diambar" : "Commission restituée"}
+            </span>
+            <span className={tx.commission >= 0 ? "text-rose-500" : "text-emerald-500"}>
+              {tx.commission >= 0 ? "-" : "+"}
+              {formatFCFA(Math.abs(tx.commission))}
+            </span>
           </div>
           <div className="flex justify-between font-bold text-lg pt-3 border-t border-border">
-            <span>Net reçu</span>
-            <span className="text-primary">{formatFCFA(tx.net)}</span>
+            <span>{tx.kind === "refund_adjustment" ? "Impact net" : "Net reçu"}</span>
+            <span className={tx.net < 0 ? "text-destructive" : "text-primary"}>
+              {formatFCFA(tx.net)}
+            </span>
           </div>
         </div>
       </div>

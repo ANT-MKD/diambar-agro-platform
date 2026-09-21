@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Wallet, TrendingUp, Receipt } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Receipt, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
@@ -9,7 +9,13 @@ import { formatFCFA } from "@/lib/format";
 import { payouts } from "@/data/admin-mocks";
 import { useCommissionTiers } from "@/data/admin-store";
 import { useOrders } from "@/data/store";
-import { commissionForOrder, deliveredVolumeByFarmer, computeCommission } from "@/lib/commission";
+import { useRefunds } from "@/data/finance";
+import {
+  commissionForOrder,
+  commissionForAmount,
+  deliveredVolumeByFarmer,
+  computeCommission,
+} from "@/lib/commission";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -32,11 +38,39 @@ export const Route = createFileRoute("/admin/finance")({
 function AdminFinance() {
   const orders = useOrders();
   const tiers = useCommissionTiers();
+  const refunds = useRefunds();
   const delivered = orders.filter((o) => o.status === "delivered");
   const gmv = delivered.reduce((s, o) => s + o.total, 0);
   const commission = computeCommission(orders, tiers);
   const paid = payouts.filter((p) => p.status === "Payé").reduce((s, p) => s + p.amount, 0);
   const pending = payouts.filter((p) => p.status !== "Payé").reduce((s, p) => s + p.amount, 0);
+
+  // Un remboursement payé annule une partie de la vente d'origine : la
+  // commission déjà comptée dessus n'est plus réellement acquise. Quand
+  // personne d'autre (producteur ou livreur) n'absorbe le reste du montant,
+  // c'est une vraie perte pour Diambar Agro, pas juste un dossier classé.
+  const volumeByFarmer = useMemo(() => deliveredVolumeByFarmer(orders), [orders]);
+  const paidRefundsWithOrder = useMemo(
+    () =>
+      refunds
+        .filter((r) => r.status === "paid")
+        .flatMap((refund) => {
+          const order = orders.find((o) => o.reference === refund.orderRef);
+          return order ? [{ refund, order }] : [];
+        }),
+    [refunds, orders],
+  );
+  const refundedTotal = paidRefundsWithOrder.reduce((s, { refund }) => s + refund.amount, 0);
+  const refundedCommission = paidRefundsWithOrder.reduce(
+    (s, { refund, order }) => s + commissionForAmount(order, tiers, volumeByFarmer, refund.amount),
+    0,
+  );
+  const netCommission = commission - refundedCommission;
+  const platformNetCharge = paidRefundsWithOrder.reduce((s, { refund, order }) => {
+    if (refund.bornBy === "farmer" || refund.bornBy === "driver") return s;
+    const commissionPortion = commissionForAmount(order, tiers, volumeByFarmer, refund.amount);
+    return s + (refund.amount - commissionPortion);
+  }, 0);
 
   // Chaque producteur a son propre palier de commission (barème dégressif
   // réel de /admin/settings) selon son volume livré cumulé ; on répartit
@@ -130,6 +164,31 @@ function AdminFinance() {
           value={formatFCFA(pending)}
           icon={Receipt}
           hint={`${payouts.filter((p) => p.status !== "Payé").length} opérations`}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Remboursements payés"
+          value={formatFCFA(refundedTotal)}
+          icon={Undo2}
+          hint={`${paidRefundsWithOrder.length} dossier(s)`}
+        />
+        <StatCard
+          label="Commission nette (après remb.)"
+          value={formatFCFA(netCommission)}
+          icon={TrendingDown}
+          hint={
+            refundedCommission > 0
+              ? `-${formatFCFA(refundedCommission)} restitués`
+              : "Aucun remboursement payé"
+          }
+        />
+        <StatCard
+          label="Charge nette plateforme"
+          value={formatFCFA(platformNetCharge)}
+          icon={Wallet}
+          hint="Remboursements non couverts par un producteur ou un livreur"
         />
       </div>
 

@@ -11,6 +11,18 @@ import { useSyncExternalStore } from "react";
 export type RefundSource = "return" | "dispute" | "incident" | "manual";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
+// Qui supporte réellement le coût une fois le remboursement exécuté :
+// "farmer" → déduit de ses revenus (produit en cause) ; "driver" → déjà
+// débité de son wallet ailleurs (litige responsabilité livreur), gardé ici
+// pour affichage seulement ; "platform" → aucune autre partie ne rembourse
+// Diambar Agro, donc c'est une vraie charge plateforme.
+export type RefundBornBy = "farmer" | "driver" | "platform";
+
+export const REFUND_BORN_BY_LABEL: Record<RefundBornBy, string> = {
+  farmer: "Producteur",
+  driver: "Livreur",
+  platform: "Plateforme (Diambar Agro)",
+};
 
 export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
   return: "Retour produit",
@@ -39,6 +51,9 @@ export type Refund = {
   disputeId?: string;
   incidentId?: string;
   returnId?: string;
+  // Absent sur les anciens dossiers de démo (seed) : traité comme "platform"
+  // par défaut partout où c'est lu, plutôt que de silencieusement l'ignorer.
+  bornBy?: RefundBornBy;
   requester: string;
   amount: number;
   method: RefundMethod;
@@ -58,6 +73,7 @@ const seedRefunds: Refund[] = [
     reference: "RMB-5031",
     source: "dispute",
     orderRef: "CMD-2851",
+    bornBy: "farmer",
     requester: "Le Baobab",
     amount: 6800,
     method: "Wave",
@@ -72,6 +88,7 @@ const seedRefunds: Refund[] = [
     reference: "RMB-5030",
     source: "return",
     orderRef: "CMD-2847",
+    bornBy: "farmer",
     requester: "Chez Aminata",
     amount: 2250,
     method: "Orange Money",
@@ -92,6 +109,7 @@ const seedRefunds: Refund[] = [
     reference: "RMB-5029",
     source: "incident",
     orderRef: "CMD-2840",
+    bornBy: "platform",
     requester: "Oumar Ba",
     amount: 1500,
     method: "Wave",
@@ -110,6 +128,7 @@ const seedRefunds: Refund[] = [
     reference: "RMB-5028",
     source: "manual",
     orderRef: "CMD-2832",
+    bornBy: "platform",
     requester: "Teranga Food",
     amount: 5000,
     method: "Virement",
@@ -133,6 +152,7 @@ const seedRefunds: Refund[] = [
     reference: "RMB-5027",
     source: "return",
     orderRef: "CMD-2820",
+    bornBy: "farmer",
     requester: "Restaurant Téranga",
     amount: 4200,
     method: "Wave",

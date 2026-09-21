@@ -396,6 +396,11 @@ export type Transaction = {
   net: number;
   method: PaymentMethod;
   status: "Payé" | "En attente" | "Échec";
+  // Absent = "delivery" (ligne de livraison classique). Une écriture
+  // "refund_adjustment" reprend une partie déjà versée suite à un
+  // remboursement client dont le producteur est responsable — gross et
+  // commission y sont négatifs (montants repris), voir store.ts.
+  kind?: "delivery" | "refund_adjustment";
 };
 
 export const transactions: Transaction[] = [
