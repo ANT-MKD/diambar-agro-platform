@@ -6,6 +6,7 @@ import {
   moderationQueue as seedModeration,
   commissionTiers as seedTiers,
   deliveryZones as seedZones,
+  refundSettings as seedRefundSettings,
   type PlatformUser,
   type PlatformUserStatus,
   type ValidationRequest,
@@ -64,6 +65,7 @@ const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
 const tiersStore = createStore(seedTiers, "diambar:admin-tiers");
 const zonesStore = createStore(seedZones, "diambar:admin-zones");
+const refundSettingsStore = createStore(seedRefundSettings, "diambar:admin-refund-settings");
 
 export function usePlatformUsers() {
   return useSyncExternalStore(usersStore.subscribe, usersStore.get, usersStore.get);
@@ -95,6 +97,13 @@ export function useCommissionTiers() {
 }
 export function useDeliveryZones() {
   return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
+}
+export function useRefundSettings() {
+  return useSyncExternalStore(
+    refundSettingsStore.subscribe,
+    refundSettingsStore.get,
+    refundSettingsStore.get,
+  );
 }
 
 export const auditActions = {
@@ -363,6 +372,10 @@ export const platformSettingsActions = {
   },
   setZoneFee: (id: string, baseFee: number) => {
     zonesStore.set((arr) => arr.map((z) => (z.id === id ? { ...z, baseFee } : z)));
+  },
+  setRefundJustificationThreshold: (amount: number) => {
+    refundSettingsStore.set((s) => ({ ...s, justificationThreshold: amount }));
+    auditActions.log("Seuil de justification des remboursements modifié", String(amount), "info");
   },
 };
 

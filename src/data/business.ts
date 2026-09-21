@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { creditActions, type DisputeAttachment } from "@/data/disputes";
 import { driverWalletActions } from "@/data/store";
+import { refundActions } from "@/data/finance";
 
 type Listener = () => void;
 
@@ -287,6 +288,7 @@ export const returnActions = {
       refundActions.create({
         source: "return",
         orderRef: r.orderRef,
+        returnId: r.id,
         requester: r.restaurantName,
         amount: awardedAmount,
         method: "Wave",
@@ -671,129 +673,6 @@ export const incidentActions = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/* Remboursements — espace admin                                       */
-/* ------------------------------------------------------------------ */
-
-export type RefundSource = "return" | "dispute" | "incident" | "manual";
-export type RefundStatus = "pending" | "approved" | "rejected" | "paid";
-
-export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
-  return: "Retour produit",
-  dispute: "Litige",
-  incident: "Incident de course",
-  manual: "Geste commercial",
-};
-
-export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
-  pending: "À valider",
-  approved: "Approuvé",
-  rejected: "Rejeté",
-  paid: "Remboursé",
-};
-
-export type Refund = {
-  id: string;
-  reference: string;
-  source: RefundSource;
-  orderRef: string;
-  requester: string;
-  amount: number;
-  method: "Wave" | "Orange Money" | "Free Money" | "Virement";
-  reason: string;
-  status: RefundStatus;
-  createdAt: string;
-  decidedAt?: string;
-  note?: string;
-};
-
-const seedRefunds: Refund[] = [
-  {
-    id: "rf1",
-    reference: "RMB-5031",
-    source: "dispute",
-    orderRef: "CMD-2851",
-    requester: "Le Baobab",
-    amount: 6800,
-    method: "Wave",
-    reason: "Litige qualité — tomates non conformes",
-    status: "pending",
-    createdAt: "2025-05-15T12:40:00Z",
-  },
-  {
-    id: "rf2",
-    reference: "RMB-5030",
-    source: "return",
-    orderRef: "CMD-2847",
-    requester: "Chez Aminata",
-    amount: 2250,
-    method: "Orange Money",
-    reason: "Retour RET-1041 — quantité manquante",
-    status: "paid",
-    createdAt: "2025-05-14T17:30:00Z",
-    decidedAt: "2025-05-14T18:10:00Z",
-    note: "Avoir converti en remboursement.",
-  },
-  {
-    id: "rf3",
-    reference: "RMB-5029",
-    source: "incident",
-    orderRef: "CMD-2840",
-    requester: "Oumar Ba",
-    amount: 1500,
-    method: "Wave",
-    reason: "Indemnité incident INC-701",
-    status: "approved",
-    createdAt: "2025-05-12T11:05:00Z",
-    decidedAt: "2025-05-12T11:30:00Z",
-  },
-  {
-    id: "rf4",
-    reference: "RMB-5028",
-    source: "manual",
-    orderRef: "CMD-2832",
-    requester: "Teranga Food",
-    amount: 5000,
-    method: "Virement",
-    reason: "Geste commercial retard répété",
-    status: "rejected",
-    createdAt: "2025-05-10T09:00:00Z",
-    decidedAt: "2025-05-10T15:00:00Z",
-    note: "Retard non confirmé par le GPS.",
-  },
-];
-
-const refundsStore = createStore<Refund[]>(seedRefunds, "diambar:refunds");
-
-export function useRefunds() {
-  return useSyncExternalStore(refundsStore.subscribe, refundsStore.get, refundsStore.get);
-}
-
-export const refundActions = {
-  create: (input: Omit<Refund, "id" | "reference" | "status" | "createdAt">) => {
-    const item: Refund = {
-      ...input,
-      id: uid("rf"),
-      reference: `RMB-${5032 + refundsStore.get().length}`,
-      status: "pending",
-      createdAt: now(),
-    };
-    refundsStore.set((arr) => [item, ...arr]);
-    return item;
-  },
-  approve: (id: string, note?: string) => {
-    refundsStore.set((arr) =>
-      arr.map((r) => (r.id === id ? { ...r, status: "approved", decidedAt: now(), note } : r)),
-    );
-  },
-  reject: (id: string, note: string) => {
-    refundsStore.set((arr) =>
-      arr.map((r) => (r.id === id ? { ...r, status: "rejected", decidedAt: now(), note } : r)),
-    );
-  },
-  markPaid: (id: string) => {
-    refundsStore.set((arr) =>
-      arr.map((r) => (r.id === id ? { ...r, status: "paid", decidedAt: now() } : r)),
-    );
-  },
-};
+// Le modèle Refund (remboursements) vit désormais dans @/data/finance —
+// litiges et incidents doivent aussi pouvoir créer un vrai remboursement
+// sans provoquer d'import circulaire avec business.ts/disputes.ts.

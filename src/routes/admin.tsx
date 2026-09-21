@@ -23,6 +23,7 @@ import {
   Sprout,
   Utensils,
   UserCog,
+  PackageMinus,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -33,7 +34,8 @@ import { LogoutButton } from "@/components/common/logout-button";
 import { useAdminNotifications, useValidations } from "@/data/admin-store";
 import { useAllDisputes } from "@/data/disputes";
 import { useConversations, useDriverConversations } from "@/data/store";
-import { useIncidents } from "@/data/business";
+import { useIncidents, useReturns } from "@/data/business";
+import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
 
@@ -49,6 +51,8 @@ function AdminLayout() {
   const validations = useValidations();
   const disputes = useAllDisputes();
   const incidents = useIncidents();
+  const refunds = useRefunds();
+  const returns = useReturns();
   const supportTickets = useSupportTickets();
   const notifications = useAdminNotifications();
   const farmerConvos = useConversations();
@@ -58,6 +62,10 @@ function AdminLayout() {
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
   const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
+  const refundsToHandle = refunds.filter(
+    (r) => r.status === "pending" || r.status === "failed",
+  ).length;
+  const pendingReturns = returns.filter((r) => r.status === "pending").length;
   const openTickets = supportTickets.filter((t) => t.status === "open").length;
   const unreadNotifications = notifications.filter((n) => !n.read).length;
   const unreadMessages =
@@ -102,7 +110,13 @@ function AdminLayout() {
         { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
         { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
         { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
-        { to: "/admin/refunds", label: "Remboursements", icon: Undo2, badge: 0 },
+        {
+          to: "/admin/refunds",
+          label: "Remboursements",
+          icon: Undo2,
+          badge: refundsToHandle,
+        },
+        { to: "/admin/returns", label: "Retours", icon: PackageMinus, badge: pendingReturns },
         { to: "/admin/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
         {
           to: "/admin/notifications",

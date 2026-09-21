@@ -401,6 +401,14 @@ export const commissionTiers = [
   },
 ];
 
+// Seuil au-delà duquel une justification écrite est obligatoire pour
+// approuver un remboursement — remplace la chaîne d'approbateurs fictive
+// (support/responsable/administrateur) qui supposerait plusieurs comptes
+// admin alors que la démo n'en modélise qu'un seul.
+export const refundSettings = {
+  justificationThreshold: 50_000,
+};
+
 export const deliveryZones = [
   { id: "dz1", name: "Dakar intra-muros", baseFee: 1000, perKm: 120, active: true },
   { id: "dz2", name: "Dakar → Thiès", baseFee: 3500, perKm: 95, active: true },

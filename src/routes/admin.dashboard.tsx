@@ -41,7 +41,8 @@ import {
   useCommissionTiers,
 } from "@/data/admin-store";
 import { useAllDisputes } from "@/data/disputes";
-import { useIncidents, useRefunds } from "@/data/business";
+import { useIncidents } from "@/data/business";
+import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
 import { useOrders, useMissions } from "@/data/store";
 import { payouts } from "@/data/admin-mocks";

@@ -22,13 +22,35 @@ export function deliveredVolumeByFarmer(orders: Order[]) {
   return byFarmer;
 }
 
-export function commissionForOrder(
+export function commissionRateForOrder(
   order: Order,
   tiers: Tier[],
   volumeByFarmer: Map<string, number>,
 ) {
   const volume = volumeByFarmer.get(order.farmerId) ?? order.total;
-  return Math.round(order.total * (tierRateForVolume(tiers, volume) / 100));
+  return tierRateForVolume(tiers, volume);
+}
+
+export function commissionForOrder(
+  order: Order,
+  tiers: Tier[],
+  volumeByFarmer: Map<string, number>,
+) {
+  return Math.round(order.total * (commissionRateForOrder(order, tiers, volumeByFarmer) / 100));
+}
+
+/**
+ * Commission plateforme sur un montant partiel (ex. un remboursement),
+ * au même taux réel que celui appliqué à la commande d'origine — pas un
+ * pourcentage recalculé ou codé en dur pour l'occasion.
+ */
+export function commissionForAmount(
+  order: Order,
+  tiers: Tier[],
+  volumeByFarmer: Map<string, number>,
+  amount: number,
+) {
+  return Math.round(amount * (commissionRateForOrder(order, tiers, volumeByFarmer) / 100));
 }
 
 export function computeCommission(orders: Order[], tiers: Tier[]) {

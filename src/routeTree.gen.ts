@@ -33,7 +33,6 @@ import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
-import { Route as AdminRefundsRouteImport } from './routes/admin.refunds'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -75,6 +74,9 @@ import { Route as AdminModerationIndexRouteImport } from './routes/admin.moderat
 import { Route as AdminModerationItemIdRouteImport } from './routes/admin.moderation.$itemId'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin.orders.index'
 import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin.orders.$orderId'
+import { Route as AdminRefundsIndexRouteImport } from './routes/admin.refunds.index'
+import { Route as AdminRefundsRefundIdRouteImport } from './routes/admin.refunds.$refundId'
+import { Route as AdminReturnsIndexRouteImport } from './routes/admin.returns.index'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
 import { Route as AdminUsersAdminsRouteImport } from './routes/admin.users.admins'
@@ -294,11 +296,6 @@ const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminRefundsRoute = AdminRefundsRouteImport.update({
-  id: '/refunds',
-  path: '/refunds',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -504,6 +501,21 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
 const AdminOrdersOrderIdRoute = AdminOrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRefundsIndexRoute = AdminRefundsIndexRouteImport.update({
+  id: '/refunds/',
+  path: '/refunds/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRefundsRefundIdRoute = AdminRefundsRefundIdRouteImport.update({
+  id: '/refunds/$refundId',
+  path: '/refunds/$refundId',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReturnsIndexRoute = AdminReturnsIndexRouteImport.update({
+  id: '/returns/',
+  path: '/returns/',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
@@ -1059,7 +1071,6 @@ export interface FileRoutesByFullPath {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1096,6 +1107,7 @@ export interface FileRoutesByFullPath {
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1162,6 +1174,8 @@ export interface FileRoutesByFullPath {
   '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/moderation/': typeof AdminModerationIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/refunds/': typeof AdminRefundsIndexRoute
+  '/admin/returns/': typeof AdminReturnsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
   '/driver/disputes/': typeof DriverDisputesIndexRoute
@@ -1225,7 +1239,6 @@ export interface FileRoutesByTo {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1252,6 +1265,7 @@ export interface FileRoutesByTo {
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1318,6 +1332,8 @@ export interface FileRoutesByTo {
   '/admin/incidents': typeof AdminIncidentsIndexRoute
   '/admin/moderation': typeof AdminModerationIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
+  '/admin/refunds': typeof AdminRefundsIndexRoute
+  '/admin/returns': typeof AdminReturnsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/admin/validations': typeof AdminValidationsIndexRoute
   '/driver/disputes': typeof DriverDisputesIndexRoute
@@ -1382,7 +1398,6 @@ export interface FileRoutesById {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
-  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1419,6 +1434,7 @@ export interface FileRoutesById {
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
+  '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1485,6 +1501,8 @@ export interface FileRoutesById {
   '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/moderation/': typeof AdminModerationIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/refunds/': typeof AdminRefundsIndexRoute
+  '/admin/returns/': typeof AdminReturnsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/admin/validations/': typeof AdminValidationsIndexRoute
   '/driver/disputes/': typeof DriverDisputesIndexRoute
@@ -1550,7 +1568,6 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
-    | '/admin/refunds'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1587,6 +1604,7 @@ export interface FileRouteTypes {
     | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
+    | '/admin/refunds/$refundId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -1653,6 +1671,8 @@ export interface FileRouteTypes {
     | '/admin/incidents/'
     | '/admin/moderation/'
     | '/admin/orders/'
+    | '/admin/refunds/'
+    | '/admin/returns/'
     | '/admin/users/'
     | '/admin/validations/'
     | '/driver/disputes/'
@@ -1716,7 +1736,6 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
-    | '/admin/refunds'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1743,6 +1762,7 @@ export interface FileRouteTypes {
     | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
+    | '/admin/refunds/$refundId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -1809,6 +1829,8 @@ export interface FileRouteTypes {
     | '/admin/incidents'
     | '/admin/moderation'
     | '/admin/orders'
+    | '/admin/refunds'
+    | '/admin/returns'
     | '/admin/users'
     | '/admin/validations'
     | '/driver/disputes'
@@ -1872,7 +1894,6 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
-    | '/admin/refunds'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1909,6 +1930,7 @@ export interface FileRouteTypes {
     | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
+    | '/admin/refunds/$refundId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -1975,6 +1997,8 @@ export interface FileRouteTypes {
     | '/admin/incidents/'
     | '/admin/moderation/'
     | '/admin/orders/'
+    | '/admin/refunds/'
+    | '/admin/returns/'
     | '/admin/users/'
     | '/admin/validations/'
     | '/driver/disputes/'
@@ -2208,13 +2232,6 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AdminNotificationsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/refunds': {
-      id: '/admin/refunds'
-      path: '/refunds'
-      fullPath: '/admin/refunds'
-      preLoaderRoute: typeof AdminRefundsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -2502,6 +2519,27 @@ declare module '@tanstack/react-router' {
       path: '/orders/$orderId'
       fullPath: '/admin/orders/$orderId'
       preLoaderRoute: typeof AdminOrdersOrderIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/refunds/': {
+      id: '/admin/refunds/'
+      path: '/refunds'
+      fullPath: '/admin/refunds/'
+      preLoaderRoute: typeof AdminRefundsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/refunds/$refundId': {
+      id: '/admin/refunds/$refundId'
+      path: '/refunds/$refundId'
+      fullPath: '/admin/refunds/$refundId'
+      preLoaderRoute: typeof AdminRefundsRefundIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/returns/': {
+      id: '/admin/returns/'
+      path: '/returns'
+      fullPath: '/admin/returns/'
+      preLoaderRoute: typeof AdminReturnsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/users/': {
@@ -3200,7 +3238,6 @@ interface AdminRouteChildren {
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
-  AdminRefundsRoute: typeof AdminRefundsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
@@ -3208,6 +3245,7 @@ interface AdminRouteChildren {
   AdminIncidentsIncidentIdRoute: typeof AdminIncidentsIncidentIdRoute
   AdminModerationItemIdRoute: typeof AdminModerationItemIdRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
+  AdminRefundsRefundIdRoute: typeof AdminRefundsRefundIdRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   AdminUsersAdminsRoute: typeof AdminUsersAdminsRoute
   AdminUsersDriversRoute: typeof AdminUsersDriversRoute
@@ -3219,6 +3257,8 @@ interface AdminRouteChildren {
   AdminIncidentsIndexRoute: typeof AdminIncidentsIndexRoute
   AdminModerationIndexRoute: typeof AdminModerationIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
+  AdminRefundsIndexRoute: typeof AdminRefundsIndexRoute
+  AdminReturnsIndexRoute: typeof AdminReturnsIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
   AdminValidationsIndexRoute: typeof AdminValidationsIndexRoute
 }
@@ -3230,7 +3270,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
-  AdminRefundsRoute: AdminRefundsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
@@ -3238,6 +3277,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminIncidentsIncidentIdRoute: AdminIncidentsIncidentIdRoute,
   AdminModerationItemIdRoute: AdminModerationItemIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
+  AdminRefundsRefundIdRoute: AdminRefundsRefundIdRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   AdminUsersAdminsRoute: AdminUsersAdminsRoute,
   AdminUsersDriversRoute: AdminUsersDriversRoute,
@@ -3249,6 +3289,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminIncidentsIndexRoute: AdminIncidentsIndexRoute,
   AdminModerationIndexRoute: AdminModerationIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminRefundsIndexRoute: AdminRefundsIndexRoute,
+  AdminReturnsIndexRoute: AdminReturnsIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,
   AdminValidationsIndexRoute: AdminValidationsIndexRoute,
 }

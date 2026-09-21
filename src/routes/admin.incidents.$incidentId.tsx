@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
   Repeat,
   ExternalLink,
   ImageIcon,
+  Banknote,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
 } from "@/data/business";
 import { useMissions, useOrders, missionActions } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
+import { refundActions, type RefundMethod } from "@/data/finance";
 import { auditActions } from "@/data/admin-store";
 import { farmers, restaurants, drivers } from "@/data/mocks";
 
@@ -77,6 +79,7 @@ function AdminIncidentDetail() {
   const missions = useMissions();
   const orders = useOrders();
   const disputes = useAllDisputes();
+  const navigate = useNavigate();
 
   const incident = incidents.find((i) => i.id === incidentId);
 
@@ -85,6 +88,10 @@ function AdminIncidentDetail() {
   const [deciding, setDeciding] = useState(false);
   const [reassignOpen, setReassignOpen] = useState(false);
   const [newDriverId, setNewDriverId] = useState("");
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>("Wave");
+  const [refundReason, setRefundReason] = useState("");
 
   if (!incident) {
     return (
@@ -159,6 +166,39 @@ function AdminIncidentDetail() {
     setNewDriverId("");
   };
 
+  const openRefund = () => {
+    setRefundAmount(String(incident.compensationRequested || ""));
+    setRefundReason(`Incident ${incident.reference} — ${INCIDENT_TYPE_LABEL[incident.type]}`);
+    setRefundMethod("Wave");
+    setRefundOpen(true);
+  };
+
+  const submitRefund = () => {
+    const value = Number(refundAmount);
+    if (!order || !restaurant) return;
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error("Indiquez un montant valide");
+      return;
+    }
+    const refund = refundActions.create({
+      source: "incident",
+      incidentId: incident.id,
+      orderRef: order.reference,
+      requester: restaurant.name,
+      amount: value,
+      method: refundMethod,
+      reason: refundReason.trim() || `Incident ${incident.reference}`,
+    });
+    auditActions.log(
+      `Remboursement client créé depuis l'incident (${refund.reference})`,
+      incident.reference,
+      "info",
+    );
+    toast.success(`${refund.reference} créé`);
+    setRefundOpen(false);
+    navigate({ to: "/admin/refunds/$refundId", params: { refundId: refund.id } });
+  };
+
   const statut =
     incident.status !== "resolved"
       ? "En attente"
@@ -180,19 +220,25 @@ function AdminIncidentDetail() {
         title={incident.reference}
         subtitle={`Signalé ${relativeTime(incident.createdAt)} · Mission ${incident.missionRef}`}
         actions={
-          mission &&
-          mission.status !== "delivered" &&
-          mission.status !== "cancelled" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setReassignOpen(true)}
-            >
-              <Repeat className="h-3.5 w-3.5" />
-              Réaffecter le livreur
-            </Button>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {order && restaurant && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={openRefund}>
+                <Banknote className="h-3.5 w-3.5" />
+                Rembourser le client
+              </Button>
+            )}
+            {mission && mission.status !== "delivered" && mission.status !== "cancelled" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setReassignOpen(true)}
+              >
+                <Repeat className="h-3.5 w-3.5" />
+                Réaffecter le livreur
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -406,6 +452,54 @@ function AdminIncidentDetail() {
             <Button onClick={confirmReassign} className="gap-2">
               <Check className="h-4 w-4" />
               Réaffecter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rembourser le client</DialogTitle>
+            <DialogDescription>
+              Crée un dossier suivi dans Remboursements pour {restaurant?.name}, lié à cet incident.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Montant (FCFA)</label>
+              <Input
+                inputMode="numeric"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+              />
+            </div>
+            <Select value={refundMethod} onValueChange={(v) => setRefundMethod(v as RefundMethod)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["Wave", "Orange Money", "Free Money", "Virement"] as RefundMethod[]).map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Textarea
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              rows={3}
+              placeholder="Motif du remboursement…"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={submitRefund} className="gap-2">
+              <Banknote className="h-4 w-4" />
+              Créer le remboursement
             </Button>
           </DialogFooter>
         </DialogContent>
