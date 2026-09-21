@@ -348,6 +348,41 @@ export const driverWalletActions = {
     }));
     return tx.id;
   },
+  /** Confirme qu'un retrait "En attente" est réellement arrivé — jusqu'ici
+   * rien ne le faisait jamais sortir de cet état : `pending` ne se
+   * résorbait jamais et `withdrawn` restait figé à sa valeur de seed. */
+  completeWithdrawal: (txId: string) => {
+    driverWalletStore.set((w) => {
+      const tx = w.transactions.find((t) => t.id === txId);
+      if (!tx || tx.status !== "En attente" || tx.kind !== "withdrawal") return w;
+      const amount = Math.abs(tx.amount);
+      return {
+        ...w,
+        pending: Math.max(0, w.pending - amount),
+        withdrawn: w.withdrawn + amount,
+        transactions: w.transactions.map((t) =>
+          t.id === txId ? { ...t, status: "Complété" as const } : t,
+        ),
+      };
+    });
+  },
+  /** Échec réel du versement : l'argent revient au solde disponible plutôt
+   * que de rester bloqué indéfiniment en "pending". */
+  failWithdrawal: (txId: string) => {
+    driverWalletStore.set((w) => {
+      const tx = w.transactions.find((t) => t.id === txId);
+      if (!tx || tx.status !== "En attente" || tx.kind !== "withdrawal") return w;
+      const amount = Math.abs(tx.amount);
+      return {
+        ...w,
+        balance: w.balance + amount,
+        pending: Math.max(0, w.pending - amount),
+        transactions: w.transactions.map((t) =>
+          t.id === txId ? { ...t, status: "Échec" as const } : t,
+        ),
+      };
+    });
+  },
   credit: (label: string, amount: number, kind: DriverTx["kind"] = "mission", ref?: string) => {
     driverWalletStore.set((w) => ({
       ...w,
@@ -1272,6 +1307,21 @@ export const withdrawalActions = {
       ...arr,
     ]);
     return id;
+  },
+  /** Confirme qu'un retrait "En cours" est réellement arrivé — sans ça, le
+   * solde disponible (farmer.revenue) le comptait comme déjà retiré à vie,
+   * sans jamais libérer ni confirmer la sortie réelle des fonds. */
+  markCompleted: (id: string) => {
+    withdrawalsStore.set((arr) =>
+      arr.map((w) => (w.id === id && w.status === "En cours" ? { ...w, status: "Effectué" } : w)),
+    );
+  },
+  /** Échec réel : le solde redevient disponible (le calcul de `available`
+   * exclut déjà les retraits "Échec" du total déjà retiré). */
+  markFailed: (id: string) => {
+    withdrawalsStore.set((arr) =>
+      arr.map((w) => (w.id === id && w.status === "En cours" ? { ...w, status: "Échec" } : w)),
+    );
   },
 };
 

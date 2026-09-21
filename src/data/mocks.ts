@@ -2056,7 +2056,7 @@ export type DriverTx = {
   kind: "mission" | "bonus" | "commission" | "withdrawal" | "adjustment";
   amount: number; // positif = crédit, négatif = débit
   method?: PaymentMethod;
-  status: "Complété" | "En attente" | "Programmé";
+  status: "Complété" | "En attente" | "Programmé" | "Échec";
 };
 
 export const driverTransactions: DriverTx[] = [
