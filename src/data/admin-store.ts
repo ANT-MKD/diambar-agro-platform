@@ -379,6 +379,8 @@ export const platformSettingsActions = {
   },
 };
 
+export type AdminNotificationPriority = "info" | "attention" | "important" | "urgent";
+
 export type AdminNotification = {
   id: string;
   kind: "validation" | "dispute" | "moderation" | "incident" | "return";
@@ -386,6 +388,22 @@ export type AdminNotification = {
   title: string;
   body: string;
   at: string;
+  priority: AdminNotificationPriority;
+};
+
+// Priorité dérivée d'un champ réel déjà présent sur le dossier d'origine
+// (priorité du litige, gravité de l'incident…), jamais inventée au niveau
+// de la notification — même logique que INCIDENT_TYPE_SEVERITY.
+const DISPUTE_PRIORITY_TO_NOTIF: Record<string, AdminNotificationPriority> = {
+  high: "urgent",
+  medium: "important",
+  low: "attention",
+};
+const INCIDENT_SEVERITY_TO_NOTIF: Record<string, AdminNotificationPriority> = {
+  critical: "urgent",
+  high: "urgent",
+  medium: "important",
+  low: "attention",
 };
 
 // Starts empty on both server and first client render (unlike createStore's
@@ -446,6 +464,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Validation en attente",
         body: `Dossier ${v.type} à examiner (${v.docs.length} document(s))`,
         at: v.submittedAt,
+        priority: "attention" as const,
       })),
     ...disputes
       .filter((d) => d.status === "open" || d.status === "investigating")
@@ -456,6 +475,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Litige ouvert",
         body: `${d.reference} — ${d.subcategory} (${d.openedByName} vs ${d.againstName})`,
         at: d.openedAt,
+        priority: DISPUTE_PRIORITY_TO_NOTIF[d.priority] ?? "attention",
       })),
     ...moderation
       .filter((m) => m.status === "pending")
@@ -468,6 +488,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
           title: "Produit signalé",
           body: `${m.name} — ${latest?.reason ?? "Signalement"}`,
           at: latest?.at ?? m.events[0]?.at ?? new Date().toISOString(),
+          priority: "important" as const,
         };
       }),
     ...incidents
@@ -479,6 +500,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Incident escaladé au support",
         body: `${i.reference} — mission ${i.missionRef}, indemnité demandée ${i.compensationRequested.toLocaleString("fr-FR")} FCFA`,
         at: i.createdAt,
+        priority: INCIDENT_SEVERITY_TO_NOTIF[i.severity] ?? "important",
       })),
     ...returns
       .filter((r) => r.status === "pending")
@@ -489,6 +511,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Retour à traiter",
         body: `${r.reference} — ${r.restaurantName}, ${r.requestedAmount.toLocaleString("fr-FR")} FCFA demandés`,
         at: r.createdAt,
+        priority: "attention" as const,
       })),
     ...returns
       .filter((r) => r.pickup?.status === "received" && !r.inspection)
@@ -499,6 +522,7 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
         title: "Retour à inspecter",
         body: `${r.reference} — produit réceptionné, inspection en attente`,
         at: r.pickup!.receivedAt!,
+        priority: "important" as const,
       })),
   ];
 

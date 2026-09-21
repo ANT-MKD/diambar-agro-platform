@@ -898,6 +898,34 @@ export const driverConversationActions = {
       arr.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
     );
   },
+  setPriority: (conversationId: string, priority: "normal" | "important" | "urgent") => {
+    driverConvosStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, priority } : c)),
+    );
+  },
+  setTags: (conversationId: string, tags: string[]) => {
+    driverConvosStore.set((arr) => arr.map((c) => (c.id === conversationId ? { ...c, tags } : c)));
+  },
+  addInternalNote: (conversationId: string, actor: string, text: string) => {
+    driverConvosStore.set((arr) =>
+      arr.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              internalNotes: [
+                ...(c.internalNotes ?? []),
+                { id: `note_${Date.now()}`, at: new Date().toISOString(), actor, text },
+              ],
+            }
+          : c,
+      ),
+    );
+  },
+  linkTicket: (conversationId: string, ticketId: string) => {
+    driverConvosStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, ticketId } : c)),
+    );
+  },
 };
 
 export const driverOnlineActions = {
@@ -1450,6 +1478,34 @@ export const conversationActions = {
   markRead: (conversationId: string) => {
     conversationsStore.set((arr) =>
       arr.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)),
+    );
+  },
+  setPriority: (conversationId: string, priority: "normal" | "important" | "urgent") => {
+    conversationsStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, priority } : c)),
+    );
+  },
+  setTags: (conversationId: string, tags: string[]) => {
+    conversationsStore.set((arr) => arr.map((c) => (c.id === conversationId ? { ...c, tags } : c)));
+  },
+  addInternalNote: (conversationId: string, actor: string, text: string) => {
+    conversationsStore.set((arr) =>
+      arr.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              internalNotes: [
+                ...(c.internalNotes ?? []),
+                { id: `note_${Date.now()}`, at: new Date().toISOString(), actor, text },
+              ],
+            }
+          : c,
+      ),
+    );
+  },
+  linkTicket: (conversationId: string, ticketId: string) => {
+    conversationsStore.set((arr) =>
+      arr.map((c) => (c.id === conversationId ? { ...c, ticketId } : c)),
     );
   },
 };

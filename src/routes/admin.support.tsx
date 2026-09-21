@@ -9,6 +9,7 @@ import {
   Send,
   ExternalLink,
   TriangleAlert,
+  Lock,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -79,6 +80,7 @@ function AdminSupportPage() {
   const [tab, setTab] = useState<SupportTicket["status"] | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(tickets[0]?.id ?? null);
   const [reply, setReply] = useState("");
+  const [internalDraft, setInternalDraft] = useState(false);
 
   const openCount = tickets.filter((t) => t.status === "open").length;
   const rows = tickets.filter((t) => (tab === "all" ? true : t.status === tab));
@@ -115,9 +117,15 @@ function AdminSupportPage() {
 
   const sendReply = () => {
     if (!selected || !reply.trim()) return;
-    supportTicketActions.addMessage(selected.id, "Admin Diambar", reply.trim());
-    auditActions.log("Réponse envoyée au ticket", selected.id.toUpperCase(), "info");
-    toast.success("Réponse envoyée");
+    if (internalDraft) {
+      supportTicketActions.addInternalNote(selected.id, "Admin Diambar", reply.trim());
+      auditActions.log("Note interne ajoutée", selected.id.toUpperCase(), "info");
+      toast.success("Note interne ajoutée");
+    } else {
+      supportTicketActions.addMessage(selected.id, "Admin Diambar", reply.trim());
+      auditActions.log("Réponse envoyée au ticket", selected.id.toUpperCase(), "info");
+      toast.success("Réponse envoyée");
+    }
     setReply("");
   };
 
@@ -242,13 +250,17 @@ function AdminSupportPage() {
                     key={m.id}
                     className={cn(
                       "max-w-[85%] rounded-2xl p-3 text-sm",
-                      m.authorRole === "platform"
-                        ? "ml-auto bg-primary/10 text-foreground"
-                        : "bg-muted",
+                      m.internal
+                        ? "ml-auto bg-amber-500/10 border border-amber-500/30"
+                        : m.authorRole === "platform"
+                          ? "ml-auto bg-primary/10 text-foreground"
+                          : "bg-muted",
                     )}
                   >
                     <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                      {m.internal && <Lock className="h-3 w-3" />}
                       {m.authorName} · {relativeTime(m.at)}
+                      {m.internal && " · Note interne"}
                     </div>
                     {m.text}
                   </div>
@@ -258,15 +270,39 @@ function AdminSupportPage() {
               {selected.status !== "closed" && (
                 <div className="space-y-2 border-t border-border pt-3">
                   <Textarea
-                    placeholder="Répondre au ticket…"
+                    placeholder={
+                      internalDraft
+                        ? "Note interne (visible admin uniquement)…"
+                        : "Répondre au ticket…"
+                    }
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
                     rows={3}
                   />
-                  <Button size="sm" className="gap-2" onClick={sendReply} disabled={!reply.trim()}>
-                    <Send className="h-3.5 w-3.5" />
-                    Envoyer
-                  </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={internalDraft}
+                        onChange={(e) => setInternalDraft(e.target.checked)}
+                      />
+                      Note interne (non visible par le demandeur)
+                    </label>
+                    <Button
+                      size="sm"
+                      variant={internalDraft ? "outline" : "default"}
+                      className="gap-2"
+                      onClick={sendReply}
+                      disabled={!reply.trim()}
+                    >
+                      {internalDraft ? (
+                        <Lock className="h-3.5 w-3.5" />
+                      ) : (
+                        <Send className="h-3.5 w-3.5" />
+                      )}
+                      {internalDraft ? "Ajouter la note" : "Envoyer"}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

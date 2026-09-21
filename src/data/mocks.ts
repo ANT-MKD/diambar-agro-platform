@@ -505,6 +505,13 @@ export type Conversation = {
     senderName?: string;
     attachment?: ChatAttachment;
   }[];
+  // Classification admin — jamais visible côté agriculteur/restaurant,
+  // utilisée uniquement par la messagerie de supervision.
+  priority?: "normal" | "important" | "urgent";
+  tags?: string[];
+  internalNotes?: { id: string; at: string; actor: string; text: string }[];
+  // Ticket support créé depuis cette conversation, le cas échéant.
+  ticketId?: string;
 };
 
 export const conversations: Conversation[] = [
@@ -2007,6 +2014,10 @@ export type DriverConversation = {
     senderName?: string;
     attachment?: ChatAttachment;
   }[];
+  priority?: "normal" | "important" | "urgent";
+  tags?: string[];
+  internalNotes?: { id: string; at: string; actor: string; text: string }[];
+  ticketId?: string;
 };
 
 export const driverConversations: DriverConversation[] = [

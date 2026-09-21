@@ -188,6 +188,31 @@ export const supportTicketActions = {
   assign: (id: string, agent: string | null) => {
     ticketsStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, assignee: agent } : t)));
   },
+  /** Note interne visible uniquement par l'équipe admin — jusqu'ici
+   * `internal` existait sur TicketMessage mais rien ne le mettait jamais
+   * à `true`, donc aucune note interne n'était réellement possible. */
+  addInternalNote: (id: string, authorName: string, text: string) => {
+    ticketsStore.set((arr) =>
+      arr.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              messages: [
+                ...t.messages,
+                {
+                  id: `${id}-m${t.messages.length + 1}`,
+                  at: new Date().toISOString(),
+                  authorRole: "platform",
+                  authorName,
+                  text,
+                  internal: true,
+                },
+              ],
+            }
+          : t,
+      ),
+    );
+  },
   addMessage: (id: string, authorName: string, text: string) => {
     ticketsStore.set((arr) =>
       arr.map((t) =>
