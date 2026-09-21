@@ -14,7 +14,13 @@ import {
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
 import { useIncidents } from "./business";
-import { farmerNotifActions, restaurantNotifActions, driverNotifActions } from "./store";
+import {
+  farmerNotifActions,
+  restaurantNotifActions,
+  driverNotifActions,
+  productActions,
+} from "./store";
+import { products, farmers } from "./mocks";
 
 type Listener = () => void;
 
@@ -80,6 +86,9 @@ export function useAuditLogs() {
 }
 export function useModerationQueue() {
   return useSyncExternalStore(moderationStore.subscribe, moderationStore.get, moderationStore.get);
+}
+export function useModerationItem(id: string) {
+  return useModerationQueue().find((m) => m.id === id) ?? null;
 }
 export function useCommissionTiers() {
   return useSyncExternalStore(tiersStore.subscribe, tiersStore.get, tiersStore.get);
@@ -286,14 +295,60 @@ export const validationActions = {
   },
 };
 
+function moderationItem(id: string) {
+  return moderationStore.get().find((m) => m.id === id);
+}
+function addModerationEvent(id: string, actor: string, label: string) {
+  moderationStore.set((arr) =>
+    arr.map((m) =>
+      m.id === id
+        ? { ...m, events: [...m.events, { at: new Date().toISOString(), actor, label }] }
+        : m,
+    ),
+  );
+}
+
 export const moderationActions = {
   approve: (id: string) => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
-    auditActions.log("Produit approuvé (modération)", id, "info");
+    addModerationEvent(id, "Admin Diambar", "Produit conservé");
+    auditActions.log("Produit conservé (modération)", id, "info");
   },
-  remove: (id: string) => {
-    moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "removed" } : m)));
-    auditActions.log("Produit retiré (modération)", id, "warning");
+  // Dépublier retire réellement le produit du catalogue (comme un producteur
+  // qui le passerait en brouillon), pas seulement l'entrée de la file de
+  // modération — sinon le produit resterait visible et commandable.
+  unpublish: (id: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
+    productActions.update(m.productId, { status: "draft" });
+    addModerationEvent(id, "Admin Diambar", "Produit dépublié");
+    auditActions.log("Produit dépublié (modération)", id, "warning");
+  },
+  requestChange: (id: string, note: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    addModerationEvent(id, "Admin Diambar", `Modification demandée : ${note}`);
+    auditActions.log(`Modification demandée (modération) : ${note}`, id, "info");
+    farmerNotifActions.add({
+      type: "system",
+      title: "Modification demandée",
+      body: `« ${m.name} » nécessite une modification : ${note}`,
+    });
+  },
+  // Suspendre le producteur est une action distincte de dépublier un seul
+  // produit : ça bloque tout son compte, pas uniquement cette annonce.
+  suspendFarmer: (id: string) => {
+    const m = moderationItem(id);
+    if (!m) return;
+    const product = products.find((p) => p.id === m.productId);
+    const farmer = product ? farmers.find((f) => f.id === product.farmerId) : undefined;
+    const account = farmer
+      ? usersStore.get().find((u) => u.name === farmer.name)
+      : usersStore.get().find((u) => u.name === m.farmer);
+    if (account) adminUserActions.setStatus(account.id, "suspended");
+    addModerationEvent(id, "Admin Diambar", `Producteur suspendu (${m.farmer})`);
+    auditActions.log("Producteur suspendu (modération)", account?.id ?? m.farmer, "critical");
   },
 };
 
@@ -390,14 +445,17 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
       })),
     ...moderation
       .filter((m) => m.status === "pending")
-      .map((m) => ({
-        id: `moderation-${m.id}`,
-        kind: "moderation" as const,
-        refId: m.id,
-        title: "Produit signalé",
-        body: `${m.name} — ${m.reason}`,
-        at: m.reportedAt,
-      })),
+      .map((m) => {
+        const latest = m.reports[m.reports.length - 1];
+        return {
+          id: `moderation-${m.id}`,
+          kind: "moderation" as const,
+          refId: m.id,
+          title: "Produit signalé",
+          body: `${m.name} — ${latest?.reason ?? "Signalement"}`,
+          at: latest?.at ?? m.events[0]?.at ?? new Date().toISOString(),
+        };
+      }),
     ...incidents
       .filter((i) => i.status === "escalated")
       .map((i) => ({

@@ -209,8 +209,9 @@ function AdminDashboard() {
       icon: PackageSearch,
       label: "Produits signalés",
       count: pendingModeration.length,
-      oldest: [...pendingModeration].sort((a, b) => (a.reportedAt < b.reportedAt ? -1 : 1))[0]
-        ?.reportedAt,
+      oldest: [...pendingModeration]
+        .map((m) => m.reports[0]?.at ?? m.events[0]?.at ?? "")
+        .sort()[0],
       to: "/admin/moderation",
       action: "Modérer",
     },
