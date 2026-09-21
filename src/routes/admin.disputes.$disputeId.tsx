@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink, TriangleAlert } from "lucide-react";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
 import { useDisputeById } from "@/data/disputes";
+import { useOrders, useMissions } from "@/data/store";
+import { useIncidents } from "@/data/business";
 
 export const Route = createFileRoute("/admin/disputes/$disputeId")({
   head: () => ({
@@ -22,6 +24,18 @@ export const Route = createFileRoute("/admin/disputes/$disputeId")({
 function AdminDisputeDetail() {
   const { disputeId } = Route.useParams();
   const d = useDisputeById(disputeId);
+  const orders = useOrders();
+  const missions = useMissions();
+  const incidents = useIncidents();
+
+  const order = d ? orders.find((o) => o.reference === d.orderRef) : undefined;
+  const mission = d
+    ? missions.find((m) => m.id === d.missionId || m.orderRef === d.orderRef)
+    : undefined;
+  const incident = mission
+    ? incidents.find((i) => i.missionRef === mission.reference && i.status !== "resolved")
+    : undefined;
+
   if (!d)
     return (
       <div className="glass rounded-2xl p-10 text-center">
@@ -48,9 +62,33 @@ function AdminDisputeDetail() {
       }
       links={
         <>
-          <Link to="/admin/orders" className="block text-primary hover:underline">
-            Commande {d.orderRef}
-          </Link>
+          {order ? (
+            <Link
+              to="/admin/orders/$orderId"
+              params={{ orderId: order.id }}
+              className="flex items-center justify-between text-primary hover:underline"
+            >
+              Commande {d.orderRef}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <Link to="/admin/orders" className="block text-primary hover:underline">
+              Commande {d.orderRef}
+            </Link>
+          )}
+          {incident && (
+            <Link
+              to="/admin/incidents/$incidentId"
+              params={{ incidentId: incident.id }}
+              className="flex items-center justify-between text-amber-600 hover:underline dark:text-amber-400"
+            >
+              <span className="flex items-center gap-1.5">
+                <TriangleAlert className="h-3.5 w-3.5" />
+                Incident {incident.reference}
+              </span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          )}
           <Link to="/admin/finance" className="block text-primary hover:underline">
             Impact financier & avoirs
           </Link>

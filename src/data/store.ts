@@ -788,6 +788,46 @@ export const missionActions = {
   attachProof: (id: string, photos: MissionProofPhoto[]) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));
   },
+  // Réaffectation depuis l'admin : l'ancien livreur redevient disponible,
+  // le nouveau reprend la course là où elle en est (statut "accepted", pas
+  // "available" — la collecte a déjà pu être planifiée).
+  reassign: (id: string, newDriverId: string) => {
+    const before = missionsStore.get().find((m) => m.id === id);
+    if (!before) return;
+    const previousDriverId = before.driverId;
+    missionsStore.set((arr) =>
+      arr.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              driverId: newDriverId,
+              status: "accepted",
+              statusHistory: [
+                ...(m.statusHistory ?? []),
+                { status: "accepted" as MissionStatus, at: new Date().toISOString() },
+              ],
+            }
+          : m,
+      ),
+    );
+    // Le store de notifications livreur ne modélise qu'un seul livreur
+    // connecté ("d1") dans cette démo : on ne notifie donc que si ce
+    // livreur précis perd ou reçoit la course, pas les autres du vivier.
+    if (previousDriverId === "d1" && newDriverId !== "d1") {
+      driverNotifActions.add({
+        type: "order",
+        title: "Mission réaffectée",
+        body: `${before.reference} a été réaffectée à un autre livreur`,
+      });
+    }
+    if (newDriverId === "d1" && previousDriverId !== "d1") {
+      driverNotifActions.add({
+        type: "order",
+        title: "Nouvelle mission affectée",
+        body: `${before.reference} vous a été affectée par l'administration`,
+      });
+    }
+  },
 };
 
 export const driverConversationActions = {

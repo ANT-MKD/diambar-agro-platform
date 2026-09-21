@@ -489,6 +489,7 @@ export const reviewActions = {
 export type IncidentType =
   "client_absent" | "refused" | "breakdown" | "accident" | "traffic" | "address" | "other";
 export type IncidentStatus = "open" | "escalated" | "resolved";
+export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 
 export const INCIDENT_TYPE_LABEL: Record<IncidentType, string> = {
   client_absent: "Client absent",
@@ -506,11 +507,33 @@ export const INCIDENT_STATUS_LABEL: Record<IncidentStatus, string> = {
   resolved: "Résolu",
 };
 
+export const INCIDENT_SEVERITY_LABEL: Record<IncidentSeverity, string> = {
+  low: "Faible",
+  medium: "Moyenne",
+  high: "Haute",
+  critical: "Critique",
+};
+
+// Gravité déterminée par le type d'incident au moment de la création (règle
+// fixe, pas une valeur libre) : un accident ou une panne bloque réellement
+// la livraison, un blocage circulation ou un problème d'adresse se résout
+// souvent sans intervention lourde.
+export const INCIDENT_TYPE_SEVERITY: Record<IncidentType, IncidentSeverity> = {
+  accident: "critical",
+  breakdown: "high",
+  client_absent: "medium",
+  refused: "medium",
+  address: "low",
+  traffic: "low",
+  other: "medium",
+};
+
 export type Incident = {
   id: string;
   reference: string;
   missionRef: string;
   type: IncidentType;
+  severity: IncidentSeverity;
   description: string;
   waitedMinutes: number;
   compensationRequested: number;
@@ -528,6 +551,7 @@ const seedIncidents: Incident[] = [
     reference: "INC-702",
     missionRef: "MIS-4180",
     type: "client_absent",
+    severity: "medium",
     description: "Restaurant fermé à l'arrivée, 35 min d'attente sans réponse au téléphone.",
     waitedMinutes: 35,
     compensationRequested: 2000,
@@ -547,6 +571,7 @@ const seedIncidents: Incident[] = [
     reference: "INC-701",
     missionRef: "MIS-4175",
     type: "breakdown",
+    severity: "high",
     description: "Crevaison sur la VDN, mission reprise par un autre livreur.",
     waitedMinutes: 50,
     compensationRequested: 3000,
@@ -571,14 +596,18 @@ export function useIncidents() {
 }
 
 export const incidentActions = {
-  create: (input: Omit<Incident, "id" | "reference" | "status" | "createdAt" | "history">) => {
+  create: (
+    input: Omit<Incident, "id" | "reference" | "status" | "createdAt" | "history" | "severity">,
+    reportedBy = "Oumar Ba",
+  ) => {
     const item: Incident = {
       ...input,
       id: uid("in"),
       reference: `INC-${703 + incidentsStore.get().length}`,
+      severity: INCIDENT_TYPE_SEVERITY[input.type],
       status: "open",
       createdAt: now(),
-      history: [{ at: now(), actor: "Oumar Ba", text: "Incident signalé" }],
+      history: [{ at: now(), actor: reportedBy, text: "Incident signalé" }],
     };
     incidentsStore.set((arr) => [item, ...arr]);
     return item;

@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { TriangleAlert, Check, X, Clock, Wallet, ArrowUpRight, Truck } from "lucide-react";
+import { TriangleAlert, Check, X, Clock, Wallet, ArrowUpRight, Truck, Flame } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { StatCard } from "@/components/admin/stat-card";
@@ -15,13 +15,15 @@ import {
   incidentActions,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
+  INCIDENT_SEVERITY_LABEL,
   type IncidentStatus,
+  type IncidentSeverity,
   type Incident,
 } from "@/data/business";
 import { useMissions } from "@/data/store";
 import { drivers } from "@/data/mocks";
 
-export const Route = createFileRoute("/admin/incidents")({
+export const Route = createFileRoute("/admin/incidents/")({
   head: () => ({
     meta: [
       { title: "Incidents de course — Administration Diambar Agro" },
@@ -47,6 +49,13 @@ const STATUS_CLASS: Record<IncidentStatus, string> = {
   resolved: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
 };
 
+const SEVERITY_CLASS: Record<IncidentSeverity, string> = {
+  low: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
+  medium: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+  high: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+  critical: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+};
+
 const TABS: { v: IncidentStatus | "all"; label: string }[] = [
   { v: "all", label: "Tous" },
   { v: "escalated", label: "Escaladés" },
@@ -69,6 +78,7 @@ function AdminIncidents() {
   const [note, setNote] = useState("");
 
   const pending = incidents.filter((i) => i.status !== "resolved");
+  const urgent = pending.filter((i) => i.severity === "high" || i.severity === "critical");
   const escalated = incidents.filter((i) => i.status === "escalated");
   const resolvedThisMonth = incidents.filter(
     (i) => i.status === "resolved" && isThisMonth(i.createdAt),
@@ -131,8 +141,14 @@ function AdminIncidents() {
         subtitle={`${pending.length} incident(s) en attente · ${escalated.length} escaladé(s) au support`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="À traiter" value={String(pending.length)} icon={TriangleAlert} />
+        <StatCard
+          label="Urgents"
+          value={String(urgent.length)}
+          icon={Flame}
+          hint="Gravité haute ou critique"
+        />
         <StatCard
           label="Escaladés"
           value={String(escalated.length)}
@@ -179,11 +195,22 @@ function AdminIncidents() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-52 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">{i.reference}</span>
+                      <Link
+                        to="/admin/incidents/$incidentId"
+                        params={{ incidentId: i.id }}
+                        className="font-semibold hover:underline"
+                      >
+                        {i.reference}
+                      </Link>
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${STATUS_CLASS[i.status]}`}
                       >
                         {INCIDENT_STATUS_LABEL[i.status]}
+                      </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${SEVERITY_CLASS[i.severity]}`}
+                      >
+                        {INCIDENT_SEVERITY_LABEL[i.severity]}
                       </span>
                       <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
                         {INCIDENT_TYPE_LABEL[i.type]}

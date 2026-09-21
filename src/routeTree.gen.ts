@@ -29,9 +29,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
-import { Route as AdminDeliveriesRouteImport } from './routes/admin.deliveries'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
-import { Route as AdminIncidentsRouteImport } from './routes/admin.incidents'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
@@ -67,8 +65,12 @@ import { Route as RestaurantNotificationsRouteImport } from './routes/restaurant
 import { Route as RestaurantSettingsRouteImport } from './routes/restaurant.settings'
 import { Route as RestaurantSupportRouteImport } from './routes/restaurant.support'
 import { Route as TrackPublicIdRouteImport } from './routes/track.$publicId'
+import { Route as AdminDeliveriesIndexRouteImport } from './routes/admin.deliveries.index'
+import { Route as AdminDeliveriesMissionIdRouteImport } from './routes/admin.deliveries.$missionId'
 import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.index'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
+import { Route as AdminIncidentsIndexRouteImport } from './routes/admin.incidents.index'
+import { Route as AdminIncidentsIncidentIdRouteImport } from './routes/admin.incidents.$incidentId'
 import { Route as AdminModerationIndexRouteImport } from './routes/admin.moderation.index'
 import { Route as AdminModerationItemIdRouteImport } from './routes/admin.moderation.$itemId'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin.orders.index'
@@ -272,19 +274,9 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminDeliveriesRoute = AdminDeliveriesRouteImport.update({
-  id: '/deliveries',
-  path: '/deliveries',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminIncidentsRoute = AdminIncidentsRouteImport.update({
-  id: '/incidents',
-  path: '/incidents',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLogsRoute = AdminLogsRouteImport.update({
@@ -462,6 +454,17 @@ const TrackPublicIdRoute = TrackPublicIdRouteImport.update({
   path: '/track/$publicId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDeliveriesIndexRoute = AdminDeliveriesIndexRouteImport.update({
+  id: '/deliveries/',
+  path: '/deliveries/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDeliveriesMissionIdRoute =
+  AdminDeliveriesMissionIdRouteImport.update({
+    id: '/deliveries/$missionId',
+    path: '/deliveries/$missionId',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminDisputesIndexRoute = AdminDisputesIndexRouteImport.update({
   id: '/disputes/',
   path: '/disputes/',
@@ -472,6 +475,17 @@ const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
   path: '/disputes/$disputeId',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminIncidentsIndexRoute = AdminIncidentsIndexRouteImport.update({
+  id: '/incidents/',
+  path: '/incidents/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminIncidentsIncidentIdRoute =
+  AdminIncidentsIncidentIdRouteImport.update({
+    id: '/incidents/$incidentId',
+    path: '/incidents/$incidentId',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminModerationIndexRoute = AdminModerationIndexRouteImport.update({
   id: '/moderation/',
   path: '/moderation/',
@@ -1041,9 +1055,7 @@ export interface FileRoutesByFullPath {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
-  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -1079,7 +1091,9 @@ export interface FileRoutesByFullPath {
   '/restaurant/support': typeof RestaurantSupportRoute
   '/track/$publicId': typeof TrackPublicIdRoute
   '/blog/': typeof BlogIndexRoute
+  '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
@@ -1143,7 +1157,9 @@ export interface FileRoutesByFullPath {
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
+  '/admin/deliveries/': typeof AdminDeliveriesIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
+  '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/moderation/': typeof AdminModerationIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -1205,9 +1221,7 @@ export interface FileRoutesByTo {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
-  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -1233,7 +1247,9 @@ export interface FileRoutesByTo {
   '/restaurant/support': typeof RestaurantSupportRoute
   '/track/$publicId': typeof TrackPublicIdRoute
   '/blog': typeof BlogIndexRoute
+  '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
@@ -1297,7 +1313,9 @@ export interface FileRoutesByTo {
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
+  '/admin/deliveries': typeof AdminDeliveriesIndexRoute
   '/admin/disputes': typeof AdminDisputesIndexRoute
+  '/admin/incidents': typeof AdminIncidentsIndexRoute
   '/admin/moderation': typeof AdminModerationIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
@@ -1360,9 +1378,7 @@ export interface FileRoutesById {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/deliveries': typeof AdminDeliveriesRoute
   '/admin/finance': typeof AdminFinanceRoute
-  '/admin/incidents': typeof AdminIncidentsRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -1398,7 +1414,9 @@ export interface FileRoutesById {
   '/restaurant/support': typeof RestaurantSupportRoute
   '/track/$publicId': typeof TrackPublicIdRoute
   '/blog/': typeof BlogIndexRoute
+  '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
@@ -1462,7 +1480,9 @@ export interface FileRoutesById {
   '/restaurant/suppliers/$supplierId': typeof RestaurantSuppliersSupplierIdRouteWithChildren
   '/restaurant/suppliers/compare': typeof RestaurantSuppliersCompareRoute
   '/restaurant/suppliers/new': typeof RestaurantSuppliersNewRoute
+  '/admin/deliveries/': typeof AdminDeliveriesIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
+  '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/moderation/': typeof AdminModerationIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
@@ -1526,9 +1546,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
-    | '/admin/deliveries'
     | '/admin/finance'
-    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
@@ -1564,7 +1582,9 @@ export interface FileRouteTypes {
     | '/restaurant/support'
     | '/track/$publicId'
     | '/blog/'
+    | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
+    | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/users/$userId'
@@ -1628,7 +1648,9 @@ export interface FileRouteTypes {
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
+    | '/admin/deliveries/'
     | '/admin/disputes/'
+    | '/admin/incidents/'
     | '/admin/moderation/'
     | '/admin/orders/'
     | '/admin/users/'
@@ -1690,9 +1712,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
-    | '/admin/deliveries'
     | '/admin/finance'
-    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
@@ -1718,7 +1738,9 @@ export interface FileRouteTypes {
     | '/restaurant/support'
     | '/track/$publicId'
     | '/blog'
+    | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
+    | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/users/$userId'
@@ -1782,7 +1804,9 @@ export interface FileRouteTypes {
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
+    | '/admin/deliveries'
     | '/admin/disputes'
+    | '/admin/incidents'
     | '/admin/moderation'
     | '/admin/orders'
     | '/admin/users'
@@ -1844,9 +1868,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
-    | '/admin/deliveries'
     | '/admin/finance'
-    | '/admin/incidents'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
@@ -1882,7 +1904,9 @@ export interface FileRouteTypes {
     | '/restaurant/support'
     | '/track/$publicId'
     | '/blog/'
+    | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
+    | '/admin/incidents/$incidentId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/users/$userId'
@@ -1946,7 +1970,9 @@ export interface FileRouteTypes {
     | '/restaurant/suppliers/$supplierId'
     | '/restaurant/suppliers/compare'
     | '/restaurant/suppliers/new'
+    | '/admin/deliveries/'
     | '/admin/disputes/'
+    | '/admin/incidents/'
     | '/admin/moderation/'
     | '/admin/orders/'
     | '/admin/users/'
@@ -2156,25 +2182,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/deliveries': {
-      id: '/admin/deliveries'
-      path: '/deliveries'
-      fullPath: '/admin/deliveries'
-      preLoaderRoute: typeof AdminDeliveriesRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/finance': {
       id: '/admin/finance'
       path: '/finance'
       fullPath: '/admin/finance'
       preLoaderRoute: typeof AdminFinanceRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/incidents': {
-      id: '/admin/incidents'
-      path: '/incidents'
-      fullPath: '/admin/incidents'
-      preLoaderRoute: typeof AdminIncidentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/logs': {
@@ -2422,6 +2434,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackPublicIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/deliveries/': {
+      id: '/admin/deliveries/'
+      path: '/deliveries'
+      fullPath: '/admin/deliveries/'
+      preLoaderRoute: typeof AdminDeliveriesIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/deliveries/$missionId': {
+      id: '/admin/deliveries/$missionId'
+      path: '/deliveries/$missionId'
+      fullPath: '/admin/deliveries/$missionId'
+      preLoaderRoute: typeof AdminDeliveriesMissionIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/disputes/': {
       id: '/admin/disputes/'
       path: '/disputes'
@@ -2434,6 +2460,20 @@ declare module '@tanstack/react-router' {
       path: '/disputes/$disputeId'
       fullPath: '/admin/disputes/$disputeId'
       preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/incidents/': {
+      id: '/admin/incidents/'
+      path: '/incidents'
+      fullPath: '/admin/incidents/'
+      preLoaderRoute: typeof AdminIncidentsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/incidents/$incidentId': {
+      id: '/admin/incidents/$incidentId'
+      path: '/incidents/$incidentId'
+      fullPath: '/admin/incidents/$incidentId'
+      preLoaderRoute: typeof AdminIncidentsIncidentIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/moderation/': {
@@ -3156,16 +3196,16 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminDeliveriesRoute: typeof AdminDeliveriesRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
-  AdminIncidentsRoute: typeof AdminIncidentsRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSupportRoute: typeof AdminSupportRoute
+  AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
   AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
+  AdminIncidentsIncidentIdRoute: typeof AdminIncidentsIncidentIdRoute
   AdminModerationItemIdRoute: typeof AdminModerationItemIdRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
@@ -3174,7 +3214,9 @@ interface AdminRouteChildren {
   AdminUsersFarmersRoute: typeof AdminUsersFarmersRoute
   AdminUsersRestaurantsRoute: typeof AdminUsersRestaurantsRoute
   AdminValidationsValidationIdRoute: typeof AdminValidationsValidationIdRoute
+  AdminDeliveriesIndexRoute: typeof AdminDeliveriesIndexRoute
   AdminDisputesIndexRoute: typeof AdminDisputesIndexRoute
+  AdminIncidentsIndexRoute: typeof AdminIncidentsIndexRoute
   AdminModerationIndexRoute: typeof AdminModerationIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   AdminUsersIndexRoute: typeof AdminUsersIndexRoute
@@ -3184,16 +3226,16 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
-  AdminDeliveriesRoute: AdminDeliveriesRoute,
   AdminFinanceRoute: AdminFinanceRoute,
-  AdminIncidentsRoute: AdminIncidentsRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSupportRoute: AdminSupportRoute,
+  AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
   AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
+  AdminIncidentsIncidentIdRoute: AdminIncidentsIncidentIdRoute,
   AdminModerationItemIdRoute: AdminModerationItemIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
@@ -3202,7 +3244,9 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminUsersFarmersRoute: AdminUsersFarmersRoute,
   AdminUsersRestaurantsRoute: AdminUsersRestaurantsRoute,
   AdminValidationsValidationIdRoute: AdminValidationsValidationIdRoute,
+  AdminDeliveriesIndexRoute: AdminDeliveriesIndexRoute,
   AdminDisputesIndexRoute: AdminDisputesIndexRoute,
+  AdminIncidentsIndexRoute: AdminIncidentsIndexRoute,
   AdminModerationIndexRoute: AdminModerationIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminUsersIndexRoute: AdminUsersIndexRoute,

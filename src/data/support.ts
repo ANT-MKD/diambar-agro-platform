@@ -1,10 +1,21 @@
 import { useSyncExternalStore } from "react";
 import type { Role } from "./mocks";
+import { SUPPORT_AGENTS } from "./disputes";
 
 export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
 export type TicketCategory =
   "delivery" | "products" | "payments" | "account" | "technical" | "other";
+export type TicketPriority = "low" | "medium" | "high";
+
+export type TicketMessage = {
+  id: string;
+  at: string;
+  authorRole: TicketRole | "platform";
+  authorName: string;
+  text: string;
+  internal: boolean;
+};
 
 export type SupportTicket = {
   id: string;
@@ -13,9 +24,25 @@ export type SupportTicket = {
   fromName: string;
   fromRole: TicketRole;
   category: TicketCategory;
+  priority: TicketPriority;
+  assignee: string | null;
   orderRef?: string;
   status: TicketStatus;
   createdAt: string;
+  messages: TicketMessage[];
+};
+
+// Priorité déterminée par la catégorie au moment de la création (même
+// logique que la gravité des incidents livreur) : un problème de paiement
+// ou de livraison impacte immédiatement l'activité, un problème de compte
+// ou technique est rarement bloquant.
+export const TICKET_CATEGORY_PRIORITY: Record<TicketCategory, TicketPriority> = {
+  payments: "high",
+  delivery: "high",
+  products: "medium",
+  account: "medium",
+  technical: "low",
+  other: "low",
 };
 
 const SEED: SupportTicket[] = [
@@ -26,9 +53,29 @@ const SEED: SupportTicket[] = [
     fromName: "Mamadou Diallo",
     fromRole: "farmer",
     category: "payments",
+    priority: "high",
+    assignee: SUPPORT_AGENTS[0],
     orderRef: "CMD-2851",
     status: "answered",
     createdAt: "2025-05-10T09:00:00Z",
+    messages: [
+      {
+        id: "t1-m1",
+        at: "2025-05-10T09:00:00Z",
+        authorRole: "farmer",
+        authorName: "Mamadou Diallo",
+        text: "Le versement de ma dernière commande n'est toujours pas arrivé après 48h.",
+        internal: false,
+      },
+      {
+        id: "t1-m2",
+        at: "2025-05-10T14:00:00Z",
+        authorRole: "platform",
+        authorName: SUPPORT_AGENTS[0],
+        text: "Versement relancé auprès de Wave, régularisation prévue sous 24h.",
+        internal: false,
+      },
+    ],
   },
   {
     id: "t2",
@@ -37,9 +84,21 @@ const SEED: SupportTicket[] = [
     fromName: "Le Baobab",
     fromRole: "restaurant",
     category: "products",
+    priority: "medium",
+    assignee: null,
     orderRef: "CMD-3049",
     status: "open",
     createdAt: "2025-05-14T15:30:00Z",
+    messages: [
+      {
+        id: "t2-m1",
+        at: "2025-05-14T15:30:00Z",
+        authorRole: "restaurant",
+        authorName: "Le Baobab",
+        text: "Les tomates de la dernière livraison étaient abîmées à réception.",
+        internal: false,
+      },
+    ],
   },
 ];
 
@@ -96,6 +155,7 @@ export const supportTicketActions = {
     orderRef?: string;
   }) => {
     const id = `t_${Date.now()}`;
+    const createdAt = new Date().toISOString();
     const ticket: SupportTicket = {
       id,
       subject: input.subject,
@@ -103,9 +163,21 @@ export const supportTicketActions = {
       fromName: input.fromName,
       fromRole: input.fromRole,
       category: input.category,
+      priority: TICKET_CATEGORY_PRIORITY[input.category],
+      assignee: null,
       orderRef: input.orderRef,
       status: "open",
-      createdAt: new Date().toISOString(),
+      createdAt,
+      messages: [
+        {
+          id: `${id}-m1`,
+          at: createdAt,
+          authorRole: input.fromRole,
+          authorName: input.fromName,
+          text: input.message,
+          internal: false,
+        },
+      ],
     };
     ticketsStore.set((arr) => [ticket, ...arr]);
     return ticket;
@@ -113,12 +185,44 @@ export const supportTicketActions = {
   setStatus: (id: string, status: TicketStatus) => {
     ticketsStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, status } : t)));
   },
+  assign: (id: string, agent: string | null) => {
+    ticketsStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, assignee: agent } : t)));
+  },
+  addMessage: (id: string, authorName: string, text: string) => {
+    ticketsStore.set((arr) =>
+      arr.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status: t.status === "open" ? "answered" : t.status,
+              messages: [
+                ...t.messages,
+                {
+                  id: `${id}-m${t.messages.length + 1}`,
+                  at: new Date().toISOString(),
+                  authorRole: "platform",
+                  authorName,
+                  text,
+                  internal: false,
+                },
+              ],
+            }
+          : t,
+      ),
+    );
+  },
 };
 
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   open: "Ouvert",
   answered: "Répondu",
   closed: "Fermé",
+};
+
+export const TICKET_PRIORITY_LABEL: Record<TicketPriority, string> = {
+  low: "Basse",
+  medium: "Moyenne",
+  high: "Haute",
 };
 
 export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {
