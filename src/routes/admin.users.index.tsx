@@ -72,11 +72,14 @@ function AdminUsers() {
 
   const suspend = (u: (typeof users)[number], reason?: string) => {
     adminUserActions.setStatus(u.id, "suspended");
-    auditActions.log(
-      reason ? `Compte suspendu — motif : ${reason}` : "Compte suspendu",
-      u.name,
-      "critical",
-    );
+    auditActions.log({
+      action: "Compte suspendu",
+      target: u.name,
+      module: "security",
+      level: "critical",
+      reason,
+      changes: [{ field: "Statut du compte", before: u.status, after: "suspended" }],
+    });
     toast.success("Compte suspendu");
   };
 
@@ -218,7 +221,12 @@ function AdminUsers() {
                       <DropdownMenuItem
                         onClick={() => {
                           impersonationActions.start(u.id, u.name, u.role);
-                          auditActions.log("Impersonation démarrée", u.name, "critical");
+                          auditActions.log({
+                            action: "Impersonation démarrée",
+                            target: u.name,
+                            module: "security",
+                            level: "critical",
+                          });
                           toast.success(`Vous naviguez en tant que ${u.name}`);
                         }}
                       >
@@ -246,7 +254,14 @@ function AdminUsers() {
                         <DropdownMenuItem
                           onClick={() => {
                             adminUserActions.setStatus(u.id, "active");
-                            auditActions.log("Compte réactivé", u.name);
+                            auditActions.log({
+                              action: "Compte réactivé",
+                              target: u.name,
+                              module: "security",
+                              changes: [
+                                { field: "Statut du compte", before: u.status, after: "active" },
+                              ],
+                            });
                             toast.success("Compte activé");
                           }}
                         >

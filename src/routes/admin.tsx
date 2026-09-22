@@ -31,7 +31,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useAdminNotifications, useValidations } from "@/data/admin-store";
+import { useAdminNotifications, useAdminRoleForEmail, useValidations } from "@/data/admin-store";
 import { useAllDisputes } from "@/data/disputes";
 import { useConversations, useDriverConversations } from "@/data/store";
 import { useIncidents, useReturns } from "@/data/business";
@@ -46,6 +46,7 @@ export const Route = createFileRoute("/admin")({
 
 function AdminLayout() {
   const { user } = Route.useRouteContext();
+  const adminRole = useAdminRoleForEmail(user.email);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const validations = useValidations();
@@ -160,7 +161,7 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar">
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-sidebar print:hidden">
         <div className="p-5 space-y-3">
           <Logo />
           <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 px-2 py-0.5 text-[10px] font-semibold">
@@ -199,7 +200,7 @@ function AdminLayout() {
             <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
-              <div className="text-[11px] text-muted-foreground truncate">Super administrateur</div>
+              <div className="text-[11px] text-muted-foreground truncate">{adminRole}</div>
             </div>
             <LogoutButton />
           </div>
@@ -244,7 +245,7 @@ function AdminLayout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 glass-strong border-b border-border flex items-center gap-3 px-4 lg:px-6 h-14">
+        <header className="sticky top-0 z-30 glass-strong border-b border-border flex items-center gap-3 px-4 lg:px-6 h-14 print:hidden">
           <button
             className="lg:hidden p-2 rounded-lg hover:bg-accent"
             onClick={() => setOpen(true)}
@@ -283,11 +284,11 @@ function AdminLayout() {
             className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/40"
           />
         </header>
-        <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
+        <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8 print:p-0 print:overflow-visible">
           <Outlet />
         </main>
         <CommandPalette scope="admin" />
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16 print:hidden">
           {bottomNav.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (

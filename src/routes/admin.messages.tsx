@@ -302,11 +302,11 @@ function AdminMessages() {
     });
     if (active.kind === "farmer") conversationActions.linkTicket(active.id, ticket.id);
     else driverConversationActions.linkTicket(active.id, ticket.id);
-    auditActions.log(
-      `Ticket support créé depuis une conversation (${ticket.id.toUpperCase()})`,
-      activeCtx.restaurant?.name ?? active.counterpartName,
-      "info",
-    );
+    auditActions.log({
+      action: `Ticket support créé depuis une conversation (${ticket.id.toUpperCase()})`,
+      target: activeCtx.restaurant?.name ?? active.counterpartName,
+      module: "messages",
+    });
     toast.success(`Ticket ${ticket.id.toUpperCase()} créé`);
     setTicketOpen(false);
   };

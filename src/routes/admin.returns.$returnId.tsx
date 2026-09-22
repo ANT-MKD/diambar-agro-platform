@@ -123,7 +123,11 @@ function AdminReturnDetail() {
         pickupAddress.trim() ||
         `${restaurant?.name ?? r.restaurantName}, ${restaurant?.city ?? ""}`,
     });
-    auditActions.log(`Récupération programmée — ${driver.name}`, r.reference, "info");
+    auditActions.log({
+      action: `Récupération programmée — ${driver.name}`,
+      target: r.reference,
+      module: "returns",
+    });
     toast.success("Récupération programmée");
   };
 
@@ -133,7 +137,12 @@ function AdminReturnDetail() {
       return;
     }
     returnActions.adminMarkReceived(r.id, receivedCondition.trim());
-    auditActions.log("Produit réceptionné", r.reference, "info");
+    auditActions.log({
+      action: "Produit réceptionné",
+      target: r.reference,
+      module: "returns",
+      reason: receivedCondition.trim(),
+    });
     toast.success("Produit réceptionné");
   };
 
@@ -146,11 +155,12 @@ function AdminReturnDetail() {
       conform: inspectionConform === "yes",
       note: inspectionNote.trim(),
     });
-    auditActions.log(
-      inspectionConform === "yes" ? "Inspection : conforme" : "Inspection : non conforme",
-      r.reference,
-      "info",
-    );
+    auditActions.log({
+      action: inspectionConform === "yes" ? "Inspection : conforme" : "Inspection : non conforme",
+      target: r.reference,
+      module: "returns",
+      reason: inspectionNote.trim(),
+    });
     toast.success("Inspection enregistrée");
   };
 
@@ -166,11 +176,14 @@ function AdminReturnDetail() {
       amount,
       note: decisionNote.trim(),
     });
-    auditActions.log(
-      `Décision retour : ${RETURN_RESOLUTION_LABEL[decisionType]}`,
-      r.reference,
-      decisionType === "reject" ? "warning" : "info",
-    );
+    auditActions.log({
+      action: `Décision retour : ${RETURN_RESOLUTION_LABEL[decisionType]}`,
+      target: r.reference,
+      module: "returns",
+      level: decisionType === "reject" ? "attention" : "important",
+      reason: decisionNote.trim(),
+      changes: [{ field: "Prise en charge", before: "—", after: decisionBornBy }],
+    });
     toast.success("Décision enregistrée");
     setDecisionNote("");
   };
@@ -181,7 +194,13 @@ function AdminReturnDetail() {
       return;
     }
     returnActions.adminEscalateToDispute(r.id, escalateNote.trim());
-    auditActions.log("Retour escaladé en litige", r.reference, "warning");
+    auditActions.log({
+      action: "Retour escaladé en litige",
+      target: r.reference,
+      module: "returns",
+      level: "attention",
+      reason: escalateNote.trim(),
+    });
     toast.success("Retour escaladé en litige");
     setEscalateOpen(false);
     setEscalateNote("");
@@ -410,7 +429,11 @@ function AdminReturnDetail() {
                       variant="outline"
                       onClick={() => {
                         returnActions.adminMarkPickedUp(r.id);
-                        auditActions.log("Produit récupéré chez le client", r.reference, "info");
+                        auditActions.log({
+                          action: "Produit récupéré chez le client",
+                          target: r.reference,
+                          module: "returns",
+                        });
                       }}
                     >
                       Marquer récupéré
@@ -642,7 +665,11 @@ function AdminReturnDetail() {
               className="w-full"
               onClick={() => {
                 returnActions.adminClose(r.id);
-                auditActions.log("Dossier retour clôturé", r.reference, "info");
+                auditActions.log({
+                  action: "Dossier retour clôturé",
+                  target: r.reference,
+                  module: "returns",
+                });
                 toast.success("Dossier clôturé");
               }}
             >

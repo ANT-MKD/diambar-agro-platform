@@ -119,11 +119,18 @@ function AdminDeliveryDetail() {
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
     missionActions.reassign(mission.id, newDriverId);
-    auditActions.log(
-      `Course réaffectée de ${oldDriver?.name ?? "aucun livreur"} → ${newDriver?.name}`,
-      mission.reference,
-      "info",
-    );
+    auditActions.log({
+      action: "Course réaffectée",
+      target: mission.reference,
+      module: "deliveries",
+      changes: [
+        {
+          field: "Livreur",
+          before: oldDriver?.name ?? "Aucun livreur",
+          after: newDriver?.name ?? "",
+        },
+      ],
+    });
     toast.success(`${mission.reference} réaffectée à ${newDriver?.name}`);
     setReassignOpen(false);
     setNewDriverId("");
@@ -144,11 +151,12 @@ function AdminDeliveryDetail() {
       },
       "Admin Diambar",
     );
-    auditActions.log(
-      `Incident créé depuis la livraison (${item.reference})`,
-      mission.reference,
-      "warning",
-    );
+    auditActions.log({
+      action: `Incident créé depuis la livraison (${item.reference})`,
+      target: mission.reference,
+      module: "incidents",
+      level: "attention",
+    });
     toast.success(`${item.reference} créé`);
     setIncidentOpen(false);
     setIncidentDesc("");

@@ -227,22 +227,44 @@ function AdminFinance() {
 
   const completeFarmerWithdrawal = (id: string, reference: string) => {
     withdrawalActions.markCompleted(id);
-    auditActions.log("Versement agriculteur confirmé", reference, "info");
+    auditActions.log({
+      action: "Versement agriculteur confirmé",
+      target: reference,
+      module: "finance",
+      changes: [{ field: "Statut", before: "En cours", after: "Effectué" }],
+    });
     toast.success(`${reference} marqué comme effectué`);
   };
   const failFarmerWithdrawal = (id: string, reference: string) => {
     withdrawalActions.markFailed(id);
-    auditActions.log("Versement agriculteur en échec", reference, "warning");
+    auditActions.log({
+      action: "Versement agriculteur en échec",
+      target: reference,
+      module: "finance",
+      level: "important",
+      status: "failed",
+    });
     toast.error(`${reference} marqué en échec`);
   };
   const completeDriverWithdrawal = (id: string, label: string) => {
     driverWalletActions.completeWithdrawal(id);
-    auditActions.log("Versement livreur confirmé", label, "info");
+    auditActions.log({
+      action: "Versement livreur confirmé",
+      target: label,
+      module: "finance",
+      changes: [{ field: "Statut", before: "En attente", after: "Complété" }],
+    });
     toast.success(`${label} marqué comme effectué`);
   };
   const failDriverWithdrawal = (id: string, label: string) => {
     driverWalletActions.failWithdrawal(id);
-    auditActions.log("Versement livreur en échec", label, "warning");
+    auditActions.log({
+      action: "Versement livreur en échec",
+      target: label,
+      module: "finance",
+      level: "important",
+      status: "failed",
+    });
     toast.error(`${label} marqué en échec`);
   };
 

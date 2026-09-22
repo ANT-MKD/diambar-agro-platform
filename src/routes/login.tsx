@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2, type LucideIcon } from "lucide-react"
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { demoAccounts, type DemoAccount } from "@/data/demo-accounts";
+import { auditActions } from "@/data/admin-store";
 import { getCurrentUserFn, loginFn } from "@/lib/auth/functions";
 import { dashboardPathForRole } from "@/lib/auth/roles";
 
@@ -30,9 +31,24 @@ function LoginPage() {
     setLoading(true);
     try {
       const user = await loginFn({ data: { email, password } });
+      auditActions.log({
+        action: "Connexion réussie",
+        target: user.email,
+        module: "security",
+        level: "info",
+        actor: user.name,
+      });
       toast.success(`Bienvenue ${user.name}`);
       navigate({ to: dashboardPathForRole(user.role) });
     } catch {
+      auditActions.log({
+        action: "Connexion échouée",
+        target: email,
+        module: "security",
+        level: "attention",
+        status: "failed",
+        reason: "Email ou mot de passe incorrect",
+      });
       toast.error("Email ou mot de passe incorrect");
     } finally {
       setLoading(false);
@@ -44,9 +60,24 @@ function LoginPage() {
     setPassword(account.password);
     try {
       const user = await loginFn({ data: { email: account.email, password: account.password } });
+      auditActions.log({
+        action: "Connexion réussie",
+        target: user.email,
+        module: "security",
+        level: "info",
+        actor: user.name,
+      });
       toast.success(`Connecté en tant que ${user.name}`);
       navigate({ to: dashboardPathForRole(user.role) });
     } catch {
+      auditActions.log({
+        action: "Connexion échouée",
+        target: account.email,
+        module: "security",
+        level: "attention",
+        status: "failed",
+        reason: "Email ou mot de passe incorrect",
+      });
       toast.error("Connexion impossible");
     }
   };
@@ -121,14 +152,14 @@ function LoginPage() {
           <div className="grid grid-cols-2 gap-2">
             {demoAccounts.map((a) => (
               <button
-                key={a.role}
+                key={a.email}
                 type="button"
                 onClick={() => loginAs(a)}
                 className={`text-left rounded-xl border bg-gradient-to-br ${a.tone} p-3 hover:scale-[1.02] transition`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{a.emoji}</span>
-                  <span className="text-xs font-semibold capitalize">{a.role}</span>
+                  <span className="text-xs font-semibold capitalize">{a.label ?? a.role}</span>
                 </div>
                 <div className="mt-1 text-[10px] opacity-80 truncate">{a.email}</div>
               </button>

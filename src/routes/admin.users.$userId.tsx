@@ -30,6 +30,7 @@ import { impersonationActions } from "@/data/impersonation";
 import { useAllDisputes } from "@/data/disputes";
 import { useOrders, useMissions } from "@/data/store";
 import { products } from "@/data/mocks";
+import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { findFarmerRecord, findRestaurantRecord, findDriverRecord } from "@/lib/user-links";
 import { MISSION_BADGE } from "@/lib/driver-day";
 
@@ -111,7 +112,12 @@ function AdminUserDetail() {
               className="gap-2"
               onClick={() => {
                 impersonationActions.start(user.id, user.name, user.role);
-                auditActions.log("Impersonation démarrée", user.name, "critical");
+                auditActions.log({
+                  action: "Impersonation démarrée",
+                  target: user.name,
+                  module: "security",
+                  level: "critical",
+                });
                 toast.success(`Vous naviguez en tant que ${user.name}`);
               }}
             >
@@ -124,7 +130,12 @@ function AdminUserDetail() {
                 className="gap-2"
                 onClick={() => {
                   adminUserActions.setStatus(user.id, "active");
-                  auditActions.log("Compte réactivé", user.name);
+                  auditActions.log({
+                    action: "Compte réactivé",
+                    target: user.name,
+                    module: "security",
+                    changes: [{ field: "Statut du compte", before: user.status, after: "active" }],
+                  });
                   toast.success("Compte activé");
                 }}
               >
@@ -139,7 +150,15 @@ function AdminUserDetail() {
                 className="gap-2"
                 onClick={() => {
                   adminUserActions.setStatus(user.id, "suspended");
-                  auditActions.log("Compte suspendu", user.name, "critical");
+                  auditActions.log({
+                    action: "Compte suspendu",
+                    target: user.name,
+                    module: "security",
+                    level: "critical",
+                    changes: [
+                      { field: "Statut du compte", before: user.status, after: "suspended" },
+                    ],
+                  });
                   toast.success("Compte suspendu");
                 }}
               >
@@ -153,7 +172,13 @@ function AdminUserDetail() {
               className="gap-2 text-destructive"
               onClick={() => {
                 adminUserActions.setStatus(user.id, "rejected");
-                auditActions.log("Compte rejeté", user.name, "critical");
+                auditActions.log({
+                  action: "Compte rejeté",
+                  target: user.name,
+                  module: "security",
+                  level: "critical",
+                  changes: [{ field: "Statut du compte", before: user.status, after: "rejected" }],
+                });
                 toast.success("Compte rejeté");
               }}
             >
@@ -402,9 +427,7 @@ function AdminUserDetail() {
           <div className="glass rounded-2xl divide-y divide-border">
             {userLogs.map((l) => (
               <div key={l.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-                <span
-                  className={`h-2 w-2 rounded-full ${l.level === "critical" ? "bg-destructive" : l.level === "warning" ? "bg-amber-500" : "bg-emerald-500"}`}
-                />
+                <span className={`h-2 w-2 rounded-full ${AUDIT_LEVEL_DOT[l.level]}`} />
                 <span className="flex-1">
                   {l.action} — <span className="text-muted-foreground">{l.actor}</span>
                 </span>

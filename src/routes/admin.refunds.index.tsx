@@ -306,7 +306,11 @@ function RefundsPage() {
       method: form.method,
       reason: form.reason.trim(),
     });
-    auditActions.log("Geste commercial créé", form.requester.trim(), "info");
+    auditActions.log({
+      action: "Geste commercial créé",
+      target: form.requester.trim(),
+      module: "refunds",
+    });
     setForm({ orderRef: "", requester: "", amount: "", method: "Wave", reason: "" });
     setShowForm(false);
     toast.success("Geste commercial créé");
@@ -320,7 +324,13 @@ function RefundsPage() {
       return;
     }
     refundActions.approve(r.id, note || undefined);
-    auditActions.log("Remboursement approuvé", r.reference, "info");
+    auditActions.log({
+      action: "Remboursement approuvé",
+      target: r.reference,
+      module: "refunds",
+      reason: note || undefined,
+      changes: [{ field: "Statut", before: "pending", after: "approved" }],
+    });
     setNoteId(null);
     setNote("");
     toast.success("Remboursement approuvé");
@@ -332,7 +342,14 @@ function RefundsPage() {
       return;
     }
     refundActions.reject(r.id, note);
-    auditActions.log("Remboursement rejeté", r.reference, "warning");
+    auditActions.log({
+      action: "Remboursement rejeté",
+      target: r.reference,
+      module: "refunds",
+      level: "attention",
+      reason: note,
+      changes: [{ field: "Statut", before: "pending", after: "rejected" }],
+    });
     setNoteId(null);
     setNote("");
     toast.success("Remboursement rejeté");
@@ -355,14 +372,27 @@ function RefundsPage() {
           amount: r.amount,
           reason: `Remboursement ${r.reference}`,
         });
-        auditActions.log(
-          `Revenus producteur ajustés (-${formatFCFA(r.amount - commission)})`,
-          r.reference,
-          "info",
-        );
+        auditActions.log({
+          action: "Revenus producteur ajustés",
+          target: r.reference,
+          module: "finance",
+          changes: [
+            {
+              field: "Ajustement",
+              before: "0 FCFA",
+              after: `-${formatFCFA(r.amount - commission)}`,
+            },
+          ],
+        });
       }
     }
-    auditActions.log("Remboursement exécuté", r.reference, "info");
+    auditActions.log({
+      action: "Remboursement exécuté",
+      target: r.reference,
+      module: "refunds",
+      level: "important",
+      changes: [{ field: "Statut", before: "approved", after: "paid" }],
+    });
     toast.success("Remboursement exécuté", {
       description: `${formatFCFA(r.amount)} via ${r.method}`,
     });
@@ -738,7 +768,14 @@ function RefundsPage() {
                       const reason = window.prompt("Motif de l'échec ?");
                       if (!reason) return;
                       refundActions.markFailed(r.id, reason);
-                      auditActions.log("Remboursement en échec", r.reference, "warning");
+                      auditActions.log({
+                        action: "Remboursement en échec",
+                        target: r.reference,
+                        module: "refunds",
+                        level: "important",
+                        status: "failed",
+                        reason,
+                      });
                       toast.error("Remboursement marqué en échec");
                     }}
                   >
@@ -766,11 +803,11 @@ function RefundsPage() {
                       className="gap-2"
                       onClick={() => {
                         refundActions.retry(r.id, retryMethod);
-                        auditActions.log(
-                          "Nouvelle tentative de remboursement",
-                          r.reference,
-                          "info",
-                        );
+                        auditActions.log({
+                          action: "Nouvelle tentative de remboursement",
+                          target: r.reference,
+                          module: "refunds",
+                        });
                         toast.success("Dossier repassé en cours");
                         setRetryId(null);
                       }}

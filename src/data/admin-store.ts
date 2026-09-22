@@ -11,7 +11,12 @@ import {
   type PlatformUserStatus,
   type ValidationRequest,
   type AuditLog,
+  type AuditModule,
+  type AuditLevel,
+  type AuditStatus,
+  type AuditChange,
   type ModerationItem,
+  AUDIT_MODULE_LABEL,
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
 import { useIncidents, useReturns } from "./business";
@@ -107,14 +112,32 @@ export function useRefundSettings() {
 }
 
 export const auditActions = {
-  log: (
-    action: string,
-    target: string,
-    level: AuditLog["level"] = "info",
-    actor = "Admin Diambar",
-  ) => {
+  /** Journal append-only : c'est la seule action qui écrit dans logsStore —
+   * aucune action de modification/suppression n'existe, un événement une
+   * fois créé n'est plus jamais changé depuis l'interface. */
+  log: (input: {
+    action: string;
+    target: string;
+    module: AuditModule;
+    level?: AuditLevel;
+    actor?: string;
+    status?: AuditStatus;
+    reason?: string;
+    changes?: AuditChange[];
+  }) => {
     logsStore.set((arr) => [
-      { id: `al_${Date.now()}`, at: new Date().toISOString(), actor, action, target, level },
+      {
+        id: `al_${Date.now()}`,
+        at: new Date().toISOString(),
+        actor: input.actor ?? "Admin Diambar",
+        action: input.action,
+        target: input.target,
+        level: input.level ?? "info",
+        module: input.module,
+        status: input.status ?? "success",
+        reason: input.reason,
+        changes: input.changes,
+      },
       ...arr,
     ]);
   },
@@ -186,7 +209,7 @@ export const ADMIN_ROLE_PERMISSIONS: Record<
 };
 
 const adminRolesStore = createStore<Record<string, AdminRoleName>>(
-  { u13: "Super Administrateur" },
+  { u13: "Super Administrateur", u14: "Finance", u15: "Opérations" },
   "diambar:admin-roles",
 );
 
@@ -200,10 +223,54 @@ export function useAdminRole(userId: string): AdminRoleName {
 
 export const adminRoleActions = {
   setRole: (userId: string, role: AdminRoleName, actor: string) => {
+    const before = adminRolesStore.get()[userId] ?? "Support";
     adminRolesStore.set((r) => ({ ...r, [userId]: role }));
-    auditActions.log(`Rôle admin changé pour "${role}"`, actor, "critical");
+    auditActions.log({
+      action: "Rôle admin modifié",
+      target: actor,
+      module: "security",
+      level: "critical",
+      changes: [{ field: "Rôle admin", before, after: role }],
+    });
   },
 };
+
+// Rôles admin donnant accès réel (pas cosmétique) à un périmètre du journal
+// d'audit — "all" pour le super administrateur, sinon la liste exacte des
+// modules que ce rôle peut consulter. Un module absent de la liste
+// n'apparaît ni dans les filtres ni dans les résultats pour ce rôle.
+export const AUDIT_MODULE_ACCESS: Record<AdminRoleName, AuditModule[] | "all"> = {
+  "Super Administrateur": "all",
+  Finance: ["finance", "refunds", "orders"],
+  Opérations: [
+    "users",
+    "validations",
+    "orders",
+    "deliveries",
+    "incidents",
+    "disputes",
+    "support",
+    "returns",
+  ],
+  Support: ["support", "disputes", "returns", "users", "messages"],
+  Modération: ["moderation", "users"],
+};
+
+export function auditModulesFor(role: AdminRoleName): AuditModule[] {
+  const access = AUDIT_MODULE_ACCESS[role];
+  return access === "all" ? (Object.keys(AUDIT_MODULE_LABEL) as AuditModule[]) : access;
+}
+
+/** Résout le rôle admin réel de l'utilisateur connecté, à partir de son
+ * email (le seul identifiant stable renvoyé par la session) — pas du nom,
+ * qui peut se recouper entre comptes de démo. */
+export function useAdminRoleForEmail(email: string): AdminRoleName {
+  const users = usePlatformUsers();
+  const roles = useAdminRoles();
+  const match = users.find((u) => u.email === email);
+  if (!match) return "Support";
+  return roles[match.id] ?? "Support";
+}
 
 function notifyApplicant(type: ValidationRequest["type"], title: string, body: string) {
   const actions =
@@ -226,7 +293,12 @@ export const validationActions = {
     if (req) {
       adminUserActions.setStatus(req.userId, "active");
       adminUserActions.setVerified(req.userId, true);
-      auditActions.log("Validation de compte approuvée", nameFor(req.userId), "info");
+      auditActions.log({
+        action: "Validation de compte approuvée",
+        target: nameFor(req.userId),
+        module: "validations",
+        level: "info",
+      });
       notifyApplicant(
         req.type,
         "Compte activé",
@@ -241,7 +313,13 @@ export const validationActions = {
     );
     if (req) {
       adminUserActions.setStatus(req.userId, "rejected");
-      auditActions.log("Validation de compte rejetée", nameFor(req.userId), "warning");
+      auditActions.log({
+        action: "Validation de compte rejetée",
+        target: nameFor(req.userId),
+        module: "validations",
+        level: "attention",
+        reason: note,
+      });
       notifyApplicant(
         req.type,
         "Dossier refusé",
@@ -266,11 +344,14 @@ export const validationActions = {
       ),
     );
     if (req) {
-      auditActions.log(
-        ok ? `Document conforme : ${docLabel}` : `Document marqué non conforme : ${docLabel}`,
-        nameFor(req.userId),
-        ok ? "info" : "warning",
-      );
+      auditActions.log({
+        action: ok
+          ? `Document conforme : ${docLabel}`
+          : `Document marqué non conforme : ${docLabel}`,
+        target: nameFor(req.userId),
+        module: "validations",
+        level: ok ? "info" : "attention",
+      });
     }
   },
   requestCorrection: (id: string, docLabel: string, reasons: string[], comment: string) => {
@@ -291,11 +372,13 @@ export const validationActions = {
           : v,
       ),
     );
-    auditActions.log(
-      `Correction demandée : ${docLabel} (${reasonText})`,
-      nameFor(req.userId),
-      "warning",
-    );
+    auditActions.log({
+      action: `Correction demandée : ${docLabel}`,
+      target: nameFor(req.userId),
+      module: "validations",
+      level: "attention",
+      reason: `${reasonText}${comment.trim() ? ` — ${comment.trim()}` : ""}`,
+    });
     notifyApplicant(
       req.type,
       "Document à corriger",
@@ -321,7 +404,7 @@ export const moderationActions = {
   approve: (id: string) => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
     addModerationEvent(id, "Admin Diambar", "Produit conservé");
-    auditActions.log("Produit conservé (modération)", id, "info");
+    auditActions.log({ action: "Produit conservé (modération)", target: id, module: "moderation" });
   },
   // Dépublier retire réellement le produit du catalogue (comme un producteur
   // qui le passerait en brouillon), pas seulement l'entrée de la file de
@@ -332,13 +415,24 @@ export const moderationActions = {
     moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
     productActions.update(m.productId, { status: "draft" });
     addModerationEvent(id, "Admin Diambar", "Produit dépublié");
-    auditActions.log("Produit dépublié (modération)", id, "warning");
+    auditActions.log({
+      action: "Produit dépublié (modération)",
+      target: id,
+      module: "moderation",
+      level: "attention",
+      changes: [{ field: "Statut produit", before: "Publié", after: "Brouillon" }],
+    });
   },
   requestChange: (id: string, note: string) => {
     const m = moderationItem(id);
     if (!m) return;
     addModerationEvent(id, "Admin Diambar", `Modification demandée : ${note}`);
-    auditActions.log(`Modification demandée (modération) : ${note}`, id, "info");
+    auditActions.log({
+      action: "Modification demandée (modération)",
+      target: id,
+      module: "moderation",
+      reason: note,
+    });
     farmerNotifActions.add({
       type: "system",
       title: "Modification demandée",
@@ -357,25 +451,75 @@ export const moderationActions = {
       : usersStore.get().find((u) => u.name === m.farmer);
     if (account) adminUserActions.setStatus(account.id, "suspended");
     addModerationEvent(id, "Admin Diambar", `Producteur suspendu (${m.farmer})`);
-    auditActions.log("Producteur suspendu (modération)", account?.id ?? m.farmer, "critical");
+    auditActions.log({
+      action: "Producteur suspendu (modération)",
+      target: account?.id ?? m.farmer,
+      module: "security",
+      level: "critical",
+      changes: [{ field: "Statut du compte", before: "Actif", after: "Suspendu" }],
+    });
   },
 };
 
 export const platformSettingsActions = {
   setTierRate: (id: string, rate: number) => {
+    const before = tiersStore.get().find((t) => t.id === id)?.rate;
     tiersStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, rate } : t)));
-    auditActions.log("Commission modifiée", id, "info");
+    auditActions.log({
+      action: "Commission modifiée",
+      target: id,
+      module: "finance",
+      level: "important",
+      changes:
+        before !== undefined
+          ? [{ field: "Taux commission", before: `${before} %`, after: `${rate} %` }]
+          : undefined,
+    });
   },
   toggleZone: (id: string) => {
+    const before = zonesStore.get().find((z) => z.id === id)?.active;
     zonesStore.set((arr) => arr.map((z) => (z.id === id ? { ...z, active: !z.active } : z)));
-    auditActions.log("Zone de livraison modifiée", id, "info");
+    auditActions.log({
+      action: "Zone de livraison modifiée",
+      target: id,
+      module: "finance",
+      changes:
+        before !== undefined
+          ? [
+              {
+                field: "Zone active",
+                before: before ? "Active" : "Inactive",
+                after: before ? "Inactive" : "Active",
+              },
+            ]
+          : undefined,
+    });
   },
   setZoneFee: (id: string, baseFee: number) => {
+    const before = zonesStore.get().find((z) => z.id === id)?.baseFee;
     zonesStore.set((arr) => arr.map((z) => (z.id === id ? { ...z, baseFee } : z)));
+    auditActions.log({
+      action: "Frais de livraison modifiés",
+      target: id,
+      module: "finance",
+      changes:
+        before !== undefined
+          ? [{ field: "Frais de base", before: `${before} FCFA`, after: `${baseFee} FCFA` }]
+          : undefined,
+    });
   },
   setRefundJustificationThreshold: (amount: number) => {
+    const before = refundSettingsStore.get().justificationThreshold;
     refundSettingsStore.set((s) => ({ ...s, justificationThreshold: amount }));
-    auditActions.log("Seuil de justification des remboursements modifié", String(amount), "info");
+    auditActions.log({
+      action: "Seuil de justification des remboursements modifié",
+      target: "Remboursements",
+      module: "finance",
+      level: "important",
+      changes: [
+        { field: "Seuil de justification", before: `${before} FCFA`, after: `${amount} FCFA` },
+      ],
+    });
   },
 };
 

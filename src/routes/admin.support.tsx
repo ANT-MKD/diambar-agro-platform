@@ -101,17 +101,33 @@ function AdminSupportPage() {
 
   const respond = (t: SupportTicket) => {
     supportTicketActions.setStatus(t.id, "answered");
-    auditActions.log("Ticket support marqué répondu", t.id.toUpperCase(), "info");
+    auditActions.log({
+      action: "Ticket support marqué répondu",
+      target: t.id.toUpperCase(),
+      module: "support",
+      changes: [{ field: "Statut", before: t.status, after: "answered" }],
+    });
     toast.success(`${t.id.toUpperCase()} marqué comme répondu`);
   };
   const close = (t: SupportTicket) => {
     supportTicketActions.setStatus(t.id, "closed");
-    auditActions.log("Ticket support fermé", t.id.toUpperCase(), "info");
+    auditActions.log({
+      action: "Ticket support fermé",
+      target: t.id.toUpperCase(),
+      module: "support",
+      changes: [{ field: "Statut", before: t.status, after: "closed" }],
+    });
     toast.success(`${t.id.toUpperCase()} fermé`);
   };
   const reopen = (t: SupportTicket) => {
     supportTicketActions.setStatus(t.id, "open");
-    auditActions.log("Ticket support rouvert", t.id.toUpperCase(), "warning");
+    auditActions.log({
+      action: "Ticket support rouvert",
+      target: t.id.toUpperCase(),
+      module: "support",
+      level: "attention",
+      changes: [{ field: "Statut", before: t.status, after: "open" }],
+    });
     toast.success(`${t.id.toUpperCase()} rouvert`);
   };
 
@@ -119,11 +135,19 @@ function AdminSupportPage() {
     if (!selected || !reply.trim()) return;
     if (internalDraft) {
       supportTicketActions.addInternalNote(selected.id, "Admin Diambar", reply.trim());
-      auditActions.log("Note interne ajoutée", selected.id.toUpperCase(), "info");
+      auditActions.log({
+        action: "Note interne ajoutée",
+        target: selected.id.toUpperCase(),
+        module: "support",
+      });
       toast.success("Note interne ajoutée");
     } else {
       supportTicketActions.addMessage(selected.id, "Admin Diambar", reply.trim());
-      auditActions.log("Réponse envoyée au ticket", selected.id.toUpperCase(), "info");
+      auditActions.log({
+        action: "Réponse envoyée au ticket",
+        target: selected.id.toUpperCase(),
+        module: "support",
+      });
       toast.success("Réponse envoyée");
     }
     setReply("");
@@ -131,11 +155,14 @@ function AdminSupportPage() {
 
   const assign = (t: SupportTicket, agent: string | null) => {
     supportTicketActions.assign(t.id, agent);
-    auditActions.log(
-      agent ? `Ticket assigné à ${agent}` : "Ticket désassigné",
-      t.id.toUpperCase(),
-      "info",
-    );
+    auditActions.log({
+      action: agent ? "Ticket assigné" : "Ticket désassigné",
+      target: t.id.toUpperCase(),
+      module: "support",
+      changes: [
+        { field: "Assigné à", before: t.assignee ?? "Non assigné", after: agent ?? "Non assigné" },
+      ],
+    });
     toast.success(agent ? `Assigné à ${agent}` : "Ticket désassigné");
   };
 
