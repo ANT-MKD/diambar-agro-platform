@@ -24,6 +24,8 @@ import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { useFarmerNotifications, useOrders, useConversations } from "@/data/store";
+import { useMaintenanceMode } from "@/data/admin-store";
+import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/farmer")({
@@ -43,6 +45,7 @@ const bottomNav = [
 
 function FarmerLayout() {
   const { user } = Route.useRouteContext();
+  const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const notifs = useFarmerNotifications();
@@ -78,6 +81,10 @@ function FarmerLayout() {
       ],
     },
   ];
+
+  if (maintenance.active) {
+    return <MaintenanceScreen message={maintenance.message} />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex">

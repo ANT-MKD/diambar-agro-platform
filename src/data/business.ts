@@ -567,7 +567,7 @@ export const returnActions = {
         existingRefund &&
         (existingRefund.status === "pending" || existingRefund.status === "approved")
       ) {
-        refundActions.reject(existingRefund.id, "Converti en échange produit");
+        refundActions.reject(existingRefund.id, decidedBy, "Converti en échange produit");
       }
     } else if (existingRefund) {
       refundActions.setBornBy(existingRefund.id, input.bornBy, input.note);

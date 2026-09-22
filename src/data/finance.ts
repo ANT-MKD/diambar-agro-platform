@@ -65,6 +65,13 @@ export type Refund = {
   attemptCount: number;
   failureReason?: string;
   history: RefundEvent[];
+  // Identité réelle de l'admin à chaque étape sensible — absent quand
+  // l'étape n'a pas été faite par un admin identifié (ex. dossier créé
+  // automatiquement depuis un litige/retour/incident : createdBy reste
+  // vide, ce n'est pas un geste commercial saisi à la main). Sert à
+  // empêcher qu'un même admin crée, approuve ET exécute le même dossier.
+  createdBy?: string;
+  approvedBy?: string;
 };
 
 const seedRefunds: Refund[] = [
@@ -244,8 +251,12 @@ export function refundedTotalForOrder(refunds: Refund[], orderRef: string, exclu
 
 export const refundActions = {
   create: (
-    input: Omit<Refund, "id" | "reference" | "status" | "createdAt" | "attemptCount" | "history">,
+    input: Omit<
+      Refund,
+      "id" | "reference" | "status" | "createdAt" | "attemptCount" | "history" | "createdBy"
+    >,
     initialStatus: RefundStatus = "pending",
+    actor?: string,
   ) => {
     const createdAt = new Date().toISOString();
     const item: Refund = {
@@ -255,17 +266,21 @@ export const refundActions = {
       status: initialStatus,
       createdAt,
       attemptCount: 0,
+      // Un geste commercial saisi à la main par un admin a un créateur
+      // identifié ; un dossier ouvert automatiquement depuis un
+      // litige/retour/incident n'en a pas (personne à exclure ensuite).
+      createdBy: actor,
       history: [
-        { at: createdAt, actor: input.requester, text: "Dossier créé" },
+        { at: createdAt, actor: actor ?? input.requester, text: "Dossier créé" },
         ...(initialStatus === "approved"
-          ? [{ at: createdAt, actor: "Admin Diambar", text: "Remboursement approuvé" }]
+          ? [{ at: createdAt, actor: actor ?? "Admin Diambar", text: "Remboursement approuvé" }]
           : []),
       ],
     };
     refundsStore.set((arr) => [item, ...arr]);
     return item;
   },
-  approve: (id: string, note?: string) => {
+  approve: (id: string, actor: string, note?: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -275,11 +290,12 @@ export const refundActions = {
               status: "approved",
               decidedAt: at,
               note,
+              approvedBy: actor,
               history: [
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: `Remboursement approuvé${note ? ` — ${note}` : ""}`,
                 },
               ],
@@ -288,7 +304,7 @@ export const refundActions = {
       ),
     );
   },
-  reject: (id: string, note: string) => {
+  reject: (id: string, actor: string, note: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -298,13 +314,13 @@ export const refundActions = {
               status: "rejected",
               decidedAt: at,
               note,
-              history: [...r.history, { at, actor: "Admin Diambar", text: `Rejeté — ${note}` }],
+              history: [...r.history, { at, actor, text: `Rejeté — ${note}` }],
             }
           : r,
       ),
     );
   },
-  markPaid: (id: string) => {
+  markPaid: (id: string, actor: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -313,7 +329,7 @@ export const refundActions = {
               ...r,
               status: "paid",
               decidedAt: at,
-              history: [...r.history, { at, actor: "Admin Diambar", text: "Paiement confirmé" }],
+              history: [...r.history, { at, actor, text: "Paiement confirmé" }],
             }
           : r,
       ),

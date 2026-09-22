@@ -84,6 +84,7 @@ import { Route as AdminUsersAdminsRouteImport } from './routes/admin.users.admin
 import { Route as AdminUsersDriversRouteImport } from './routes/admin.users.drivers'
 import { Route as AdminUsersFarmersRouteImport } from './routes/admin.users.farmers'
 import { Route as AdminUsersRestaurantsRouteImport } from './routes/admin.users.restaurants'
+import { Route as AdminUsersRolesRouteImport } from './routes/admin.users.roles'
 import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
@@ -552,6 +553,11 @@ const AdminUsersFarmersRoute = AdminUsersFarmersRouteImport.update({
 const AdminUsersRestaurantsRoute = AdminUsersRestaurantsRouteImport.update({
   id: '/users/restaurants',
   path: '/users/restaurants',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRolesRoute = AdminUsersRolesRouteImport.update({
+  id: '/users/roles',
+  path: '/users/roles',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
@@ -1120,6 +1126,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1279,6 +1286,7 @@ export interface FileRoutesByTo {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1449,6 +1457,7 @@ export interface FileRoutesById {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1620,6 +1629,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1779,6 +1789,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1948,6 +1959,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -2601,6 +2613,13 @@ declare module '@tanstack/react-router' {
       path: '/users/restaurants'
       fullPath: '/admin/users/restaurants'
       preLoaderRoute: typeof AdminUsersRestaurantsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/roles': {
+      id: '/admin/users/roles'
+      path: '/users/roles'
+      fullPath: '/admin/users/roles'
+      preLoaderRoute: typeof AdminUsersRolesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/validations/': {
@@ -3271,6 +3290,7 @@ interface AdminRouteChildren {
   AdminUsersDriversRoute: typeof AdminUsersDriversRoute
   AdminUsersFarmersRoute: typeof AdminUsersFarmersRoute
   AdminUsersRestaurantsRoute: typeof AdminUsersRestaurantsRoute
+  AdminUsersRolesRoute: typeof AdminUsersRolesRoute
   AdminValidationsValidationIdRoute: typeof AdminValidationsValidationIdRoute
   AdminDeliveriesIndexRoute: typeof AdminDeliveriesIndexRoute
   AdminDisputesIndexRoute: typeof AdminDisputesIndexRoute
@@ -3304,6 +3324,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminUsersDriversRoute: AdminUsersDriversRoute,
   AdminUsersFarmersRoute: AdminUsersFarmersRoute,
   AdminUsersRestaurantsRoute: AdminUsersRestaurantsRoute,
+  AdminUsersRolesRoute: AdminUsersRolesRoute,
   AdminValidationsValidationIdRoute: AdminValidationsValidationIdRoute,
   AdminDeliveriesIndexRoute: AdminDeliveriesIndexRoute,
   AdminDisputesIndexRoute: AdminDisputesIndexRoute,

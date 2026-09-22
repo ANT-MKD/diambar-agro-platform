@@ -4,7 +4,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2, type LucideIcon } from "lucide-react"
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { demoAccounts, type DemoAccount } from "@/data/demo-accounts";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAuditLogs, useLoginSecurity } from "@/data/admin-store";
 import { getCurrentUserFn, loginFn } from "@/lib/auth/functions";
 import { dashboardPathForRole } from "@/lib/auth/roles";
 
@@ -21,16 +21,52 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const logs = useAuditLogs();
+  const { maxAttempts, lockoutMinutes } = useLoginSecurity();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  /** Vrai blocage, dérivé des événements "Connexion échouée" déjà réels du
+   * journal d'audit — aucune IP capturée, donc le blocage est par email
+   * tenté, pas par appareil. Retourne le nombre de minutes restantes, ou 0
+   * si aucun blocage actif. */
+  const lockoutMinutesLeft = (targetEmail: string): number => {
+    const cutoff = Date.now() - lockoutMinutes * 60_000;
+    const recentFails = logs
+      .filter(
+        (l) =>
+          l.action === "Connexion échouée" &&
+          l.target === targetEmail &&
+          new Date(l.at).getTime() >= cutoff,
+      )
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    if (recentFails.length < maxAttempts) return 0;
+    const oldestCounted = recentFails[maxAttempts - 1];
+    const remainingMs =
+      lockoutMinutes * 60_000 - (Date.now() - new Date(oldestCounted.at).getTime());
+    return Math.max(1, Math.ceil(remainingMs / 60_000));
+  };
+
+  const attemptLogin = async (targetEmail: string, targetPassword: string) => {
+    const blockedMinutes = lockoutMinutesLeft(targetEmail);
+    if (blockedMinutes > 0) {
+      auditActions.log({
+        action: "Connexion bloquée",
+        target: targetEmail,
+        module: "security",
+        level: "critical",
+        status: "blocked",
+        reason: `${maxAttempts} échecs ou plus dans les ${lockoutMinutes} dernières minutes`,
+      });
+      toast.error(
+        `Trop de tentatives échouées. Réessayez dans ${blockedMinutes} min${blockedMinutes > 1 ? "es" : ""}.`,
+      );
+      return null;
+    }
     try {
-      const user = await loginFn({ data: { email, password } });
+      const user = await loginFn({ data: { email: targetEmail, password: targetPassword } });
       auditActions.log({
         action: "Connexion réussie",
         target: user.email,
@@ -38,18 +74,31 @@ function LoginPage() {
         level: "info",
         actor: user.name,
       });
-      toast.success(`Bienvenue ${user.name}`);
-      navigate({ to: dashboardPathForRole(user.role) });
+      return user;
     } catch {
       auditActions.log({
         action: "Connexion échouée",
-        target: email,
+        target: targetEmail,
         module: "security",
         level: "attention",
         status: "failed",
         reason: "Email ou mot de passe incorrect",
       });
-      toast.error("Email ou mot de passe incorrect");
+      return null;
+    }
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const user = await attemptLogin(email, password);
+      if (user) {
+        toast.success(`Bienvenue ${user.name}`);
+        navigate({ to: dashboardPathForRole(user.role) });
+      } else if (lockoutMinutesLeft(email) === 0) {
+        toast.error("Email ou mot de passe incorrect");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,26 +107,11 @@ function LoginPage() {
   const loginAs = async (account: DemoAccount) => {
     setEmail(account.email);
     setPassword(account.password);
-    try {
-      const user = await loginFn({ data: { email: account.email, password: account.password } });
-      auditActions.log({
-        action: "Connexion réussie",
-        target: user.email,
-        module: "security",
-        level: "info",
-        actor: user.name,
-      });
+    const user = await attemptLogin(account.email, account.password);
+    if (user) {
       toast.success(`Connecté en tant que ${user.name}`);
       navigate({ to: dashboardPathForRole(user.role) });
-    } catch {
-      auditActions.log({
-        action: "Connexion échouée",
-        target: account.email,
-        module: "security",
-        level: "attention",
-        status: "failed",
-        reason: "Email ou mot de passe incorrect",
-      });
+    } else if (lockoutMinutesLeft(account.email) === 0) {
       toast.error("Connexion impossible");
     }
   };

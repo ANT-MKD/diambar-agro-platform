@@ -519,12 +519,58 @@ export const commissionTiers = [
 ];
 
 // Seuil au-delà duquel une justification écrite est obligatoire pour
-// approuver un remboursement — remplace la chaîne d'approbateurs fictive
-// (support/responsable/administrateur) qui supposerait plusieurs comptes
-// admin alors que la démo n'en modélise qu'un seul.
+// approuver un remboursement ou un geste commercial.
 export const refundSettings = {
   justificationThreshold: 50_000,
 };
+
+// Rôle admin — défini ici (couche données) plutôt que dans admin-store.ts
+// pour que les deux fichiers puissent le référencer sans cycle d'import.
+export type AdminRoleName =
+  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
+
+export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
+  "Super Administrateur",
+  "Finance",
+  "Opérations",
+  "Support",
+  "Modération",
+];
+
+// Paliers par montant → rôle minimum requis pour approuver. Volontairement
+// limité à Finance/Super Administrateur : ce sont les deux seuls rôles avec
+// finance.refunds.approve, et ce sont aussi les deux seuls rôles réellement
+// incarnés par un compte de démo — un palier "Support" serait un rôle que
+// personne ne peut démontrer aujourd'hui.
+export type RefundApprovalTier = {
+  id: string;
+  label: string;
+  maxAmount: number | null;
+  requiredRole: AdminRoleName;
+};
+
+export const refundApprovalTiers: RefundApprovalTier[] = [
+  { id: "tier1", label: "Jusqu'à 100 000 FCFA", maxAmount: 100_000, requiredRole: "Finance" },
+  {
+    id: "tier2",
+    label: "Au-delà de 100 000 FCFA",
+    maxAmount: null,
+    requiredRole: "Super Administrateur",
+  },
+];
+
+// Équipes : simple regroupement plat (pas de hiérarchie), distinct du rôle —
+// un utilisateur appartient à une équipe ET a un rôle. Peuplées uniquement
+// avec les comptes admin réels qui existent (u13/u14/u15) ; Support et
+// Modération n'ont pas encore de compte de démo, donc pas d'équipe fictive
+// pour eux.
+export type Team = { id: string; name: string; memberIds: string[] };
+
+export const teams: Team[] = [
+  { id: "team1", name: "Direction", memberIds: ["u13"] },
+  { id: "team2", name: "Finance", memberIds: ["u14"] },
+  { id: "team3", name: "Opérations", memberIds: ["u15"] },
+];
 
 export const deliveryZones = [
   { id: "dz1", name: "Dakar intra-muros", baseFee: 1000, perKm: 120, active: true },

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -23,7 +23,14 @@ import {
 } from "@/components/ui/select";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { commissionForAmount, deliveredVolumeByFarmer } from "@/lib/commission";
-import { auditActions, useCommissionTiers } from "@/data/admin-store";
+import {
+  auditActions,
+  useCommissionTiers,
+  useAdminRoleForEmail,
+  useRefundApprovalTiers,
+  canApproveRefundAmount,
+  refundTierFor,
+} from "@/data/admin-store";
 import {
   useRefund,
   refundActions,
@@ -62,6 +69,9 @@ const METHODS: RefundMethod[] = ["Wave", "Orange Money", "Free Money", "Virement
 
 function AdminRefundDetail() {
   const { refundId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const approvalTiers = useRefundApprovalTiers();
   const refund = useRefund(refundId);
   const allRefunds = useRefunds();
   const orders = useOrders();
@@ -126,11 +136,24 @@ function AdminRefundDetail() {
       );
       return;
     }
-    refundActions.approve(refund.id, note || undefined);
+    if (!canApproveRefundAmount(role, refund.amount, approvalTiers)) {
+      toast.error(
+        `Ce montant nécessite le rôle ${refundTierFor(refund.amount, approvalTiers).requiredRole} pour être approuvé.`,
+      );
+      return;
+    }
+    if (refund.createdBy && refund.createdBy === user.name) {
+      toast.error(
+        "Séparation des responsabilités : vous ne pouvez pas approuver un dossier que vous avez créé vous-même.",
+      );
+      return;
+    }
+    refundActions.approve(refund.id, user.name, note || undefined);
     auditActions.log({
       action: "Remboursement approuvé",
       target: refund.reference,
       module: "refunds",
+      actor: user.name,
       reason: note || undefined,
       changes: [{ field: "Statut", before: "pending", after: "approved" }],
     });
@@ -144,12 +167,13 @@ function AdminRefundDetail() {
       toast.error("Indiquez un motif de rejet");
       return;
     }
-    refundActions.reject(refund.id, note);
+    refundActions.reject(refund.id, user.name, note);
     auditActions.log({
       action: "Remboursement rejeté",
       target: refund.reference,
       module: "refunds",
       level: "attention",
+      actor: user.name,
       reason: note,
       changes: [{ field: "Statut", before: "pending", after: "rejected" }],
     });
@@ -159,7 +183,13 @@ function AdminRefundDetail() {
   };
 
   const markPaid = () => {
-    refundActions.markPaid(refund.id);
+    if (refund.approvedBy && refund.approvedBy === user.name) {
+      toast.error(
+        "Séparation des responsabilités : un autre administrateur doit exécuter ce remboursement.",
+      );
+      return;
+    }
+    refundActions.markPaid(refund.id, user.name);
     // Le producteur ne paie que quand l'argent part réellement, pas dès la
     // décision — tant que ce n'est pas "payé", rien n'a encore vraiment
     // quitté la plateforme.
@@ -190,6 +220,7 @@ function AdminRefundDetail() {
       target: refund.reference,
       module: "refunds",
       level: "important",
+      actor: user.name,
       changes: [{ field: "Statut", before: "approved", after: "paid" }],
     });
     toast.success("Remboursement exécuté", {
@@ -250,7 +281,17 @@ function AdminRefundDetail() {
             )}
             {refund.status === "approved" && (
               <>
-                <Button size="sm" className="gap-2" onClick={markPaid}>
+                {refund.approvedBy === user.name && (
+                  <span className="text-xs text-muted-foreground">
+                    Un autre administrateur doit exécuter
+                  </span>
+                )}
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={markPaid}
+                  disabled={refund.approvedBy === user.name}
+                >
                   <Banknote className="h-4 w-4" />
                   Marquer comme remboursé
                 </Button>
@@ -291,6 +332,18 @@ function AdminRefundDetail() {
           {refund.amount > settings.justificationThreshold && (
             <p className="text-xs text-destructive">
               Justification obligatoire au-delà de {formatFCFA(settings.justificationThreshold)}.
+            </p>
+          )}
+          {!canApproveRefundAmount(role, refund.amount, approvalTiers) && (
+            <p className="text-xs text-destructive">
+              Ce montant nécessite le rôle{" "}
+              {refundTierFor(refund.amount, approvalTiers).requiredRole} pour être approuvé — votre
+              rôle actuel est {role}.
+            </p>
+          )}
+          {refund.createdBy && refund.createdBy === user.name && (
+            <p className="text-xs text-destructive">
+              Vous avez créé ce dossier : un autre administrateur doit l'approuver.
             </p>
           )}
           <Textarea

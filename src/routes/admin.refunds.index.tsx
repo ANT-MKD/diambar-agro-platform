@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Banknote,
@@ -50,8 +50,15 @@ import {
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { cn } from "@/lib/utils";
-import { auditActions, useCommissionTiers } from "@/data/admin-store";
-import { useRefundSettings } from "@/data/admin-store";
+import {
+  auditActions,
+  useCommissionTiers,
+  useRefundSettings,
+  useAdminRoleForEmail,
+  useRefundApprovalTiers,
+  canApproveRefundAmount,
+  refundTierFor,
+} from "@/data/admin-store";
 import { useOrders, transactionActions } from "@/data/store";
 import { commissionForAmount, deliveredVolumeByFarmer } from "@/lib/commission";
 import {
@@ -191,6 +198,9 @@ function AmountForm({
 }
 
 function RefundsPage() {
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const approvalTiers = useRefundApprovalTiers();
   const refunds = useRefunds();
   const settings = useRefundSettings();
   const orders = useOrders();
@@ -297,19 +307,24 @@ function RefundsPage() {
       toast.error("Bénéficiaire, montant et motif sont obligatoires");
       return;
     }
-    refundActions.create({
-      source: "manual",
-      orderRef: form.orderRef.trim() || "—",
-      bornBy: "platform",
-      requester: form.requester.trim(),
-      amount: Number(form.amount),
-      method: form.method,
-      reason: form.reason.trim(),
-    });
+    refundActions.create(
+      {
+        source: "manual",
+        orderRef: form.orderRef.trim() || "—",
+        bornBy: "platform",
+        requester: form.requester.trim(),
+        amount: Number(form.amount),
+        method: form.method,
+        reason: form.reason.trim(),
+      },
+      "pending",
+      user.name,
+    );
     auditActions.log({
       action: "Geste commercial créé",
       target: form.requester.trim(),
       module: "refunds",
+      actor: user.name,
     });
     setForm({ orderRef: "", requester: "", amount: "", method: "Wave", reason: "" });
     setShowForm(false);
@@ -323,11 +338,24 @@ function RefundsPage() {
       );
       return;
     }
-    refundActions.approve(r.id, note || undefined);
+    if (!canApproveRefundAmount(role, r.amount, approvalTiers)) {
+      toast.error(
+        `Ce montant nécessite le rôle ${refundTierFor(r.amount, approvalTiers).requiredRole} pour être approuvé.`,
+      );
+      return;
+    }
+    if (r.createdBy && r.createdBy === user.name) {
+      toast.error(
+        "Séparation des responsabilités : vous ne pouvez pas approuver un dossier que vous avez créé vous-même.",
+      );
+      return;
+    }
+    refundActions.approve(r.id, user.name, note || undefined);
     auditActions.log({
       action: "Remboursement approuvé",
       target: r.reference,
       module: "refunds",
+      actor: user.name,
       reason: note || undefined,
       changes: [{ field: "Statut", before: "pending", after: "approved" }],
     });
@@ -341,12 +369,13 @@ function RefundsPage() {
       toast.error("Indiquez un motif de rejet");
       return;
     }
-    refundActions.reject(r.id, note);
+    refundActions.reject(r.id, user.name, note);
     auditActions.log({
       action: "Remboursement rejeté",
       target: r.reference,
       module: "refunds",
       level: "attention",
+      actor: user.name,
       reason: note,
       changes: [{ field: "Statut", before: "pending", after: "rejected" }],
     });
@@ -356,7 +385,13 @@ function RefundsPage() {
   };
 
   const markPaid = (r: Refund) => {
-    refundActions.markPaid(r.id);
+    if (r.approvedBy && r.approvedBy === user.name) {
+      toast.error(
+        "Séparation des responsabilités : un autre administrateur doit exécuter ce remboursement.",
+      );
+      return;
+    }
+    refundActions.markPaid(r.id, user.name);
     // Le producteur ne paie que quand l'argent part réellement, pas dès
     // l'approbation — c'est ce point précis qui touche ses revenus.
     if (r.bornBy === "farmer") {
@@ -391,6 +426,7 @@ function RefundsPage() {
       target: r.reference,
       module: "refunds",
       level: "important",
+      actor: user.name,
       changes: [{ field: "Statut", before: "approved", after: "paid" }],
     });
     toast.success("Remboursement exécuté", {
@@ -717,6 +753,17 @@ function RefundsPage() {
                         {formatFCFA(settings.justificationThreshold)}.
                       </p>
                     )}
+                    {!canApproveRefundAmount(role, r.amount, approvalTiers) && (
+                      <p className="text-xs text-destructive">
+                        Ce montant nécessite le rôle{" "}
+                        {refundTierFor(r.amount, approvalTiers).requiredRole} pour être approuvé.
+                      </p>
+                    )}
+                    {r.createdBy && r.createdBy === user.name && (
+                      <p className="text-xs text-destructive">
+                        Vous avez créé ce dossier : un autre administrateur doit l'approuver.
+                      </p>
+                    )}
                     <Textarea
                       placeholder="Note de décision"
                       value={note}
@@ -755,8 +802,18 @@ function RefundsPage() {
                 ))}
 
               {r.status === "approved" && (
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="gap-2" onClick={() => markPaid(r)}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.approvedBy === user.name && (
+                    <span className="text-xs text-muted-foreground">
+                      Un autre administrateur doit exécuter
+                    </span>
+                  )}
+                  <Button
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => markPaid(r)}
+                    disabled={r.approvedBy === user.name}
+                  >
                     <Banknote className="h-4 w-4" />
                     Marquer comme remboursé
                   </Button>

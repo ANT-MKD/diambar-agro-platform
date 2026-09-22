@@ -34,6 +34,8 @@ import {
   autoAcceptableMissions,
 } from "@/data/store";
 import { driverProfile } from "@/data/mocks";
+import { useMaintenanceMode } from "@/data/admin-store";
+import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/driver")({
@@ -53,6 +55,7 @@ const bottomNav = [
 
 function DriverLayout() {
   const { user } = Route.useRouteContext();
+  const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const notifs = useDriverNotifications();
@@ -110,6 +113,10 @@ function DriverLayout() {
       ],
     },
   ];
+
+  if (maintenance.active) {
+    return <MaintenanceScreen message={maintenance.message} />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex">

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -17,7 +17,13 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { adminUserActions, auditActions, usePlatformUsers } from "@/data/admin-store";
+import {
+  adminUserActions,
+  auditActions,
+  usePlatformUsers,
+  useAdminRoleForEmail,
+  can,
+} from "@/data/admin-store";
 import { impersonationActions } from "@/data/impersonation";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
@@ -47,6 +53,9 @@ const ROLES = ["all", "farmer", "restaurant", "driver", "admin"] as const;
 const STATUSES = ["all", "active", "pending", "suspended", "rejected"] as const;
 
 function AdminUsers() {
+  const { user } = useRouteContext({ from: "/admin" });
+  const currentAdminRole = useAdminRoleForEmail(user.email);
+  const canSuspend = can(currentAdminRole, "users.suspend");
   const users = usePlatformUsers();
   const [q, setQ] = useState("");
   const [role, setRole] = useState<string>("all");
@@ -71,6 +80,10 @@ function AdminUsers() {
     : 0;
 
   const suspend = (u: (typeof users)[number], reason?: string) => {
+    if (!canSuspend) {
+      toast.error("Votre rôle ne permet pas de suspendre un compte.");
+      return;
+    }
     adminUserActions.setStatus(u.id, "suspended");
     auditActions.log({
       action: "Compte suspendu",
@@ -81,6 +94,21 @@ function AdminUsers() {
       changes: [{ field: "Statut du compte", before: u.status, after: "suspended" }],
     });
     toast.success("Compte suspendu");
+  };
+
+  const reactivate = (u: (typeof users)[number]) => {
+    if (!canSuspend) {
+      toast.error("Votre rôle ne permet pas de réactiver un compte.");
+      return;
+    }
+    adminUserActions.setStatus(u.id, "active");
+    auditActions.log({
+      action: "Compte réactivé",
+      target: u.name,
+      module: "security",
+      changes: [{ field: "Statut du compte", before: u.status, after: "active" }],
+    });
+    toast.success("Compte activé");
   };
 
   return (
@@ -233,42 +261,30 @@ function AdminUsers() {
                         <Eye className="h-4 w-4" />
                         Voir en tant que
                       </DropdownMenuItem>
-                      {u.status === "active" ? (
-                        <ConfirmDialog
-                          trigger={
-                            <DropdownMenuItem
-                              onSelect={(e) => e.preventDefault()}
-                              className="text-destructive"
-                            >
-                              <Ban className="h-4 w-4" />
-                              Suspendre
-                            </DropdownMenuItem>
-                          }
-                          title={`Suspendre ${u.name} ?`}
-                          description="Le compte perdra immédiatement l'accès à la plateforme. Cette action est journalisée."
-                          confirmLabel="Suspendre"
-                          destructive
-                          onConfirm={() => suspend(u)}
-                        />
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() => {
-                            adminUserActions.setStatus(u.id, "active");
-                            auditActions.log({
-                              action: "Compte réactivé",
-                              target: u.name,
-                              module: "security",
-                              changes: [
-                                { field: "Statut du compte", before: u.status, after: "active" },
-                              ],
-                            });
-                            toast.success("Compte activé");
-                          }}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Réactiver
-                        </DropdownMenuItem>
-                      )}
+                      {canSuspend &&
+                        (u.status === "active" ? (
+                          <ConfirmDialog
+                            trigger={
+                              <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
+                                className="text-destructive"
+                              >
+                                <Ban className="h-4 w-4" />
+                                Suspendre
+                              </DropdownMenuItem>
+                            }
+                            title={`Suspendre ${u.name} ?`}
+                            description="Le compte perdra immédiatement l'accès à la plateforme. Cette action est journalisée."
+                            confirmLabel="Suspendre"
+                            destructive
+                            onConfirm={() => suspend(u)}
+                          />
+                        ) : (
+                          <DropdownMenuItem onClick={() => reactivate(u)}>
+                            <CheckCircle2 className="h-4 w-4" />
+                            Réactiver
+                          </DropdownMenuItem>
+                        ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

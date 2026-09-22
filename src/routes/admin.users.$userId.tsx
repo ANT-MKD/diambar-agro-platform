@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -25,6 +25,8 @@ import {
   usePlatformUser,
   useValidations,
   useAuditLogs,
+  useAdminRoleForEmail,
+  can,
 } from "@/data/admin-store";
 import { impersonationActions } from "@/data/impersonation";
 import { useAllDisputes } from "@/data/disputes";
@@ -52,6 +54,9 @@ const TABS = ["Vue d'ensemble", "Commandes", "Litiges", "Activité"] as const;
 
 function AdminUserDetail() {
   const { userId } = Route.useParams();
+  const { user: currentAdmin } = useRouteContext({ from: "/admin" });
+  const currentAdminRole = useAdminRoleForEmail(currentAdmin.email);
+  const canSuspend = can(currentAdminRole, "users.suspend");
   const user = usePlatformUser(userId);
   const validations = useValidations();
   const disputes = useAllDisputes();
@@ -124,7 +129,7 @@ function AdminUserDetail() {
               <Eye className="h-4 w-4" />
               Voir en tant que
             </Button>
-            {user.status !== "active" && (
+            {canSuspend && user.status !== "active" && (
               <Button
                 size="sm"
                 className="gap-2"
@@ -143,7 +148,7 @@ function AdminUserDetail() {
                 Activer
               </Button>
             )}
-            {user.status === "active" && (
+            {canSuspend && user.status === "active" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -166,25 +171,29 @@ function AdminUserDetail() {
                 Suspendre
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2 text-destructive"
-              onClick={() => {
-                adminUserActions.setStatus(user.id, "rejected");
-                auditActions.log({
-                  action: "Compte rejeté",
-                  target: user.name,
-                  module: "security",
-                  level: "critical",
-                  changes: [{ field: "Statut du compte", before: user.status, after: "rejected" }],
-                });
-                toast.success("Compte rejeté");
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Rejeter
-            </Button>
+            {canSuspend && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive"
+                onClick={() => {
+                  adminUserActions.setStatus(user.id, "rejected");
+                  auditActions.log({
+                    action: "Compte rejeté",
+                    target: user.name,
+                    module: "security",
+                    level: "critical",
+                    changes: [
+                      { field: "Statut du compte", before: user.status, after: "rejected" },
+                    ],
+                  });
+                  toast.success("Compte rejeté");
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Rejeter
+              </Button>
+            )}
           </div>
         }
       />
