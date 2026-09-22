@@ -1,6 +1,6 @@
 import { Logo } from "@/components/common/logo";
 import { Link } from "@tanstack/react-router";
-import { Facebook, Instagram, Linkedin, MessageCircle, Mail, Phone, MapPin } from "lucide-react";
+import { MessageCircle, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
   return (
@@ -13,15 +13,19 @@ export function Footer() {
               Logistique alimentaire moderne au Sénégal. Made with ❤️ in Dakar.
             </p>
             <div className="mt-5 flex gap-2">
-              {[Facebook, Instagram, MessageCircle, Linkedin].map((Icon, i) => (
-                <a
-                  key={i}
-                  href="#"
-                  className="grid h-9 w-9 place-items-center rounded-xl glass hover:bg-emerald-500/10 hover:text-emerald-500 transition"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
+              {/* Seul canal réel affiché : le numéro déjà indiqué dans la
+                  colonne Contact, en lien WhatsApp cliquable. Pas de Facebook/
+                  Instagram/LinkedIn tant qu'aucun compte réel n'existe — un
+                  lien "#" ne mène nulle part et ne sert à personne. */}
+              <a
+                href="https://wa.me/221770000000"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Nous écrire sur WhatsApp"
+                className="grid h-9 w-9 place-items-center rounded-xl glass hover:bg-emerald-500/10 hover:text-emerald-500 transition"
+              >
+                <MessageCircle className="h-4 w-4" />
+              </a>
             </div>
           </div>
           <div>

@@ -56,6 +56,7 @@ export type Dispute = {
   orderId?: string;
   invoiceId?: string;
   missionId?: string;
+  returnId?: string;
   hasGpsTrack: boolean;
   openedByRole: DisputeParty;
   openedByName: string;
@@ -620,6 +621,7 @@ export type NewDisputeInput = {
   orderId?: string;
   invoiceId?: string;
   missionId?: string;
+  returnId?: string;
   hasGpsTrack?: boolean;
   openedByRole: DisputeParty;
   openedByName: string;
@@ -649,6 +651,7 @@ export const disputeActions = {
         orderId: input.orderId,
         invoiceId: input.invoiceId,
         missionId: input.missionId,
+        returnId: input.returnId,
         hasGpsTrack: input.hasGpsTrack ?? false,
         openedByRole: input.openedByRole,
         openedByName: input.openedByName,

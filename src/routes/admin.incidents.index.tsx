@@ -116,11 +116,16 @@ function AdminIncidents() {
       return;
     }
     incidentActions.resolve(i.id, value, note.trim() || undefined);
-    auditActions.log(
-      value > 0 ? `Incident indemnisé (${formatFCFA(value)})` : "Incident clôturé sans indemnité",
-      i.reference,
-      "info",
-    );
+    auditActions.log({
+      action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
+      target: i.reference,
+      module: "incidents",
+      reason: note.trim() || undefined,
+      changes:
+        value > 0
+          ? [{ field: "Indemnité", before: "0 FCFA", after: formatFCFA(value) }]
+          : undefined,
+    });
     toast.success(
       value > 0 ? `Indemnité de ${formatFCFA(value)} versée au livreur` : "Incident clôturé",
     );
@@ -129,7 +134,13 @@ function AdminIncidents() {
 
   const reject = (i: Incident) => {
     incidentActions.resolve(i.id, 0, note.trim() || "Demande jugée non fondée");
-    auditActions.log("Indemnité refusée", i.reference, "warning");
+    auditActions.log({
+      action: "Indemnité refusée",
+      target: i.reference,
+      module: "incidents",
+      level: "attention",
+      reason: note.trim() || "Demande jugée non fondée",
+    });
     toast.success("Demande d'indemnité refusée");
     cancelAction();
   };

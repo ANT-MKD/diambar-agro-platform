@@ -263,3 +263,19 @@
     opacity: 0.9;
   }
 }
+
+/* La landing page cumule plusieurs animations en boucle infinie (marquee de
+ * logos, particules flottantes) pilotées en CSS pur, hors de portée du
+ * MotionConfig de framer-motion qui gère déjà les animations JS. Pour un
+ * visiteur ayant activé "réduire les animations" côté système, on les
+ * neutralise ici plutôt que de les laisser tourner indéfiniment. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

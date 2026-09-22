@@ -131,11 +131,16 @@ function AdminIncidentDetail() {
       return;
     }
     incidentActions.resolve(incident.id, value, note.trim() || undefined);
-    auditActions.log(
-      value > 0 ? `Incident indemnisé (${formatFCFA(value)})` : "Incident clôturé sans indemnité",
-      incident.reference,
-      "info",
-    );
+    auditActions.log({
+      action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
+      target: incident.reference,
+      module: "incidents",
+      reason: note.trim() || undefined,
+      changes:
+        value > 0
+          ? [{ field: "Indemnité", before: "0 FCFA", after: formatFCFA(value) }]
+          : undefined,
+    });
     toast.success(
       value > 0 ? `Indemnité de ${formatFCFA(value)} versée au livreur` : "Incident clôturé",
     );
@@ -144,7 +149,13 @@ function AdminIncidentDetail() {
 
   const reject = () => {
     incidentActions.resolve(incident.id, 0, note.trim() || "Demande jugée non fondée");
-    auditActions.log("Indemnité refusée", incident.reference, "warning");
+    auditActions.log({
+      action: "Indemnité refusée",
+      target: incident.reference,
+      module: "incidents",
+      level: "attention",
+      reason: note.trim() || "Demande jugée non fondée",
+    });
     toast.success("Demande d'indemnité refusée");
     cancelDeciding();
   };
@@ -156,11 +167,14 @@ function AdminIncidentDetail() {
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     missionActions.reassign(mission.id, newDriverId);
-    auditActions.log(
-      `Course réaffectée de ${driver?.name ?? "aucun livreur"} → ${newDriver?.name}`,
-      mission.reference,
-      "info",
-    );
+    auditActions.log({
+      action: "Course réaffectée",
+      target: mission.reference,
+      module: "deliveries",
+      changes: [
+        { field: "Livreur", before: driver?.name ?? "Aucun livreur", after: newDriver?.name ?? "" },
+      ],
+    });
     toast.success(`${mission.reference} réaffectée à ${newDriver?.name}`);
     setReassignOpen(false);
     setNewDriverId("");
@@ -193,11 +207,11 @@ function AdminIncidentDetail() {
       method: refundMethod,
       reason: refundReason.trim() || `Incident ${incident.reference}`,
     });
-    auditActions.log(
-      `Remboursement client créé depuis l'incident (${refund.reference})`,
-      incident.reference,
-      "info",
-    );
+    auditActions.log({
+      action: `Remboursement client créé depuis l'incident (${refund.reference})`,
+      target: incident.reference,
+      module: "refunds",
+    });
     toast.success(`${refund.reference} créé`);
     setRefundOpen(false);
     navigate({ to: "/admin/refunds/$refundId", params: { refundId: refund.id } });

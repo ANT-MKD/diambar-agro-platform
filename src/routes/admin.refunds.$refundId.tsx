@@ -127,7 +127,13 @@ function AdminRefundDetail() {
       return;
     }
     refundActions.approve(refund.id, note || undefined);
-    auditActions.log("Remboursement approuvé", refund.reference, "info");
+    auditActions.log({
+      action: "Remboursement approuvé",
+      target: refund.reference,
+      module: "refunds",
+      reason: note || undefined,
+      changes: [{ field: "Statut", before: "pending", after: "approved" }],
+    });
     toast.success("Remboursement approuvé");
     setDeciding(false);
     setNote("");
@@ -139,7 +145,14 @@ function AdminRefundDetail() {
       return;
     }
     refundActions.reject(refund.id, note);
-    auditActions.log("Remboursement rejeté", refund.reference, "warning");
+    auditActions.log({
+      action: "Remboursement rejeté",
+      target: refund.reference,
+      module: "refunds",
+      level: "attention",
+      reason: note,
+      changes: [{ field: "Statut", before: "pending", after: "rejected" }],
+    });
     toast.success("Remboursement rejeté");
     setDeciding(false);
     setNote("");
@@ -159,13 +172,26 @@ function AdminRefundDetail() {
         amount: refund.amount,
         reason: `Remboursement ${refund.reference}`,
       });
-      auditActions.log(
-        `Revenus producteur ajustés (-${formatFCFA(farmerShare ?? refund.amount)})`,
-        refund.reference,
-        "info",
-      );
+      auditActions.log({
+        action: "Revenus producteur ajustés",
+        target: refund.reference,
+        module: "finance",
+        changes: [
+          {
+            field: "Ajustement",
+            before: "0 FCFA",
+            after: `-${formatFCFA(farmerShare ?? refund.amount)}`,
+          },
+        ],
+      });
     }
-    auditActions.log("Remboursement exécuté", refund.reference, "info");
+    auditActions.log({
+      action: "Remboursement exécuté",
+      target: refund.reference,
+      module: "refunds",
+      level: "important",
+      changes: [{ field: "Statut", before: "approved", after: "paid" }],
+    });
     toast.success("Remboursement exécuté", {
       description: `${formatFCFA(refund.amount)} via ${refund.method}`,
     });
@@ -175,13 +201,24 @@ function AdminRefundDetail() {
     const reason = window.prompt("Motif de l'échec ?");
     if (!reason) return;
     refundActions.markFailed(refund.id, reason);
-    auditActions.log("Remboursement en échec", refund.reference, "warning");
+    auditActions.log({
+      action: "Remboursement en échec",
+      target: refund.reference,
+      module: "refunds",
+      level: "important",
+      status: "failed",
+      reason,
+    });
     toast.error("Remboursement marqué en échec");
   };
 
   const retry = () => {
     refundActions.retry(refund.id, retryMethod);
-    auditActions.log("Nouvelle tentative de remboursement", refund.reference, "info");
+    auditActions.log({
+      action: "Nouvelle tentative de remboursement",
+      target: refund.reference,
+      module: "refunds",
+    });
     toast.success("Dossier repassé en cours");
     setRetryOpen(false);
   };

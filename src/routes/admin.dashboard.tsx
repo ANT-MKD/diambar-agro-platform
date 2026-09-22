@@ -43,6 +43,7 @@ import {
 import { useAllDisputes } from "@/data/disputes";
 import { useIncidents } from "@/data/business";
 import { useRefunds } from "@/data/finance";
+import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { useSupportTickets } from "@/data/support";
 import { useOrders, useMissions } from "@/data/store";
 import { payouts } from "@/data/admin-mocks";
@@ -569,9 +570,7 @@ function AdminDashboard() {
           <ul className="mt-4 divide-y divide-border">
             {logs.slice(0, 5).map((l) => (
               <li key={l.id} className="flex items-center gap-3 py-2.5 text-sm">
-                <span
-                  className={`h-2 w-2 rounded-full ${l.level === "critical" ? "bg-destructive" : l.level === "warning" ? "bg-amber-500" : "bg-emerald-500"}`}
-                />
+                <span className={`h-2 w-2 rounded-full ${AUDIT_LEVEL_DOT[l.level]}`} />
                 <span className="flex-1 truncate">
                   {l.action} — <span className="text-muted-foreground">{l.target}</span>
                 </span>

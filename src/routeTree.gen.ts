@@ -77,6 +77,7 @@ import { Route as AdminOrdersOrderIdRouteImport } from './routes/admin.orders.$o
 import { Route as AdminRefundsIndexRouteImport } from './routes/admin.refunds.index'
 import { Route as AdminRefundsRefundIdRouteImport } from './routes/admin.refunds.$refundId'
 import { Route as AdminReturnsIndexRouteImport } from './routes/admin.returns.index'
+import { Route as AdminReturnsReturnIdRouteImport } from './routes/admin.returns.$returnId'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin.users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin.users.$userId'
 import { Route as AdminUsersAdminsRouteImport } from './routes/admin.users.admins'
@@ -516,6 +517,11 @@ const AdminRefundsRefundIdRoute = AdminRefundsRefundIdRouteImport.update({
 const AdminReturnsIndexRoute = AdminReturnsIndexRouteImport.update({
   id: '/returns/',
   path: '/returns/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReturnsReturnIdRoute = AdminReturnsReturnIdRouteImport.update({
+  id: '/returns/$returnId',
+  path: '/returns/$returnId',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
@@ -1108,6 +1114,7 @@ export interface FileRoutesByFullPath {
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
+  '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1266,6 +1273,7 @@ export interface FileRoutesByTo {
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
+  '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1435,6 +1443,7 @@ export interface FileRoutesById {
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
+  '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/admin/users/admins': typeof AdminUsersAdminsRoute
   '/admin/users/drivers': typeof AdminUsersDriversRoute
@@ -1605,6 +1614,7 @@ export interface FileRouteTypes {
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
+    | '/admin/returns/$returnId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -1763,6 +1773,7 @@ export interface FileRouteTypes {
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
+    | '/admin/returns/$returnId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -1931,6 +1942,7 @@ export interface FileRouteTypes {
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
+    | '/admin/returns/$returnId'
     | '/admin/users/$userId'
     | '/admin/users/admins'
     | '/admin/users/drivers'
@@ -2540,6 +2552,13 @@ declare module '@tanstack/react-router' {
       path: '/returns'
       fullPath: '/admin/returns/'
       preLoaderRoute: typeof AdminReturnsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/returns/$returnId': {
+      id: '/admin/returns/$returnId'
+      path: '/returns/$returnId'
+      fullPath: '/admin/returns/$returnId'
+      preLoaderRoute: typeof AdminReturnsReturnIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/users/': {
@@ -3246,6 +3265,7 @@ interface AdminRouteChildren {
   AdminModerationItemIdRoute: typeof AdminModerationItemIdRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminRefundsRefundIdRoute: typeof AdminRefundsRefundIdRoute
+  AdminReturnsReturnIdRoute: typeof AdminReturnsReturnIdRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
   AdminUsersAdminsRoute: typeof AdminUsersAdminsRoute
   AdminUsersDriversRoute: typeof AdminUsersDriversRoute
@@ -3278,6 +3298,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminModerationItemIdRoute: AdminModerationItemIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminRefundsRefundIdRoute: AdminRefundsRefundIdRoute,
+  AdminReturnsReturnIdRoute: AdminReturnsReturnIdRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,
   AdminUsersAdminsRoute: AdminUsersAdminsRoute,
   AdminUsersDriversRoute: AdminUsersDriversRoute,

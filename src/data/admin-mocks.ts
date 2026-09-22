@@ -229,6 +229,41 @@ export const platformUsers: PlatformUser[] = [
     gmv: 0,
     rating: 0,
   },
+  // Comptes réels pour le rôle admin Finance / Opérations — reprennent les
+  // agents déjà nommés ailleurs (SUPPORT_AGENTS dans disputes.ts) plutôt que
+  // d'inventer de nouveaux collaborateurs.
+  {
+    id: "u14",
+    name: "Fatou Ndiaye",
+    role: "admin",
+    email: "finance@diambar.sn",
+    phone: "+221 77 000 00 01",
+    city: "Dakar",
+    avatar: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=120",
+    status: "active",
+    verified: true,
+    joinedAt: "2024-10-15",
+    lastActiveAt: "2025-05-15T09:00:00Z",
+    orders: 0,
+    gmv: 0,
+    rating: 0,
+  },
+  {
+    id: "u15",
+    name: "Ibrahima Fall",
+    role: "admin",
+    email: "ops@diambar.sn",
+    phone: "+221 77 000 00 02",
+    city: "Dakar",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120",
+    status: "active",
+    verified: true,
+    joinedAt: "2024-10-15",
+    lastActiveAt: "2025-05-15T09:00:00Z",
+    orders: 0,
+    gmv: 0,
+    rating: 0,
+  },
 ];
 
 export type ValidationDoc = { label: string; file: string; ok: boolean; note?: string };
@@ -298,13 +333,77 @@ export const validationRequests: ValidationRequest[] = [
   },
 ];
 
+// Modules réels du journal d'audit — un par domaine qui écrit effectivement
+// des événements aujourd'hui (voir les 58 points d'appel de auditActions.log
+// dans le code). "system" couvre les événements générés sans admin humain
+// (payouts automatiques, ajustements de palier).
+export type AuditModule =
+  | "users"
+  | "validations"
+  | "moderation"
+  | "orders"
+  | "deliveries"
+  | "incidents"
+  | "disputes"
+  | "support"
+  | "returns"
+  | "refunds"
+  | "finance"
+  | "messages"
+  | "security"
+  | "system";
+
+export type AuditLevel = "info" | "attention" | "important" | "critical";
+export type AuditStatus = "success" | "failed" | "blocked" | "cancelled";
+
+// Une valeur avant/après réelle n'existe qu'à certains points d'appel (un
+// changement de statut, de palier, de livreur assigné...) — jamais inventée
+// pour les événements qui n'ont pas de valeur "modifiée" à proprement parler
+// (ex. "note interne ajoutée").
+export type AuditChange = { field: string; before: string; after: string };
+
 export type AuditLog = {
   id: string;
   at: string;
   actor: string;
   action: string;
   target: string;
-  level: "info" | "warning" | "critical";
+  level: AuditLevel;
+  module: AuditModule;
+  status: AuditStatus;
+  reason?: string;
+  changes?: AuditChange[];
+};
+
+export const AUDIT_LEVEL_DOT: Record<AuditLevel, string> = {
+  info: "bg-emerald-500",
+  attention: "bg-amber-500",
+  important: "bg-orange-500",
+  critical: "bg-destructive",
+};
+
+export const AUDIT_LEVEL_LABEL: Record<AuditLevel, string> = {
+  info: "Info",
+  attention: "Attention",
+  important: "Important",
+  critical: "Critique",
+};
+
+export const AUDIT_MODULE_LABEL: Record<AuditModule, string> = {
+  users: "Utilisateurs",
+  validations: "Validations",
+  moderation: "Modération",
+  orders: "Commandes",
+  deliveries: "Livraisons",
+  incidents: "Incidents",
+  disputes: "Litiges",
+  support: "Support",
+  returns: "Retours",
+  refunds: "Remboursements",
+  finance: "Finance",
+  messages: "Messages",
+  security: "Sécurité",
+  system: "Système",
 };
 
 export const auditLogs: AuditLog[] = [
@@ -315,6 +414,8 @@ export const auditLogs: AuditLog[] = [
     action: "Validation compte agriculteur",
     target: "Awa Camara (u4)",
     level: "info",
+    module: "validations",
+    status: "success",
   },
   {
     id: "al2",
@@ -323,6 +424,9 @@ export const auditLogs: AuditLog[] = [
     action: "Commission ajustée automatiquement",
     target: "Palier Volume > 500k",
     level: "info",
+    module: "finance",
+    status: "success",
+    changes: [{ field: "Taux", before: "11 %", after: "8 %" }],
   },
   {
     id: "al3",
@@ -330,7 +434,9 @@ export const auditLogs: AuditLog[] = [
     actor: "Le Baobab",
     action: "Ouverture d'un litige",
     target: "LIT-0142",
-    level: "warning",
+    level: "attention",
+    module: "disputes",
+    status: "success",
   },
   {
     id: "al4",
@@ -339,6 +445,10 @@ export const auditLogs: AuditLog[] = [
     action: "Suspension de compte",
     target: "Dibiterie Keur Massar (u8)",
     level: "critical",
+    module: "security",
+    status: "success",
+    reason: "Plusieurs signalements concernant des commandes non livrées.",
+    changes: [{ field: "Statut du compte", before: "Actif", after: "Suspendu" }],
   },
   {
     id: "al5",
@@ -347,6 +457,8 @@ export const auditLogs: AuditLog[] = [
     action: "Payout hebdomadaire exécuté",
     target: "38 bénéficiaires · 4 820 000 FCFA",
     level: "info",
+    module: "finance",
+    status: "success",
   },
   {
     id: "al6",
@@ -354,7 +466,9 @@ export const auditLogs: AuditLog[] = [
     actor: "Admin Diambar",
     action: "Produit dépublié (modération)",
     target: "Mangues Kent (p4)",
-    level: "warning",
+    level: "attention",
+    module: "moderation",
+    status: "success",
   },
   {
     id: "al7",
@@ -363,6 +477,9 @@ export const auditLogs: AuditLog[] = [
     action: "Mise à jour des frais de livraison",
     target: "Zone Thiès → Dakar",
     level: "info",
+    module: "finance",
+    status: "success",
+    changes: [{ field: "Frais de livraison", before: "3 500 FCFA", after: "4 000 FCFA" }],
   },
 ];
 

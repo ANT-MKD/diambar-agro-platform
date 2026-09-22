@@ -8,6 +8,7 @@ export type DemoAccount = {
   avatar: string;
   emoji: string;
   tone: string;
+  label?: string;
 };
 
 export const demoAccounts: DemoAccount[] = [
@@ -46,5 +47,26 @@ export const demoAccounts: DemoAccount[] = [
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120",
     emoji: "🛡️",
     tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
+    label: "Super Administrateur",
+  },
+  {
+    role: "admin",
+    email: "finance@diambar.sn",
+    password: "demo1234",
+    name: "Fatou Ndiaye",
+    avatar: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=120",
+    emoji: "💰",
+    tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
+    label: "Finance",
+  },
+  {
+    role: "admin",
+    email: "ops@diambar.sn",
+    password: "demo1234",
+    name: "Ibrahima Fall",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120",
+    emoji: "🧭",
+    tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
+    label: "Opérations",
   },
 ];
