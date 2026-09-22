@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TriangleAlert, Check, X, Clock, Wallet, ArrowUpRight, Truck, Flame } from "lucide-react";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import {
   useIncidents,
   incidentActions,
@@ -70,6 +70,9 @@ function isThisMonth(iso: string) {
 }
 
 function AdminIncidents() {
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canDecideIncidents = can(role, "incidents.decide");
   const incidents = useIncidents();
   const missions = useMissions();
   const [tab, setTab] = useState<IncidentStatus | "all">("all");
@@ -115,11 +118,16 @@ function AdminIncidents() {
       toast.error("Indiquez un montant valide");
       return;
     }
-    incidentActions.resolve(i.id, value, note.trim() || undefined);
+    if (!canDecideIncidents) {
+      toast.error("Votre rôle ne permet pas de traiter cet incident.");
+      return;
+    }
+    incidentActions.resolve(i.id, value, note.trim() || undefined, user.name);
     auditActions.log({
       action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
       target: i.reference,
       module: "incidents",
+      actor: user.name,
       reason: note.trim() || undefined,
       changes:
         value > 0
@@ -133,12 +141,17 @@ function AdminIncidents() {
   };
 
   const reject = (i: Incident) => {
-    incidentActions.resolve(i.id, 0, note.trim() || "Demande jugée non fondée");
+    if (!canDecideIncidents) {
+      toast.error("Votre rôle ne permet pas de traiter cet incident.");
+      return;
+    }
+    incidentActions.resolve(i.id, 0, note.trim() || "Demande jugée non fondée", user.name);
     auditActions.log({
       action: "Indemnité refusée",
       target: i.reference,
       module: "incidents",
       level: "attention",
+      actor: user.name,
       reason: note.trim() || "Demande jugée non fondée",
     });
     toast.success("Demande d'indemnité refusée");
@@ -250,6 +263,7 @@ function AdminIncidents() {
                 </div>
 
                 {i.status !== "resolved" &&
+                  canDecideIncidents &&
                   (actingId === i.id ? (
                     <div className="space-y-2 rounded-xl border border-border p-3">
                       <div className="space-y-1">

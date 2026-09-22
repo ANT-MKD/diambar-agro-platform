@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -39,7 +39,7 @@ import {
   type RefundBornBy,
 } from "@/data/finance";
 import { useOrders } from "@/data/store";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
@@ -69,6 +69,9 @@ const HAPPY_PATH: { key: string; label: string }[] = [
 
 function AdminReturnDetail() {
   const { returnId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canManageReturns = can(role, "returns.decide");
   const r = useReturn(returnId);
   const refunds = useRefunds();
   const orders = useOrders();
@@ -104,9 +107,10 @@ function AdminReturnDetail() {
   const refund = refunds.find((f) => f.returnId === r.id);
   const stage = returnStage(r);
   const happyIndex = HAPPY_PATH.findIndex((s) => s.key === stage);
-  const canPickup = !r.closedAt && r.status !== "refused";
-  const canDecide = !r.closedAt && r.status !== "refused" && !r.resolution;
-  const canRevise = !r.closedAt && r.resolution && refund && refund.status !== "paid";
+  const canPickup = !r.closedAt && r.status !== "refused" && canManageReturns;
+  const canDecide = !r.closedAt && r.status !== "refused" && !r.resolution && canManageReturns;
+  const canRevise =
+    !r.closedAt && r.resolution && refund && refund.status !== "paid" && canManageReturns;
 
   const schedulePickup = () => {
     if (!pickupDate || !pickupDriver) {
@@ -122,11 +126,13 @@ function AdminReturnDetail() {
       address:
         pickupAddress.trim() ||
         `${restaurant?.name ?? r.restaurantName}, ${restaurant?.city ?? ""}`,
+      actor: user.name,
     });
     auditActions.log({
       action: `Récupération programmée — ${driver.name}`,
       target: r.reference,
       module: "returns",
+      actor: user.name,
     });
     toast.success("Récupération programmée");
   };
@@ -136,12 +142,13 @@ function AdminReturnDetail() {
       toast.error("Indiquez l'état constaté à la réception");
       return;
     }
-    returnActions.adminMarkReceived(r.id, receivedCondition.trim());
+    returnActions.adminMarkReceived(r.id, receivedCondition.trim(), user.name);
     auditActions.log({
       action: "Produit réceptionné",
       target: r.reference,
       module: "returns",
       reason: receivedCondition.trim(),
+      actor: user.name,
     });
     toast.success("Produit réceptionné");
   };
@@ -154,12 +161,14 @@ function AdminReturnDetail() {
     returnActions.adminSetInspection(r.id, {
       conform: inspectionConform === "yes",
       note: inspectionNote.trim(),
+      inspectedBy: user.name,
     });
     auditActions.log({
       action: inspectionConform === "yes" ? "Inspection : conforme" : "Inspection : non conforme",
       target: r.reference,
       module: "returns",
       reason: inspectionNote.trim(),
+      actor: user.name,
     });
     toast.success("Inspection enregistrée");
   };
@@ -175,6 +184,7 @@ function AdminReturnDetail() {
       bornBy: decisionBornBy,
       amount,
       note: decisionNote.trim(),
+      decidedBy: user.name,
     });
     auditActions.log({
       action: `Décision retour : ${RETURN_RESOLUTION_LABEL[decisionType]}`,
@@ -182,6 +192,7 @@ function AdminReturnDetail() {
       module: "returns",
       level: decisionType === "reject" ? "attention" : "important",
       reason: decisionNote.trim(),
+      actor: user.name,
       changes: [{ field: "Prise en charge", before: "—", after: decisionBornBy }],
     });
     toast.success("Décision enregistrée");
@@ -193,13 +204,14 @@ function AdminReturnDetail() {
       toast.error("Indiquez le motif de l'escalade");
       return;
     }
-    returnActions.adminEscalateToDispute(r.id, escalateNote.trim());
+    returnActions.adminEscalateToDispute(r.id, escalateNote.trim(), user.name);
     auditActions.log({
       action: "Retour escaladé en litige",
       target: r.reference,
       module: "returns",
       level: "attention",
       reason: escalateNote.trim(),
+      actor: user.name,
     });
     toast.success("Retour escaladé en litige");
     setEscalateOpen(false);
@@ -243,6 +255,12 @@ function AdminReturnDetail() {
           </div>
         }
       />
+
+      {!canManageReturns && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+          Votre rôle ({role}) permet de consulter ce dossier, pas de le traiter.
+        </div>
+      )}
 
       {r.status === "refused" ? (
         <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5">
@@ -433,6 +451,7 @@ function AdminReturnDetail() {
                           action: "Produit récupéré chez le client",
                           target: r.reference,
                           module: "returns",
+                          actor: user.name,
                         });
                       }}
                     >
@@ -632,7 +651,11 @@ function AdminReturnDetail() {
                 </Link>
               </Button>
             ) : r.status !== "refused" ? (
-              !escalateOpen ? (
+              !canManageReturns ? (
+                <p className="text-sm text-muted-foreground">
+                  Votre rôle ne permet pas d'escalader ce dossier.
+                </p>
+              ) : !escalateOpen ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -658,24 +681,27 @@ function AdminReturnDetail() {
             )}
           </div>
 
-          {(r.resolution || r.status === "refused" || r.status === "credited") && !r.closedAt && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                returnActions.adminClose(r.id);
-                auditActions.log({
-                  action: "Dossier retour clôturé",
-                  target: r.reference,
-                  module: "returns",
-                });
-                toast.success("Dossier clôturé");
-              }}
-            >
-              Clôturer le dossier
-            </Button>
-          )}
+          {canManageReturns &&
+            (r.resolution || r.status === "refused" || r.status === "credited") &&
+            !r.closedAt && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  returnActions.adminClose(r.id, user.name);
+                  auditActions.log({
+                    action: "Dossier retour clôturé",
+                    target: r.reference,
+                    module: "returns",
+                    actor: user.name,
+                  });
+                  toast.success("Dossier clôturé");
+                }}
+              >
+                Clôturer le dossier
+              </Button>
+            )}
           {r.closedAt && (
             <div className="glass rounded-2xl p-4 text-sm text-muted-foreground text-center">
               Dossier clôturé {relativeTime(r.closedAt)}

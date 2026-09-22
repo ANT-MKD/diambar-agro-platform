@@ -774,7 +774,7 @@ export const disputeActions = {
       ),
     );
   },
-  assign: (id: string, agent: string) => {
+  assign: (id: string, agent: string, actor = "Support Diambar") => {
     disputesStore.set((arr) =>
       arr.map((d) =>
         d.id === id
@@ -786,7 +786,7 @@ export const disputeActions = {
                 {
                   id: `e_${Date.now()}`,
                   at: new Date().toISOString(),
-                  actor: "Support Diambar",
+                  actor,
                   label: "Dossier assigné",
                   detail: agent,
                 },
@@ -796,7 +796,7 @@ export const disputeActions = {
       ),
     );
   },
-  escalate: (id: string, reason: string) => {
+  escalate: (id: string, reason: string, actor = "Support Diambar") => {
     disputesStore.set((arr) =>
       arr.map((d) =>
         d.id === id
@@ -810,7 +810,7 @@ export const disputeActions = {
                 {
                   id: `e_${Date.now()}`,
                   at: new Date().toISOString(),
-                  actor: "Support Diambar",
+                  actor,
                   label: `Escalade niveau ${d.escalations + 1}`,
                   detail: reason,
                 },

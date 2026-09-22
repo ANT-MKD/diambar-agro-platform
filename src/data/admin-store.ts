@@ -569,37 +569,44 @@ function addModerationEvent(id: string, actor: string, label: string) {
 }
 
 export const moderationActions = {
-  approve: (id: string) => {
+  approve: (id: string, actor = "Admin Diambar") => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
-    addModerationEvent(id, "Admin Diambar", "Produit conservé");
-    auditActions.log({ action: "Produit conservé (modération)", target: id, module: "moderation" });
+    addModerationEvent(id, actor, "Produit conservé");
+    auditActions.log({
+      action: "Produit conservé (modération)",
+      target: id,
+      module: "moderation",
+      actor,
+    });
   },
   // Dépublier retire réellement le produit du catalogue (comme un producteur
   // qui le passerait en brouillon), pas seulement l'entrée de la file de
   // modération — sinon le produit resterait visible et commandable.
-  unpublish: (id: string) => {
+  unpublish: (id: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
     moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
     productActions.update(m.productId, { status: "draft" });
-    addModerationEvent(id, "Admin Diambar", "Produit dépublié");
+    addModerationEvent(id, actor, "Produit dépublié");
     auditActions.log({
       action: "Produit dépublié (modération)",
       target: id,
       module: "moderation",
       level: "attention",
+      actor,
       changes: [{ field: "Statut produit", before: "Publié", after: "Brouillon" }],
     });
   },
-  requestChange: (id: string, note: string) => {
+  requestChange: (id: string, note: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
-    addModerationEvent(id, "Admin Diambar", `Modification demandée : ${note}`);
+    addModerationEvent(id, actor, `Modification demandée : ${note}`);
     auditActions.log({
       action: "Modification demandée (modération)",
       target: id,
       module: "moderation",
       reason: note,
+      actor,
     });
     farmerNotifActions.add({
       type: "system",
@@ -609,7 +616,7 @@ export const moderationActions = {
   },
   // Suspendre le producteur est une action distincte de dépublier un seul
   // produit : ça bloque tout son compte, pas uniquement cette annonce.
-  suspendFarmer: (id: string) => {
+  suspendFarmer: (id: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
     const product = products.find((p) => p.id === m.productId);
@@ -618,12 +625,13 @@ export const moderationActions = {
       ? usersStore.get().find((u) => u.name === farmer.name)
       : usersStore.get().find((u) => u.name === m.farmer);
     if (account) adminUserActions.setStatus(account.id, "suspended");
-    addModerationEvent(id, "Admin Diambar", `Producteur suspendu (${m.farmer})`);
+    addModerationEvent(id, actor, `Producteur suspendu (${m.farmer})`);
     auditActions.log({
       action: "Producteur suspendu (modération)",
       target: account?.id ?? m.farmer,
       module: "security",
       level: "critical",
+      actor,
       changes: [{ field: "Statut du compte", before: "Actif", after: "Suspendu" }],
     });
   },

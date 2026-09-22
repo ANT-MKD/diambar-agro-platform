@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -38,7 +38,7 @@ import {
   INCIDENT_TYPE_LABEL,
   type IncidentType,
 } from "@/data/business";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
 
 export const Route = createFileRoute("/admin/deliveries/$missionId")({
@@ -76,6 +76,9 @@ const INCIDENT_TYPES: IncidentType[] = [
 
 function AdminDeliveryDetail() {
   const { missionId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canReassignDeliveries = can(role, "deliveries.reassign");
   const mission = useMission(missionId);
   const orders = useOrders();
   const disputes = useAllDisputes();
@@ -116,6 +119,10 @@ function AdminDeliveryDetail() {
       toast.error("Choisissez un livreur");
       return;
     }
+    if (!canReassignDeliveries) {
+      toast.error("Votre rôle ne permet pas de réaffecter une course.");
+      return;
+    }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
     missionActions.reassign(mission.id, newDriverId);
@@ -123,6 +130,7 @@ function AdminDeliveryDetail() {
       action: "Course réaffectée",
       target: mission.reference,
       module: "deliveries",
+      actor: user.name,
       changes: [
         {
           field: "Livreur",
@@ -149,13 +157,14 @@ function AdminDeliveryDetail() {
         waitedMinutes: 0,
         compensationRequested: 0,
       },
-      "Admin Diambar",
+      user.name,
     );
     auditActions.log({
       action: `Incident créé depuis la livraison (${item.reference})`,
       target: mission.reference,
       module: "incidents",
       level: "attention",
+      actor: user.name,
     });
     toast.success(`${item.reference} créé`);
     setIncidentOpen(false);
@@ -203,17 +212,19 @@ function AdminDeliveryDetail() {
               <TriangleAlert className="h-3.5 w-3.5" />
               Signaler un incident
             </Button>
-            {mission.status !== "delivered" && mission.status !== "cancelled" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setReassignOpen(true)}
-              >
-                <Repeat className="h-3.5 w-3.5" />
-                Réaffecter
-              </Button>
-            )}
+            {mission.status !== "delivered" &&
+              mission.status !== "cancelled" &&
+              canReassignDeliveries && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setReassignOpen(true)}
+                >
+                  <Repeat className="h-3.5 w-3.5" />
+                  Réaffecter
+                </Button>
+              )}
           </div>
         }
       />

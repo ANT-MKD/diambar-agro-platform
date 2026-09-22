@@ -417,7 +417,13 @@ export const returnActions = {
   /* ---------------------------------------------------------------- */
   adminSchedulePickup: (
     id: string,
-    input: { driverId: string; driverName: string; scheduledFor: string; address: string },
+    input: {
+      driverId: string;
+      driverName: string;
+      scheduledFor: string;
+      address: string;
+      actor?: string;
+    },
   ) => {
     const at = now();
     returnsStore.set((arr) =>
@@ -437,7 +443,7 @@ export const returnActions = {
                 ...x.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor: input.actor ?? "Admin Diambar",
                   text: `Récupération programmée — ${input.driverName}, ${new Date(input.scheduledFor).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}`,
                 },
               ],
@@ -463,7 +469,7 @@ export const returnActions = {
       ),
     );
   },
-  adminMarkReceived: (id: string, condition: string) => {
+  adminMarkReceived: (id: string, condition: string, actor = "Admin Diambar") => {
     const at = now();
     returnsStore.set((arr) =>
       arr.map((x) =>
@@ -478,7 +484,7 @@ export const returnActions = {
               },
               history: [
                 ...x.history,
-                { at, actor: "Admin Diambar", text: `Produit réceptionné — état : ${condition}` },
+                { at, actor, text: `Produit réceptionné — état : ${condition}` },
               ],
             }
           : x,
@@ -610,7 +616,7 @@ export const returnActions = {
       ),
     );
   },
-  adminEscalateToDispute: (id: string, note: string) => {
+  adminEscalateToDispute: (id: string, note: string, actor = "Admin Diambar") => {
     const r = returnsStore.get().find((x) => x.id === id);
     if (!r || r.escalatedDisputeId) return;
     const farmer = farmerForReturn(r);
@@ -634,16 +640,13 @@ export const returnActions = {
           ? {
               ...x,
               escalatedDisputeId: disputeId,
-              history: [
-                ...x.history,
-                { at: now(), actor: "Admin Diambar", text: `Escaladé en litige — ${note}` },
-              ],
+              history: [...x.history, { at: now(), actor, text: `Escaladé en litige — ${note}` }],
             }
           : x,
       ),
     );
   },
-  adminClose: (id: string) => {
+  adminClose: (id: string, actor = "Admin Diambar") => {
     const at = now();
     returnsStore.set((arr) =>
       arr.map((x) =>
@@ -651,7 +654,7 @@ export const returnActions = {
           ? {
               ...x,
               closedAt: at,
-              history: [...x.history, { at, actor: "Admin Diambar", text: "Dossier clôturé" }],
+              history: [...x.history, { at, actor, text: "Dossier clôturé" }],
             }
           : x,
       ),
@@ -973,7 +976,7 @@ export const incidentActions = {
       ),
     );
   },
-  resolve: (id: string, awarded: number, note?: string) => {
+  resolve: (id: string, awarded: number, note?: string, actor = "Admin Diambar") => {
     const incident = incidentsStore.get().find((i) => i.id === id);
     incidentsStore.set((arr) =>
       arr.map((i) =>
@@ -987,7 +990,7 @@ export const incidentActions = {
                 ...i.history,
                 {
                   at: now(),
-                  actor: "Support Diambar",
+                  actor,
                   text:
                     awarded > 0
                       ? `Clôturé — indemnité ${awarded} FCFA accordée${note ? ` (${note})` : ""}`
