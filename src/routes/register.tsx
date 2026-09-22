@@ -7,7 +7,7 @@ import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { RoleCard } from "@/components/auth/role-card";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
-import { cities } from "@/data/mocks";
+import { useCities } from "@/data/admin-store";
 import { registerValidateFn, registerVerifyFn } from "@/lib/auth/functions";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
@@ -267,6 +267,7 @@ function Step2({
   onNext: (e: React.FormEvent) => void;
   onBack: () => void;
 }) {
+  const cities = useCities();
   const set = (k: keyof RegisterForm, v: string) => setForm({ ...form, [k]: v });
   return (
     <form onSubmit={onNext}>

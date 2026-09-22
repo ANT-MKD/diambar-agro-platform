@@ -2,8 +2,6 @@
 
 export type Role = "farmer" | "restaurant" | "driver" | "admin";
 
-export const cities = ["Dakar", "Thiès", "Mbour", "Saint-Louis", "Ziguinchor"] as const;
-
 export const farmers = [
   {
     id: "f1",

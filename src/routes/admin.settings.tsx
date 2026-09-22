@@ -103,7 +103,7 @@ function AdminSettings() {
       </div>
 
       {tab === "overview" && <OverviewTab onNavigate={setTab} />}
-      {tab === "platform" && <PlatformTab canEdit={canEdit} />}
+      {tab === "platform" && <PlatformTab canEdit={canEdit} actorName={user.name} />}
       {tab === "security" && <SecurityTab canEdit={canEdit} />}
       {tab === "roles" && <RolesTab />}
       {tab === "maintenance" && <MaintenanceTab canEdit={canEdit} actorName={user.name} />}
@@ -222,12 +222,13 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
   );
 }
 
-function PlatformTab({ canEdit }: { canEdit: boolean }) {
+function PlatformTab({ canEdit, actorName }: { canEdit: boolean; actorName: string }) {
   const tiers = useCommissionTiers();
   const zones = useDeliveryZones();
   const refundSettings = useRefundSettings();
   const approvalTiers = useRefundApprovalTiers();
   const approverRoles = ADMIN_ROLE_NAMES.filter((r) => can(r, "refunds.approve"));
+  const [newCity, setNewCity] = useState({ name: "", baseFee: "2000", perKm: "100" });
 
   return (
     <div className="space-y-6">
@@ -262,9 +263,11 @@ function PlatformTab({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <div className="glass rounded-2xl p-5">
-        <h2 className="font-semibold">Zones de livraison</h2>
+        <h2 className="font-semibold">Villes desservies</h2>
         <p className="text-xs text-muted-foreground">
-          Activez une zone pour ouvrir les commandes correspondantes.
+          Source unique utilisée à la fois pour la tarification livraison ci-dessous et pour les
+          listes "Ville" des formulaires d'inscription et de profil (agriculteur, restaurant).
+          Activez une ville pour ouvrir les commandes correspondantes.
         </p>
         <div className="mt-4 space-y-3">
           {zones.map((z) => (
@@ -298,6 +301,65 @@ function PlatformTab({ canEdit }: { canEdit: boolean }) {
             </div>
           ))}
         </div>
+        {canEdit && (
+          <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-border p-3">
+            <div className="flex-1 min-w-40">
+              <label className="text-[11px] text-muted-foreground">Nouvelle ville</label>
+              <input
+                value={newCity.name}
+                onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
+                placeholder="Ex. Kaolack"
+                className="mt-1 w-full h-9 rounded-xl border border-border bg-background px-3 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-muted-foreground">Frais de base</label>
+              <input
+                type="number"
+                min={0}
+                step={500}
+                value={newCity.baseFee}
+                onChange={(e) => setNewCity({ ...newCity, baseFee: e.target.value })}
+                className="mt-1 w-28 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-muted-foreground">FCFA/km</label>
+              <input
+                type="number"
+                min={0}
+                step={5}
+                value={newCity.perKm}
+                onChange={(e) => setNewCity({ ...newCity, perKm: e.target.value })}
+                className="mt-1 w-24 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right"
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                const name = newCity.name.trim();
+                if (!name) {
+                  toast.error("Indiquez le nom de la ville");
+                  return;
+                }
+                if (zones.some((z) => z.name.toLowerCase() === name.toLowerCase())) {
+                  toast.error("Cette ville existe déjà");
+                  return;
+                }
+                platformSettingsActions.addZone(
+                  name,
+                  Number(newCity.baseFee) || 0,
+                  Number(newCity.perKm) || 0,
+                  actorName,
+                );
+                toast.success(`${name} ajoutée`);
+                setNewCity({ name: "", baseFee: "2000", perKm: "100" });
+              }}
+            >
+              Ajouter une ville
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5">

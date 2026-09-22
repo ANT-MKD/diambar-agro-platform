@@ -109,6 +109,12 @@ export function useCommissionTiers() {
 export function useDeliveryZones() {
   return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
 }
+/** Liste des villes desservies, dérivée des mêmes zones de livraison —
+ * utilisée par les formulaires d'inscription/profil (agriculteur,
+ * restaurant) pour rester alignée avec ce que l'admin configure. */
+export function useCities(): string[] {
+  return useDeliveryZones().map((z) => z.name);
+}
 export function useRefundSettings() {
   return useSyncExternalStore(
     refundSettingsStore.subscribe,
@@ -693,6 +699,18 @@ export const platformSettingsActions = {
           ? [{ field: "Frais de base", before: `${before} FCFA`, after: `${baseFee} FCFA` }]
           : undefined,
     });
+  },
+  addZone: (name: string, baseFee: number, perKm: number, actor: string) => {
+    const id = `dz_${Date.now()}`;
+    zonesStore.set((arr) => [...arr, { id, name, baseFee, perKm, active: true }]);
+    auditActions.log({
+      action: "Ville ajoutée",
+      target: name,
+      module: "finance",
+      actor,
+      changes: [{ field: "Ville desservie", before: "—", after: name }],
+    });
+    return id;
   },
   setRefundJustificationThreshold: (amount: number) => {
     const before = refundSettingsStore.get().justificationThreshold;

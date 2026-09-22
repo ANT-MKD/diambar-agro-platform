@@ -572,10 +572,15 @@ export const teams: Team[] = [
   { id: "team3", name: "Opérations", memberIds: ["u15"] },
 ];
 
+// Source unique des villes desservies par la plateforme : alimente à la
+// fois la tarification livraison (admin) et les listes déroulantes "Ville"
+// des formulaires d'inscription/profil (agriculteur, restaurant). Avant,
+// ces deux usages avaient chacun leur propre liste figée, qui pouvait
+// diverger — une ville ajoutée ici est désormais visible partout.
 export const deliveryZones = [
-  { id: "dz1", name: "Dakar intra-muros", baseFee: 1000, perKm: 120, active: true },
-  { id: "dz2", name: "Dakar → Thiès", baseFee: 3500, perKm: 95, active: true },
-  { id: "dz3", name: "Dakar → Mbour", baseFee: 4000, perKm: 95, active: true },
+  { id: "dz1", name: "Dakar", baseFee: 1000, perKm: 120, active: true },
+  { id: "dz2", name: "Thiès", baseFee: 3500, perKm: 95, active: true },
+  { id: "dz3", name: "Mbour", baseFee: 4000, perKm: 95, active: true },
   { id: "dz4", name: "Saint-Louis", baseFee: 6000, perKm: 85, active: false },
   { id: "dz5", name: "Ziguinchor", baseFee: 8500, perKm: 80, active: false },
 ];
