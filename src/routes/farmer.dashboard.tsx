@@ -34,7 +34,12 @@ import {
   orderActions,
   useFarmerNotifications,
   farmerNotifActions,
+  useFarmerProfile,
+  useFarmerFarm,
+  usePaymentPrefs,
 } from "@/data/store";
+import { useSecurity } from "@/data/security";
+import { farmerCompletionItems } from "@/lib/profile-completion";
 import { useSupplierScores } from "@/data/business";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
@@ -42,7 +47,7 @@ import { AlertsPanel } from "@/components/farmer/alerts-panel";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
-import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
+import { ProfileCompletion } from "@/components/common/profile-completion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -61,6 +66,10 @@ export const Route = createFileRoute("/farmer/dashboard")({
 function Dashboard() {
   const products = useProducts();
   const orders = useOrders().filter((o) => o.farmerId === "f1");
+  const farmerProfile = useFarmerProfile();
+  const farmerFarm = useFarmerFarm();
+  const paymentPrefs = usePaymentPrefs();
+  const security = useSecurity();
   const pending = orders.filter((o) => o.status === "pending").slice(0, 3);
   const delivered = orders.filter((o) => o.status === "delivered");
   const active = products.filter((p) => p.status === "active").length;
@@ -182,17 +191,9 @@ function Dashboard() {
         </Link>
       </div>
 
-      <OnboardingChecklist
-        storageKey="farmer"
-        title="Complétez votre profil producteur"
-        items={[
-          { key: "farmer_photo", label: "Ajouter une photo de profil" },
-          { key: "farmer_farm", label: "Renseigner votre exploitation" },
-          { key: "farmer_payment", label: "Connecter un compte Wave/Orange" },
-          { key: "farmer_products", label: "Publier vos 3 premiers produits" },
-          { key: "farmer_verify", label: "Vérifier votre identité" },
-          { key: "farmer_notifs", label: "Activer les notifications" },
-        ]}
+      <ProfileCompletion
+        title="Profil producteur complété"
+        items={farmerCompletionItems(farmerProfile, farmerFarm, paymentPrefs, security.twoFa)}
       />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

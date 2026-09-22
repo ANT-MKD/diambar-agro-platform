@@ -191,7 +191,6 @@ const cartStore = createStore<CartLine[]>([], "diambar:cart");
 const wishlistStore = createStore<string[]>([], "diambar:wishlist");
 const conversationsStore = createStore<Conversation[]>(seedConversations, "diambar:conversations");
 const recurringStore = createStore<RecurringOrder[]>(seedRecurring, "diambar:recurring");
-const onboardingStore = createStore<Record<string, boolean>>({}, "diambar:onboarding");
 
 export function useProducts() {
   return useSyncExternalStore(productsStore.subscribe, productsStore.get, productsStore.get);
@@ -246,10 +245,6 @@ export function useRecurringOrders() {
 export function useRecurringOrder(id: string) {
   return useRecurringOrders().find((r) => r.id === id) ?? null;
 }
-export function useOnboarding() {
-  return useSyncExternalStore(onboardingStore.subscribe, onboardingStore.get, onboardingStore.get);
-}
-
 export function useRestaurantOrders() {
   return useSyncExternalStore(
     restaurantOrdersStore.subscribe,
@@ -2038,10 +2033,4 @@ export const recurringOrderActions = {
       }),
     );
   },
-};
-
-export const onboardingActions = {
-  toggle: (key: string) => onboardingStore.set((m) => ({ ...m, [key]: !m[key] })),
-  set: (key: string, done: boolean) => onboardingStore.set((m) => ({ ...m, [key]: done })),
-  dismiss: (key: string) => onboardingStore.set((m) => ({ ...m, [`__dismiss_${key}`]: true })),
 };

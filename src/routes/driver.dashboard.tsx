@@ -30,11 +30,15 @@ import {
   useDriverWallet,
   useDriverVehicle,
   useVehicleIssues,
+  useDriverSettings,
   missionActions,
 } from "@/data/store";
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
+import { useSecurity } from "@/data/security";
 import { driverProfile, restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { ProfileCompletion } from "@/components/common/profile-completion";
+import { driverCompletionItems } from "@/lib/profile-completion";
 import {
   dayKey,
   timeLabel,
@@ -84,6 +88,8 @@ function DriverDashboard() {
   const vehicle = useDriverVehicle();
   const vehicleIssues = useVehicleIssues();
   const incidents = useIncidents();
+  const driverSettings = useDriverSettings();
+  const security = useSecurity();
 
   const grossMissions = wallet.transactions
     .filter((t) => t.kind === "mission")
@@ -251,6 +257,11 @@ function DriverDashboard() {
             {online ? "Passer hors-ligne" : "Se mettre en ligne"}
           </Button>
         }
+      />
+
+      <ProfileCompletion
+        title="Profil livreur complété"
+        items={driverCompletionItems(driverSettings, driverProfile.documents, security.twoFa)}
       />
 
       {/* KPIs du jour */}

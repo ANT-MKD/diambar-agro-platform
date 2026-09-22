@@ -20,7 +20,6 @@ import {
   restaurantOrderActions,
   useRestaurantProfile,
   restaurantProfileActions,
-  onboardingActions,
   useSuppliers,
   getRestaurantOrderById,
 } from "@/data/store";
@@ -173,8 +172,6 @@ function Checkout() {
     // L'adresse et la méthode utilisées deviennent les vraies préférences du
     // restaurant, préremplies aux prochaines commandes.
     restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
-    onboardingActions.set("resto_address", true);
-    onboardingActions.set("resto_payment", true);
     toast.success("Commande passée avec succès");
     setStep(3);
   };
