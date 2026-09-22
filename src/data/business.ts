@@ -576,7 +576,7 @@ export const returnActions = {
         refundActions.reject(existingRefund.id, decidedBy, "Converti en échange produit");
       }
     } else if (existingRefund) {
-      refundActions.setBornBy(existingRefund.id, input.bornBy, input.note);
+      refundActions.setBornBy(existingRefund.id, decidedBy, input.bornBy, input.note);
     } else {
       refundActions.create(
         {

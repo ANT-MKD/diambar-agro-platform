@@ -244,7 +244,7 @@ function AdminRefundDetail() {
   };
 
   const retry = () => {
-    refundActions.retry(refund.id, retryMethod);
+    refundActions.retry(refund.id, user.name, retryMethod);
     auditActions.log({
       action: "Nouvelle tentative de remboursement",
       target: refund.reference,

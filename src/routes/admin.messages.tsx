@@ -306,6 +306,7 @@ function AdminMessages() {
       action: `Ticket support créé depuis une conversation (${ticket.id.toUpperCase()})`,
       target: activeCtx.restaurant?.name ?? active.counterpartName,
       module: "messages",
+      actor: user.name,
     });
     toast.success(`Ticket ${ticket.id.toUpperCase()} créé`);
     setTicketOpen(false);

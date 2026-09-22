@@ -355,7 +355,7 @@ export const refundActions = {
    * (retour) établit une responsabilité différente de celle retenue au
    * moment de la création du dossier. Bloqué une fois payé : l'argent a
    * déjà bougé, la charge réelle ne peut plus être réécrite. */
-  setBornBy: (id: string, bornBy: RefundBornBy, note?: string) => {
+  setBornBy: (id: string, actor: string, bornBy: RefundBornBy, note?: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -367,7 +367,7 @@ export const refundActions = {
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: `Prise en charge révisée — ${REFUND_BORN_BY_LABEL[bornBy]}${note ? ` (${note})` : ""}`,
                 },
               ],
@@ -378,7 +378,7 @@ export const refundActions = {
   },
   /** Nouvelle tentative après échec : repasse en "approved" pour permettre
    * un nouveau "Marquer comme remboursé", sans perdre l'historique. */
-  retry: (id: string, method?: RefundMethod) => {
+  retry: (id: string, actor: string, method?: RefundMethod) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -391,7 +391,7 @@ export const refundActions = {
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: method
                     ? `Nouvelle tentative via ${method}`
                     : "Nouvelle tentative de remboursement",

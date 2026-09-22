@@ -455,7 +455,7 @@ function nameFor(userId: string) {
 }
 
 export const validationActions = {
-  approve: (id: string) => {
+  approve: (id: string, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) => arr.map((v) => (v.id === id ? { ...v, status: "approved" } : v)));
     if (req) {
@@ -466,6 +466,7 @@ export const validationActions = {
         target: nameFor(req.userId),
         module: "validations",
         level: "info",
+        actor,
       });
       notifyApplicant(
         req.type,
@@ -474,7 +475,7 @@ export const validationActions = {
       );
     }
   },
-  reject: (id: string, note?: string) => {
+  reject: (id: string, note?: string, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) =>
       arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)),
@@ -487,6 +488,7 @@ export const validationActions = {
         module: "validations",
         level: "attention",
         reason: note,
+        actor,
       });
       notifyApplicant(
         req.type,
@@ -497,7 +499,7 @@ export const validationActions = {
       );
     }
   },
-  setDocStatus: (id: string, docLabel: string, ok: boolean) => {
+  setDocStatus: (id: string, docLabel: string, ok: boolean, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) =>
       arr.map((v) =>
@@ -519,10 +521,17 @@ export const validationActions = {
         target: nameFor(req.userId),
         module: "validations",
         level: ok ? "info" : "attention",
+        actor,
       });
     }
   },
-  requestCorrection: (id: string, docLabel: string, reasons: string[], comment: string) => {
+  requestCorrection: (
+    id: string,
+    docLabel: string,
+    reasons: string[],
+    comment: string,
+    actor = "Admin Diambar",
+  ) => {
     const req = validationsStore.get().find((v) => v.id === id);
     if (!req) return;
     const reasonText = reasons.length ? reasons.join(", ") : "Autre";
@@ -546,6 +555,7 @@ export const validationActions = {
       module: "validations",
       level: "attention",
       reason: `${reasonText}${comment.trim() ? ` — ${comment.trim()}` : ""}`,
+      actor,
     });
     notifyApplicant(
       req.type,

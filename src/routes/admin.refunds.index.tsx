@@ -859,7 +859,7 @@ function RefundsPage() {
                       size="sm"
                       className="gap-2"
                       onClick={() => {
-                        refundActions.retry(r.id, retryMethod);
+                        refundActions.retry(r.id, user.name, retryMethod);
                         auditActions.log({
                           action: "Nouvelle tentative de remboursement",
                           target: r.reference,
