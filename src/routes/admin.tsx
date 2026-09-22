@@ -263,13 +263,24 @@ function AdminLayout() {
     );
   };
 
-  const bottomNav = [
+  const bottomNavAll: {
+    to: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    permission?: PermissionKey;
+  }[] = [
     { to: "/admin/dashboard", label: "Accueil", icon: LayoutDashboard },
-    { to: "/admin/users", label: "Users", icon: Users },
-    { to: "/admin/validations", label: "Validations", icon: ShieldCheck },
-    { to: "/admin/disputes", label: "Litiges", icon: Scale },
+    { to: "/admin/users", label: "Users", icon: Users, permission: "users.view" },
+    {
+      to: "/admin/validations",
+      label: "Validations",
+      icon: ShieldCheck,
+      permission: "validations.decide",
+    },
+    { to: "/admin/disputes", label: "Litiges", icon: Scale, permission: "disputes.decide" },
     { to: "/admin/settings", label: "Plus", icon: Settings },
   ];
+  const bottomNav = bottomNavAll.filter((it) => !it.permission || can(adminRole, it.permission));
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -400,7 +411,10 @@ function AdminLayout() {
           <Outlet />
         </main>
         <CommandPalette scope="admin" />
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16 print:hidden">
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid h-16 print:hidden"
+          style={{ gridTemplateColumns: `repeat(${bottomNav.length}, minmax(0, 1fr))` }}
+        >
           {bottomNav.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (

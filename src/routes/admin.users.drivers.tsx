@@ -27,19 +27,21 @@ function AdminDrivers() {
   const missions = useMissions();
   const [q, setQ] = useState("");
 
-  const rows = users
-    .filter((u) => q === "" || u.name.toLowerCase().includes(q.toLowerCase()))
-    .map((u) => {
-      const driver = findDriverRecord(u);
-      const driverMissions = driver ? missions.filter((m) => m.driverId === driver.id) : [];
-      const delivered = driverMissions.filter((m) => m.status === "delivered").length;
-      const isOnMission = driverMissions.some((m) => ACTIVE_STATUSES.includes(m.status));
-      const liveStatus = u.status !== "active" ? null : isOnMission ? "En livraison" : "Disponible";
-      return { user: u, driver, missionCount: driverMissions.length, delivered, liveStatus };
-    });
+  const allRows = users.map((u) => {
+    const driver = findDriverRecord(u);
+    const driverMissions = driver ? missions.filter((m) => m.driverId === driver.id) : [];
+    const delivered = driverMissions.filter((m) => m.status === "delivered").length;
+    const isOnMission = driverMissions.some((m) => ACTIVE_STATUSES.includes(m.status));
+    const liveStatus = u.status !== "active" ? null : isOnMission ? "En livraison" : "Disponible";
+    return { user: u, driver, missionCount: driverMissions.length, delivered, liveStatus };
+  });
 
-  const totalDelivered = rows.reduce((s, r) => s + r.delivered, 0);
-  const ratings = rows.map((r) => r.driver?.rating).filter((r): r is number => !!r);
+  const rows = allRows.filter(
+    (r) => q === "" || r.user.name.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  const totalDelivered = allRows.reduce((s, r) => s + r.delivered, 0);
+  const ratings = allRows.map((r) => r.driver?.rating).filter((r): r is number => !!r);
   const avgRating = ratings.length
     ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
     : "—";

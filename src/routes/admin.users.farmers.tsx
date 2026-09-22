@@ -26,23 +26,25 @@ function AdminFarmers() {
   const orders = useOrders();
   const [q, setQ] = useState("");
 
-  const rows = users
-    .filter((u) => q === "" || `${u.name} ${u.city}`.toLowerCase().includes(q.toLowerCase()))
-    .map((u) => {
-      const farmer = findFarmerRecord(u);
-      const activeProducts = farmer
-        ? products.filter((p) => p.farmerId === farmer.id && p.status === "active").length
-        : 0;
-      const farmerOrders = farmer ? orders.filter((o) => o.farmerId === farmer.id) : [];
-      const revenue = farmerOrders
-        .filter((o) => o.status === "delivered")
-        .reduce((s, o) => s + o.total, 0);
-      return { user: u, farmer, activeProducts, orderCount: farmerOrders.length, revenue };
-    });
+  const allRows = users.map((u) => {
+    const farmer = findFarmerRecord(u);
+    const activeProducts = farmer
+      ? products.filter((p) => p.farmerId === farmer.id && p.status === "active").length
+      : 0;
+    const farmerOrders = farmer ? orders.filter((o) => o.farmerId === farmer.id) : [];
+    const revenue = farmerOrders
+      .filter((o) => o.status === "delivered")
+      .reduce((s, o) => s + o.total, 0);
+    return { user: u, farmer, activeProducts, orderCount: farmerOrders.length, revenue };
+  });
+
+  const rows = allRows.filter(
+    (r) => q === "" || `${r.user.name} ${r.user.city}`.toLowerCase().includes(q.toLowerCase()),
+  );
 
   const verifiedCount = users.filter((u) => u.verified).length;
-  const totalActiveProducts = rows.reduce((s, r) => s + r.activeProducts, 0);
-  const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalActiveProducts = allRows.reduce((s, r) => s + r.activeProducts, 0);
+  const totalRevenue = allRows.reduce((s, r) => s + r.revenue, 0);
 
   return (
     <div className="space-y-6">
