@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
+import { SecurityPanel } from "@/components/common/security-panel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -368,6 +369,11 @@ function SecurityTab({ canEdit }: { canEdit: boolean }) {
 
   return (
     <div className="space-y-6">
+      <SecurityPanel
+        title="Sécurité de votre compte"
+        description="Mot de passe, double authentification et sessions actives sur ce compte administrateur."
+      />
+
       <div className="glass rounded-2xl p-5">
         <h2 className="font-semibold flex items-center gap-2">
           <Lock className="h-4 w-4" />
