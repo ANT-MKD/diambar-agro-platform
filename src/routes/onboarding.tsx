@@ -1,19 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/common/logo";
+import { getCurrentUserFn } from "@/lib/auth/functions";
+import { dashboardPathForRole } from "@/lib/auth/roles";
+import type { Role } from "@/data/mocks";
 
 export const Route = createFileRoute("/onboarding")({
   validateSearch: (s: Record<string, unknown>) => ({ role: (s.role as string) || "farmer" }),
+  loader: async () => ({ user: await getCurrentUserFn() }),
   head: () => ({ meta: [{ title: "Bienvenue · Diambar Agro" }] }),
   component: Onboarding,
 });
 
-const flows: Record<
-  string,
-  { name: string; greeting: string; steps: string[]; cta: string; href: string }
-> = {
+const flows: Record<Role, { greeting: string; steps: string[]; cta: string }> = {
   farmer: {
-    name: "Mamadou",
     greeting: "Votre compte agriculteur est créé ✓",
     steps: [
       "Compléter votre profil (photo, bio, certifications)",
@@ -21,10 +21,8 @@ const flows: Record<
       "Configurer Wave / Orange Money",
     ],
     cta: "Aller au dashboard",
-    href: "/farmer/dashboard",
   },
   restaurant: {
-    name: "Le Baobab",
     greeting: "Votre compte restaurant est prêt ✓",
     steps: [
       "Compléter le profil (horaires, photos)",
@@ -32,10 +30,8 @@ const flows: Record<
       "Passer votre première commande",
     ],
     cta: "Explorer le catalogue",
-    href: "/farmer/dashboard",
   },
   driver: {
-    name: "Oumar",
     greeting: "Dossier en cours de vérification ✓",
     steps: [
       "Vérification documents (24-48h)",
@@ -43,10 +39,8 @@ const flows: Record<
       "Définir vos zones de couverture",
     ],
     cta: "Configurer mon wallet",
-    href: "/farmer/dashboard",
   },
   admin: {
-    name: "Admin",
     greeting: "Accès administrateur activé ✓",
     steps: [
       "Activer l'authentification 2FA",
@@ -54,13 +48,18 @@ const flows: Record<
       "Configurer les commissions",
     ],
     cta: "Accéder au panneau admin",
-    href: "/farmer/dashboard",
   },
 };
 
 function Onboarding() {
-  const { role } = Route.useSearch();
-  const f = flows[role] || flows.farmer;
+  const { role: searchRole } = Route.useSearch();
+  const { user } = Route.useLoaderData();
+  // Le rôle réel de la session (si connecté juste après l'inscription)
+  // prévaut sur le paramètre d'URL, plus facile à falsifier.
+  const role = (user?.role ?? (searchRole as Role)) || "farmer";
+  const f = flows[role] ?? flows.farmer;
+  const name = user?.name ?? "sur Diambar Agro";
+
   return (
     <div className="min-h-screen bg-hero text-foreground flex flex-col">
       <div className="p-6">
@@ -71,7 +70,9 @@ function Onboarding() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary shadow-lg shadow-primary/40">
             <CheckCircle2 className="h-9 w-9 text-primary-foreground" />
           </div>
-          <h1 className="mt-6 font-display text-3xl font-bold">Bienvenue {f.name} !</h1>
+          <h1 className="mt-6 font-display text-3xl font-bold">
+            {user ? `Bienvenue ${name} !` : "Bienvenue !"}
+          </h1>
           <p className="mt-2 text-muted-foreground">{f.greeting}</p>
           <div className="mt-8 space-y-3 text-left">
             {f.steps.map((s, i) => (
@@ -84,7 +85,7 @@ function Onboarding() {
             ))}
           </div>
           <Link
-            to={f.href}
+            to={dashboardPathForRole(role)}
             className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-6 py-3 font-semibold"
           >
             {f.cta} <ArrowRight className="h-4 w-4" />

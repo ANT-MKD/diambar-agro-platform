@@ -5,7 +5,7 @@ import { demoAccounts } from "@/data/demo-accounts";
 import type { DemoAccount } from "@/data/demo-accounts";
 import { platformUsers } from "@/data/admin-mocks";
 import type { Role } from "@/data/mocks";
-import { authSession } from "./session.server";
+import { authSession, type RegisterDetails } from "./session.server";
 import { dashboardPathForRole } from "./roles";
 import { createSignedToken, verifySignedToken } from "./tokens.server";
 
@@ -25,6 +25,11 @@ export type CurrentUser = {
 // base de données) reste nécessaire avant une mise en production.
 const demoAccountsRuntime: DemoAccount[] = [];
 const demoPasswordOverrides = new Map<string, string>();
+// Détails métier (exploitation, véhicule…) saisis à l'étape 3 de
+// l'inscription — capturés plutôt que jetés, même si aucune page ne les
+// exploite encore (ça demande un vrai profil agriculteur/livreur, qui
+// dépend de la base de données de la Phase 1).
+const demoAccountDetails = new Map<string, RegisterDetails>();
 
 function findAccount(email: string): DemoAccount | undefined {
   return (
@@ -192,6 +197,22 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
 
 // --- Inscription -----------------------------------------------------------
 
+const registerDetailsSchema = z
+  .object({
+    farmName: z.string().optional(),
+    location: z.string().optional(),
+    areaHectares: z.string().optional(),
+    productTypes: z.array(z.string()).optional(),
+    restaurantName: z.string().optional(),
+    address: z.string().optional(),
+    professionalPhone: z.string().optional(),
+    ninea: z.string().optional(),
+    vehicleType: z.string().optional(),
+    licenseNumber: z.string().optional(),
+    zones: z.array(z.string()).optional(),
+  })
+  .optional();
+
 const registerSchema = z.object({
   role: z.enum(["farmer", "restaurant", "driver"]),
   firstName: z.string().min(2, "Prénom requis"),
@@ -200,6 +221,7 @@ const registerSchema = z.object({
   phone: z.string().min(8, "Téléphone invalide"),
   password: z.string().min(8, "8 caractères minimum"),
   city: z.string().min(1),
+  details: registerDetailsSchema,
 });
 
 export const registerValidateFn = createServerFn({ method: "POST" })
@@ -239,6 +261,7 @@ export const registerVerifyFn = createServerFn({ method: "POST" })
       tone: "from-primary/20 to-primary/0 border-primary/40 text-primary",
     };
     demoAccountsRuntime.push(account);
+    if (pending.details) demoAccountDetails.set(account.email, pending.details);
 
     await session.update({
       email: account.email,

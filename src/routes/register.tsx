@@ -9,6 +9,7 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
 import { cities } from "@/data/mocks";
 import { registerValidateFn, registerVerifyFn } from "@/lib/auth/functions";
+import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>): { role?: string } => ({
@@ -44,13 +45,14 @@ function RegisterPage() {
     confirm: "",
     city: "Dakar",
   });
+  const [details, setDetails] = useState<RegisterDetails>({});
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
   const next = () => setStep((s) => Math.min(4, s + 1));
   const back = () => setStep((s) => Math.max(1, s - 1));
 
-  const submitStep2 = async (e: React.FormEvent) => {
+  const submitStep2 = (e: React.FormEvent) => {
     e.preventDefault();
     const schema = z
       .object({
@@ -73,6 +75,10 @@ function RegisterPage() {
     if (passwordScore(form.password) < 2) {
       toast.warning("Renforcez votre mot de passe");
     }
+    next();
+  };
+
+  const submitStep3 = async () => {
     setLoading(true);
     try {
       const { devCode: code } = await registerValidateFn({
@@ -84,6 +90,7 @@ function RegisterPage() {
           phone: form.phone,
           password: form.password,
           city: form.city,
+          details,
         },
       });
       toast.info("Code de vérification envoyé", { description: `Code démo : ${code}` });
@@ -118,7 +125,16 @@ function RegisterPage() {
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
         {step === 2 && <Step2 form={form} setForm={setForm} onNext={submitStep2} onBack={back} />}
-        {step === 3 && <Step3 role={role as Role} onNext={next} onBack={back} />}
+        {step === 3 && (
+          <Step3
+            role={role as Role}
+            details={details}
+            setDetails={setDetails}
+            onNext={submitStep3}
+            onBack={back}
+            loading={loading}
+          />
+        )}
         {step === 4 && (
           <div>
             <button
@@ -323,7 +339,29 @@ function Step2({
   );
 }
 
-function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onBack: () => void }) {
+function Step3({
+  role,
+  details,
+  setDetails,
+  onNext,
+  onBack,
+  loading,
+}: {
+  role: string;
+  details: RegisterDetails;
+  setDetails: React.Dispatch<React.SetStateAction<RegisterDetails>>;
+  onNext: () => void;
+  onBack: () => void;
+  loading: boolean;
+}) {
+  const set = <K extends keyof RegisterDetails>(k: K, v: RegisterDetails[K]) =>
+    setDetails((d) => ({ ...d, [k]: v }));
+  const toggleInArray = (k: "productTypes" | "zones", value: string) =>
+    setDetails((d) => {
+      const arr = d[k] ?? [];
+      return { ...d, [k]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value] };
+    });
+
   return (
     <div>
       <button
@@ -339,9 +377,22 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
       <div className="mt-6 space-y-3">
         {role === "farmer" && (
           <>
-            <Input label="Nom de l'exploitation" />
-            <Input label="Localisation précise" />
-            <Input label="Superficie (hectares)" type="number" />
+            <Input
+              label="Nom de l'exploitation"
+              value={details.farmName}
+              onChange={(v) => set("farmName", v)}
+            />
+            <Input
+              label="Localisation précise"
+              value={details.location}
+              onChange={(v) => set("location", v)}
+            />
+            <Input
+              label="Superficie (hectares)"
+              type="number"
+              value={details.areaHectares}
+              onChange={(v) => set("areaHectares", v)}
+            />
             <div className="text-sm font-medium">Types de produits</div>
             <div className="grid grid-cols-2 gap-2">
               {["Légumes", "Fruits", "Céréales", "Volaille", "Tubercules", "Épices"].map((t) => (
@@ -349,7 +400,12 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
                   key={t}
                   className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer hover:bg-accent"
                 >
-                  <input type="checkbox" className="rounded" />
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={details.productTypes?.includes(t) ?? false}
+                    onChange={() => toggleInArray("productTypes", t)}
+                  />
                   {t}
                 </label>
               ))}
@@ -358,24 +414,48 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
         )}
         {role === "restaurant" && (
           <>
-            <Input label="Nom du restaurant" />
-            <Input label="Adresse complète" />
-            <Input label="Téléphone professionnel" />
-            <Input label="NINEA (optionnel)" />
+            <Input
+              label="Nom du restaurant"
+              value={details.restaurantName}
+              onChange={(v) => set("restaurantName", v)}
+            />
+            <Input
+              label="Adresse complète"
+              value={details.address}
+              onChange={(v) => set("address", v)}
+            />
+            <Input
+              label="Téléphone professionnel"
+              value={details.professionalPhone}
+              onChange={(v) => set("professionalPhone", v)}
+            />
+            <Input
+              label="NINEA (optionnel)"
+              value={details.ninea}
+              onChange={(v) => set("ninea", v)}
+            />
           </>
         )}
         {role === "driver" && (
           <>
             <div>
               <label className="text-sm font-medium">Type de véhicule</label>
-              <select className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm">
+              <select
+                value={details.vehicleType ?? "Moto"}
+                onChange={(e) => set("vehicleType", e.target.value)}
+                className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm"
+              >
                 <option>Moto</option>
                 <option>Vélo</option>
                 <option>Voiture</option>
                 <option>Camionnette</option>
               </select>
             </div>
-            <Input label="Numéro de permis" />
+            <Input
+              label="Numéro de permis"
+              value={details.licenseNumber}
+              onChange={(v) => set("licenseNumber", v)}
+            />
             <div className="text-sm font-medium">Zones de livraison</div>
             <div className="grid grid-cols-2 gap-2">
               {["Dakar-Plateau", "Dakar-Banlieue", "Thiès", "Mbour"].map((z) => (
@@ -383,7 +463,12 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
                   key={z}
                   className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer"
                 >
-                  <input type="checkbox" className="rounded" />
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={details.zones?.includes(z) ?? false}
+                    onChange={() => toggleInArray("zones", z)}
+                  />
                   {z}
                 </label>
               ))}
@@ -392,9 +477,11 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
         )}
       </div>
       <button
+        disabled={loading}
         onClick={onNext}
-        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
       >
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         Continuer <ArrowRight className="h-4 w-4" />
       </button>
     </div>

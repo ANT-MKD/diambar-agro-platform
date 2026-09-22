@@ -9,6 +9,22 @@ export type PendingTwoFa = {
   rememberMe: boolean;
 };
 
+/** Informations spécifiques au métier (étape 3 de l'inscription) — tous les
+ * champs sont optionnels côté type puisqu'ils dépendent du rôle choisi. */
+export type RegisterDetails = {
+  farmName?: string;
+  location?: string;
+  areaHectares?: string;
+  productTypes?: string[];
+  restaurantName?: string;
+  address?: string;
+  professionalPhone?: string;
+  ninea?: string;
+  vehicleType?: string;
+  licenseNumber?: string;
+  zones?: string[];
+};
+
 export type PendingRegistration = {
   email: string;
   phone: string;
@@ -17,6 +33,7 @@ export type PendingRegistration = {
   lastName: string;
   city: string;
   password: string;
+  details?: RegisterDetails;
   code: string;
   expiresAt: number;
 };
