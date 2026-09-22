@@ -52,6 +52,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link to="/blog" className="hover:text-foreground">
+                  Blog
+                </Link>
+              </li>
+              <li>
                 <Link to="/about" className="hover:text-foreground">
                   À propos
                 </Link>
@@ -93,11 +98,15 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-emerald-500" />
-                contact@diambar-agro.sn
+                <a href="mailto:contact@diambar-agro.sn" className="hover:text-foreground">
+                  contact@diambar-agro.sn
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-emerald-500" />
-                +221 77 000 00 00
+                <a href="tel:+221770000000" className="hover:text-foreground">
+                  +221 77 000 00 00
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-emerald-500" />
@@ -107,7 +116,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-12 pt-6 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Diambar Agro · Tous droits réservés</span>
+          <span>© {new Date().getFullYear()} Diambar Agro · Tous droits réservés</span>
           <span>Fait avec ❤️ au Sénégal 🇸🇳</span>
         </div>
       </div>
