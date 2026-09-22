@@ -9,6 +9,14 @@ export type DemoAccount = {
   emoji: string;
   tone: string;
   label?: string;
+  /** Exige un code de vérification après le mot de passe avant de créer la session. */
+  twoFaEnabled?: boolean;
+  /**
+   * "test" = compte de démonstration des états bloqués (suspendu, en
+   * attente…), affiché séparément du grid principal pour ne pas le confondre
+   * avec un raccourci vers un vrai tableau de bord.
+   */
+  kind?: "test";
 };
 
 export const demoAccounts: DemoAccount[] = [
@@ -48,6 +56,7 @@ export const demoAccounts: DemoAccount[] = [
     emoji: "🛡️",
     tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
     label: "Super Administrateur",
+    twoFaEnabled: true,
   },
   {
     role: "admin",
@@ -68,5 +77,31 @@ export const demoAccounts: DemoAccount[] = [
     emoji: "🧭",
     tone: "from-violet-500/20 to-violet-500/0 border-violet-500/40 text-violet-600 dark:text-violet-400",
     label: "Opérations",
+  },
+  // Comptes de test pour les états de connexion bloqués — réutilisent des
+  // profils déjà présents dans platformUsers (admin-mocks.ts) avec un statut
+  // "pending"/"suspended", pour démontrer le vrai blocage plutôt qu'une
+  // maquette. Non affichés dans le grid de connexion 1-clic principal.
+  {
+    role: "farmer",
+    email: "awa.camara@gmail.com",
+    password: "demo1234",
+    name: "Awa Camara",
+    avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=120",
+    emoji: "⏳",
+    tone: "from-amber-500/20 to-amber-500/0 border-amber-500/40 text-amber-600 dark:text-amber-400",
+    label: "Compte en attente",
+    kind: "test",
+  },
+  {
+    role: "restaurant",
+    email: "keurmassar.dib@gmail.com",
+    password: "demo1234",
+    name: "Dibiterie Keur Massar",
+    avatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120",
+    emoji: "⛔",
+    tone: "from-destructive/20 to-destructive/0 border-destructive/40 text-destructive",
+    label: "Compte suspendu",
+    kind: "test",
   },
 ];

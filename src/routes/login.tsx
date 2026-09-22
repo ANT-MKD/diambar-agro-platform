@@ -1,11 +1,23 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Loader2, type LucideIcon } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldAlert,
+  Clock,
+  Ban,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
+import { OtpInput } from "@/components/auth/otp-input";
 import { demoAccounts, type DemoAccount } from "@/data/demo-accounts";
 import { auditActions, useAuditLogs, useLoginSecurity } from "@/data/admin-store";
-import { getCurrentUserFn, loginFn } from "@/lib/auth/functions";
+import { getCurrentUserFn, loginFn, verifyTwoFaFn, type LoginResult } from "@/lib/auth/functions";
 import { dashboardPathForRole } from "@/lib/auth/roles";
 
 export const Route = createFileRoute("/login")({
@@ -19,14 +31,41 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+const BLOCKED_COPY: Record<
+  "pending" | "suspended" | "rejected",
+  { icon: LucideIcon; title: string; body: string; cta?: string }
+> = {
+  pending: {
+    icon: Clock,
+    title: "Dossier en cours de validation",
+    body: "Votre compte n'est pas encore activé — notre équipe vérifie votre dossier. Vous recevrez un message dès que c'est fait.",
+  },
+  suspended: {
+    icon: ShieldAlert,
+    title: "Compte temporairement suspendu",
+    body: "Votre accès à Diambar Agro est actuellement suspendu. Contactez le support pour en connaître le motif.",
+    cta: "Contacter le support",
+  },
+  rejected: {
+    icon: Ban,
+    title: "Dossier refusé",
+    body: "Votre demande d'inscription n'a pas été validée. Contactez le support si vous pensez qu'il s'agit d'une erreur.",
+    cta: "Contacter le support",
+  },
+};
+
 function LoginPage() {
   const navigate = useNavigate();
   const logs = useAuditLogs();
   const { maxAttempts, lockoutMinutes } = useLoginSecurity();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [blocked, setBlocked] = useState<"pending" | "suspended" | "rejected" | null>(null);
+  const [twoFa, setTwoFa] = useState<{ email: string; devCode: string } | null>(null);
+  const [code, setCode] = useState("");
 
   /** Vrai blocage, dérivé des événements "Connexion échouée" déjà réels du
    * journal d'audit — aucune IP capturée, donc le blocage est par email
@@ -49,6 +88,42 @@ function LoginPage() {
     return Math.max(1, Math.ceil(remainingMs / 60_000));
   };
 
+  const finishLogin = (user: { email: string; role: DemoAccount["role"]; name: string }) => {
+    auditActions.log({
+      action: "Connexion réussie",
+      target: user.email,
+      module: "security",
+      level: "info",
+      actor: user.name,
+    });
+    toast.success(`Bienvenue ${user.name}`);
+    navigate({ to: dashboardPathForRole(user.role) });
+  };
+
+  const handleResult = (result: LoginResult, targetEmail: string) => {
+    if (result.kind === "success") {
+      finishLogin(result.user);
+      return;
+    }
+    if (result.kind === "needs_two_fa") {
+      setTwoFa({ email: result.email, devCode: result.devCode });
+      toast.info("Code de vérification envoyé", {
+        description: `Code démo : ${result.devCode}`,
+      });
+      return;
+    }
+    // blocked
+    auditActions.log({
+      action: "Connexion refusée (compte non actif)",
+      target: targetEmail,
+      module: "security",
+      level: "attention",
+      status: "blocked",
+      reason: result.reason,
+    });
+    setBlocked(result.reason);
+  };
+
   const attemptLogin = async (targetEmail: string, targetPassword: string) => {
     const blockedMinutes = lockoutMinutesLeft(targetEmail);
     if (blockedMinutes > 0) {
@@ -63,18 +138,13 @@ function LoginPage() {
       toast.error(
         `Trop de tentatives échouées. Réessayez dans ${blockedMinutes} min${blockedMinutes > 1 ? "es" : ""}.`,
       );
-      return null;
+      return;
     }
     try {
-      const user = await loginFn({ data: { email: targetEmail, password: targetPassword } });
-      auditActions.log({
-        action: "Connexion réussie",
-        target: user.email,
-        module: "security",
-        level: "info",
-        actor: user.name,
+      const result = await loginFn({
+        data: { email: targetEmail, password: targetPassword, rememberMe },
       });
-      return user;
+      handleResult(result, targetEmail);
     } catch {
       auditActions.log({
         action: "Connexion échouée",
@@ -84,21 +154,18 @@ function LoginPage() {
         status: "failed",
         reason: "Email ou mot de passe incorrect",
       });
-      return null;
+      if (lockoutMinutesLeft(targetEmail) === 0) {
+        toast.error("Email ou mot de passe incorrect");
+      }
     }
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setBlocked(null);
     setLoading(true);
     try {
-      const user = await attemptLogin(email, password);
-      if (user) {
-        toast.success(`Bienvenue ${user.name}`);
-        navigate({ to: dashboardPathForRole(user.role) });
-      } else if (lockoutMinutesLeft(email) === 0) {
-        toast.error("Email ou mot de passe incorrect");
-      }
+      await attemptLogin(email, password);
     } finally {
       setLoading(false);
     }
@@ -107,14 +174,100 @@ function LoginPage() {
   const loginAs = async (account: DemoAccount) => {
     setEmail(account.email);
     setPassword(account.password);
-    const user = await attemptLogin(account.email, account.password);
-    if (user) {
-      toast.success(`Connecté en tant que ${user.name}`);
-      navigate({ to: dashboardPathForRole(user.role) });
-    } else if (lockoutMinutesLeft(account.email) === 0) {
-      toast.error("Connexion impossible");
+    setBlocked(null);
+    setLoading(true);
+    try {
+      await attemptLogin(account.email, account.password);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const submitTwoFa = async () => {
+    if (!twoFa) return;
+    if (code.length < 6) {
+      toast.error("Code à 6 chiffres requis");
+      return;
+    }
+    setLoading(true);
+    try {
+      const user = await verifyTwoFaFn({ data: { code } });
+      finishLogin(user);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Code incorrect");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (twoFa) {
+    return (
+      <AuthSplitLayout>
+        <div>
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="h-7 w-7" />
+          </div>
+          <h1 className="mt-4 text-center font-display text-2xl font-bold">
+            Vérification en deux étapes
+          </h1>
+          <p className="mt-1 text-center text-sm text-muted-foreground">
+            Entrez le code de vérification pour {twoFa.email}
+          </p>
+          <div className="mt-8">
+            <OtpInput value={code} onChange={setCode} />
+          </div>
+          <button
+            disabled={loading}
+            onClick={submitTwoFa}
+            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Vérifier
+          </button>
+          <button
+            onClick={() => {
+              setTwoFa(null);
+              setCode("");
+            }}
+            className="mt-3 w-full text-sm text-muted-foreground hover:text-foreground"
+          >
+            Annuler et revenir à la connexion
+          </button>
+        </div>
+      </AuthSplitLayout>
+    );
+  }
+
+  if (blocked) {
+    const copy = BLOCKED_COPY[blocked];
+    return (
+      <AuthSplitLayout>
+        <div className="text-center">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/10 text-destructive">
+            <copy.icon className="h-8 w-8" />
+          </div>
+          <h1 className="mt-6 font-display text-2xl font-bold">{copy.title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
+          <div className="mt-8 space-y-2">
+            {copy.cta && (
+              <Link
+                to="/contact"
+                className="block w-full rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+              >
+                {copy.cta}
+              </Link>
+            )}
+            <button
+              onClick={() => setBlocked(null)}
+              className="w-full text-sm text-muted-foreground hover:text-foreground"
+            >
+              Retour à la connexion
+            </button>
+          </div>
+        </div>
+      </AuthSplitLayout>
+    );
+  }
 
   return (
     <AuthSplitLayout>
@@ -157,7 +310,12 @@ function LoginPage() {
           </div>
           <div className="flex items-center justify-between text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="rounded border-border" />
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded border-border"
+              />
               <span className="text-muted-foreground">Se souvenir de moi</span>
             </label>
             <Link to="/forgot-password" className="text-primary hover:underline font-medium">
@@ -184,21 +342,46 @@ function LoginPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {demoAccounts.map((a) => (
-              <button
-                key={a.email}
-                type="button"
-                onClick={() => loginAs(a)}
-                className={`text-left rounded-xl border bg-gradient-to-br ${a.tone} p-3 hover:scale-[1.02] transition`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{a.emoji}</span>
-                  <span className="text-xs font-semibold capitalize">{a.label ?? a.role}</span>
-                </div>
-                <div className="mt-1 text-[10px] opacity-80 truncate">{a.email}</div>
-              </button>
-            ))}
+            {demoAccounts
+              .filter((a) => !a.kind)
+              .map((a) => (
+                <button
+                  key={a.email}
+                  type="button"
+                  onClick={() => loginAs(a)}
+                  className={`text-left rounded-xl border bg-gradient-to-br ${a.tone} p-3 hover:scale-[1.02] transition`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{a.emoji}</span>
+                    <span className="text-xs font-semibold capitalize">{a.label ?? a.role}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] opacity-80 truncate">{a.email}</div>
+                </button>
+              ))}
           </div>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+              Tester un compte restreint (suspendu, en attente…)
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {demoAccounts
+                .filter((a) => a.kind === "test")
+                .map((a) => (
+                  <button
+                    key={a.email}
+                    type="button"
+                    onClick={() => loginAs(a)}
+                    className={`text-left rounded-xl border bg-gradient-to-br ${a.tone} p-3 hover:scale-[1.02] transition`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{a.emoji}</span>
+                      <span className="text-xs font-semibold">{a.label}</span>
+                    </div>
+                    <div className="mt-1 text-[10px] opacity-80 truncate">{a.email}</div>
+                  </button>
+                ))}
+            </div>
+          </details>
         </div>
 
         <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
@@ -206,7 +389,13 @@ function LoginPage() {
           <div className="flex-1 h-px bg-border" />
         </div>
         <div className="space-y-2">
-          <button className="w-full glass rounded-xl py-3 font-medium text-sm hover:bg-accent flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              toast.info("Bientôt disponible", { description: "Connexion Google en préparation." })
+            }
+            className="w-full glass rounded-xl py-3 font-medium text-sm hover:bg-accent flex items-center justify-center gap-2 opacity-70"
+          >
             <svg className="h-4 w-4" viewBox="0 0 48 48">
               <path
                 fill="#FFC107"
@@ -227,7 +416,15 @@ function LoginPage() {
             </svg>
             Continuer avec Google
           </button>
-          <button className="w-full glass rounded-xl py-3 font-medium text-sm hover:bg-accent">
+          <button
+            type="button"
+            onClick={() =>
+              toast.info("Bientôt disponible", {
+                description: "Connexion par téléphone en préparation.",
+              })
+            }
+            className="w-full glass rounded-xl py-3 font-medium text-sm hover:bg-accent opacity-70"
+          >
             📱 Continuer avec téléphone
           </button>
         </div>

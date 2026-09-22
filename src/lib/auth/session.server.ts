@@ -1,9 +1,31 @@
 import { useSession } from "@tanstack/react-start/server";
 import type { Role } from "@/data/mocks";
 
-export type AuthSessionData = {
+export type PendingTwoFa = {
   email: string;
   role: Role;
+  code: string;
+  expiresAt: number;
+  rememberMe: boolean;
+};
+
+export type PendingRegistration = {
+  email: string;
+  phone: string;
+  role: Role;
+  firstName: string;
+  lastName: string;
+  city: string;
+  password: string;
+  code: string;
+  expiresAt: number;
+};
+
+export type AuthSessionData = {
+  email?: string;
+  role?: Role;
+  pendingTwoFa?: PendingTwoFa;
+  pendingRegistration?: PendingRegistration;
 };
 
 const MIN_SECRET_LENGTH = 32;
@@ -13,24 +35,32 @@ const MIN_SECRET_LENGTH = 32;
 // (variable d'env Cloudflare Workers) plutôt que d'utiliser ce repli.
 const FALLBACK_DEMO_SECRET = "diambar-agro-demo-session-secret-please-rotate";
 
-function getSessionSecret(): string {
+export function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.length >= MIN_SECRET_LENGTH) return secret;
   return FALLBACK_DEMO_SECRET;
 }
 
+const SHORT_SESSION_SECONDS = 60 * 60 * 24; // 1 jour — session non prolongée
+const REMEMBER_ME_SECONDS = 60 * 60 * 24 * 30; // 30 jours — "Se souvenir de moi"
+
 /**
  * Session scellée (chiffrée + signée) côté serveur : le secret ne quitte
  * jamais le serveur, contrairement à un token construit côté client.
+ *
+ * `rememberMe` fait réellement varier la durée du cookie de session : sans
+ * elle la session expire en 24h, avec elle en 30 jours. Le choix n'est
+ * mémorisé qu'au moment de la connexion (on ne peut pas changer le maxAge
+ * d'un cookie déjà émis sans le réémettre).
  */
-export function authSession() {
+export function authSession(rememberMe = false) {
   // Not a React hook: this is TanStack Start's server-only session helper,
   // only ever called from inside createServerFn handlers (request scope).
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useSession<AuthSessionData>({
     password: getSessionSecret(),
     name: "diambar_session",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: rememberMe ? REMEMBER_ME_SECONDS : SHORT_SESSION_SECONDS,
     cookie: {
       httpOnly: true,
       sameSite: "lax",

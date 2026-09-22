@@ -1,14 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  Sprout,
-  UtensilsCrossed,
-  Truck,
-  Wrench,
-  ArrowRight,
-  ArrowLeft,
-  Loader2,
-} from "lucide-react";
+import { Sprout, UtensilsCrossed, Truck, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
@@ -16,6 +8,7 @@ import { RoleCard } from "@/components/auth/role-card";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
 import { cities } from "@/data/mocks";
+import { registerValidateFn, registerVerifyFn } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>): { role?: string } => ({
@@ -25,7 +18,7 @@ export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-type Role = "farmer" | "restaurant" | "driver" | "admin";
+type Role = "farmer" | "restaurant" | "driver";
 
 type RegisterForm = {
   firstName: string;
@@ -57,7 +50,7 @@ function RegisterPage() {
   const next = () => setStep((s) => Math.min(4, s + 1));
   const back = () => setStep((s) => Math.max(1, s - 1));
 
-  const submitStep2 = (e: React.FormEvent) => {
+  const submitStep2 = async (e: React.FormEvent) => {
     e.preventDefault();
     const schema = z
       .object({
@@ -80,20 +73,43 @@ function RegisterPage() {
     if (passwordScore(form.password) < 2) {
       toast.warning("Renforcez votre mot de passe");
     }
-    next();
+    setLoading(true);
+    try {
+      const { devCode: code } = await registerValidateFn({
+        data: {
+          role: (role || "farmer") as "farmer" | "restaurant" | "driver",
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          city: form.city,
+        },
+      });
+      toast.info("Code de vérification envoyé", { description: `Code démo : ${code}` });
+      next();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible de continuer");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const submitOtp = () => {
+  const submitOtp = async () => {
     if (otp.length < 6) {
       toast.error("Code à 6 chiffres requis");
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success("Compte créé ! (simulé)");
+    try {
+      await registerVerifyFn({ data: { code: otp } });
+      toast.success("Compte créé !");
       navigate({ to: "/onboarding", search: { role: role || "farmer" } });
-    }, 800);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Code incorrect");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -202,13 +218,6 @@ function Step1({
       title: "Livreur",
       desc: "Je livre les commandes",
       accent: "blue",
-    },
-    {
-      id: "admin",
-      icon: Wrench,
-      title: "Admin",
-      desc: "Je gère la plateforme (avec code)",
-      accent: "violet",
     },
   ];
   return (
@@ -381,7 +390,6 @@ function Step3({ role, onNext, onBack }: { role: string; onNext: () => void; onB
             </div>
           </>
         )}
-        {role === "admin" && <Input label="Code d'accès admin" type="password" />}
       </div>
       <button
         onClick={onNext}
