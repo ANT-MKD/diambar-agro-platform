@@ -59,3 +59,14 @@ export function computeCommission(orders: Order[], tiers: Tier[]) {
     .filter((o) => o.status === "delivered")
     .reduce((s, o) => s + commissionForOrder(o, tiers, volumeByFarmer), 0);
 }
+
+/**
+ * Commission plateforme sur une mission de livraison : taux fixe (le
+ * livreur conserve 80 % de la course, cf. page /pricing), pas de barème par
+ * palier comme pour les producteurs.
+ */
+export const DRIVER_COMMISSION_RATE = 20;
+
+export function driverCommissionForPayout(payout: number) {
+  return Math.round(payout * (DRIVER_COMMISSION_RATE / 100));
+}

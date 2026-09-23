@@ -80,7 +80,11 @@ import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
-import { tierRateForVolume } from "@/lib/commission";
+import {
+  tierRateForVolume,
+  driverCommissionForPayout,
+  DRIVER_COMMISSION_RATE,
+} from "@/lib/commission";
 import { commissionTiers } from "@/data/admin-mocks";
 
 type Listener = () => void;
@@ -776,10 +780,28 @@ export const missionActions = {
       });
     }
     if (status === "delivered") {
+      // Crédit réel du portefeuille livreur : le montant brut de la mission,
+      // puis la commission plateforme déduite séparément (même principe
+      // d'affichage que pour l'agriculteur : deux écritures liées par la
+      // même référence, jamais un simple "paiement programmé" qui ne se
+      // concrétisait jamais).
+      const commission = driverCommissionForPayout(updated.payout);
+      driverWalletActions.credit(
+        `Mission ${updated.reference}`,
+        updated.payout,
+        "mission",
+        updated.reference,
+      );
+      driverWalletActions.credit(
+        `Commission plateforme (${DRIVER_COMMISSION_RATE}%)`,
+        -commission,
+        "commission",
+        updated.reference,
+      );
       driverNotifActions.add({
         type: "payment",
-        title: "Paiement programmé",
-        body: `Wave · +${formatFCFA(updated.payout)} (${updated.reference})`,
+        title: "Paiement reçu",
+        body: `Wave · +${formatFCFA(updated.payout - commission)} (${updated.reference})`,
       });
       // Ferme la boucle : la commande liée (agriculteur -> restaurant) passe
       // aussi en "livrée", avec ses propres notifications en cascade.

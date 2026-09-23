@@ -34,6 +34,7 @@ import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { driverCommissionForPayout } from "@/lib/commission";
 import { timeLabel } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import {
@@ -502,8 +503,9 @@ function MissionDetail() {
           <AlertDialogHeader>
             <AlertDialogTitle>Preuve de livraison</AlertDialogTitle>
             <AlertDialogDescription>
-              Ajoutez une photo (facultatif) et confirmez la remise. Le paiement de{" "}
-              {formatFCFA(mission.payout)} sera programmé sous 24h.
+              Ajoutez une photo (facultatif) et confirmez la remise. Vous recevrez immédiatement{" "}
+              {formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre
+              portefeuille (commission plateforme déjà déduite).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <FileDrop

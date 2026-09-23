@@ -1963,7 +1963,7 @@ export const driverNotifications: AppNotification[] = [
     id: "dn2",
     type: "payment",
     title: "Paiement reçu",
-    body: "Wave · +8 575 FCFA (MIS-4200)",
+    body: "Wave · +7 200 FCFA (MIS-4200)",
     at: "2025-05-15T11:30:00Z",
     read: false,
   },
@@ -2081,10 +2081,10 @@ export const driverTransactions: DriverTx[] = [
   {
     id: "dtx2",
     at: "2025-05-15T11:30:00Z",
-    label: "Commission plateforme (5%)",
+    label: "Commission plateforme (20%)",
     ref: "MIS-4200",
     kind: "commission",
-    amount: -425,
+    amount: -1800,
     status: "Complété",
   },
   {
@@ -2099,10 +2099,10 @@ export const driverTransactions: DriverTx[] = [
   {
     id: "dtx4",
     at: "2025-05-14T18:05:00Z",
-    label: "Commission plateforme (5%)",
+    label: "Commission plateforme (20%)",
     ref: "MIS-4180",
     kind: "commission",
-    amount: -175,
+    amount: -700,
     status: "Complété",
   },
   {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "../test-utils/render-hook";
 import {
+  useDriverWallet,
   useFarmerNotifications,
   useMissions,
   useOrders,
@@ -218,5 +219,23 @@ describe("missionActions.setStatus (delivery cascade)", () => {
 
     const linkedOrder = orders.result.current.find((o) => o.reference === mission.orderRef);
     expect(linkedOrder?.status).toBe("delivered");
+  });
+
+  it("credits the driver wallet with the payout minus the 20% platform commission", () => {
+    const missions = renderHook(() => useMissions());
+    const wallet = renderHook(() => useDriverWallet());
+    const mission = missions.result.current.find((m) => m.reference === "MIS-4201")!;
+    expect(mission).toBeTruthy();
+    const balanceBefore = wallet.result.current.balance;
+
+    act(() => {
+      missionActions.setStatus(mission.id, "delivered");
+    });
+
+    const expectedCommission = Math.round(mission.payout * 0.2);
+    const txs = wallet.result.current.transactions.filter((t) => t.ref === mission.reference);
+    expect(txs.find((t) => t.kind === "mission")?.amount).toBe(mission.payout);
+    expect(txs.find((t) => t.kind === "commission")?.amount).toBe(-expectedCommission);
+    expect(wallet.result.current.balance).toBe(balanceBefore + mission.payout - expectedCommission);
   });
 });
