@@ -44,7 +44,7 @@ import {
   type IncidentStatus,
   type IncidentSeverity,
 } from "@/data/business";
-import { useMissions, useOrders, missionActions } from "@/data/store";
+import { useMissions, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import { refundActions, type RefundMethod } from "@/data/finance";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
@@ -86,6 +86,9 @@ function AdminIncidentDetail() {
   const navigate = useNavigate();
 
   const incident = incidents.find((i) => i.id === incidentId);
+  const candidates = useReassignCandidates(
+    incident ? missions.find((m) => m.reference === incident.missionRef) : undefined,
+  );
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -114,7 +117,6 @@ function AdminIncidentDetail() {
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : undefined;
   const order = mission ? orders.find((o) => o.reference === mission.orderRef) : undefined;
   const dispute = mission ? disputes.find((d) => d.orderRef === mission.orderRef) : undefined;
-  const candidateDrivers = drivers.filter((d) => d.id !== mission?.driverId);
 
   const startDeciding = () => {
     setAmount(String(incident.compensationRequested));
@@ -184,7 +186,11 @@ function AdminIncidentDetail() {
       return;
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
-    missionActions.reassign(mission.id, newDriverId);
+    const result = missionActions.reassign(mission.id, newDriverId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     auditActions.log({
       action: "Course réaffectée",
       target: mission.reference,
@@ -488,9 +494,10 @@ function AdminIncidentDetail() {
               <SelectValue placeholder="Choisir un livreur" />
             </SelectTrigger>
             <SelectContent>
-              {candidateDrivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name} · {d.vehicle}
+              {candidates.map(({ driver: d, fleet, eligibility }) => (
+                <SelectItem key={d.id} value={d.id} disabled={!eligibility.ok}>
+                  {d.name} · {fleet ? `${fleet.type} ${fleet.capacityKg} kg` : d.vehicle}
+                  {!eligibility.ok && ` — ${eligibility.message}`}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -32,6 +32,7 @@ import {
   useDriverConversations,
   missionActions,
   autoAcceptableMissions,
+  useMyDriverFleet,
 } from "@/data/store";
 import { driverProfile } from "@/data/mocks";
 import { useMaintenanceMode } from "@/data/admin-store";
@@ -63,6 +64,7 @@ function DriverLayout() {
   const unread = notifs.filter((n) => !n.read).length;
   const missions = useMissions();
   const settings = useDriverSettings();
+  const fleet = useMyDriverFleet();
   const activeMissions = missions.filter(
     (m) => m.driverId === MY_DRIVER_ID && ["accepted", "pickup", "loaded"].includes(m.status),
   ).length;
@@ -72,14 +74,14 @@ function DriverLayout() {
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
   useEffect(() => {
     if (!online) return;
-    const matches = autoAcceptableMissions(missions, settings);
+    const matches = autoAcceptableMissions(missions, settings, fleet);
     for (const m of matches) {
-      missionActions.accept(m.id);
+      if (!missionActions.accept(m.id).ok) continue;
       toast.success(
         `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
       );
     }
-  }, [missions, settings, online]);
+  }, [missions, settings, online, fleet]);
 
   const toggleOnline = () => {
     driverOnlineActions.toggle();

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import {
   products as seedProducts,
   orders as seedOrders,
@@ -16,6 +16,7 @@ import {
   driverConversations as seedDriverConvos,
   driverWallet as seedDriverWallet,
   driverVehicle as seedDriverVehicle,
+  drivers as driverPool,
   vehicleMaintenanceHistory as seedMaintenanceHistory,
   vehicleIssues as seedVehicleIssues,
   driverSettings as seedDriverSettings,
@@ -86,6 +87,12 @@ import {
   DRIVER_COMMISSION_RATE,
 } from "@/lib/commission";
 import { commissionTiers } from "@/data/admin-mocks";
+import {
+  fleetForDriver,
+  missionEligibility,
+  type DriverFleet,
+  type Eligibility,
+} from "@/lib/mission-eligibility";
 
 type Listener = () => void;
 
@@ -419,6 +426,30 @@ export function useVehicleIssues() {
   );
 }
 
+/** Capacité et conformité réelles du véhicule du livreur connecté. */
+export function useMyDriverFleet(): DriverFleet {
+  const vehicle = useDriverVehicle();
+  const issues = useVehicleIssues();
+  return useMemo(() => fleetForDriver("d1", vehicle, issues)!, [vehicle, issues]);
+}
+
+/** Livreurs vers lesquels l'admin peut réaffecter une course, chacun avec
+ * son éligibilité réelle (capacité du véhicule, conformité). */
+export function useReassignCandidates(mission: Mission | null | undefined) {
+  const vehicle = useDriverVehicle();
+  const issues = useVehicleIssues();
+  return useMemo(() => {
+    if (!mission) return [];
+    return driverPool
+      .filter((d) => d.id !== mission.driverId)
+      .map((d) => {
+        const fleet = fleetForDriver(d.id, vehicle, issues);
+        const eligibility: Eligibility = fleet ? missionEligibility(mission, fleet) : { ok: true };
+        return { driver: d, fleet, eligibility };
+      });
+  }, [mission, vehicle, issues]);
+}
+
 const VEHICLE_ISSUE_TO_CONDITION: Partial<
   Record<VehicleIssueType, keyof DriverVehicle["condition"]>
 > = {
@@ -576,14 +607,20 @@ export const driverSettingsActions = {
  * d'acceptation automatique du livreur (rémunération, poids, type, ville) —
  * aucune notion de distance en temps réel : le livreur n'a pas de position
  * GPS suivie hors mission, donc on ne compare que des critères vérifiables. */
-export function autoAcceptableMissions(missions: Mission[], settings: DriverSettings) {
-  if (!settings.autoAccept) return [];
+export function autoAcceptableMissions(
+  missions: Mission[],
+  settings: DriverSettings,
+  fleet: DriverFleet,
+) {
+  if (!settings.autoAccept || fleet.status === "blocked") return [];
   const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
+  // Le réglage du livreur ne peut pas dépasser ce que son véhicule supporte.
+  const weightLimit = Math.min(maxWeightKg, fleet.capacityKg);
   return missions.filter(
     (m) =>
       m.status === "available" &&
       m.payout >= minPayout &&
-      m.weightKg <= maxWeightKg &&
+      m.weightKg <= weightLimit &&
       acceptedUrgencies.includes(m.urgency) &&
       (acceptedCities.length === 0 ||
         acceptedCities.includes(m.pickup.city) ||
@@ -756,6 +793,8 @@ export const farmerNotifActions = makeNotifActions(farmerNotifsStore);
 export const restaurantNotifActions = makeNotifActions(restoNotifsStore);
 export const driverNotifActions = makeNotifActions(driverNotifsStore);
 
+export type AcceptResult = Eligibility | { ok: false; reason: "taken"; message: string };
+
 export const missionActions = {
   setStatus: (id: string, status: MissionStatus) => {
     let updated: Mission | undefined;
@@ -809,7 +848,22 @@ export const missionActions = {
       if (order) orderActions.setStatus(order.id, "delivered");
     }
   },
-  accept: (id: string, driverId = "d1") => {
+  accept: (id: string, driverId = "d1"): AcceptResult => {
+    // Premier arrivé, premier servi : une mission déjà prise (ou annulée)
+    // entre l'affichage et le clic ne doit jamais être réattribuée.
+    const current = missionsStore.get().find((m) => m.id === id);
+    if (!current || current.status !== "available") {
+      return {
+        ok: false,
+        reason: "taken",
+        message: "Cette mission n'est plus disponible (déjà prise par un autre livreur).",
+      };
+    }
+    const fleet = fleetForDriver(driverId, driverVehicleStore.get(), vehicleIssuesStore.get());
+    if (fleet) {
+      const eligibility = missionEligibility(current, fleet);
+      if (!eligibility.ok) return eligibility;
+    }
     missionsStore.set((arr) =>
       arr.map((m) =>
         m.id === id
@@ -833,6 +887,7 @@ export const missionActions = {
         body: `${mission.reference} ajoutée à vos missions en cours`,
       });
     }
+    return { ok: true };
   },
   cancel: (id: string) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
@@ -843,9 +898,14 @@ export const missionActions = {
   // Réaffectation depuis l'admin : l'ancien livreur redevient disponible,
   // le nouveau reprend la course là où elle en est (statut "accepted", pas
   // "available" — la collecte a déjà pu être planifiée).
-  reassign: (id: string, newDriverId: string) => {
+  reassign: (id: string, newDriverId: string): AcceptResult => {
     const before = missionsStore.get().find((m) => m.id === id);
-    if (!before) return;
+    if (!before) return { ok: false, reason: "taken", message: "Course introuvable." };
+    const fleet = fleetForDriver(newDriverId, driverVehicleStore.get(), vehicleIssuesStore.get());
+    if (fleet) {
+      const eligibility = missionEligibility(before, fleet);
+      if (!eligibility.ok) return eligibility;
+    }
     const previousDriverId = before.driverId;
     missionsStore.set((arr) =>
       arr.map((m) =>
@@ -879,6 +939,7 @@ export const missionActions = {
         body: `${before.reference} vous a été affectée par l'administration`,
       });
     }
+    return { ok: true };
   },
 };
 

@@ -27,6 +27,7 @@ import {
   useOrders,
   useProducts,
   useDriverVehicle,
+  useMyDriverFleet,
   useDriverSettings,
 } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
@@ -35,6 +36,7 @@ import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { driverCommissionForPayout } from "@/lib/commission";
+import { missionEligibility } from "@/lib/mission-eligibility";
 import { timeLabel } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +79,7 @@ function MissionDetail() {
   const orders = useOrders();
   const products = useProducts();
   const vehicle = useDriverVehicle();
+  const fleet = useMyDriverFleet();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
@@ -114,8 +117,13 @@ function MissionDetail() {
   const navTarget = mission.status === "loaded" ? mission.dropoff : mission.pickup;
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`;
 
+  const eligibility = missionEligibility(mission, fleet);
   const accept = () => {
-    missionActions.accept(mission.id);
+    const result = missionActions.accept(mission.id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     toast.success("Mission acceptée");
   };
   const startPickup = () => {
@@ -181,6 +189,19 @@ function MissionDetail() {
           <span>
             Véhicule incompatible : {mission.weightKg} kg à transporter pour une capacité de{" "}
             {vehicle.capacityKg} kg ({vehicle.type} {vehicle.brand} {vehicle.model}).
+          </span>
+        </div>
+      )}
+
+      {mission.status === "available" && fleet.status === "blocked" && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
+          <TriangleAlert className="h-5 w-5 shrink-0" />
+          <span>
+            Véhicule non conforme : assurance ou contrôle technique expiré. Vous ne pouvez pas
+            accepter de mission tant que ce n'est pas régularisé.{" "}
+            <Link to="/driver/vehicle" className="font-semibold underline">
+              Mettre à jour mes documents
+            </Link>
           </span>
         </div>
       )}
@@ -360,10 +381,15 @@ function MissionDetail() {
             <div className="mt-4 space-y-2">
               {mission.status === "available" && (
                 <>
-                  <Button className="w-full gap-2" onClick={accept}>
+                  <Button className="w-full gap-2" onClick={accept} disabled={!eligibility.ok}>
                     <Truck className="h-4 w-4" />
                     Accepter la mission
                   </Button>
+                  {!eligibility.ok && (
+                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                      {eligibility.message}
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     className="w-full text-rose-500 hover:text-rose-600 gap-2"

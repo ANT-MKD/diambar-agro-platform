@@ -239,3 +239,24 @@ describe("missionActions.setStatus (delivery cascade)", () => {
     expect(wallet.result.current.balance).toBe(balanceBefore + mission.payout - expectedCommission);
   });
 });
+
+describe("missionActions.accept (first come, first served)", () => {
+  it("refuses a mission another driver has just taken", () => {
+    const missions = renderHook(() => useMissions());
+    const mission = missions.result.current.find((m) => m.reference === "MIS-4210")!;
+    expect(mission.status).toBe("available");
+
+    let first!: ReturnType<typeof missionActions.accept>;
+    let second!: ReturnType<typeof missionActions.accept>;
+    act(() => {
+      first = missionActions.accept(mission.id, "d1");
+      second = missionActions.accept(mission.id, "d2");
+    });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toBe("taken");
+    const after = missions.result.current.find((m) => m.id === mission.id);
+    expect(after?.driverId).toBe("d1");
+  });
+});

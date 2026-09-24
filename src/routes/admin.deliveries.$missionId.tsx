@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { useMission, useOrders, missionActions } from "@/data/store";
+import { useMission, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import {
   useIncidents,
@@ -80,6 +80,7 @@ function AdminDeliveryDetail() {
   const role = useAdminRoleForEmail(user.email);
   const canReassignDeliveries = can(role, "deliveries.reassign");
   const mission = useMission(missionId);
+  const candidates = useReassignCandidates(mission);
   const orders = useOrders();
   const disputes = useAllDisputes();
   const incidents = useIncidents();
@@ -110,7 +111,6 @@ function AdminDeliveryDetail() {
   const incident = incidents.find(
     (i) => i.missionRef === mission.reference && i.status !== "resolved",
   );
-  const candidateDrivers = drivers.filter((d) => d.id !== mission.driverId);
 
   const history = [...(mission.statusHistory ?? [])].sort((a, b) => (a.at < b.at ? -1 : 1));
 
@@ -125,7 +125,11 @@ function AdminDeliveryDetail() {
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
-    missionActions.reassign(mission.id, newDriverId);
+    const result = missionActions.reassign(mission.id, newDriverId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     auditActions.log({
       action: "Course réaffectée",
       target: mission.reference,
@@ -366,13 +370,18 @@ function AdminDeliveryDetail() {
               <SelectValue placeholder="Choisir un livreur" />
             </SelectTrigger>
             <SelectContent>
-              {candidateDrivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name} · {d.vehicle}
+              {candidates.map(({ driver: d, fleet, eligibility }) => (
+                <SelectItem key={d.id} value={d.id} disabled={!eligibility.ok}>
+                  {d.name} · {fleet ? `${fleet.type} ${fleet.capacityKg} kg` : d.vehicle}
+                  {!eligibility.ok && ` — ${eligibility.message}`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Seuls les livreurs dont le véhicule peut transporter {mission.weightKg} kg et est en
+            règle peuvent recevoir la course.
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReassignOpen(false)}>
               Annuler

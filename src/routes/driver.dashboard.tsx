@@ -31,8 +31,10 @@ import {
   useDriverVehicle,
   useVehicleIssues,
   useDriverSettings,
+  useMyDriverFleet,
   missionActions,
 } from "@/data/store";
+import { missionEligibility } from "@/lib/mission-eligibility";
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
 import { useSecurity } from "@/data/security";
 import { driverProfile, restaurants, farmers, type Mission } from "@/data/mocks";
@@ -86,6 +88,7 @@ function DriverDashboard() {
   const online = useDriverOnline();
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
+  const fleet = useMyDriverFleet();
   const vehicleIssues = useVehicleIssues();
   const incidents = useIncidents();
   const driverSettings = useDriverSettings();
@@ -234,7 +237,11 @@ function DriverDashboard() {
       : { label: "Collecte", ...m.pickup };
 
   const acceptMission = (id: string, ref: string) => {
-    missionActions.accept(id);
+    const result = missionActions.accept(id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     toast.success(`Mission ${ref} acceptée`);
   };
 
@@ -517,6 +524,7 @@ function DriverDashboard() {
                 const r = restaurants.find((x) => x.id === m.restaurantId);
                 const f = farmers.find((x) => x.id === m.farmerId);
                 const badge = MISSION_BADGE[m.status];
+                const eligibility = missionEligibility(m, fleet);
                 return (
                   <div
                     key={m.id}
@@ -542,7 +550,12 @@ function DriverDashboard() {
                       <div className="font-bold text-primary">{formatFCFA(m.payout)}</div>
                     </div>
                     {m.status === "available" ? (
-                      <Button size="sm" onClick={() => acceptMission(m.id, m.reference)}>
+                      <Button
+                        size="sm"
+                        disabled={!eligibility.ok}
+                        title={eligibility.ok ? undefined : eligibility.message}
+                        onClick={() => acceptMission(m.id, m.reference)}
+                      >
                         Prendre la mission
                       </Button>
                     ) : m.status === "delivered" ? (

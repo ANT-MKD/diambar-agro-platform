@@ -23,10 +23,11 @@ import {
   useDriverWallet,
   useDriverOnline,
   driverOnlineActions,
-  useDriverVehicle,
+  useMyDriverFleet,
 } from "@/data/store";
 import { restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { missionEligibility } from "@/lib/mission-eligibility";
 import { dayKey, timeLabel, referenceDay, gainsForDay, MISSION_BADGE } from "@/lib/driver-day";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ function MissionsPage() {
   const all = useMissions();
   const wallet = useDriverWallet();
   const online = useDriverOnline();
-  const vehicle = useDriverVehicle();
+  const fleet = useMyDriverFleet();
   const [tab, setTab] = useState<Tab>("available");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("all");
@@ -101,17 +102,26 @@ function MissionsPage() {
           m.dropoff.city.toLowerCase().includes(q.toLowerCase()),
       )
       .filter((m) => city === "all" || m.pickup.city === city || m.dropoff.city === city);
-    return [...filtered].sort((a, b) =>
+    const sorted = [...filtered].sort((a, b) =>
       sort === "distance"
         ? a.distanceKm - b.distanceKm
         : b.scheduledFor.localeCompare(a.scheduledFor),
     );
-  }, [all, tab, q, city, sort]);
+    // Les missions que ce véhicule peut réellement prendre passent devant ;
+    // les autres restent visibles (grisées) pour que le livreur sache pourquoi.
+    const takeable = (m: Mission) =>
+      m.status !== "available" || missionEligibility(m, fleet).ok ? 0 : 1;
+    return sorted.sort((a, b) => takeable(a) - takeable(b));
+  }, [all, tab, q, city, sort, fleet]);
 
   const cities = Array.from(new Set(all.flatMap((m) => [m.pickup.city, m.dropoff.city])));
 
   const accept = (id: string, ref: string) => {
-    missionActions.accept(id);
+    const result = missionActions.accept(id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     toast.success(`Mission ${ref} acceptée`);
   };
   const refuse = (id: string, ref: string) => {
@@ -139,6 +149,16 @@ function MissionsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Missions" subtitle="Trouvez et gérez vos missions de livraison" />
+
+      {fleet.status === "blocked" && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300">
+          <strong>Véhicule non conforme.</strong> Votre assurance ou votre contrôle technique est
+          expiré : vous ne pouvez plus accepter de mission tant que ce n'est pas régularisé.{" "}
+          <Link to="/driver/vehicle" className="font-semibold underline">
+            Mettre à jour mes documents
+          </Link>
+        </div>
+      )}
 
       {/* KPIs du jour */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -245,8 +265,13 @@ function MissionsPage() {
                 const windowEnd = new Date(
                   new Date(m.scheduledFor).getTime() + m.estimatedMinutes * 60000,
                 ).toISOString();
+                const eligibility =
+                  m.status === "available" ? missionEligibility(m, fleet) : ({ ok: true } as const);
                 return (
-                  <div key={m.id} className="glass rounded-2xl p-4 space-y-3 flex flex-col">
+                  <div
+                    key={m.id}
+                    className={`glass rounded-2xl p-4 space-y-3 flex flex-col ${eligibility.ok ? "" : "opacity-60"}`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -291,7 +316,7 @@ function MissionsPage() {
                           <Package className="h-3 w-3" />
                           {m.weightKg} kg
                         </span>
-                        {m.weightKg > vehicle.capacityKg && (
+                        {m.weightKg > fleet.capacityKg && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
                             Véhicule incompatible
                           </span>
@@ -314,6 +339,7 @@ function MissionsPage() {
                           <Button
                             size="sm"
                             className="flex-1 gap-1"
+                            disabled={!eligibility.ok}
                             onClick={() => accept(m.id, m.reference)}
                           >
                             <Check className="h-3.5 w-3.5" />
@@ -322,6 +348,11 @@ function MissionsPage() {
                         </>
                       )}
                     </div>
+                    {!eligibility.ok && (
+                      <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                        {eligibility.message}
+                      </p>
+                    )}
                     {m.status === "available" && (
                       <Button
                         size="sm"

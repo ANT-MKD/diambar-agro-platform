@@ -69,7 +69,7 @@ export const drivers = [
   {
     id: "d1",
     name: "Oumar Ba",
-    vehicle: "Moto",
+    vehicle: "Camionnette",
     rating: 4.9,
     missions: 234,
     phone: "+221 77 456 78 90",
@@ -85,6 +85,25 @@ export const drivers = [
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200",
   },
 ];
+
+/** Résumé véhicule des livreurs du vivier autres que le livreur connecté
+ * ("d1", dont le dossier complet vit dans `driverVehicle`). */
+export const driverFleetSeed: Record<
+  string,
+  {
+    type: "Moto" | "Camionnette" | "Camion" | "Tricycle";
+    capacityKg: number;
+    insuranceExpiry: string;
+    inspectionExpiry: string;
+  }
+> = {
+  d2: {
+    type: "Camionnette",
+    capacityKg: 1000,
+    insuranceExpiry: "2027-02-01",
+    inspectionExpiry: "2026-12-15",
+  },
+};
 
 export type Product = {
   id: string;
