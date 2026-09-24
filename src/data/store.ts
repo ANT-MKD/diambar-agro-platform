@@ -810,7 +810,12 @@ export const missionActions = {
   /** Étape du livreur sur sa mission. Refusée si la mission n'est pas la
    * sienne ou si l'étape ne suit pas la précédente : une mission livrée ne
    * peut plus changer, donc elle ne paie qu'une fois. */
-  setStatus: (id: string, status: MissionStatus, driverId = "d1"): TransitionCheck => {
+  setStatus: (
+    id: string,
+    status: MissionStatus,
+    driverId = "d1",
+    opts: { code?: string } = {},
+  ): TransitionCheck => {
     const current = missionsStore.get().find((m) => m.id === id);
     if (!current) return { ok: false, message: "Mission introuvable." };
     if (current.driverId !== driverId) {
@@ -818,6 +823,26 @@ export const missionActions = {
     }
     const check = checkMissionStep(current.status, status);
     if (!check.ok) return check;
+
+    // Preuves de remise : code du producteur à l'enlèvement, code du
+    // restaurant + photo à la livraison. Pas de code, pas de paiement.
+    if (status === "loaded") {
+      const expected = ordersStore.get().find((o) => o.reference === current.orderRef)?.pickupCode;
+      if (expected && opts.code?.trim() !== expected) {
+        return { ok: false, message: "Code d'enlèvement incorrect : demandez-le au producteur." };
+      }
+    }
+    if (status === "delivered") {
+      const expected = restaurantOrdersStore
+        .get()
+        .find((o) => o.reference === current.orderRef)?.deliveryCode;
+      if (expected && opts.code?.trim() !== expected) {
+        return { ok: false, message: "Code de remise incorrect : demandez-le au restaurant." };
+      }
+      if (!current.proof || current.proof.length === 0) {
+        return { ok: false, message: "Ajoutez au moins une photo de la marchandise livrée." };
+      }
+    }
 
     const updated: Mission = {
       ...current,
@@ -859,6 +884,13 @@ export const missionActions = {
         body: `+${formatFCFA(updated.payout - commission)} net (${updated.reference})`,
       });
       syncOrderFromMission(updated.orderRef, "delivered");
+      if (opts.code) {
+        restaurantOrdersStore.set((arr) =>
+          arr.map((o) =>
+            o.reference === updated.orderRef ? { ...o, deliveredWithCode: true } : o,
+          ),
+        );
+      }
     }
     return { ok: true };
   },
@@ -1164,6 +1196,10 @@ export function useDeliveryFeeFor(address: string): number {
   return zone ? deliveryFeeForZone(zone) : 0;
 }
 
+function fourDigitCode() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
 /** Lignes dont la quantité demandée dépasse le stock réel du moment. */
 export function stockShortages(items: { productId: string; qty: number }[]) {
   const products = productsStore.get();
@@ -1222,6 +1258,7 @@ export const restaurantOrderActions = {
       paid: paidNow,
       paidAt: paidNow ? createdAt : undefined,
       missionUrgency,
+      deliveryCode: fourDigitCode(),
     };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 
@@ -1238,6 +1275,7 @@ export const restaurantOrderActions = {
       eta: o.eta,
       deliveryAddress: o.deliveryAddress,
       stockReserved: true,
+      pickupCode: fourDigitCode(),
     });
     o.items.forEach((line) => productActions.adjustStock(line.productId, -line.qty));
     farmerNotifActions.add({

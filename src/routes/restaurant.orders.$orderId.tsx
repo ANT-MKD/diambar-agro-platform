@@ -44,6 +44,7 @@ import { restaurantOrderActions } from "@/data/store";
 import { isCancellable } from "@/lib/order-lifecycle";
 import { orderAmounts } from "@/lib/pricing";
 import { useState } from "react";
+import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -187,6 +188,15 @@ function OrderDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <OrderTracker status={order.status} eta={order.eta} />
+          {order.deliveryCode &&
+            ["confirmed", "preparing", "delivering"].includes(order.status) && (
+              <HandoverCode
+                code={order.deliveryCode}
+                title="Code de remise"
+                hint="À donner au livreur seulement quand vous avez reçu et vérifié la marchandise."
+              />
+            )}
+          {order.status === "delivered" && <ProofPhotos photos={mission?.proof} />}
 
           <div className="glass rounded-2xl p-5">
             <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">

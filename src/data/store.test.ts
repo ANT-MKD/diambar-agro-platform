@@ -316,6 +316,14 @@ describe("cycle de vie commande ↔ mission", () => {
   });
 });
 
+const PHOTO = {
+  id: "ph1",
+  name: "livraison.jpg",
+  size: 1000,
+  mime: "image/jpeg",
+  at: "2026-01-01T00:00:00Z",
+};
+
 /**
  * Fait avancer une commande créée par un restaurant jusqu'à une étape donnée,
  * en respectant qui fait quoi : le producteur confirme puis prépare, le
@@ -345,16 +353,23 @@ function walkOrder(
       if (mission().status === "available") missionActions.accept(mission().id, "d1");
     });
   }
+  const pickupCode = orders.result.current.find((o) => o.reference === reference)!.pickupCode;
+  const deliveryCode = renderHook(() => useRestaurantOrders()).result.current.find(
+    (o) => o.reference === reference,
+  )?.deliveryCode;
   if (upto >= 3) {
     act(() => {
       if (mission().status !== "loaded" && mission().status !== "delivered") {
-        missionActions.setStatus(mission().id, "loaded");
+        missionActions.setStatus(mission().id, "loaded", "d1", { code: pickupCode });
       }
     });
   }
   if (upto >= 4) {
     act(() => {
-      if (mission().status === "loaded") missionActions.setStatus(mission().id, "delivered");
+      if (mission().status === "loaded") {
+        missionActions.attachProof(mission().id, [PHOTO]);
+        missionActions.setStatus(mission().id, "delivered", "d1", { code: deliveryCode });
+      }
     });
   }
   return mission();
@@ -372,6 +387,7 @@ describe("missionActions.setStatus (delivery cascade)", () => {
     expect(mission).toBeTruthy();
 
     act(() => {
+      missionActions.attachProof(mission.id, [PHOTO]);
       missionActions.setStatus(mission.id, "delivered");
     });
 
@@ -388,6 +404,7 @@ describe("missionActions.setStatus (delivery cascade)", () => {
 
     act(() => {
       missionActions.setStatus(mission.id, "loaded");
+      missionActions.attachProof(mission.id, [PHOTO]);
       missionActions.setStatus(mission.id, "delivered");
     });
 
@@ -505,5 +522,45 @@ describe("lot B — montants", () => {
   it("calcule la course du livreur avec la distance et le poids, jamais sous le minimum", () => {
     expect(missionPayout(1, 1)).toBe(MISSION_PAY.minimum);
     expect(missionPayout(70, 50)).toBeGreaterThan(missionPayout(70, 10));
+  });
+});
+
+describe("preuves de remise", () => {
+  it("refuse l'enlèvement sans le code du producteur et la livraison sans code ni photo", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current.find((p) => p.stock > 20)!;
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 1, price: target.pricePerKg }],
+        total: target.pricePerKg,
+        deliveryAddress: "Le Baobab, Dakar Plateau",
+        paymentMethod: "Wave",
+      });
+    });
+    const resto = renderHook(() => useRestaurantOrders()).result.current.find((o) => o.id === id)!;
+    const mission = walkOrder(resto.reference, "accepted");
+
+    let r!: ReturnType<typeof missionActions.setStatus>;
+    act(() => {
+      r = missionActions.setStatus(mission.id, "loaded", "d1", { code: "0000" });
+    });
+    expect(r.ok).toBe(false);
+
+    walkOrder(resto.reference, "loaded");
+    act(() => {
+      r = missionActions.setStatus(mission.id, "delivered", "d1", { code: resto.deliveryCode });
+    });
+    expect(r.ok).toBe(false); // pas de photo
+    act(() => {
+      missionActions.attachProof(mission.id, [PHOTO]);
+      r = missionActions.setStatus(mission.id, "delivered", "d1", { code: "9999" });
+    });
+    expect(r.ok).toBe(false); // mauvais code
+    act(() => {
+      r = missionActions.setStatus(mission.id, "delivered", "d1", { code: resto.deliveryCode });
+    });
+    expect(r.ok).toBe(true);
   });
 });

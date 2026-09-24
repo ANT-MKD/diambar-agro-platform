@@ -21,6 +21,15 @@ import {
   Undo2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
   useMission,
@@ -88,6 +97,9 @@ function MissionDetail() {
   const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
+  const [deliveryCode, setDeliveryCode] = useState("");
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupCode, setPickupCode] = useState("");
 
   if (!mission) {
     return (
@@ -140,16 +152,23 @@ function MissionDetail() {
     toast.success("Trajet vers le producteur démarré");
   };
   const markLoaded = () => {
-    const result = missionActions.setStatus(mission.id, "loaded");
+    const result = missionActions.setStatus(mission.id, "loaded", "d1", { code: pickupCode });
     if (!result.ok) return toast.error(result.message);
+    setPickupOpen(false);
+    setPickupCode("");
     toast.success("Marchandise chargée · direction restaurant");
   };
   const markDelivered = () => {
-    if (proofPhotos.length > 0) missionActions.attachProof(mission.id, proofPhotos);
-    const result = missionActions.setStatus(mission.id, "delivered");
+    if (proofPhotos.length === 0) {
+      toast.error("Ajoutez au moins une photo de la marchandise livrée.");
+      return;
+    }
+    missionActions.attachProof(mission.id, proofPhotos);
+    const result = missionActions.setStatus(mission.id, "delivered", "d1", {
+      code: deliveryCode,
+    });
     if (!result.ok) {
       toast.error(result.message);
-      setProofOpen(false);
       return;
     }
     toast.success("Livraison confirmée · paiement crédité");
@@ -443,7 +462,7 @@ function MissionDetail() {
                 </Button>
               )}
               {isMine && mission.status === "pickup" && (
-                <Button className="w-full gap-2" onClick={markLoaded}>
+                <Button className="w-full gap-2" onClick={() => setPickupOpen(true)}>
                   <Package className="h-4 w-4" />
                   Marchandise récupérée
                 </Button>
@@ -607,31 +626,79 @@ function MissionDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={proofOpen} onOpenChange={setProofOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Preuve de livraison</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ajoutez une photo (facultatif) et confirmez la remise. Vous recevrez immédiatement{" "}
+      <Dialog open={proofOpen} onOpenChange={setProofOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Preuve de livraison</DialogTitle>
+            <DialogDescription>
+              Demandez au restaurant son code de remise à 4 chiffres et prenez une photo de la
+              marchandise livrée. Vous recevrez immédiatement{" "}
               {formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre
               portefeuille (commission plateforme déjà déduite).
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="delivery-code">
+              Code de remise donné par le restaurant
+            </label>
+            <Input
+              id="delivery-code"
+              inputMode="numeric"
+              maxLength={4}
+              value={deliveryCode}
+              onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="0000"
+              className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+            />
+          </div>
           <FileDrop
             value={proofPhotos}
             onChange={setProofPhotos}
             by="Vous"
             kind="photo"
-            label="Photo de livraison"
+            label="Photo de livraison (obligatoire)"
             accept="image/*"
             max={3}
           />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={markDelivered}>Confirmer la livraison</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProofOpen(false)}>
+              Annuler
+            </Button>
+            <Button className="h-12" onClick={markDelivered}>
+              Confirmer la livraison
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enlèvement chez le producteur</DialogTitle>
+            <DialogDescription>
+              Vérifiez la marchandise puis saisissez le code d'enlèvement que le producteur vous
+              donne.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            aria-label="Code d'enlèvement"
+            inputMode="numeric"
+            maxLength={4}
+            value={pickupCode}
+            onChange={(e) => setPickupCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="0000"
+            className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickupOpen(false)}>
+              Annuler
+            </Button>
+            <Button className="h-12" onClick={markLoaded}>
+              Marchandise récupérée
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

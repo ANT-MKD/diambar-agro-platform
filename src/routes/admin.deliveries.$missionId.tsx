@@ -40,6 +40,7 @@ import {
 } from "@/data/business";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
+import { ProofPhotos } from "@/components/common/handover-code";
 
 export const Route = createFileRoute("/admin/deliveries/$missionId")({
   head: () => ({
@@ -278,6 +279,8 @@ function AdminDeliveryDetail() {
               <span>Prévue {relativeTime(mission.scheduledFor)}</span>
             </div>
           </div>
+
+          <ProofPhotos photos={mission.proof} />
 
           <div className="glass rounded-2xl p-5">
             <h2 className="font-semibold mb-3">Timeline</h2>

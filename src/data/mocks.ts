@@ -257,6 +257,9 @@ export type Order = {
   // commandes de démo, qui n'ont rien réservé).
   stockReserved?: boolean;
   deliveredAt?: string;
+  // Code à 4 chiffres que le producteur donne au livreur à l'enlèvement :
+  // prouve que la marchandise a bien été remise à ce livreur.
+  pickupCode?: string;
 };
 
 export const orders: Order[] = [
@@ -1366,6 +1369,10 @@ export type RestaurantOrder = {
   missionUrgency?: "standard" | "priority" | "express";
   // Motif d'annulation, visible par les deux parties.
   cancelReason?: string;
+  // Code à 4 chiffres que le restaurant donne au livreur à la réception :
+  // sans lui, la livraison ne peut pas être confirmée (ni payée).
+  deliveryCode?: string;
+  deliveredWithCode?: boolean;
 };
 
 export const restaurantOrders: RestaurantOrder[] = [

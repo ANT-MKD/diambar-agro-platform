@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -37,6 +37,7 @@ const STATUS_LABEL = { planned: "Planifiée", running: "En cours", done: "Termin
 
 function TourDetail() {
   const { tourId } = Route.useParams();
+  const navigate = useNavigate();
   const tours = useTours();
   const missions = useMissions();
   const conversations = useDriverConversations();
@@ -66,14 +67,15 @@ function TourDetail() {
       toast.info("Étape déjà validée : elle ne peut pas être annulée.");
       return;
     }
-    const result = tourActions.toggleStop(stop);
-    if (result === "blocked") {
-      toast.error(
-        stop.kind === "pickup"
-          ? "Cette collecte ne peut pas être validée (mission annulée ou non attribuée)."
-          : "Confirmez d'abord la collecte de cette mission.",
-      );
+    if (stop.kind === "dropoff") {
+      // La remise se confirme avec le code du restaurant et une photo.
+      navigate({ to: "/driver/missions/$missionId", params: { missionId: stop.missionId } });
+      return;
     }
+    const code = window.prompt("Code d'enlèvement donné par le producteur (4 chiffres) :") ?? "";
+    const result = tourActions.toggleStop(stop, code);
+    if (!result.ok) toast.error(result.message);
+    else toast.success("Marchandise récupérée");
   };
 
   const exportCsv = () => {
@@ -340,29 +342,10 @@ function TourDetail() {
                 </Button>
               )}
               {t.status === "running" && (
-                <Button
-                  className="w-full gap-2"
-                  onClick={() => {
-                    const pending = t.stops.filter((s) => !s.done).length;
-                    const ok = window.confirm(
-                      pending > 0
-                        ? `Clôturer la tournée ? Seules les marchandises déjà chargées seront marquées livrées (${pending} étape(s) non validée(s)).`
-                        : "Clôturer la tournée ?",
-                    );
-                    if (!ok) return;
-                    const { delivered, skipped } = tourActions.finish(t.stops);
-                    if (skipped > 0) {
-                      toast.warning(
-                        `Tournée clôturée : ${delivered} livraison(s) confirmée(s), ${skipped} mission(s) non chargée(s) laissée(s) en cours.`,
-                      );
-                    } else {
-                      toast.success(`Tournée clôturée : ${delivered} livraison(s) confirmée(s).`);
-                    }
-                  }}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Clôturer la tournée
-                </Button>
+                <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  La tournée se termine d'elle-même quand chaque livraison est confirmée avec le
+                  code du restaurant et une photo.
+                </p>
               )}
               {t.status === "done" && (
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">

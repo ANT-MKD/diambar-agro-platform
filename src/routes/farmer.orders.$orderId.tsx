@@ -7,6 +7,7 @@ import { useOrder, orderActions } from "@/data/store";
 import { restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { HandoverCode } from "@/components/common/handover-code";
 
 export const Route = createFileRoute("/farmer/orders/$orderId")({
   head: () => ({ meta: [{ title: "Commande · Diambar Agro" }] }),
@@ -145,6 +146,14 @@ function OrderDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {order.pickupCode && (order.status === "confirmed" || order.status === "preparing") && (
+        <HandoverCode
+          code={order.pickupCode}
+          title="Code d'enlèvement"
+          hint="À donner au livreur quand il récupère la marchandise, jamais avant."
+        />
       )}
 
       <div className="flex flex-wrap gap-2 sticky bottom-0 bg-background/80 backdrop-blur p-3 rounded-xl">
