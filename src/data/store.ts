@@ -1685,11 +1685,15 @@ function openMissionForOrder(reference: string) {
       payout: missionPayout(distanceKm, weightKg),
       weightKg,
       itemsCount: source.items.length,
-      scheduledFor: now,
+      scheduledFor: restoOrder?.slotStart ?? now,
       createdAt: now,
       vehicleType: vehicleForWeight(weightKg),
       urgency:
-        restoOrder?.missionUrgency ?? (eta?.startsWith("Aujourd'hui") ? "priority" : "standard"),
+        restoOrder?.missionUrgency ??
+        (restoOrder?.slotStart &&
+        new Date(restoOrder.slotStart).getTime() - Date.now() < 36 * 3600_000
+          ? "priority"
+          : "standard"),
       statusHistory: [{ status: "available", at: now }],
     },
     ...arr,

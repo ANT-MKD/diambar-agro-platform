@@ -9,6 +9,10 @@
 //   - les frais de livraison reviennent à la plateforme, qui rémunère le
 //     livreur.
 
+// Montant minimum de marchandise par producteur (une livraison chacun) :
+// en dessous, la course coûte plus qu'elle ne rapporte.
+export const MIN_ORDER_PER_PRODUCER = 5_000;
+
 export type ZoneLike = { id: string; name: string; baseFee: number; active: boolean };
 
 function norm(s: string) {

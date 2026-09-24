@@ -1364,6 +1364,8 @@ export type RestaurantOrder = {
   promoCode?: string;
   creditApplied?: number;
   creditId?: string;
+  // Début du créneau de livraison choisi (ISO) : planifie la mission.
+  slotStart?: string;
   // Urgence imposée à la mission de livraison (commandes récurrentes
   // « express ») ; sinon déduite du créneau.
   missionUrgency?: "standard" | "priority" | "express";

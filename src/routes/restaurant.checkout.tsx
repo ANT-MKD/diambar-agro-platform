@@ -26,11 +26,16 @@ import {
   useRestaurantOrders,
 } from "@/data/store";
 import { useDeliveryZones } from "@/data/platform-settings";
-import { allocate, deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
+import {
+  allocate,
+  deliveryFeeForZone,
+  MIN_ORDER_PER_PRODUCER,
+  zoneForAddress,
+} from "@/lib/pricing";
 import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
 import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { nextReceptionSlots } from "@/lib/reception-slots";
+import { cutoffHint, deliverySlots } from "@/lib/reception-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,12 +110,13 @@ function Checkout() {
     total: number;
   } | null>(null);
   const availableSlots = useMemo(
-    () => nextReceptionSlots(profile.receptionHours),
+    () => deliverySlots(profile.receptionHours),
     [profile.receptionHours],
   );
   const availableMethods =
     profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
-  const [slot, setSlot] = useState(availableSlots[0] ?? "");
+  const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
+  const chosenSlot = availableSlots.find((s) => s.label === slot);
   const [method, setMethod] = useState<PaymentMethod>(
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
@@ -129,7 +135,24 @@ function Checkout() {
     );
   }
 
+  const underMinimum = farmerGroups
+    .map((f) => ({
+      name: f.name,
+      amount: lines
+        .filter((l) => l.product.farmerId === f.id)
+        .reduce((s, l) => s + l.product.pricePerKg * l.qty, 0),
+    }))
+    .filter((g) => g.amount < MIN_ORDER_PER_PRODUCER);
+  const minimumProblem =
+    underMinimum.length > 0
+      ? `Minimum ${formatFCFA(MIN_ORDER_PER_PRODUCER)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
+      : null;
+
   const goStep2 = () => {
+    if (minimumProblem) {
+      toast.error(minimumProblem);
+      return;
+    }
     if (zoneProblem) {
       toast.error(zoneProblem);
       return;
@@ -153,8 +176,8 @@ function Checkout() {
       toast.error("Retirez du panier les produits d'un fournisseur suspendu avant de commander");
       return;
     }
-    if (zoneProblem) {
-      toast.error(zoneProblem);
+    if (zoneProblem || minimumProblem) {
+      toast.error(zoneProblem ?? minimumProblem);
       return;
     }
     // Le stock a pu baisser depuis l'ajout au panier (autre restaurant,
@@ -194,6 +217,7 @@ function Checkout() {
         deliveryAddress: address,
         paymentMethod: method,
         eta: slot,
+        slotStart: chosenSlot?.start,
       });
       created.push(id);
     });
@@ -255,6 +279,12 @@ function Checkout() {
                   onChange={(e) => setAddress(e.target.value)}
                   aria-invalid={!!errors.address}
                 />
+                {minimumProblem && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {minimumProblem}
+                  </p>
+                )}
                 {zoneProblem && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
@@ -272,6 +302,7 @@ function Checkout() {
                 <Calendar className="h-5 w-5 text-primary" />
                 Créneau souhaité
               </h3>
+              <p className="text-xs text-muted-foreground">{cutoffHint()}</p>
               {availableSlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Aucun créneau de réception n'est configuré. Ouvrez au moins un jour dans{" "}
@@ -287,11 +318,11 @@ function Checkout() {
                 <div className="grid sm:grid-cols-2 gap-2">
                   {availableSlots.map((s) => (
                     <button
-                      key={s}
-                      onClick={() => setSlot(s)}
-                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+                      key={s.start}
+                      onClick={() => setSlot(s.label)}
+                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s.label ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
                     >
-                      {s}
+                      {s.label}
                     </button>
                   ))}
                 </div>

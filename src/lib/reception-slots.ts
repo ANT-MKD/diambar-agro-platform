@@ -39,3 +39,52 @@ export function nextReceptionSlots(
 
   return slots;
 }
+
+// Heure limite de commande : avant 18 h, livraison possible dès le
+// lendemain ; après, à partir du surlendemain. Jamais le jour même, le
+// producteur doit récolter et préparer.
+export const ORDER_CUTOFF_HOUR = 18;
+
+export type DeliverySlot = {
+  /** Libellé daté, stable dans le temps (« Mardi 30 sept. · 07:00 – 11:00 »). */
+  label: string;
+  /** Début du créneau (ISO), utilisé pour planifier la mission. */
+  start: string;
+  /** Livraison dès le lendemain : la mission est prioritaire. */
+  nextDay: boolean;
+};
+
+export function deliverySlots(
+  receptionHours: Record<ReceptionDay, ReceptionSlot>,
+  opts: { now?: Date; count?: number; daysAhead?: number } = {},
+): DeliverySlot[] {
+  const now = opts.now ?? new Date();
+  const count = opts.count ?? 4;
+  const daysAhead = opts.daysAhead ?? 14;
+  const firstDay = now.getHours() < ORDER_CUTOFF_HOUR ? 1 : 2;
+  const slots: DeliverySlot[] = [];
+  for (let d = firstDay; d < daysAhead && slots.length < count; d++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + d);
+    const day = DAY_BY_INDEX[date.getDay()];
+    const slot = receptionHours[day];
+    if (!slot?.open) continue;
+    const [h, m] = slot.from.split(":").map(Number);
+    const start = new Date(date);
+    start.setHours(h || 0, m || 0, 0, 0);
+    const dateLabel = date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    slots.push({
+      label: `${day} ${dateLabel} · ${slot.from} – ${slot.to}`,
+      start: start.toISOString(),
+      nextDay: d === 1,
+    });
+  }
+  return slots;
+}
+
+/** Message expliquant l'heure limite, affiché au moment de commander. */
+export function cutoffHint(now = new Date()): string {
+  return now.getHours() < ORDER_CUTOFF_HOUR
+    ? `Commandez avant ${ORDER_CUTOFF_HOUR} h pour être livré demain.`
+    : `Passé ${ORDER_CUTOFF_HOUR} h : première livraison possible après-demain.`;
+}
