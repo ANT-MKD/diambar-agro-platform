@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { ensureDataVersion } from "./persist";
 
 export type Impersonation = {
   userId: string;
@@ -12,6 +13,7 @@ const KEY = "diambar:impersonation";
 
 let state: Impersonation = null;
 if (typeof window !== "undefined") {
+  ensureDataVersion();
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) state = JSON.parse(raw) as Impersonation;

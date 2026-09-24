@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import { farmers, restaurants, type Mission } from "./mocks";
 import { getMissionSnapshot, missionActions, useDriverVehicle, useMissions } from "./store";
+import { ensureDataVersion } from "./persist";
 
 export type TourStop = {
   id: string;
@@ -35,6 +36,7 @@ type OrderMap = Record<string, string[]>;
 
 let orderState: OrderMap = {};
 if (typeof window !== "undefined") {
+  ensureDataVersion();
   try {
     const raw = window.localStorage.getItem(ORDER_KEY);
     if (raw) orderState = JSON.parse(raw) as OrderMap;

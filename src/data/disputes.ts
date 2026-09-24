@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { driverWalletActions } from "./store";
 import { refundActions } from "./finance";
+import { createStore } from "./persist";
 
 export type DisputeParty = "restaurant" | "farmer" | "driver" | "platform";
 export type DisputeStatus =
@@ -474,38 +475,6 @@ const seedCredits: CreditNote[] = [
     status: "applied",
   },
 ];
-
-type Listener = () => void;
-function createStore<T>(initial: T, persistKey: string) {
-  let state = initial;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set: (next: T | ((p: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: Listener) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
 
 const disputesStore = createStore<Dispute[]>(seedDisputes, "diambar:disputes");
 const creditsStore = createStore<CreditNote[]>(seedCredits, "diambar:credit-notes");

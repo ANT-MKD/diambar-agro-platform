@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { createStore } from "./persist";
 
 /* ------------------------------------------------------------------ */
 /* Remboursements — centre de résolution financière (espace admin)     */
@@ -180,37 +181,6 @@ const seedRefunds: Refund[] = [
     ],
   },
 ];
-
-function createStore<T>(initial: T, persistKey?: string) {
-  let state = initial;
-  if (persistKey && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<() => void>();
-  return {
-    get: () => state,
-    set: (next: T | ((prev: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey && typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: () => void) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
 
 const refundsStore = createStore<Refund[]>(seedRefunds, "diambar:refunds");
 
