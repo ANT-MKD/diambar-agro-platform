@@ -249,9 +249,81 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
   eta?: string;
+  // Où et quand livrer : recopiés depuis la commande du restaurant pour que
+  // le producteur sache pour quand préparer.
+  deliveryAddress?: string;
+  // Vrai quand le stock a été réservé à la création de la commande : c'est
+  // ce stock-là qui est remis en cas d'annulation (jamais celui des
+  // commandes de démo, qui n'ont rien réservé).
+  stockReserved?: boolean;
 };
 
 export const orders: Order[] = [
+  // Commandes confirmées dont la mission de livraison est ouverte ou en
+  // cours (voir `missions`) : chaque mission de démo a sa commande.
+  {
+    id: "o_3055",
+    reference: "CMD-3055",
+    restaurantId: "r1",
+    farmerId: "f1",
+    items: [
+      { productId: "p1", qty: 25, price: 850 },
+      { productId: "p8", qty: 20, price: 700 },
+    ],
+    total: 35250,
+    status: "confirmed",
+    createdAt: "2025-05-15T10:30:00Z",
+    eta: "Demain · 07:00 – 11:00",
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+  },
+  {
+    id: "o_3056",
+    reference: "CMD-3056",
+    restaurantId: "r2",
+    farmerId: "f2",
+    items: [{ productId: "p6", qty: 22, price: 1200 }],
+    total: 26400,
+    status: "confirmed",
+    createdAt: "2025-05-15T10:45:00Z",
+  },
+  {
+    id: "o_3057",
+    reference: "CMD-3057",
+    restaurantId: "r3",
+    farmerId: "f3",
+    items: [
+      { productId: "p4", qty: 70, price: 600 },
+      { productId: "p5", qty: 50, price: 350 },
+    ],
+    total: 59500,
+    status: "confirmed",
+    createdAt: "2025-05-15T11:00:00Z",
+  },
+  {
+    id: "o_2852",
+    reference: "CMD-2852",
+    restaurantId: "r2",
+    farmerId: "f2",
+    items: [{ productId: "p3", qty: 24, price: 3200 }],
+    total: 76800,
+    status: "confirmed",
+    createdAt: "2025-05-15T08:00:00Z",
+  },
+  {
+    id: "o_3051",
+    reference: "CMD-3051",
+    restaurantId: "r1",
+    farmerId: "f1",
+    items: [
+      { productId: "p1", qty: 30, price: 850 },
+      { productId: "p8", qty: 10, price: 700 },
+    ],
+    total: 32500,
+    status: "delivering",
+    createdAt: "2025-05-15T09:00:00Z",
+    eta: "18 min",
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+  },
   {
     id: "o1",
     reference: "CMD-2851",
@@ -1276,6 +1348,11 @@ export type RestaurantOrder = {
   // moment où le statut passe réellement à "delivered".
   paid: boolean;
   paidAt?: string;
+  // Urgence imposée à la mission de livraison (commandes récurrentes
+  // « express ») ; sinon déduite du créneau.
+  missionUrgency?: "standard" | "priority" | "express";
+  // Motif d'annulation, visible par les deux parties.
+  cancelReason?: string;
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -2091,19 +2168,19 @@ export const driverTransactions: DriverTx[] = [
   {
     id: "dtx1",
     at: "2025-05-15T11:30:00Z",
-    label: "Mission MIS-4200 · Le Baobab",
-    ref: "MIS-4200",
+    label: "Mission MIS-4178",
+    ref: "MIS-4178",
     kind: "mission",
-    amount: 9000,
+    amount: 12000,
     status: "Complété",
   },
   {
     id: "dtx2",
     at: "2025-05-15T11:30:00Z",
     label: "Commission plateforme (20%)",
-    ref: "MIS-4200",
+    ref: "MIS-4178",
     kind: "commission",
-    amount: -1800,
+    amount: -2400,
     status: "Complété",
   },
   {

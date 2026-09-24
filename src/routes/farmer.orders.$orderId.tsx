@@ -29,8 +29,16 @@ function OrderDetailPage() {
   const idx = steps.indexOf(order.status);
 
   const next = (s: OrderStatus) => {
-    orderActions.setStatus(order.id, s);
-    toast.success(`Commande ${ORDER_LABEL[s].toLowerCase()}`);
+    const result = orderActions.setStatus(order.id, s);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(
+      s === "confirmed"
+        ? "Commande acceptée · une mission de livraison est ouverte aux livreurs"
+        : `Commande ${ORDER_LABEL[s].toLowerCase()}`,
+    );
   };
 
   return (
@@ -143,26 +151,28 @@ function OrderDetailPage() {
         {order.status === "pending" && (
           <Button onClick={() => next("confirmed")} className="gap-1">
             <Check className="h-4 w-4" />
-            Confirmer
+            Accepter la commande
           </Button>
         )}
         {order.status === "confirmed" && (
           <Button onClick={() => next("preparing")} className="gap-1">
             <Package2 className="h-4 w-4" />
-            Préparer
+            Commencer la préparation
           </Button>
         )}
-        {order.status === "preparing" && (
-          <Button onClick={() => next("delivering")} className="gap-1">
+        {(order.status === "confirmed" || order.status === "preparing") && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground self-center">
             <Truck className="h-4 w-4" />
-            Marquer prête
-          </Button>
+            Le livreur passera récupérer la commande : c'est son enlèvement qui la met « en
+            livraison ».
+          </p>
         )}
         {order.status === "delivering" && (
-          <Button onClick={() => next("delivered")} className="gap-1">
-            <Check className="h-4 w-4" />
-            Livrée
-          </Button>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground self-center">
+            <Truck className="h-4 w-4" />
+            En route vers le restaurant · la livraison sera confirmée par le livreur, puis la vente
+            créditée sur vos revenus.
+          </p>
         )}
         {["pending", "confirmed", "preparing"].includes(order.status) && (
           <Button asChild variant="outline" className="gap-1 text-rose-500">

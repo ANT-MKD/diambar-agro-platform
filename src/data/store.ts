@@ -94,13 +94,25 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
+import { getRefundsSnapshot, refundActions } from "./finance";
+import {
+  checkMissionStep,
+  checkOrderTransition,
+  type OrderActor,
+  type TransitionCheck,
+} from "@/lib/order-lifecycle";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
-const ordersStore = createStore<Order[]>(seedOrders);
+// Commandes conservées comme le reste : sans ça, un rechargement effaçait les
+// commandes alors que leur stock, leur mission et leur paiement restaient.
+const ordersStore = createStore<Order[]>(seedOrders, "diambar:orders");
 const movementsStore = createStore<StockMovement[]>(seedMovements, "diambar:movements");
 const withdrawalsStore = createStore<Withdrawal[]>(seedWithdrawals, "diambar:withdrawals");
 const transactionsStore = createStore<Transaction[]>(seedTransactions, "diambar:transactions");
-const restaurantOrdersStore = createStore<RestaurantOrder[]>(seedRestaurantOrders);
+const restaurantOrdersStore = createStore<RestaurantOrder[]>(
+  seedRestaurantOrders,
+  "diambar:restaurant-orders",
+);
 const suppliersStore = createStore<Supplier[]>(seedSuppliers, "diambar:suppliers");
 // Sans persistance, le centre de notifications perdait tout son historique
 // (et l'état lu/non lu) au moindre rechargement — un comportement honnête
@@ -781,20 +793,24 @@ export const driverNotifActions = makeNotifActions(driverNotifsStore);
 export type AcceptResult = Eligibility | { ok: false; reason: "taken"; message: string };
 
 export const missionActions = {
-  setStatus: (id: string, status: MissionStatus) => {
-    let updated: Mission | undefined;
-    missionsStore.set((arr) =>
-      arr.map((m) => {
-        if (m.id !== id) return m;
-        updated = {
-          ...m,
-          status,
-          statusHistory: [...(m.statusHistory ?? []), { status, at: new Date().toISOString() }],
-        };
-        return updated;
-      }),
-    );
-    if (!updated) return;
+  /** Étape du livreur sur sa mission. Refusée si la mission n'est pas la
+   * sienne ou si l'étape ne suit pas la précédente : une mission livrée ne
+   * peut plus changer, donc elle ne paie qu'une fois. */
+  setStatus: (id: string, status: MissionStatus, driverId = "d1"): TransitionCheck => {
+    const current = missionsStore.get().find((m) => m.id === id);
+    if (!current) return { ok: false, message: "Mission introuvable." };
+    if (current.driverId !== driverId) {
+      return { ok: false, message: "Cette mission n'est pas (ou plus) attribuée à vous." };
+    }
+    const check = checkMissionStep(current.status, status);
+    if (!check.ok) return check;
+
+    const updated: Mission = {
+      ...current,
+      status,
+      statusHistory: [...(current.statusHistory ?? []), { status, at: new Date().toISOString() }],
+    };
+    missionsStore.set((arr) => arr.map((m) => (m.id === id ? updated : m)));
 
     if (status === "loaded") {
       driverNotifActions.add({
@@ -802,13 +818,14 @@ export const missionActions = {
         title: "Marchandise récupérée",
         body: `${updated.reference} · en route vers le restaurant`,
       });
+      // L'enlèvement met la commande « en livraison » pour le restaurant et
+      // le producteur — plus besoin d'une action manuelle du producteur.
+      syncOrderFromMission(updated.orderRef, "delivering");
     }
     if (status === "delivered") {
       // Crédit réel du portefeuille livreur : le montant brut de la mission,
-      // puis la commission plateforme déduite séparément (même principe
-      // d'affichage que pour l'agriculteur : deux écritures liées par la
-      // même référence, jamais un simple "paiement programmé" qui ne se
-      // concrétisait jamais).
+      // puis la commission plateforme déduite séparément (deux écritures
+      // liées par la même référence).
       const commission = driverCommissionForPayout(updated.payout);
       driverWalletActions.credit(
         `Mission ${updated.reference}`,
@@ -825,13 +842,11 @@ export const missionActions = {
       driverNotifActions.add({
         type: "payment",
         title: "Paiement reçu",
-        body: `Wave · +${formatFCFA(updated.payout - commission)} (${updated.reference})`,
+        body: `+${formatFCFA(updated.payout - commission)} net (${updated.reference})`,
       });
-      // Ferme la boucle : la commande liée (agriculteur -> restaurant) passe
-      // aussi en "livrée", avec ses propres notifications en cascade.
-      const order = ordersStore.get().find((o) => o.reference === updated!.orderRef);
-      if (order) orderActions.setStatus(order.id, "delivered");
+      syncOrderFromMission(updated.orderRef, "delivered");
     }
+    return { ok: true };
   },
   accept: (id: string, driverId = "d1"): AcceptResult => {
     // Premier arrivé, premier servi : une mission déjà prise (ou annulée)
@@ -1102,6 +1117,19 @@ function vehicleForWeight(kg: number): Mission["vehicleType"] {
   return "Moto";
 }
 
+// Rémunération d'une course : une prise en charge fixe, la distance et le
+// poids transporté. Avant, seule la distance comptait (120 FCFA/km) : une
+// course dans la même ville était payée 100 FCFA.
+export const MISSION_PAY = { base: 1000, perKm: 120, perKgOver20: 10, minimum: 1500 };
+
+export function missionPayout(distanceKm: number, weightKg: number): number {
+  const raw =
+    MISSION_PAY.base +
+    distanceKm * MISSION_PAY.perKm +
+    Math.max(0, weightKg - 20) * MISSION_PAY.perKgOver20;
+  return Math.max(MISSION_PAY.minimum, Math.round(raw / 50) * 50);
+}
+
 /** "Le Baobab, Dakar Plateau" -> "Dakar Plateau" (même règle que la
  * résolution de suivi en direct, pour rester cohérent avec elle). */
 function lastAddressSegment(address: string): string {
@@ -1123,6 +1151,7 @@ export const restaurantOrderActions = {
     >,
     opts?: { forceUrgency?: Mission["urgency"] },
   ) => {
+    const missionUrgency = opts?.forceUrgency;
     const id = `ro_${Date.now()}`;
     const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
     const createdAt = new Date().toISOString();
@@ -1140,6 +1169,7 @@ export const restaurantOrderActions = {
       statusHistory: [{ status: "pending", at: createdAt }],
       paid: paidNow,
       paidAt: paidNow ? createdAt : undefined,
+      missionUrgency,
     };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 
@@ -1151,100 +1181,34 @@ export const restaurantOrderActions = {
       total: o.total,
       status: "pending",
       createdAt,
+      eta: o.eta,
+      deliveryAddress: o.deliveryAddress,
+      stockReserved: true,
     });
     o.items.forEach((line) => productActions.adjustStock(line.productId, -line.qty));
     farmerNotifActions.add({
       type: "order",
       title: "Nouvelle commande",
-      body: `${reference} — ${formatFCFA(o.total)}`,
+      body: `${reference} — ${formatFCFA(o.total)} · à confirmer`,
     });
-
-    const farmer = farmers.find((f) => f.id === o.farmerId);
-    const restaurant = restaurants.find((r) => r.id === "r1");
-    if (farmer) {
-      const pickupCoords = cityCoords(farmer.city);
-      const dropoffCity = lastAddressSegment(o.deliveryAddress);
-      const dropoffCoords = cityCoords(dropoffCity);
-      const distanceKm = Math.max(1, Math.round(haversineKm(pickupCoords, dropoffCoords)));
-      const estimatedMinutes = Math.max(10, Math.round((distanceKm / 42) * 60));
-      const weightKg = o.items.reduce((s, i) => s + i.qty, 0);
-      const payout = Math.round((distanceKm * 120) / 50) * 50;
-      missionsStore.set((arr) => [
-        {
-          id: `mi_${Date.now()}`,
-          reference: `MIS-${4300 + Math.floor(Math.random() * 699)}`,
-          orderRef: reference,
-          farmerId: o.farmerId,
-          restaurantId: "r1",
-          status: "available",
-          pickup: {
-            address: `${farmer.farm}, ${farmer.city}`,
-            city: farmer.city,
-            ...pickupCoords,
-            contactPhone: farmer.phone,
-          },
-          dropoff: {
-            address: o.deliveryAddress,
-            city: dropoffCity,
-            ...dropoffCoords,
-            contactPhone: restaurant?.phone ?? "",
-          },
-          distanceKm,
-          estimatedMinutes,
-          payout,
-          weightKg,
-          itemsCount: o.items.length,
-          scheduledFor: createdAt,
-          createdAt,
-          vehicleType: vehicleForWeight(weightKg),
-          urgency:
-            opts?.forceUrgency ?? (o.eta?.startsWith("Aujourd'hui") ? "priority" : "standard"),
-        },
-        ...arr,
-      ]);
-    }
-
+    // La mission de livraison n'est ouverte aux livreurs qu'une fois la
+    // commande confirmée par le producteur (voir openMissionForOrder).
     return id;
   },
-  setStatus: (id: string, status: OrderStatus) => {
-    let updated: RestaurantOrder | undefined;
-    const at = new Date().toISOString();
-    restaurantOrdersStore.set((arr) =>
-      arr.map((o) => {
-        if (o.id !== id) return o;
-        // Paiement à la livraison réel : une commande en espèces n'est
-        // considérée payée qu'au moment où elle passe effectivement à
-        // "delivered", jamais avant.
-        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
-        updated = {
-          ...o,
-          status,
-          statusHistory: [...o.statusHistory, { status, at }],
-          paid: settlesCash ? true : o.paid,
-          paidAt: settlesCash ? at : o.paidAt,
-        };
-        return updated;
-      }),
-    );
-    if (!updated) return;
-
-    // Répercute côté agriculteur sans repasser par orderActions.setStatus
-    // (qui propagerait dans l'autre sens et boucler à l'infini).
-    ordersStore.set((arr) =>
-      arr.map((o) => (o.reference === updated!.reference ? { ...o, status } : o)),
-    );
-    if (status === "cancelled") {
-      farmerNotifActions.add({
-        type: "order",
-        title: "Commande annulée",
-        body: `${updated.reference} a été annulée par le restaurant`,
-      });
-    }
-    if (status === "delivered") {
-      const farmerOrder = ordersStore.get().find((o) => o.reference === updated!.reference);
-      if (farmerOrder) recordDeliveryTransaction(farmerOrder, updated.paymentMethod);
-    }
+  /** Changement de statut demandé depuis le portail restaurant. */
+  setStatus: (
+    id: string,
+    status: OrderStatus,
+    actor: OrderActor = "restaurant",
+    note?: string,
+  ): TransitionCheck => {
+    const order = restaurantOrdersStore.get().find((o) => o.id === id);
+    if (!order) return { ok: false, message: "Commande introuvable." };
+    return transitionOrder(order.reference, status, actor, note);
   },
+  /** Le restaurant annule tant que le producteur n'a pas commencé à préparer. */
+  cancel: (id: string, reason: string): TransitionCheck =>
+    restaurantOrderActions.setStatus(id, "cancelled", "restaurant", reason),
 };
 
 function recomputeStatus(p: Product): Product {
@@ -1288,9 +1252,16 @@ const RESTAURANT_STATUS_NOTIF: Partial<
     title: "Commande confirmée",
     body: (ref) => `${ref} est confirmée par le producteur`,
   },
-  delivering: { title: "Livraison en route", body: (ref) => `${ref} est en cours de livraison` },
+  preparing: {
+    title: "Commande en préparation",
+    body: (ref) => `${ref} est en cours de préparation chez le producteur`,
+  },
+  delivering: {
+    title: "Livraison en route",
+    body: (ref) => `${ref} a été enlevée par le livreur et arrive`,
+  },
   delivered: { title: "Commande livrée", body: (ref) => `${ref} a été livrée` },
-  cancelled: { title: "Commande annulée", body: (ref) => `${ref} a été annulée par le producteur` },
+  cancelled: { title: "Commande annulée", body: (ref) => `${ref} a été annulée` },
 };
 
 /**
@@ -1301,6 +1272,11 @@ const RESTAURANT_STATUS_NOTIF: Partial<
  * producteur, comme sur le tableau de bord admin), pas un pourcentage fixe.
  */
 function recordDeliveryTransaction(order: Order, paymentMethod: PaymentMethod) {
+  // Une commande ne crédite le producteur qu'une seule fois.
+  const alreadyCredited = transactionsStore
+    .get()
+    .some((t) => t.orderRef === order.reference && t.kind !== "refund_adjustment" && t.gross > 0);
+  if (alreadyCredited) return;
   const volume = ordersStore
     .get()
     .filter((o) => o.farmerId === order.farmerId && o.status === "delivered")
@@ -1366,49 +1342,271 @@ export const transactionActions = {
   },
 };
 
-export const orderActions = {
-  setStatus: (id: string, status: OrderStatus, note?: string) => {
-    let updated: Order | undefined;
-    ordersStore.set((arr) =>
-      arr.map((o) => {
-        if (o.id !== id) return o;
-        updated = { ...o, status };
-        return updated;
-      }),
-    );
-    if (!updated) return;
+/**
+ * Seul point d'entrée pour changer le statut d'une commande, quel que soit le
+ * portail : vérifie que l'étape est permise pour cet acteur (table unique de
+ * src/lib/order-lifecycle.ts), met à jour la commande côté producteur ET
+ * côté restaurant, puis déclenche les effets de l'étape une seule fois.
+ */
+function transitionOrder(
+  reference: string,
+  status: OrderStatus,
+  actor: OrderActor,
+  note?: string,
+): TransitionCheck {
+  const restoOrder = restaurantOrdersStore.get().find((o) => o.reference === reference);
+  const farmerOrder = ordersStore.get().find((o) => o.reference === reference);
+  const from = restoOrder?.status ?? farmerOrder?.status;
+  if (!from) return { ok: false, message: "Commande introuvable." };
+  const check = checkOrderTransition(from, status, actor);
+  if (!check.ok) return check;
+  applyOrderStatus(reference, status, actor, note);
+  return { ok: true };
+}
 
-    // Répercute côté restaurant sans repasser par restaurantOrderActions.setStatus.
-    const at = new Date().toISOString();
-    let paymentMethod: PaymentMethod = "Wave";
-    restaurantOrdersStore.set((arr) =>
-      arr.map((o) => {
-        if (o.reference !== updated!.reference) return o;
-        paymentMethod = o.paymentMethod;
-        const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
-        return {
-          ...o,
-          status,
-          statusHistory: [...o.statusHistory, { status, at }],
-          paid: settlesCash ? true : o.paid,
-          paidAt: settlesCash ? at : o.paidAt,
-        };
-      }),
-    );
-    const notif = RESTAURANT_STATUS_NOTIF[status];
-    if (notif) {
-      restaurantNotifActions.add({
-        type: "order",
-        title: notif.title,
-        body: note ? `${notif.body(updated.reference)} — ${note}` : notif.body(updated.reference),
+/** Répercute l'avancement d'une mission sur sa commande (enlèvement,
+ * livraison). Ne revient jamais en arrière et ne touche pas une commande
+ * terminée. */
+function syncOrderFromMission(reference: string, status: "delivering" | "delivered") {
+  const restoOrder = restaurantOrdersStore.get().find((o) => o.reference === reference);
+  const farmerOrder = ordersStore.get().find((o) => o.reference === reference);
+  const from = restoOrder?.status ?? farmerOrder?.status;
+  if (!from || from === "delivered" || from === "cancelled") return;
+  if (status === "delivering" && from === "delivering") return;
+  // Livraison confirmée sans enlèvement enregistré (commandes de démo) :
+  // on passe par « en livraison » pour garder un historique complet.
+  if (status === "delivered" && from !== "delivering") {
+    applyOrderStatus(reference, "delivering", "driver");
+  }
+  applyOrderStatus(reference, status, "driver");
+}
+
+function applyOrderStatus(
+  reference: string,
+  status: OrderStatus,
+  actor: OrderActor,
+  note?: string,
+) {
+  const at = new Date().toISOString();
+  let restoOrder: RestaurantOrder | undefined;
+  restaurantOrdersStore.set((arr) =>
+    arr.map((o) => {
+      if (o.reference !== reference) return o;
+      // Paiement à la livraison : une commande en espèces n'est payée qu'au
+      // moment où elle est réellement livrée.
+      const settlesCash = status === "delivered" && o.paymentMethod === "Espèces" && !o.paid;
+      restoOrder = {
+        ...o,
+        status,
+        statusHistory: [...o.statusHistory, { status, at }],
+        paid: settlesCash ? true : o.paid,
+        paidAt: settlesCash ? at : o.paidAt,
+        cancelReason: status === "cancelled" ? note : o.cancelReason,
+      };
+      return restoOrder;
+    }),
+  );
+  let farmerOrder: Order | undefined;
+  ordersStore.set((arr) =>
+    arr.map((o) => {
+      if (o.reference !== reference) return o;
+      farmerOrder = { ...o, status };
+      return farmerOrder;
+    }),
+  );
+
+  // Le restaurant est prévenu de chaque étape qu'il n'a pas faite lui-même.
+  const notif = RESTAURANT_STATUS_NOTIF[status];
+  if (notif && actor !== "restaurant") {
+    restaurantNotifActions.add({
+      type: "order",
+      title: notif.title,
+      body: note ? `${notif.body(reference)} — ${note}` : notif.body(reference),
+    });
+  }
+
+  if (status === "confirmed") openMissionForOrder(reference);
+
+  if (status === "delivering") {
+    farmerNotifActions.add({
+      type: "order",
+      title: "Commande enlevée",
+      body: `${reference} a été récupérée par le livreur`,
+    });
+  }
+
+  if (status === "delivered") {
+    const order = farmerOrder ?? ordersStore.get().find((o) => o.reference === reference);
+    if (order) {
+      recordDeliveryTransaction(order, restoOrder?.paymentMethod ?? "Wave");
+      farmerNotifActions.add({
+        type: "payment",
+        title: "Vente créditée",
+        body: `${reference} livrée · ${formatFCFA(order.total)} ajoutés à vos revenus (avant commission)`,
       });
     }
-    if (status === "delivered") {
-      recordDeliveryTransaction(updated, paymentMethod);
+  }
+
+  if (status === "cancelled") cancelCascade(reference, actor, note, farmerOrder, restoOrder);
+}
+
+/** Ouvre la mission de livraison d'une commande confirmée (une seule fois). */
+function openMissionForOrder(reference: string) {
+  const exists = missionsStore
+    .get()
+    .some((m) => m.orderRef === reference && m.status !== "cancelled");
+  if (exists) return;
+  const farmerOrder = ordersStore.get().find((o) => o.reference === reference);
+  const restoOrder = restaurantOrdersStore.get().find((o) => o.reference === reference);
+  const source = restoOrder ?? farmerOrder;
+  if (!source) return;
+  const farmer = farmers.find((f) => f.id === source.farmerId);
+  if (!farmer) return;
+  const restaurantId = farmerOrder?.restaurantId ?? "r1";
+  const restaurant = restaurants.find((r) => r.id === restaurantId);
+  const deliveryAddress =
+    restoOrder?.deliveryAddress ??
+    farmerOrder?.deliveryAddress ??
+    (restaurant ? `${restaurant.name}, ${restaurant.city}` : "");
+  const eta = restoOrder?.eta ?? farmerOrder?.eta;
+  const now = new Date().toISOString();
+  const pickupCoords = cityCoords(farmer.city);
+  const dropoffCity = lastAddressSegment(deliveryAddress);
+  const dropoffCoords = cityCoords(dropoffCity);
+  const distanceKm = Math.max(1, Math.round(haversineKm(pickupCoords, dropoffCoords)));
+  const estimatedMinutes = Math.max(10, Math.round((distanceKm / 42) * 60));
+  const weightKg = source.items.reduce((s, i) => s + i.qty, 0);
+  missionsStore.set((arr) => [
+    {
+      id: `mi_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      reference: `MIS-${4300 + Math.floor(Math.random() * 699)}`,
+      orderRef: reference,
+      farmerId: source.farmerId,
+      restaurantId,
+      status: "available",
+      pickup: {
+        address: `${farmer.farm}, ${farmer.city}`,
+        city: farmer.city,
+        ...pickupCoords,
+        contactPhone: farmer.phone,
+      },
+      dropoff: {
+        address: deliveryAddress,
+        city: dropoffCity,
+        ...dropoffCoords,
+        contactPhone: restaurant?.phone ?? "",
+      },
+      distanceKm,
+      estimatedMinutes,
+      payout: missionPayout(distanceKm, weightKg),
+      weightKg,
+      itemsCount: source.items.length,
+      scheduledFor: now,
+      createdAt: now,
+      vehicleType: vehicleForWeight(weightKg),
+      urgency:
+        restoOrder?.missionUrgency ?? (eta?.startsWith("Aujourd'hui") ? "priority" : "standard"),
+      statusHistory: [{ status: "available", at: now }],
+    },
+    ...arr,
+  ]);
+}
+
+/**
+ * Effets d'une annulation : stock remis, mission retirée aux livreurs,
+ * remboursement du restaurant s'il avait déjà payé, parties prévenues.
+ */
+function cancelCascade(
+  reference: string,
+  actor: OrderActor,
+  note: string | undefined,
+  farmerOrder: Order | undefined,
+  restoOrder: RestaurantOrder | undefined,
+) {
+  if (farmerOrder?.stockReserved) {
+    farmerOrder.items.forEach((line) => productActions.adjustStock(line.productId, line.qty));
+  }
+
+  const at = new Date().toISOString();
+  let assignedToMe: Mission | undefined;
+  missionsStore.set((arr) =>
+    arr.map((m) => {
+      if (m.orderRef !== reference || m.status === "delivered" || m.status === "cancelled") {
+        return m;
+      }
+      if (m.driverId === "d1") assignedToMe = m;
+      return {
+        ...m,
+        status: "cancelled",
+        statusHistory: [
+          ...(m.statusHistory ?? []),
+          { status: "cancelled" as MissionStatus, at, note: "Commande annulée" },
+        ],
+      };
+    }),
+  );
+  if (assignedToMe) {
+    driverNotifActions.add({
+      type: "order",
+      title: "Mission annulée",
+      body: `${assignedToMe.reference} : la commande ${reference} a été annulée, inutile de vous déplacer`,
+    });
+  }
+
+  // Paiement mobile déjà encaissé : remboursement intégral automatique (rien
+  // n'a été livré, la plateforme détient encore l'argent). En espèces, rien
+  // n'a été payé, donc rien à rembourser.
+  if (restoOrder && restoOrder.paid && restoOrder.paymentMethod !== "Espèces") {
+    const already = refundsForOrder(reference);
+    if (!already) {
+      refundActions.create(
+        {
+          source: "cancellation",
+          orderRef: reference,
+          bornBy: "platform",
+          requester: restaurants.find((r) => r.id === "r1")?.name ?? "Restaurant",
+          amount: restoOrder.total,
+          method: restoOrder.paymentMethod as "Wave" | "Orange Money" | "Free Money",
+          reason: note ? `Commande annulée : ${note}` : "Commande annulée avant livraison",
+        },
+        "approved",
+        "Système (annulation)",
+      );
+      restaurantNotifActions.add({
+        type: "payment",
+        title: "Remboursement en cours",
+        body: `${formatFCFA(restoOrder.total)} vous seront remboursés sur ${restoOrder.paymentMethod} (${reference})`,
+      });
     }
+  }
+
+  if (actor !== "farmer") {
+    farmerNotifActions.add({
+      type: "order",
+      title: "Commande annulée",
+      body: `${reference} a été annulée${actor === "restaurant" ? " par le restaurant" : ""}${note ? ` — ${note}` : ""}`,
+    });
+  }
+}
+
+function refundsForOrder(reference: string): boolean {
+  return getRefundsSnapshot().some((r) => r.orderRef === reference && r.source === "cancellation");
+}
+
+/** Changements de statut demandés depuis le portail producteur. */
+export const orderActions = {
+  setStatus: (
+    id: string,
+    status: OrderStatus,
+    note?: string,
+    actor: OrderActor = "farmer",
+  ): TransitionCheck => {
+    const order = ordersStore.get().find((o) => o.id === id);
+    if (!order) return { ok: false, message: "Commande introuvable." };
+    return transitionOrder(order.reference, status, actor, note);
   },
   create: (o: Omit<Order, "id">) => {
-    const id = `o${Date.now()}`;
+    const id = `o${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     ordersStore.set((arr) => [{ ...o, id }, ...arr]);
     return id;
   },

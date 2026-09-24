@@ -57,6 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
@@ -351,7 +352,11 @@ function Dashboard() {
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
-                      onClick={() => orderActions.setStatus(o.id, "confirmed")}
+                      onClick={() => {
+                        const result = orderActions.setStatus(o.id, "confirmed");
+                        if (result.ok) toast.success(`${o.reference} acceptée`);
+                        else toast.error(result.message);
+                      }}
                       className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500 text-white text-xs font-semibold py-1.5"
                     >
                       <Check className="h-3 w-3" />

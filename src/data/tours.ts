@@ -207,27 +207,20 @@ export const tourActions = {
     copy.splice(to, 0, item);
     setOrder(tourId, copy);
   },
+  // Cocher un arrêt fait avancer la mission d'une étape ; on ne décoche
+  // jamais : une marchandise chargée ou une livraison confirmée (donc payée)
+  // ne peut pas être annulée d'un tap.
   toggleStop: (stop: TourStop): "ok" | "blocked" => {
     const mission = getMissionSnapshot(stop.missionId);
     if (!mission) return "blocked";
     if (stop.kind === "pickup") {
       if (mission.status === "accepted" || mission.status === "pickup") {
-        missionActions.setStatus(stop.missionId, "loaded");
-        return "ok";
-      }
-      if (mission.status === "loaded") {
-        missionActions.setStatus(stop.missionId, "accepted");
-        return "ok";
+        return missionActions.setStatus(stop.missionId, "loaded").ok ? "ok" : "blocked";
       }
       return "blocked";
     }
     if (mission.status === "loaded") {
-      missionActions.setStatus(stop.missionId, "delivered");
-      return "ok";
-    }
-    if (mission.status === "delivered") {
-      missionActions.setStatus(stop.missionId, "loaded");
-      return "ok";
+      return missionActions.setStatus(stop.missionId, "delivered").ok ? "ok" : "blocked";
     }
     return "blocked";
   },
@@ -235,11 +228,23 @@ export const tourActions = {
     const missionIds = new Set(
       stops.filter((s) => s.kind === "pickup" && !s.done).map((s) => s.missionId),
     );
-    missionIds.forEach((id) => missionActions.setStatus(id, "pickup"));
+    missionIds.forEach((id) => {
+      if (getMissionSnapshot(id)?.status === "accepted") missionActions.setStatus(id, "pickup");
+    });
   },
-  finish: (stops: TourStop[]) => {
+  /** Clôture : livre uniquement les missions dont la marchandise est chargée.
+   * Renvoie le nombre de livraisons confirmées et de missions laissées de côté. */
+  finish: (stops: TourStop[]): { delivered: number; skipped: number } => {
     const missionIds = new Set(stops.map((s) => s.missionId));
-    missionIds.forEach((id) => missionActions.setStatus(id, "delivered"));
+    let delivered = 0;
+    let skipped = 0;
+    missionIds.forEach((id) => {
+      const status = getMissionSnapshot(id)?.status;
+      if (status === "delivered" || status === "cancelled") return;
+      if (status === "loaded" && missionActions.setStatus(id, "delivered").ok) delivered++;
+      else skipped++;
+    });
+    return { delivered, skipped };
   },
   optimize: (tourId: string, stops: TourStop[]) => {
     const ordered = nearestNeighborOrder(stops);

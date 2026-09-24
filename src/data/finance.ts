@@ -9,7 +9,7 @@ import { createStore } from "./persist";
 /* Refund sans provoquer d'import circulaire.                           */
 /* ------------------------------------------------------------------ */
 
-export type RefundSource = "return" | "dispute" | "incident" | "manual";
+export type RefundSource = "return" | "dispute" | "incident" | "manual" | "cancellation";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
 // Qui supporte réellement le coût une fois le remboursement exécuté :
@@ -30,6 +30,7 @@ export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
   dispute: "Litige",
   incident: "Incident de course",
   manual: "Geste commercial",
+  cancellation: "Annulation de commande",
 };
 
 export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
@@ -183,6 +184,10 @@ const seedRefunds: Refund[] = [
 ];
 
 const refundsStore = createStore<Refund[]>(seedRefunds, "diambar:refunds");
+
+export function getRefundsSnapshot() {
+  return refundsStore.get();
+}
 
 export function useRefunds() {
   return useSyncExternalStore(refundsStore.subscribe, refundsStore.get, refundsStore.get);

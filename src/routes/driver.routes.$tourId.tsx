@@ -62,9 +62,17 @@ function TourDetail() {
     : null;
 
   const toggleStop = (stop: TourStop) => {
+    if (stop.done) {
+      toast.info("Étape déjà validée : elle ne peut pas être annulée.");
+      return;
+    }
     const result = tourActions.toggleStop(stop);
     if (result === "blocked") {
-      toast.error("Confirmez d'abord la collecte de cette mission");
+      toast.error(
+        stop.kind === "pickup"
+          ? "Cette collecte ne peut pas être validée (mission annulée ou non attribuée)."
+          : "Confirmez d'abord la collecte de cette mission.",
+      );
     }
   };
 
@@ -335,8 +343,21 @@ function TourDetail() {
                 <Button
                   className="w-full gap-2"
                   onClick={() => {
-                    tourActions.finish(t.stops);
-                    toast.success("Tournée clôturée");
+                    const pending = t.stops.filter((s) => !s.done).length;
+                    const ok = window.confirm(
+                      pending > 0
+                        ? `Clôturer la tournée ? Seules les marchandises déjà chargées seront marquées livrées (${pending} étape(s) non validée(s)).`
+                        : "Clôturer la tournée ?",
+                    );
+                    if (!ok) return;
+                    const { delivered, skipped } = tourActions.finish(t.stops);
+                    if (skipped > 0) {
+                      toast.warning(
+                        `Tournée clôturée : ${delivered} livraison(s) confirmée(s), ${skipped} mission(s) non chargée(s) laissée(s) en cours.`,
+                      );
+                    } else {
+                      toast.success(`Tournée clôturée : ${delivered} livraison(s) confirmée(s).`);
+                    }
                   }}
                 >
                   <CheckCircle2 className="h-4 w-4" />

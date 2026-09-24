@@ -11,7 +11,7 @@
 //      champs ajoutés plus tard aient toujours une valeur.
 
 // À incrémenter à chaque changement de forme des données enregistrées.
-export const DATA_VERSION = 2;
+export const DATA_VERSION = 3;
 const VERSION_KEY = "diambar-data-version";
 const DATA_PREFIX = "diambar:";
 

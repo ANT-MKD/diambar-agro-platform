@@ -124,6 +124,8 @@ function MissionDetail() {
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`;
 
   const eligibility = missionEligibility(mission, fleet);
+  // Une mission prise par un autre livreur reste consultable, jamais pilotable.
+  const isMine = mission.driverId === "d1";
   const accept = () => {
     const result = missionActions.accept(mission.id);
     if (!result.ok) {
@@ -133,17 +135,24 @@ function MissionDetail() {
     toast.success("Mission acceptée");
   };
   const startPickup = () => {
-    missionActions.setStatus(mission.id, "pickup");
+    const result = missionActions.setStatus(mission.id, "pickup");
+    if (!result.ok) return toast.error(result.message);
     toast.success("Trajet vers le producteur démarré");
   };
   const markLoaded = () => {
-    missionActions.setStatus(mission.id, "loaded");
+    const result = missionActions.setStatus(mission.id, "loaded");
+    if (!result.ok) return toast.error(result.message);
     toast.success("Marchandise chargée · direction restaurant");
   };
   const markDelivered = () => {
     if (proofPhotos.length > 0) missionActions.attachProof(mission.id, proofPhotos);
-    missionActions.setStatus(mission.id, "delivered");
-    toast.success("Livraison confirmée · paiement en cours");
+    const result = missionActions.setStatus(mission.id, "delivered");
+    if (!result.ok) {
+      toast.error(result.message);
+      setProofOpen(false);
+      return;
+    }
+    toast.success("Livraison confirmée · paiement crédité");
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
   };
@@ -422,25 +431,30 @@ function MissionDetail() {
                   </Button>
                 </>
               )}
-              {mission.status === "accepted" && (
+              {!isMine && mission.status !== "available" && mission.status !== "cancelled" && (
+                <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Cette mission est attribuée à un autre livreur.
+                </p>
+              )}
+              {isMine && mission.status === "accepted" && (
                 <Button className="w-full gap-2" onClick={startPickup}>
                   <Navigation className="h-4 w-4" />
                   Démarrer le trajet
                 </Button>
               )}
-              {mission.status === "pickup" && (
+              {isMine && mission.status === "pickup" && (
                 <Button className="w-full gap-2" onClick={markLoaded}>
                   <Package className="h-4 w-4" />
                   Marchandise récupérée
                 </Button>
               )}
-              {mission.status === "loaded" && (
+              {isMine && mission.status === "loaded" && (
                 <Button className="w-full gap-2" onClick={() => setProofOpen(true)}>
                   <Check className="h-4 w-4" />
                   Confirmer la livraison
                 </Button>
               )}
-              {(mission.status === "accepted" || mission.status === "pickup") && (
+              {isMine && (mission.status === "accepted" || mission.status === "pickup") && (
                 <Button
                   variant="outline"
                   className="w-full gap-2 text-rose-500 hover:text-rose-600"
@@ -450,7 +464,7 @@ function MissionDetail() {
                   Se désister
                 </Button>
               )}
-              {mission.status === "loaded" && (
+              {isMine && mission.status === "loaded" && (
                 <p className="text-[11px] text-muted-foreground">
                   Marchandise chargée : vous ne pouvez plus vous désister. En cas de problème,
                   signalez un incident.

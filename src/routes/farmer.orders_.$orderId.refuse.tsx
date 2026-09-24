@@ -9,6 +9,7 @@ import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isCancellable, ORDER_STATUS_LABEL } from "@/lib/order-lifecycle";
 
 export const Route = createFileRoute("/farmer/orders_/$orderId/refuse")({
   head: () => ({ meta: [{ title: "Refuser la commande · Diambar Agro" }] }),
@@ -34,11 +35,30 @@ function RefusePage() {
   if (!order)
     return <p className="text-center text-muted-foreground py-12">Commande introuvable</p>;
   const r = restaurants.find((x) => x.id === order.restaurantId);
+  if (!isCancellable(order.status, "farmer"))
+    return (
+      <div className="space-y-4 max-w-2xl">
+        <p className="glass rounded-2xl p-8 text-center text-muted-foreground">
+          {order.reference} ne peut plus être refusée : elle est déjà «{" "}
+          {ORDER_STATUS_LABEL[order.status]} ».
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => navigate({ to: "/farmer/orders/$orderId", params: { orderId } })}
+        >
+          Retour à la commande
+        </Button>
+      </div>
+    );
 
   const submit = () => {
     const note = comment.trim() ? `${reason} : ${comment.trim()}` : reason;
-    orderActions.setStatus(order.id, "cancelled", note);
-    toast.success(`${order.reference} refusée · motif : ${reason}`);
+    const result = orderActions.setStatus(order.id, "cancelled", note);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`${order.reference} refusée · stock remis en vente, restaurant prévenu`);
     navigate({ to: "/farmer/orders" });
   };
 

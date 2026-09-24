@@ -31,6 +31,18 @@ import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, products, drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { ORDER_LABEL } from "@/components/farmer/status-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { restaurantOrderActions } from "@/data/store";
+import { isCancellable } from "@/lib/order-lifecycle";
+import { useState } from "react";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -229,20 +241,41 @@ function OrderDetail() {
             </div>
           </div>
 
-          <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            <div className="flex-1 min-w-[200px]">
-              <div className="text-sm font-semibold">Un problème avec cette commande ?</div>
-              <div className="text-xs text-muted-foreground">
-                Signalez un souci de qualité, quantité, livraison ou paiement.
-              </div>
+          {isCancellable(order.status, "restaurant") && (
+            <CancelOrderCard orderId={order.id} reference={order.reference} />
+          )}
+          {order.status === "cancelled" && (
+            <div className="glass rounded-2xl p-4 border border-border text-sm">
+              <div className="font-semibold">Commande annulée</div>
+              {order.cancelReason && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Motif : {order.cancelReason}
+                </div>
+              )}
+              {order.paid && order.paymentMethod !== "Espèces" && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Le montant payé vous est remboursé sur {order.paymentMethod}.
+                </div>
+              )}
             </div>
-            <Button asChild variant="destructive" size="sm" className="gap-2">
-              <Link to="/restaurant/orders/$orderId/dispute" params={{ orderId: order.id }}>
-                Signaler un problème
-              </Link>
-            </Button>
-          </div>
+          )}
+
+          {(order.status === "delivering" || order.status === "delivered") && (
+            <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="flex-1 min-w-[200px]">
+                <div className="text-sm font-semibold">Un problème avec cette commande ?</div>
+                <div className="text-xs text-muted-foreground">
+                  Signalez un souci de qualité, quantité, livraison ou paiement.
+                </div>
+              </div>
+              <Button asChild variant="destructive" size="sm" className="gap-2">
+                <Link to="/restaurant/orders/$orderId/dispute" params={{ orderId: order.id }}>
+                  Signaler un problème
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -347,6 +380,62 @@ function OrderDetail() {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CancelOrderCard({ orderId, reference }: { orderId: string; reference: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const submit = () => {
+    const text = reason.trim();
+    if (text.length < 5) {
+      toast.error("Indiquez le motif de l'annulation");
+      return;
+    }
+    const result = restaurantOrderActions.cancel(orderId, text);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`${reference} annulée · le producteur est prévenu`);
+    setOpen(false);
+  };
+  return (
+    <div className="glass rounded-2xl p-4 border border-border flex flex-wrap items-center gap-3">
+      <div className="flex-1 min-w-[200px]">
+        <div className="text-sm font-semibold">Besoin d'annuler ?</div>
+        <div className="text-xs text-muted-foreground">
+          Possible tant que le producteur n'a pas commencé la préparation. Un paiement mobile déjà
+          effectué est remboursé intégralement.
+        </div>
+      </div>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Annuler la commande
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler {reference}</DialogTitle>
+            <DialogDescription>
+              Le producteur sera prévenu et le stock remis en vente.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Motif (ex. menu modifié, commande en double…)"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Garder la commande
+            </Button>
+            <Button variant="destructive" onClick={submit}>
+              Confirmer l'annulation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
