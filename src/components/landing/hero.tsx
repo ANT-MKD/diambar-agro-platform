@@ -132,6 +132,7 @@ export function Hero() {
                 <circle cx="20" cy="100" r="5" fill="#10b981" />
                 <circle cx="180" cy="30" r="5" fill="#f59e0b" />
                 <motion.circle
+                  initial={{ cx: 20, cy: 100 }}
                   r="6"
                   fill="currentColor"
                   stroke="#10b981"
