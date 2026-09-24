@@ -282,6 +282,29 @@ export function useReturnsForRestaurant(restaurantId: string) {
   return useReturns().filter((r) => r.restaurantId === restaurantId);
 }
 
+/** Raison pour laquelle un retour ne peut pas être ouvert (null = OK) :
+ * montant au-delà de la valeur de la ligne, ou retour déjà en cours sur
+ * cette même ligne de commande. */
+export function returnCreationProblem(input: {
+  orderRef: string;
+  productId: string;
+  requestedAmount: number;
+  lineValue: number;
+}): string | null {
+  if (input.requestedAmount <= 0) return "Indiquez un montant.";
+  if (input.requestedAmount > input.lineValue) {
+    return `Le montant ne peut pas dépasser la valeur de la ligne (${input.lineValue.toLocaleString("fr-FR")} FCFA).`;
+  }
+  const open = returnsStore
+    .get()
+    .some(
+      (r) =>
+        r.orderRef === input.orderRef && r.productId === input.productId && r.status !== "refused",
+    );
+  if (open) return "Un retour existe déjà pour ce produit sur cette commande.";
+  return null;
+}
+
 export const returnActions = {
   create: (
     input: Omit<
@@ -327,8 +350,10 @@ export const returnActions = {
       arr.map((x) => (x.id === id ? { ...x, photos: [...(x.photos ?? []), ...files] } : x)),
     );
   },
-  accept: (id: string, awardedAmount: number, note?: string, actor = "Mamadou Diallo") => {
+  accept: (id: string, requested: number, note?: string, actor = "Mamadou Diallo") => {
     const r = returnsStore.get().find((x) => x.id === id);
+    if (!r || r.status !== "pending") return;
+    const awardedAmount = Math.max(0, Math.min(requested, r.requestedAmount));
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -505,7 +530,10 @@ export const returnActions = {
     if (!r) return;
     const decidedBy = input.decidedBy ?? "Admin Diambar";
     const at = now();
-    const amount = input.amount ?? r.awardedAmount ?? r.requestedAmount;
+    const amount = Math.min(
+      input.amount ?? r.awardedAmount ?? r.requestedAmount,
+      r.requestedAmount,
+    );
     const resolution: ReturnResolution = {
       type: input.type,
       bornBy: input.bornBy,
@@ -545,6 +573,8 @@ export const returnActions = {
       }
     } else if (existingRefund) {
       refundActions.setBornBy(existingRefund.id, decidedBy, input.bornBy, input.note);
+    } else if (r.status === "credited") {
+      // Un avoir a déjà indemnisé ce retour : pas de remboursement en plus.
     } else {
       refundActions.create(
         {
@@ -557,7 +587,8 @@ export const returnActions = {
           method: "Wave",
           reason: `Retour ${r.reference} — décision admin (${input.note})`,
         },
-        "approved",
+        // Passe par les paliers d'approbation comme tout remboursement.
+        "pending",
       );
     }
 
@@ -588,6 +619,15 @@ export const returnActions = {
     const r = returnsStore.get().find((x) => x.id === id);
     if (!r || r.escalatedDisputeId) return;
     const farmer = farmerForReturn(r);
+    // Le litige décidera de l'indemnisation : le remboursement du retour,
+    // s'il n'est pas encore payé, est abandonné pour ne pas payer deux fois.
+    const pendingRefund = refundForReturn(id);
+    if (
+      pendingRefund &&
+      (pendingRefund.status === "pending" || pendingRefund.status === "approved")
+    ) {
+      refundActions.reject(pendingRefund.id, actor, "Retour escaladé en litige");
+    }
     const disputeId = disputeActions.open({
       category: "quality",
       subcategory: "Retour litigieux",
@@ -628,9 +668,26 @@ export const returnActions = {
       ),
     );
   },
-  issueCredit: (id: string) => {
+  /** Indemnise le retour par un avoir AU LIEU d'un remboursement : le
+   * remboursement prévu est abandonné. Impossible si l'argent a déjà été
+   * rendu ou si un avoir a déjà été émis. */
+  issueCredit: (id: string): { ok: true } | { ok: false; message: string } => {
     const r = returnsStore.get().find((x) => x.id === id);
-    if (!r) return;
+    if (!r) return { ok: false, message: "Retour introuvable." };
+    if (r.status === "credited") return { ok: false, message: "Un avoir a déjà été émis." };
+    if (r.escalatedDisputeId) {
+      return { ok: false, message: "Ce retour est traité dans un litige." };
+    }
+    const refund = refundForReturn(id);
+    if (refund?.status === "paid") {
+      return { ok: false, message: "Le restaurant a déjà été remboursé : pas d'avoir en plus." };
+    }
+    if (
+      refund &&
+      (refund.status === "pending" || refund.status === "approved" || refund.status === "failed")
+    ) {
+      refundActions.reject(refund.id, "Mamadou Diallo", "Remplacé par un avoir");
+    }
     const amount = r.awardedAmount ?? r.requestedAmount;
     const { reference } = creditActions.issueForReturn(r.id, r.restaurantName, amount);
     returnsStore.set((arr) =>
@@ -652,6 +709,7 @@ export const returnActions = {
           : x,
       ),
     );
+    return { ok: true };
   },
 };
 

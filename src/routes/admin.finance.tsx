@@ -52,6 +52,7 @@ import {
   computeCommission,
 } from "@/lib/commission";
 import { farmers, restaurants } from "@/data/mocks";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/finance")({
   head: () => ({
@@ -90,6 +91,7 @@ function AdminFinance() {
   const canEditFinance = can(role, "finance.edit");
   const orders = useOrders();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const refunds = useRefunds();
   const transactions = useTransactions();
   const withdrawals = useWithdrawals();
@@ -102,7 +104,7 @@ function AdminFinance() {
   const delivered = orders.filter((o) => o.status === "delivered");
   const gmv = delivered.reduce((s, o) => s + o.total, 0);
   const volumeByFarmer = useMemo(() => deliveredVolumeByFarmer(orders), [orders]);
-  const commissionGenerated = computeCommission(orders, tiers);
+  const commissionGenerated = computeCommission(orders, tiers, recorded);
 
   // La commission "générée" (théorique, sur toutes les commandes livrées)
   // et la commission "encaissée" (uniquement les transactions au statut
@@ -193,7 +195,10 @@ function AdminFinance() {
         const time = new Date(o.createdAt).getTime();
         if (time <= start || time > refNow) continue;
         const day = o.createdAt.slice(0, 10);
-        totals.set(day, (totals.get(day) ?? 0) + commissionForOrder(o, tiers, volumeByFarmer));
+        totals.set(
+          day,
+          (totals.get(day) ?? 0) + commissionForOrder(o, tiers, volumeByFarmer, recorded),
+        );
       }
     }
     return Array.from(totals.entries())
@@ -202,7 +207,7 @@ function AdminFinance() {
         day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
         value,
       }));
-  }, [paidTx, delivered, tiers, volumeByFarmer, metric, periodDays, refNow]);
+  }, [paidTx, delivered, tiers, volumeByFarmer, recorded, metric, periodDays, refNow]);
 
   const chartTotal = chart.reduce((s, c) => s + c.value, 0);
   const chartAvg = chart.length > 0 ? Math.round(chartTotal / chart.length) : 0;

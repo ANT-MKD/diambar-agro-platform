@@ -42,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { restaurantOrderActions } from "@/data/store";
 import { isCancellable } from "@/lib/order-lifecycle";
+import { orderAmounts } from "@/lib/pricing";
 import { useState } from "react";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
@@ -235,6 +236,36 @@ function OrderDetail() {
                 );
               })}
             </div>
+            {(() => {
+              const a = orderAmounts(order);
+              const rows = [
+                { label: "Marchandise", value: a.subtotal },
+                ...(a.deliveryFee ? [{ label: "Frais de livraison", value: a.deliveryFee }] : []),
+                ...(a.promoDiscount
+                  ? [
+                      {
+                        label: `Remise${order.promoCode ? ` (${order.promoCode})` : ""}`,
+                        value: -a.promoDiscount,
+                      },
+                    ]
+                  : []),
+                ...(a.creditApplied ? [{ label: "Avoir utilisé", value: -a.creditApplied }] : []),
+              ];
+              if (rows.length < 2) return null;
+              return (
+                <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
+                  {rows.map((r) => (
+                    <div key={r.label} className="flex justify-between text-muted-foreground">
+                      <span>{r.label}</span>
+                      <span>
+                        {r.value < 0 ? "−" : ""}
+                        {formatFCFA(Math.abs(r.value))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="mt-4 flex justify-between items-center font-bold text-lg border-t border-border pt-3">
               <span>Total</span>
               <span className="text-primary">{formatFCFA(order.total)}</span>

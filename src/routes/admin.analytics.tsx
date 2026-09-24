@@ -25,6 +25,7 @@ import { farmers, restaurants, products, type Order } from "@/data/mocks";
 import { commissionForOrder, deliveredVolumeByFarmer } from "@/lib/commission";
 import { formatFCFA } from "@/lib/format";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/analytics")({
   head: () => ({
@@ -74,6 +75,7 @@ function AdminAnalytics() {
   const orders = useOrders();
   const users = usePlatformUsers();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const [periodKey, setPeriodKey] = useState<PeriodKey>("30");
   const [metric, setMetric] = useState<MetricKey>("gmv");
 
@@ -119,7 +121,7 @@ function AdminAnalytics() {
       cur.orders += 1;
       if (o.status === "delivered") {
         cur.gmv += o.total;
-        cur.commission += commissionForOrder(o, tiers, volumeByFarmer);
+        cur.commission += commissionForOrder(o, tiers, volumeByFarmer, recorded);
       }
       totals.set(day, cur);
     }
@@ -132,7 +134,7 @@ function AdminAnalytics() {
         commission: Math.round(v.commission),
         basket: v.orders > 0 ? Math.round(v.gmv / v.orders) : 0,
       }));
-  }, [current, tiers, volumeByFarmer]);
+  }, [current, tiers, volumeByFarmer, recorded]);
 
   const roleSplit = useMemo(() => {
     const counts = new Map<string, number>();
@@ -162,11 +164,11 @@ function AdminAnalytics() {
     const delivered = current.filter((o) => o.status === "delivered");
     const gmv = delivered.reduce((s, o) => s + o.total, 0);
     const commission = delivered.reduce(
-      (s, o) => s + commissionForOrder(o, tiers, volumeByFarmer),
+      (s, o) => s + commissionForOrder(o, tiers, volumeByFarmer, recorded),
       0,
     );
     return { gmv, commission: Math.round(commission), farmerRevenue: gmv - Math.round(commission) };
-  }, [current, tiers, volumeByFarmer]);
+  }, [current, tiers, volumeByFarmer, recorded]);
 
   const orderFunnel = [
     { key: "pending", label: "En attente", tone: "#f59e0b" },

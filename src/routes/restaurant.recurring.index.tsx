@@ -36,6 +36,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { deliveryFeeFor } from "@/data/store";
 
 export const Route = createFileRoute("/restaurant/recurring/")({
   head: () => ({ meta: [{ title: "Commandes récurrentes · Restaurant" }] }),
@@ -67,7 +68,7 @@ const STATUS_LABEL: Record<RecurringOrder["status"], string> = {
 
 function estimateTotal(ro: RecurringOrder, priceOf: (id: string) => number) {
   const subtotal = itemsSubtotal(ro.items, priceOf);
-  return subtotal + Math.round(subtotal * 0.03);
+  return subtotal + deliveryFeeFor(ro.deliveryAddress);
 }
 
 /** Occurrences restantes ce mois-ci pour une récurrence active (projection,

@@ -33,7 +33,11 @@ function WithdrawPage() {
   // les rend disponibles à nouveau.
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
-    withdrawals.filter((w) => w.status !== "Échec").reduce((a, w) => a + w.amount + w.fee, 0);
+    withdrawals
+      .filter((w) => w.status !== "Échec")
+      // Les frais sont prélevés sur le montant retiré (reçu = montant − frais) :
+      // seul le montant retiré sort du solde, pas montant + frais.
+      .reduce((a, w) => a + w.amount, 0);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);
@@ -187,7 +191,7 @@ function WithdrawPage() {
               <Row k="Montant brut" v={formatFCFA(amount)} />
               <Row k="Frais" v={`-${formatFCFA(fee)}`} />
               <Row k="Net reçu" v={formatFCFA(amount - fee)} bold />
-              <Row k="Délai estimé" v="< 5 min" />
+              <Row k="Délai" v="Après validation Diambar, sous 24 h ouvrées" />
             </div>
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(2)}>

@@ -108,7 +108,11 @@ function RevenuePage() {
   // plusieurs fois tant que le retrait précédent n'est pas marqué "Effectué").
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
-    withdrawals.filter((w) => w.status !== "Échec").reduce((a, w) => a + w.amount + w.fee, 0);
+    withdrawals
+      .filter((w) => w.status !== "Échec")
+      // Les frais sont prélevés sur le montant retiré (reçu = montant − frais) :
+      // seul le montant retiré sort du solde, pas montant + frais.
+      .reduce((a, w) => a + w.amount, 0);
   const totalWithdrawn = withdrawals
     .filter((w) => w.status === "Effectué")
     .reduce((a, w) => a + w.amount, 0);

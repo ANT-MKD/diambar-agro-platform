@@ -1,11 +1,16 @@
 import { products, farmers, restaurants, type RestaurantOrder } from "@/data/mocks";
 import type { InvoiceData } from "@/lib/invoice-pdf";
+import { orderAmounts } from "@/lib/pricing";
 
 type Farmer = (typeof farmers)[number];
 type Restaurant = (typeof restaurants)[number];
 
-export function invoiceNumberFor(id: string) {
-  return `FAC-2025-${id.slice(-3).toUpperCase().padStart(3, "0")}`;
+/** Numéro de facture stable et unique : année de la commande + sa référence
+ * (elle-même unique), au lieu d'une année figée et de 3 caractères d'id. */
+export function invoiceNumberFor(id: string, createdAt?: string, reference?: string) {
+  const year = createdAt ? new Date(createdAt).getFullYear() : new Date().getFullYear();
+  const ref = reference ? reference.replace(/^CMD-/, "") : id.slice(-6).toUpperCase();
+  return `FAC-${year}-${ref}`;
 }
 
 /** En retard : uniquement une commande réellement non payée depuis plus que
@@ -13,7 +18,9 @@ export function invoiceNumberFor(id: string) {
  * paiements Wave/Orange Money/Free Money sont déjà réglés à la commande,
  * donc jamais "en retard"). */
 export function isInvoiceOverdue(o: RestaurantOrder, paymentTermsDays: number) {
-  if (o.paid) return false;
+  if (o.paid || o.status === "cancelled") return false;
+  // Paiement à la livraison : rien n'est dû avant que la commande soit livrée.
+  if (o.paymentMethod === "Espèces" && o.status !== "delivered") return false;
   const days = (Date.now() - new Date(o.createdAt).getTime()) / 86400_000;
   return days > paymentTermsDays;
 }
@@ -35,15 +42,30 @@ export function buildInvoiceData(
   restaurant: Restaurant | undefined,
   paymentTermsDays: number,
 ): InvoiceData {
-  const subtotal = order.items.reduce((s, i) => s + i.qty * i.price, 0);
-  const vat = Math.round(subtotal * 0.18);
-  const total = subtotal + vat;
+  // La facture reprend exactement ce que le restaurant a payé : marchandise,
+  // frais de livraison, remises et avoir — jamais une TVA ajoutée en plus.
+  const a = orderAmounts(order);
+  const total = a.total;
+  const totals: InvoiceData["totals"] = [
+    { label: "Marchandise", amount: a.subtotal },
+    ...(a.deliveryFee > 0 ? [{ label: "Frais de livraison", amount: a.deliveryFee }] : []),
+    ...(a.promoDiscount > 0
+      ? [
+          {
+            label: order.promoCode ? `Remise (${order.promoCode})` : "Remise",
+            amount: -a.promoDiscount,
+          },
+        ]
+      : []),
+    ...(a.creditApplied > 0 ? [{ label: "Avoir utilisé", amount: -a.creditApplied }] : []),
+    { label: "Total TTC", amount: total, bold: true },
+  ];
   const issued = new Date(order.createdAt);
   const due = new Date(issued.getTime() + paymentTermsDays * 86400_000);
   const buyerName = restaurant?.name ?? "Restaurant";
 
   return {
-    number: invoiceNumberFor(order.id),
+    number: invoiceNumberFor(order.id, order.createdAt, order.reference),
     issuedAt: issued,
     dueAt: due,
     orderRef: order.reference,
@@ -73,10 +95,8 @@ export function buildInvoiceData(
         amount: it.qty * it.price,
       };
     }),
-    subtotalHT: subtotal,
-    vat,
-    vatRate: 18,
-    totalTTC: total,
-    amountDue: order.paid ? 0 : total,
+    totals,
+    amountDue: order.paid || order.status === "cancelled" ? 0 : total,
+    note: "Montants toutes taxes comprises.",
   };
 }

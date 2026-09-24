@@ -68,6 +68,7 @@ import {
 import { frequencyLabel, computeNextOccurrence, itemsSubtotal } from "@/lib/recurring-engine";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
+import { deliveryFeeFor } from "@/data/store";
 
 export const Route = createFileRoute("/restaurant/recurring/$recurringOrderId")({
   head: () => ({ meta: [{ title: "Commande récurrente · Restaurant" }] }),
@@ -132,7 +133,7 @@ function RecurringDetail() {
     );
 
   const total = itemsSubtotal(ro.items, priceOf);
-  const deliveryFee = Math.round(total * 0.03);
+  const deliveryFee = deliveryFeeFor(ro.deliveryAddress);
   const estimatedTotal = total + deliveryFee;
 
   const STATUS_TONE: Record<typeof ro.status, string> = {

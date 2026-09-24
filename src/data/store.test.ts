@@ -12,6 +12,9 @@ import {
   useRestaurantOrders,
   useTransactions,
   missionActions,
+  missionPayout,
+  MISSION_PAY,
+  stockShortages,
   orderActions,
   restaurantOrderActions,
 } from "./store";
@@ -461,5 +464,46 @@ describe("missionActions.withdraw (désistement du livreur)", () => {
     expect(loaded.status).toBe("loaded");
     const result = missionActions.withdraw(loaded.id, "Trop tard", loaded.driverId);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("lot B — montants", () => {
+  it("paie le producteur sur la marchandise seule, frais et remises à part", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current.find((p) => p.stock > 20)!;
+    const orders = renderHook(() => useOrders());
+    const txs = renderHook(() => useTransactions());
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 4, price: target.pricePerKg }],
+        subtotal: target.pricePerKg * 4,
+        deliveryFee: 1000,
+        promoDiscount: 300,
+        total: target.pricePerKg * 4 + 1000 - 300,
+        deliveryAddress: "Le Baobab, Dakar Plateau",
+        paymentMethod: "Wave",
+      });
+    });
+    const resto = renderHook(() => useRestaurantOrders()).result.current.find((o) => o.id === id)!;
+    const farmerOrder = orders.result.current.find((o) => o.reference === resto.reference)!;
+    expect(farmerOrder.total).toBe(target.pricePerKg * 4);
+
+    walkOrder(resto.reference, "delivered");
+    const tx = txs.result.current.find((t) => t.orderRef === resto.reference)!;
+    expect(tx.gross).toBe(target.pricePerKg * 4);
+  });
+
+  it("signale un stock insuffisant au moment de payer", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current.find((p) => p.stock > 0)!;
+    expect(stockShortages([{ productId: target.id, qty: target.stock + 1 }])).toHaveLength(1);
+    expect(stockShortages([{ productId: target.id, qty: target.stock }])).toHaveLength(0);
+  });
+
+  it("calcule la course du livreur avec la distance et le poids, jamais sous le minimum", () => {
+    expect(missionPayout(1, 1)).toBe(MISSION_PAY.minimum);
+    expect(missionPayout(70, 50)).toBeGreaterThan(missionPayout(70, 10));
   });
 });

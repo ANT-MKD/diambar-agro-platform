@@ -134,7 +134,7 @@ function RestaurantPaymentSettings() {
                         params={{ invoiceId: o.id }}
                         className="text-primary hover:underline font-medium"
                       >
-                        {invoiceNumberFor(o.id)}
+                        {invoiceNumberFor(o.id, o.createdAt, o.reference)}
                       </Link>
                     </td>
                     <td className="py-2.5 text-muted-foreground">

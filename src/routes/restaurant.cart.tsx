@@ -4,7 +4,15 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { CartItemRow } from "@/components/restaurant/cart-item";
 import { RestaurantProductCard } from "@/components/restaurant/product-card";
-import { useCart, useProducts, cartActions, useSuppliers } from "@/data/store";
+import {
+  useCart,
+  useProducts,
+  cartActions,
+  useSuppliers,
+  useRestaurantProfile,
+} from "@/data/store";
+import { useDeliveryZones } from "@/data/platform-settings";
+import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -29,6 +37,8 @@ function CartPage() {
     .map((l) => ({ ...l, product: products.find((p) => p.id === l.productId)! }))
     .filter((l) => l.product);
 
+  const profile = useRestaurantProfile();
+  const zones = useDeliveryZones();
   if (lines.length === 0) {
     return (
       <div className="space-y-6">
@@ -53,7 +63,12 @@ function CartPage() {
     .filter((g) => g.items.length > 0);
 
   const subtotal = lines.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0);
-  const delivery = Math.round(subtotal * 0.03);
+  const zone = zoneForAddress(zones, profile.city, profile.deliveryAddress);
+  // Frais de la zone réglés par l'admin, une livraison par producteur.
+  const producerCount = new Set(
+    cart.map((l) => products.find((p) => p.id === l.productId)?.farmerId).filter(Boolean),
+  ).size;
+  const delivery = zone ? deliveryFeeForZone(zone) * producerCount : 0;
   const total = subtotal + delivery;
   const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
 

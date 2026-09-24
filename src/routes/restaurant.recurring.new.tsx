@@ -44,6 +44,7 @@ import { CATEGORIES } from "@/components/farmer/product-form";
 import { formatFCFA } from "@/lib/format";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
+import { deliveryFeeFor } from "@/data/store";
 
 export const Route = createFileRoute("/restaurant/recurring/new")({
   head: () => ({ meta: [{ title: "Nouvelle commande récurrente · Restaurant" }] }),
@@ -144,7 +145,7 @@ function NewRecurringOrder() {
     const p = products.find((x) => x.id === i.productId);
     return s + (p?.pricePerKg ?? 0) * i.qty;
   }, 0);
-  const deliveryFee = Math.round(subtotal * 0.03);
+  const deliveryFee = deliveryFeeFor(deliveryAddress);
   const total = subtotal + deliveryFee;
 
   const selectedFarmer = farmers.find((f) => f.id === farmerId);

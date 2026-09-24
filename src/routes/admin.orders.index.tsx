@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/orders/")({
   head: () => ({
@@ -38,6 +39,7 @@ function AdminOrders() {
   const orders = useOrders();
   const restaurantOrders = useRestaurantOrders();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | OrderStatus>("all");
   const [farmerId, setFarmerId] = useState("all");
@@ -179,7 +181,7 @@ function AdminOrders() {
                   </td>
                   <td className="px-4 py-3 text-right hidden lg:table-cell text-muted-foreground">
                     {o.status === "delivered"
-                      ? formatFCFA(commissionForOrder(o, tiers, volumeByFarmer))
+                      ? formatFCFA(commissionForOrder(o, tiers, volumeByFarmer, recorded))
                       : "—"}
                   </td>
                   <td className="px-4 py-3">

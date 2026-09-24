@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { driverWalletActions } from "./store";
+import { driverWalletActions, onRestaurantOrderCancelled } from "./store";
 import { refundActions } from "./finance";
 import { createStore } from "./persist";
 
@@ -94,6 +94,10 @@ export type CreditNote = {
   expiresAt?: string;
   status: "issued" | "applied";
   usedOnOrderRef?: string;
+  // Montant d'origine quand l'avoir a déjà été utilisé en partie (`amount`
+  // est alors le solde restant), et le détail de chaque utilisation.
+  initialAmount?: number;
+  usages?: { orderRef: string; amount: number; at: string }[];
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -528,18 +532,48 @@ export const creditActions = {
     ]);
     return { id, reference };
   },
-  /** Applique réellement un avoir à une commande (au checkout) : le solde
-   * disponible baisse pour de vrai, pas juste visuellement. */
-  redeem: (id: string, orderRef: string) => {
+  /** Utilise tout ou partie d'un avoir sur une commande : le solde baisse du
+   * montant réellement utilisé, et le reste reste disponible. */
+  redeem: (id: string, orderRef: string, amountUsed?: number) => {
+    const at = new Date().toISOString();
+    creditsStore.set((arr) =>
+      arr.map((c) => {
+        if (c.id !== id || c.status !== "issued" || isCreditExpired(c)) return c;
+        const used = Math.min(c.amount, amountUsed ?? c.amount);
+        const remaining = c.amount - used;
+        return {
+          ...c,
+          initialAmount: c.initialAmount ?? c.amount,
+          amount: remaining,
+          status: remaining > 0 ? "issued" : "applied",
+          usedOnOrderRef: orderRef,
+          usages: [...(c.usages ?? []), { orderRef, amount: used, at }],
+        };
+      }),
+    );
+  },
+  /** Recrédite la part d'un avoir utilisée sur une commande annulée. */
+  restore: (id: string, orderRef: string, amount: number) => {
     creditsStore.set((arr) =>
       arr.map((c) =>
-        c.id === id && c.status === "issued" && !isCreditExpired(c)
-          ? { ...c, status: "applied", usedOnOrderRef: orderRef }
+        c.id === id
+          ? {
+              ...c,
+              amount: c.amount + amount,
+              status: "issued",
+              usages: (c.usages ?? []).filter((u) => u.orderRef !== orderRef),
+            }
           : c,
       ),
     );
   },
 };
+
+// Une commande annulée rend l'avoir qu'elle avait utilisé.
+onRestaurantOrderCancelled((o) => {
+  if (o.creditId && o.creditApplied)
+    creditActions.restore(o.creditId, o.reference, o.creditApplied);
+});
 
 export const PARTY_LABEL: Record<DisputeParty, string> = {
   restaurant: "Restaurant",
@@ -794,8 +828,24 @@ export const disputeActions = {
       by?: string;
     },
   ) => {
-    const d = disputesStore.get().find((x) => x.id === id);
-    if (!d) return;
+    const d0 = disputesStore.get().find((x) => x.id === id);
+    if (!d0 || d0.decision) return;
+    const d = d0;
+    // Jamais plus que ce qui est réclamé, et jamais une deuxième fois ce qui a
+    // déjà été indemnisé par le retour d'origine (avoir déjà émis).
+    const alreadyCompensated = d.returnId
+      ? creditsStore
+          .get()
+          .filter((c) => c.returnId === d.returnId)
+          .reduce((sum, c) => sum + (c.initialAmount ?? c.amount), 0)
+      : 0;
+    decision = {
+      ...decision,
+      grantedAmount: Math.max(
+        0,
+        Math.min(decision.grantedAmount, d.claimedAmount) - alreadyCompensated,
+      ),
+    };
     const at = new Date().toISOString();
     const by = decision.by ?? "Support Diambar";
     const resolved = decision.outcome === "rejected" ? "rejected" : "resolved";
@@ -872,9 +922,12 @@ export const disputeActions = {
             method: "Wave",
             reason: `Litige ${d.reference} — ${decision.reason}`,
           },
-          "approved",
+          // Passe par les paliers d'approbation comme tout remboursement.
+          "pending",
         );
-      } else {
+      } else if (d.openedByRole !== "driver") {
+        // Un livreur est indemnisé sur son portefeuille (ci-dessous), jamais
+        // en plus par un avoir qu'il ne pourrait de toute façon pas utiliser.
         creditsStore.set((arr) => [
           {
             id: `cn_${Date.now()}`,

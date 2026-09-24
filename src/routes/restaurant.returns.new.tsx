@@ -12,7 +12,12 @@ import { useRestaurantOrders } from "@/data/store";
 import { farmers, products, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
-import { returnActions, RETURN_REASON_LABEL, type ReturnReason } from "@/data/business";
+import {
+  returnActions,
+  returnCreationProblem,
+  RETURN_REASON_LABEL,
+  type ReturnReason,
+} from "@/data/business";
 
 export const Route = createFileRoute("/restaurant/returns/new")({
   head: () => ({ meta: [{ title: "Déclarer un problème · Restaurant" }] }),
@@ -57,7 +62,17 @@ function NewReturn() {
 
   const canGoStep1 = !!orderId;
   const canGoStep2 = !!productId;
+  const amountProblem =
+    order && orderLine && requestedAmount
+      ? returnCreationProblem({
+          orderRef: order.reference,
+          productId: orderLine.productId,
+          requestedAmount: Number(requestedAmount),
+          lineValue: orderLine.qty * orderLine.price,
+        })
+      : null;
   const canGoStep3 =
+    !amountProblem &&
     Number(qty) > 0 &&
     Number(qty) <= (orderLine?.qty ?? Infinity) &&
     Number(requestedAmount) > 0 &&
@@ -65,6 +80,10 @@ function NewReturn() {
 
   const submit = () => {
     if (!order || !orderLine || !product || !myRestaurant) return;
+    if (amountProblem) {
+      toast.error(amountProblem);
+      return;
+    }
     const item = returnActions.create({
       orderRef: order.reference,
       orderId: order.id,
@@ -235,6 +254,7 @@ function NewReturn() {
                   value={requestedAmount}
                   onChange={(e) => setRequestedAmount(e.target.value)}
                 />
+                {amountProblem && <p className="text-xs text-destructive">{amountProblem}</p>}
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <label className="text-xs font-medium text-muted-foreground">Motif</label>

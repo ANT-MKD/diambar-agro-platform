@@ -31,11 +31,20 @@ export function commissionRateForOrder(
   return tierRateForVolume(tiers, volume);
 }
 
+/** Commission réellement prélevée par commande (référence → montant), telle
+ * qu'enregistrée au moment de la livraison. */
+export type RecordedCommissions = Map<string, number>;
+
 export function commissionForOrder(
   order: Order,
   tiers: Tier[],
   volumeByFarmer: Map<string, number>,
+  recorded?: RecordedCommissions,
 ) {
+  // Une commande déjà créditée garde la commission appliquée ce jour-là : un
+  // changement de barème n'est jamais rétroactif.
+  const kept = recorded?.get(order.reference);
+  if (kept !== undefined) return kept;
   return Math.round(order.total * (commissionRateForOrder(order, tiers, volumeByFarmer) / 100));
 }
 
@@ -53,11 +62,11 @@ export function commissionForAmount(
   return Math.round(amount * (commissionRateForOrder(order, tiers, volumeByFarmer) / 100));
 }
 
-export function computeCommission(orders: Order[], tiers: Tier[]) {
+export function computeCommission(orders: Order[], tiers: Tier[], recorded?: RecordedCommissions) {
   const volumeByFarmer = deliveredVolumeByFarmer(orders);
   return orders
     .filter((o) => o.status === "delivered")
-    .reduce((s, o) => s + commissionForOrder(o, tiers, volumeByFarmer), 0);
+    .reduce((s, o) => s + commissionForOrder(o, tiers, volumeByFarmer, recorded), 0);
 }
 
 /**

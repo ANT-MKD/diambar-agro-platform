@@ -4,8 +4,6 @@ import {
   validationRequests as seedValidations,
   auditLogs as seedLogs,
   moderationQueue as seedModeration,
-  commissionTiers as seedTiers,
-  deliveryZones as seedZones,
   refundSettings as seedRefundSettings,
   refundApprovalTiers as seedRefundApprovalTiers,
   teams as seedTeams,
@@ -34,6 +32,9 @@ import {
 } from "./store";
 import { products, farmers } from "./mocks";
 import { createStore } from "./persist";
+import { tiersStore, zonesStore, useCommissionTiers, useDeliveryZones } from "./platform-settings";
+
+export { useCommissionTiers, useDeliveryZones };
 
 const usersStore = createStore<PlatformUser[]>(seedUsers, "diambar:admin-users");
 const validationsStore = createStore<ValidationRequest[]>(
@@ -42,8 +43,6 @@ const validationsStore = createStore<ValidationRequest[]>(
 );
 const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
-const tiersStore = createStore(seedTiers, "diambar:admin-tiers");
-const zonesStore = createStore(seedZones, "diambar:admin-zones");
 const refundSettingsStore = createStore(seedRefundSettings, "diambar:admin-refund-settings");
 
 export function usePlatformUsers() {
@@ -70,12 +69,6 @@ export function useModerationQueue() {
 }
 export function useModerationItem(id: string) {
   return useModerationQueue().find((m) => m.id === id) ?? null;
-}
-export function useCommissionTiers() {
-  return useSyncExternalStore(tiersStore.subscribe, tiersStore.get, tiersStore.get);
-}
-export function useDeliveryZones() {
-  return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
 }
 /** Liste des villes desservies, dérivée des mêmes zones de livraison —
  * utilisée par les formulaires d'inscription/profil (agriculteur,

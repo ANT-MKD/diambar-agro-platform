@@ -256,6 +256,7 @@ export type Order = {
   // ce stock-là qui est remis en cas d'annulation (jamais celui des
   // commandes de démo, qui n'ont rien réservé).
   stockReserved?: boolean;
+  deliveredAt?: string;
 };
 
 export const orders: Order[] = [
@@ -1042,6 +1043,9 @@ export const restaurantBudget: RestaurantBudget = {
 
 export type Withdrawal = {
   id: string;
+  // Producteur qui a demandé le retrait (absent sur les retraits de démo, qui
+  // sont tous ceux du producteur de démo f1).
+  farmerId?: string;
   date: string;
   method: PaymentMethod;
   amount: number;
@@ -1348,6 +1352,15 @@ export type RestaurantOrder = {
   // moment où le statut passe réellement à "delivered".
   paid: boolean;
   paidAt?: string;
+  // Détail du montant payé (absent sur les commandes de démo anciennes, où
+  // `total` = marchandise). total = subtotal + deliveryFee − promoDiscount −
+  // creditApplied. Le producteur n'est payé que sur `subtotal`.
+  subtotal?: number;
+  deliveryFee?: number;
+  promoDiscount?: number;
+  promoCode?: string;
+  creditApplied?: number;
+  creditId?: string;
   // Urgence imposée à la mission de livraison (commandes récurrentes
   // « express ») ; sinon déduite du créneau.
   missionUrgency?: "standard" | "priority" | "express";

@@ -26,7 +26,9 @@ export const Route = createFileRoute("/restaurant/invoices")({
 
 function InvoicesLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const orders = useRestaurantOrders();
+  const allOrders = useRestaurantOrders();
+  // Une commande annulée n'est pas facturée : elle sort des factures et des totaux.
+  const orders = useMemo(() => allOrders.filter((o) => o.status !== "cancelled"), [allOrders]);
   const profile = useRestaurantProfile();
   const disputes = useAllDisputes();
   const [q, setQ] = useState("");
@@ -40,7 +42,7 @@ function InvoicesLayout() {
 
   const nowYear = new Date().getFullYear();
   const overdue = orders.filter((o) => isInvoiceOverdue(o, profile.paymentTermsDays));
-  const unpaidCash = orders.filter((o) => !o.paid);
+  const unpaidCash = orders.filter((o) => !o.paid && o.status === "delivered");
   const paidOrders = orders.filter((o) => o.paid);
   const totalInvoiced = orders.reduce((s, o) => s + o.total, 0);
   const totalPaid = paidOrders.reduce((s, o) => s + o.total, 0);
@@ -73,7 +75,9 @@ function InvoicesLayout() {
     return src
       .filter(inPeriod)
       .filter((o) =>
-        (o.reference + invoiceNumberFor(o.id)).toLowerCase().includes(q.toLowerCase()),
+        (o.reference + invoiceNumberFor(o.id, o.createdAt, o.reference))
+          .toLowerCase()
+          .includes(q.toLowerCase()),
       );
   }, [orders, q, status, period, nowYear, disputedOrderIds]);
 
@@ -84,7 +88,7 @@ function InvoicesLayout() {
       filtered.map((o) => {
         const f = farmers.find((x) => x.id === o.farmerId);
         return [
-          invoiceNumberFor(o.id),
+          invoiceNumberFor(o.id, o.createdAt, o.reference),
           o.reference,
           f?.farm ?? "—",
           new Date(o.createdAt).toLocaleDateString("fr-FR"),
@@ -211,7 +215,7 @@ function InvoicesLayout() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-semibold text-sm text-primary">
-                      {invoiceNumberFor(o.id)}
+                      {invoiceNumberFor(o.id, o.createdAt, o.reference)}
                     </span>
                     <span className="font-bold text-sm">{formatFCFA(o.total)}</span>
                   </div>

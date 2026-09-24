@@ -86,7 +86,8 @@ import {
   driverCommissionForPayout,
   DRIVER_COMMISSION_RATE,
 } from "@/lib/commission";
-import { commissionTiers } from "@/data/admin-mocks";
+import { getCommissionTiers, getDeliveryZones, useDeliveryZones } from "./platform-settings";
+import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
   fleetForDriver,
   missionEligibility,
@@ -209,6 +210,19 @@ export function useWithdrawals() {
     withdrawalsStore.get,
   );
 }
+/** Commission réellement prélevée sur chaque commande livrée. */
+export function useRecordedCommissions(): Map<string, number> {
+  const txs = useTransactions();
+  return useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of txs) {
+      if (t.kind === "refund_adjustment" || t.gross <= 0) continue;
+      map.set(t.orderRef, (map.get(t.orderRef) ?? 0) + t.commission);
+    }
+    return map;
+  }, [txs]);
+}
+
 export function useTransactions() {
   return useSyncExternalStore(
     transactionsStore.subscribe,
@@ -1137,6 +1151,44 @@ function lastAddressSegment(address: string): string {
   return parts[parts.length - 1]?.trim() || address;
 }
 
+/** Frais d'une livraison vers une adresse du restaurant, selon la zone réglée
+ * par l'admin (0 si hors zone). */
+export function deliveryFeeFor(address: string): number {
+  const zone = zoneForAddress(getDeliveryZones(), restaurantProfileStore.get().city, address);
+  return zone ? deliveryFeeForZone(zone) : 0;
+}
+export function useDeliveryFeeFor(address: string): number {
+  const zones = useDeliveryZones();
+  const profile = useRestaurantProfile();
+  const zone = zoneForAddress(zones, profile.city, address);
+  return zone ? deliveryFeeForZone(zone) : 0;
+}
+
+/** Lignes dont la quantité demandée dépasse le stock réel du moment. */
+export function stockShortages(items: { productId: string; qty: number }[]) {
+  const products = productsStore.get();
+  return items
+    .map((i) => {
+      const p = products.find((x) => x.id === i.productId);
+      return {
+        productId: i.productId,
+        name: p?.name ?? i.productId,
+        wanted: i.qty,
+        available: p?.stock ?? 0,
+      };
+    })
+    .filter((l) => l.wanted > l.available);
+}
+
+// Abonnés à l'annulation d'une commande restaurant (ex. le registre des
+// avoirs, qui recrédite un avoir utilisé) — évite une dépendance circulaire
+// entre les magasins.
+const restaurantOrderCancelListeners = new Set<(o: RestaurantOrder) => void>();
+export function onRestaurantOrderCancelled(fn: (o: RestaurantOrder) => void) {
+  restaurantOrderCancelListeners.add(fn);
+  return () => restaurantOrderCancelListeners.delete(fn);
+}
+
 export const restaurantOrderActions = {
   /** Passe commande auprès d'un agriculteur : crée aussi la commande côté
    * agriculteur (même référence), déduit le stock, notifie l'agriculteur, et
@@ -1178,7 +1230,9 @@ export const restaurantOrderActions = {
       restaurantId: "r1",
       farmerId: o.farmerId,
       items: o.items.map(({ productId, qty, price }) => ({ productId, qty, price })),
-      total: o.total,
+      // Le producteur est payé sur la marchandise seule : frais de livraison,
+      // promos et avoirs ne touchent jamais ses revenus.
+      total: o.subtotal ?? o.items.reduce((sum, i) => sum + i.qty * i.price, 0),
       status: "pending",
       createdAt,
       eta: o.eta,
@@ -1189,7 +1243,7 @@ export const restaurantOrderActions = {
     farmerNotifActions.add({
       type: "order",
       title: "Nouvelle commande",
-      body: `${reference} — ${formatFCFA(o.total)} · à confirmer`,
+      body: `${reference} — ${formatFCFA(o.subtotal ?? o.items.reduce((sum, i) => sum + i.qty * i.price, 0))} · à confirmer`,
     });
     // La mission de livraison n'est ouverte aux livreurs qu'une fois la
     // commande confirmée par le producteur (voir openMissionForOrder).
@@ -1277,11 +1331,20 @@ function recordDeliveryTransaction(order: Order, paymentMethod: PaymentMethod) {
     .get()
     .some((t) => t.orderRef === order.reference && t.kind !== "refund_adjustment" && t.gross > 0);
   if (alreadyCredited) return;
+  // Barème réel réglé par l'admin, appliqué au volume livré du mois en cours
+  // (comme annoncé dans les tarifs) : un changement de taux vaut pour les
+  // livraisons suivantes, jamais pour celles déjà créditées.
+  const month = new Date().toISOString().slice(0, 7);
   const volume = ordersStore
     .get()
-    .filter((o) => o.farmerId === order.farmerId && o.status === "delivered")
+    .filter(
+      (o) =>
+        o.farmerId === order.farmerId &&
+        o.status === "delivered" &&
+        o.deliveredAt?.slice(0, 7) === month,
+    )
     .reduce((s, o) => s + o.total, 0);
-  const rate = tierRateForVolume(commissionTiers, volume);
+  const rate = tierRateForVolume(getCommissionTiers(), volume);
   const commission = Math.round(order.total * (rate / 100));
   transactionsStore.set((arr) => [
     {
@@ -1317,11 +1380,13 @@ export const transactionActions = {
     amount: number;
     reason: string;
   }) => {
-    const volume = ordersStore
+    // Même taux que celui réellement appliqué à la vente d'origine.
+    const original = transactionsStore
       .get()
-      .filter((o) => o.farmerId === input.farmerId && o.status === "delivered")
-      .reduce((s, o) => s + o.total, 0);
-    const rate = tierRateForVolume(commissionTiers, volume);
+      .find((t) => t.orderRef === input.orderRef && t.kind !== "refund_adjustment" && t.gross > 0);
+    const rate = original
+      ? (original.commission / original.gross) * 100
+      : tierRateForVolume(getCommissionTiers(), 0);
     const commission = Math.round(input.amount * (rate / 100));
     transactionsStore.set((arr) => [
       {
@@ -1410,7 +1475,7 @@ function applyOrderStatus(
   ordersStore.set((arr) =>
     arr.map((o) => {
       if (o.reference !== reference) return o;
-      farmerOrder = { ...o, status };
+      farmerOrder = { ...o, status, deliveredAt: status === "delivered" ? at : o.deliveredAt };
       return farmerOrder;
     }),
   );
@@ -1580,6 +1645,8 @@ function cancelCascade(
     }
   }
 
+  if (restoOrder) restaurantOrderCancelListeners.forEach((fn) => fn(restoOrder!));
+
   if (actor !== "farmer") {
     farmerNotifActions.add({
       type: "order",
@@ -1628,12 +1695,13 @@ export const movementActions = {
 };
 
 export const withdrawalActions = {
-  create: (w: { method: PaymentMethod; amount: number }) => {
+  create: (w: { method: PaymentMethod; amount: number; farmerId?: string }) => {
     const id = `wd${Date.now()}`;
     const fee = Math.round(w.amount * 0.005);
     withdrawalsStore.set((arr) => [
       {
         id,
+        farmerId: w.farmerId ?? "f1",
         date: new Date().toISOString().slice(0, 10),
         method: w.method,
         amount: w.amount,
@@ -2052,7 +2120,7 @@ function processOccurrenceInner(
   }
 
   const subtotal = itemsSubtotal(effectiveItems, priceOf);
-  const delivery = Math.round(subtotal * 0.03);
+  const delivery = deliveryFeeFor(ro.deliveryAddress);
   const total = subtotal + delivery;
 
   // Règle budget
@@ -2104,7 +2172,7 @@ function processOccurrenceInner(
   }
 
   const finalSubtotal = itemsSubtotal(effectiveItems, priceOf);
-  const finalDelivery = Math.round(finalSubtotal * 0.03);
+  const finalDelivery = deliveryFeeFor(ro.deliveryAddress);
   const finalTotal = finalSubtotal + finalDelivery;
 
   const newOrderId = restaurantOrderActions.create(
@@ -2115,6 +2183,8 @@ function processOccurrenceInner(
         qty: it.qty,
         price: priceOf(it.productId),
       })),
+      subtotal: finalSubtotal,
+      deliveryFee: finalDelivery,
       total: finalTotal,
       deliveryAddress: ro.deliveryAddress,
       paymentMethod: ro.paymentMethod,

@@ -230,8 +230,9 @@ function FarmerReturnDetail() {
                   size="sm"
                   className="w-full gap-2"
                   onClick={() => {
-                    returnActions.issueCredit(r.id);
-                    toast.success("Avoir émis");
+                    const result = returnActions.issueCredit(r.id);
+                    if (!result.ok) toast.error(result.message);
+                    else toast.success("Avoir émis · il remplace le remboursement");
                   }}
                 >
                   <ReceiptText className="h-4 w-4" />

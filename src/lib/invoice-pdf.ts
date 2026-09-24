@@ -25,11 +25,11 @@ export type InvoiceData = {
   brand?: { name: string; tagline?: string; color?: RGB };
   paidBanner?: string; // e.g. "22 538 FCFA payés" or "Facture en attente"
   items: InvoiceItem[];
-  subtotalHT: number;
-  vat: number;
-  vatRate?: number;
-  totalTTC: number;
+  // Lignes de total dans l'ordre d'affichage (marchandise, livraison,
+  // remises…, total payé) : la facture reprend exactement le montant payé.
+  totals: { label: string; amount: number; bold?: boolean }[];
   amountDue: number;
+  note?: string;
 };
 
 function stripAccents(s: string): string {
@@ -122,7 +122,6 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   const BRAND: RGB = d.brand?.color ?? [0.13, 0.68, 0.37];
   const brandName = d.brand?.name ?? "DIAMBAR AGRO";
   const tagline = d.brand?.tagline ?? "Logistique alimentaire";
-  const vatRate = d.vatRate ?? 18;
 
   const ops: string[] = [];
 
@@ -170,7 +169,7 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
 
   // ─── Paid banner ───────────────────────────────────────────────────────
   y = H - 420;
-  const banner = d.paidBanner ?? `${fmtMoney(d.totalTTC)} FCFA a payer`;
+  const banner = d.paidBanner ?? `${fmtMoney(d.amountDue)} FCFA a payer`;
   drawText(ops, banner, ML, y, 22, { bold: true, color: BLACK });
 
   // ─── Table header ──────────────────────────────────────────────────────
@@ -203,9 +202,14 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   // ─── Totals (right column) ─────────────────────────────────────────────
   y -= 25;
   const totals: [string, string, boolean][] = [
-    ["Sous-total HT", `${fmtMoney(d.subtotalHT)} FCFA`, false],
-    [`TVA (${vatRate}%)`, `${fmtMoney(d.vat)} FCFA`, false],
-    ["Total TTC", `${fmtMoney(d.totalTTC)} FCFA`, true],
+    ...d.totals.map(
+      (t) =>
+        [t.label, `${t.amount < 0 ? "-" : ""}${fmtMoney(Math.abs(t.amount))} FCFA`, !!t.bold] as [
+          string,
+          string,
+          boolean,
+        ],
+    ),
     ["Montant du", `${fmtMoney(d.amountDue)} FCFA`, true],
   ];
   for (const [k, v, bold] of totals) {
@@ -213,6 +217,8 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
     drawText(ops, v, MR, y, 10, { color: BLACK, align: "right", bold });
     y -= 20;
   }
+
+  if (d.note) drawText(ops, d.note, ML, y - 10, 8, { color: GRAY });
 
   // ─── Footer ────────────────────────────────────────────────────────────
   drawLine(ops, ML, 70, MR, 70);

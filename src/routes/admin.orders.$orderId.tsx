@@ -20,6 +20,7 @@ import { useCommissionTiers } from "@/data/admin-store";
 import { commissionForOrder, deliveredVolumeByFarmer } from "@/lib/commission";
 import { farmers, restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/orders/$orderId")({
   head: () => ({
@@ -46,6 +47,7 @@ function AdminOrderDetail() {
   const disputes = useAllDisputes();
   const incidents = useIncidents();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const volumeByFarmer = useMemo(() => deliveredVolumeByFarmer(allOrders), [allOrders]);
 
   if (!order) {
@@ -77,7 +79,7 @@ function AdminOrderDetail() {
   const incident = mission ? incidents.find((i) => i.missionRef === mission.reference) : null;
 
   const commission =
-    order.status === "delivered" ? commissionForOrder(order, tiers, volumeByFarmer) : 0;
+    order.status === "delivered" ? commissionForOrder(order, tiers, volumeByFarmer, recorded) : 0;
   const farmerRevenue = order.status === "delivered" ? order.total - commission : null;
 
   const subtotal = order.items.reduce((s, it) => s + it.qty * it.price, 0);
