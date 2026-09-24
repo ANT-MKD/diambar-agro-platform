@@ -1,16 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Mail, MailCheck, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
-import { requestPasswordResetFn } from "@/lib/auth/functions";
+import { DemoNotice } from "@/components/auth/demo-notice";
+import { getAuthConfigFn, requestPasswordResetFn } from "@/lib/auth/functions";
+import { normalizeEmail } from "@/lib/auth/helpers";
 
 export const Route = createFileRoute("/forgot-password")({
+  loader: () => getAuthConfigFn(),
   head: () => ({ meta: [{ title: "Mot de passe oublié · Diambar Agro" }] }),
   component: ForgotPage,
 });
 
 function ForgotPage() {
+  const config = Route.useLoaderData();
+  const emailId = useId();
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,11 +25,13 @@ function ForgotPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { devResetLink } = await requestPasswordResetFn({ data: { email } });
-      setDevResetLink(devResetLink);
+      const { devResetLink } = await requestPasswordResetFn({
+        data: { email: normalizeEmail(email) },
+      });
+      setDevResetLink(devResetLink ?? null);
       setSent(true);
     } catch {
-      toast.error("Une erreur est survenue, réessayez.");
+      toast.error("Connexion impossible. Vérifiez votre accès à internet et réessayez.");
     } finally {
       setLoading(false);
     }
@@ -32,6 +39,7 @@ function ForgotPage() {
 
   return (
     <AuthSplitLayout>
+      {config.demoMode && <DemoNotice />}
       <Link
         to="/login"
         className="text-sm text-muted-foreground inline-flex items-center gap-1 mb-4 hover:text-foreground"
@@ -46,11 +54,15 @@ function ForgotPage() {
             Entrez votre email pour recevoir un lien de réinitialisation.
           </p>
           <div className="mt-6">
-            <label className="text-sm font-medium">Email</label>
+            <label htmlFor={emailId} className="text-sm font-medium">
+              Email
+            </label>
             <div className="mt-1.5 relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
+                id={emailId}
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

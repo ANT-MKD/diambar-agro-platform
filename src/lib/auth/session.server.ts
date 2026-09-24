@@ -1,11 +1,16 @@
 import { useSession } from "@tanstack/react-start/server";
 import type { Role } from "@/data/mocks";
+import { isDemoMode } from "./config.server";
 
 export type PendingTwoFa = {
+  /** Identifiant aléatoire du code en cours, pour compter les essais côté serveur. */
+  id: string;
   email: string;
   role: Role;
   code: string;
   expiresAt: number;
+  sentAt: number;
+  attempts: number;
   rememberMe: boolean;
 };
 
@@ -34,8 +39,12 @@ export type PendingRegistration = {
   city: string;
   password: string;
   details?: RegisterDetails;
+  acceptedTermsAt: string;
+  id: string;
   code: string;
   expiresAt: number;
+  sentAt: number;
+  attempts: number;
 };
 
 export type AuthSessionData = {
@@ -47,14 +56,26 @@ export type AuthSessionData = {
 
 const MIN_SECRET_LENGTH = 32;
 
-// Démo uniquement : sans backend, il n'y a pas de secret d'infra à fournir.
-// En production, définir SESSION_SECRET (32+ caractères) côté serveur
-// (variable d'env Cloudflare Workers) plutôt que d'utiliser ce repli.
+// Repli accepté uniquement en mode démonstration. Hors démo, l'application
+// refuse de créer une session sans vrai secret : avec ce repli public, tout
+// le monde pourrait fabriquer un cookie « administrateur » ou un lien de
+// réinitialisation valide.
 const FALLBACK_DEMO_SECRET = "diambar-agro-demo-session-secret-please-rotate";
+let warnedFallback = false;
 
 export function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.length >= MIN_SECRET_LENGTH) return secret;
+  if (!isDemoMode()) {
+    throw new Error(
+      `SESSION_SECRET manquant ou trop court (${MIN_SECRET_LENGTH} caractères minimum) : ` +
+        "définissez-le dans les secrets du déploiement.",
+    );
+  }
+  if (!warnedFallback) {
+    warnedFallback = true;
+    console.warn("[auth] SESSION_SECRET absent : secret de démonstration utilisé (mode démo).");
+  }
   return FALLBACK_DEMO_SECRET;
 }
 
@@ -81,7 +102,9 @@ export function authSession(rememberMe = false) {
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      // Cookie envoyé uniquement en HTTPS une fois en ligne (import.meta.env.PROD
+      // est figé au build ; process.env.NODE_ENV peut manquer sur Workers).
+      secure: import.meta.env.PROD,
       path: "/",
     },
   });

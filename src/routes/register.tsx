@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Sprout, UtensilsCrossed, Truck, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -8,18 +8,33 @@ import { RoleCard } from "@/components/auth/role-card";
 import { OtpInput } from "@/components/auth/otp-input";
 import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
 import { useCities } from "@/data/admin-store";
-import { registerValidateFn, registerVerifyFn } from "@/lib/auth/functions";
+import {
+  getAuthConfigFn,
+  registerValidateFn,
+  registerVerifyFn,
+  resendRegistrationCodeFn,
+} from "@/lib/auth/functions";
+import {
+  formatSenegalPhone,
+  normalizeSenegalPhone,
+  registerDetailsProblem,
+} from "@/lib/auth/helpers";
+import { DemoNotice } from "@/components/auth/demo-notice";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
-  validateSearch: (s: Record<string, unknown>): { role?: string } => ({
-    role: (s.role as string) || undefined,
+  // Seuls les trois profils publics sont acceptés dans l'adresse (?role=).
+  validateSearch: (s: Record<string, unknown>): { role?: Role } => ({
+    role: PUBLIC_ROLES.includes(s.role as Role) ? (s.role as Role) : undefined,
   }),
+  loader: () => getAuthConfigFn(),
   head: () => ({ meta: [{ title: "Inscription · Diambar Agro" }] }),
   component: RegisterPage,
 });
 
 type Role = "farmer" | "restaurant" | "driver";
+const PUBLIC_ROLES: Role[] = ["farmer", "restaurant", "driver"];
+const NETWORK_ERROR = "Connexion impossible. Vérifiez votre accès à internet et réessayez.";
 
 type RegisterForm = {
   firstName: string;
@@ -29,13 +44,15 @@ type RegisterForm = {
   password: string;
   confirm: string;
   city: string;
+  acceptTerms: boolean;
 };
 
 function RegisterPage() {
   const { role: initialRole } = Route.useSearch();
+  const config = Route.useLoaderData();
   const navigate = useNavigate();
   const [step, setStep] = useState(initialRole ? 2 : 1);
-  const [role, setRole] = useState<Role | "">((initialRole as Role) || "");
+  const [role, setRole] = useState<Role | "">(initialRole ?? "");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -44,10 +61,20 @@ function RegisterPage() {
     password: "",
     confirm: "",
     city: "Dakar",
+    acceptTerms: false,
   });
   const [details, setDetails] = useState<RegisterDetails>({});
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((v) => v - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  const phoneDigits = normalizeSenegalPhone(form.phone);
 
   const next = () => setStep((s) => Math.min(4, s + 1));
   const back = () => setStep((s) => Math.max(1, s - 1));
@@ -56,12 +83,17 @@ function RegisterPage() {
     e.preventDefault();
     const schema = z
       .object({
-        firstName: z.string().min(2, "Prénom requis"),
-        lastName: z.string().min(2, "Nom requis"),
-        email: z.string().email("Email invalide"),
-        phone: z.string().min(8, "Téléphone invalide"),
-        password: z.string().min(8, "8 caractères minimum"),
+        firstName: z.string().trim().min(2, "Prénom requis"),
+        lastName: z.string().trim().min(2, "Nom requis"),
+        email: z.string().trim().email("Email invalide"),
+        phone: z.string().refine((p) => normalizeSenegalPhone(p) !== null, {
+          message: "Numéro sénégalais à 9 chiffres attendu (ex. 77 123 45 67)",
+        }),
+        password: z.string().min(8, "8 caractères minimum").max(128, "128 caractères maximum"),
         confirm: z.string(),
+        acceptTerms: z.literal(true, {
+          errorMap: () => ({ message: "Acceptez les conditions générales pour continuer" }),
+        }),
       })
       .refine((d) => d.password === d.confirm, {
         message: "Les mots de passe diffèrent",
@@ -79,41 +111,83 @@ function RegisterPage() {
   };
 
   const submitStep3 = async () => {
+    const chosenRole = (role || "farmer") as Role;
+    const problem = registerDetailsProblem(chosenRole, details);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
     setLoading(true);
     try {
-      const { devCode: code } = await registerValidateFn({
+      const res = await registerValidateFn({
         data: {
-          role: (role || "farmer") as "farmer" | "restaurant" | "driver",
+          role: chosenRole,
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
           phone: form.phone,
           password: form.password,
           city: form.city,
+          acceptTerms: form.acceptTerms as true,
           details,
         },
       });
-      toast.info("Code de vérification envoyé", { description: `Code démo : ${code}` });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setOtp("");
+      setResendIn(res.resendInSeconds);
+      toast.info("Code de vérification envoyé", {
+        description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+      });
       next();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de continuer");
+      toast.error(err instanceof Error && err.message ? err.message : NETWORK_ERROR);
     } finally {
       setLoading(false);
     }
   };
 
-  const submitOtp = async () => {
-    if (otp.length < 6) {
+  const resendOtp = async () => {
+    try {
+      const res = await resendRegistrationCodeFn();
+      if (res.ok) {
+        setOtp("");
+        setResendIn(res.resendInSeconds);
+        toast.info("Nouveau code envoyé", {
+          description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+        });
+      } else if (res.waitSeconds) {
+        setResendIn(res.waitSeconds);
+      } else {
+        toast.error(res.message);
+        setStep(2);
+      }
+    } catch {
+      toast.error(NETWORK_ERROR);
+    }
+  };
+
+  const submitOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (otp.replace(/\s/g, "").length < 6) {
       toast.error("Code à 6 chiffres requis");
       return;
     }
     setLoading(true);
     try {
-      await registerVerifyFn({ data: { code: otp } });
+      const res = await registerVerifyFn({ data: { code: otp } });
+      if (!res.ok) {
+        toast.error(res.message);
+        setOtp("");
+        if (res.restart) setStep(2);
+        return;
+      }
       toast.success("Compte créé !");
       navigate({ to: "/onboarding", search: { role: role || "farmer" } });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Code incorrect");
+    } catch {
+      toast.error(NETWORK_ERROR);
     } finally {
       setLoading(false);
     }
@@ -122,6 +196,7 @@ function RegisterPage() {
   return (
     <AuthSplitLayout>
       <div>
+        {config.demoMode && <DemoNotice />}
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
         {step === 2 && <Step2 form={form} setForm={setForm} onNext={submitStep2} onBack={back} />}
@@ -136,39 +211,43 @@ function RegisterPage() {
           />
         )}
         {step === 4 && (
-          <div>
+          <form onSubmit={submitOtp}>
             <button
+              type="button"
               onClick={back}
               className="text-sm text-muted-foreground inline-flex items-center gap-1 mb-4 hover:text-foreground"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Retour
             </button>
             <h1 className="font-display text-2xl font-bold">Vérifiez votre numéro</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Code envoyé au{" "}
               <span className="font-medium text-foreground">
-                +221 {form.phone || "77 XXX XXXX"}
+                +221 {phoneDigits ? formatSenegalPhone(phoneDigits) : form.phone}
               </span>
+              . Il est valable 10 minutes.
             </p>
             <div className="mt-8">
               <OtpInput value={otp} onChange={setOtp} />
             </div>
             <button
+              type="submit"
               disabled={loading}
-              onClick={submitOtp}
               className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
               Vérifier et créer mon compte
             </button>
             <button
-              onClick={() => toast.info("Code renvoyé")}
-              className="mt-3 w-full text-sm text-muted-foreground hover:text-foreground"
+              type="button"
+              disabled={resendIn > 0}
+              onClick={resendOtp}
+              className="mt-3 w-full text-sm font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
             >
-              Renvoyer le code
+              {resendIn > 0 ? `Renvoyer le code dans ${resendIn} s` : "Renvoyer le code"}
             </button>
-          </div>
+          </form>
         )}
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Déjà inscrit ?{" "}
@@ -268,7 +347,10 @@ function Step2({
   onBack: () => void;
 }) {
   const cities = useCities();
-  const set = (k: keyof RegisterForm, v: string) => setForm({ ...form, [k]: v });
+  const phoneId = useId();
+  const cityId = useId();
+  const set = <K extends keyof RegisterForm>(k: K, v: RegisterForm[K]) =>
+    setForm({ ...form, [k]: v });
   return (
     <form onSubmit={onNext}>
       <button
@@ -281,28 +363,57 @@ function Step2({
       </button>
       <h1 className="font-display text-2xl font-bold">Informations personnelles</h1>
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <Input label="Prénom" value={form.firstName} onChange={(v) => set("firstName", v)} />
-        <Input label="Nom" value={form.lastName} onChange={(v) => set("lastName", v)} />
+        <Input
+          label="Prénom"
+          autoComplete="given-name"
+          value={form.firstName}
+          onChange={(v) => set("firstName", v)}
+        />
+        <Input
+          label="Nom"
+          autoComplete="family-name"
+          value={form.lastName}
+          onChange={(v) => set("lastName", v)}
+        />
       </div>
       <div className="mt-3">
-        <Input label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} />
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={form.email}
+          onChange={(v) => set("email", v)}
+        />
       </div>
       <div className="mt-3">
-        <label className="text-sm font-medium">Téléphone</label>
+        <label htmlFor={phoneId} className="text-sm font-medium">
+          Téléphone
+        </label>
         <div className="mt-1.5 flex gap-2">
-          <span className="glass rounded-xl px-3 py-3 text-sm font-medium">🇸🇳 +221</span>
+          <span className="glass rounded-xl px-3 py-3 text-sm font-medium" aria-hidden>
+            🇸🇳 +221
+          </span>
           <input
+            id={phoneId}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
+            aria-describedby={`${phoneId}-hint`}
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
             placeholder="77 123 45 67"
             className="flex-1 glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
+        <p id={`${phoneId}-hint`} className="mt-1 text-[11px] text-muted-foreground">
+          9 chiffres, sans l'indicatif. Le code de vérification sera envoyé à ce numéro.
+        </p>
       </div>
       <div className="mt-3">
         <Input
           label="Mot de passe"
           type="password"
+          autoComplete="new-password"
           value={form.password}
           onChange={(v) => set("password", v)}
         />
@@ -312,13 +423,17 @@ function Step2({
         <Input
           label="Confirmer mot de passe"
           type="password"
+          autoComplete="new-password"
           value={form.confirm}
           onChange={(v) => set("confirm", v)}
         />
       </div>
       <div className="mt-3">
-        <label className="text-sm font-medium">Ville</label>
+        <label htmlFor={cityId} className="text-sm font-medium">
+          Ville
+        </label>
         <select
+          id={cityId}
           value={form.city}
           onChange={(e) => set("city", e.target.value)}
           className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -330,6 +445,35 @@ function Step2({
           ))}
         </select>
       </div>
+      <label className="mt-4 flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={form.acceptTerms}
+          onChange={(e) => set("acceptTerms", e.target.checked)}
+          className="mt-0.5 rounded border-border"
+        />
+        <span className="text-muted-foreground">
+          J'accepte les{" "}
+          <a
+            href="/legal/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            conditions générales d'utilisation
+          </a>{" "}
+          et la{" "}
+          <a
+            href="/legal/privacy"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            politique de confidentialité
+          </a>
+          .
+        </span>
+      </label>
       <button
         type="submit"
         className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
@@ -355,6 +499,8 @@ function Step3({
   onBack: () => void;
   loading: boolean;
 }) {
+  const cities = useCities();
+  const vehicleId = useId();
   const set = <K extends keyof RegisterDetails>(k: K, v: RegisterDetails[K]) =>
     setDetails((d) => ({ ...d, [k]: v }));
   const toggleInArray = (k: "productTypes" | "zones", value: string) =>
@@ -426,7 +572,7 @@ function Step3({
               onChange={(v) => set("address", v)}
             />
             <Input
-              label="Téléphone professionnel"
+              label="Téléphone professionnel (facultatif)"
               value={details.professionalPhone}
               onChange={(v) => set("professionalPhone", v)}
             />
@@ -440,8 +586,11 @@ function Step3({
         {role === "driver" && (
           <>
             <div>
-              <label className="text-sm font-medium">Type de véhicule</label>
+              <label htmlFor={vehicleId} className="text-sm font-medium">
+                Type de véhicule
+              </label>
               <select
+                id={vehicleId}
                 value={details.vehicleType ?? "Moto"}
                 onChange={(e) => set("vehicleType", e.target.value)}
                 className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm"
@@ -453,13 +602,17 @@ function Step3({
               </select>
             </div>
             <Input
-              label="Numéro de permis"
+              label={
+                (details.vehicleType ?? "Moto") === "Vélo"
+                  ? "Numéro de permis (facultatif à vélo)"
+                  : "Numéro de permis"
+              }
               value={details.licenseNumber}
               onChange={(v) => set("licenseNumber", v)}
             />
             <div className="text-sm font-medium">Zones de livraison</div>
             <div className="grid grid-cols-2 gap-2">
-              {["Dakar-Plateau", "Dakar-Banlieue", "Thiès", "Mbour"].map((z) => (
+              {cities.map((z) => (
                 <label
                   key={z}
                   className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer"
@@ -494,17 +647,24 @@ function Input({
   type = "text",
   value,
   onChange,
+  autoComplete,
 }: {
   label: string;
   type?: string;
   value?: string;
   onChange?: (v: string) => void;
+  autoComplete?: string;
 }) {
+  const id = useId();
   return (
     <div>
-      <label className="text-sm font-medium">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
       <input
+        id={id}
         type={type}
+        autoComplete={autoComplete}
         value={value || ""}
         onChange={(e) => onChange?.(e.target.value)}
         className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"

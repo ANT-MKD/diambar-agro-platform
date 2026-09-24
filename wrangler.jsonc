@@ -4,4 +4,11 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Mode démonstration (codes et liens affichés à l'écran, comptes en un clic).
+  // Choix explicite pour le site de démo : passer à "false" avant d'accueillir
+  // de vrais utilisateurs, et définir alors le secret de session avec
+  // `wrangler secret put SESSION_SECRET` (32 caractères minimum).
+  "vars": {
+    "DEMO_MODE": "true",
+  },
 }
