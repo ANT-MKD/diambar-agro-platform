@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDrop } from "@/components/disputes/file-drop";
-import { useRestaurantOrders } from "@/data/store";
+import { deliveredAtOf, useRestaurantOrders } from "@/data/store";
 import { farmers, products, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
@@ -69,6 +69,7 @@ function NewReturn() {
           productId: orderLine.productId,
           requestedAmount: Number(requestedAmount),
           lineValue: orderLine.qty * orderLine.price,
+          deliveredAt: deliveredAtOf(order),
         })
       : null;
   const canGoStep3 =

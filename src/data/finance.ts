@@ -9,7 +9,13 @@ import { createStore } from "./persist";
 /* Refund sans provoquer d'import circulaire.                           */
 /* ------------------------------------------------------------------ */
 
-export type RefundSource = "return" | "dispute" | "incident" | "manual" | "cancellation";
+export type RefundSource =
+  | "return"
+  | "dispute"
+  | "incident"
+  | "manual"
+  | "cancellation"
+  | "reception";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
 // Qui supporte réellement le coût une fois le remboursement exécuté :
@@ -31,6 +37,7 @@ export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
   incident: "Incident de course",
   manual: "Geste commercial",
   cancellation: "Annulation de commande",
+  reception: "Refus à la réception",
 };
 
 export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {

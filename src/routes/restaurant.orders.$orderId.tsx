@@ -40,7 +40,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { restaurantOrderActions } from "@/data/store";
+import {
+  deliveredAtOf,
+  RECEPTION_WINDOW_MS,
+  restaurantOrderActions,
+  useRestaurantOrder as useROrder,
+} from "@/data/store";
 import { isCancellable } from "@/lib/order-lifecycle";
 import { orderAmounts } from "@/lib/pricing";
 import { useState } from "react";
@@ -197,6 +202,7 @@ function OrderDetail() {
               />
             )}
           {order.status === "delivered" && <ProofPhotos photos={mission?.proof} />}
+          {order.status === "delivered" && <ReceptionCard orderId={order.id} />}
 
           <div className="glass rounded-2xl p-5">
             <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
@@ -477,6 +483,142 @@ function CancelOrderCard({ orderId, reference }: { orderId: string; reference: s
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const RECEPTION_REASONS = [
+  "Abîmé / pourri",
+  "Quantité manquante",
+  "Mauvais produit",
+  "Calibre non conforme",
+];
+
+/** Contrôle à la réception : refus de tout ou partie d'une ligne dans les
+ * 48 h, remboursé automatiquement. */
+function ReceptionCard({ orderId }: { orderId: string }) {
+  const order = useROrder(orderId);
+  const products = useProducts();
+  const [open, setOpen] = useState(false);
+  const [refused, setRefused] = useState<Record<string, number>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  if (!order) return null;
+
+  if (order.reception) {
+    return (
+      <div className="glass rounded-2xl p-4 text-sm">
+        <div className="font-semibold">Réception contrôlée</div>
+        {order.reception.refundedAmount > 0 ? (
+          <div className="text-xs text-muted-foreground mt-1">
+            {order.reception.lines
+              .map(
+                (l) =>
+                  `${l.refusedQty} × ${products.find((p) => p.id === l.productId)?.name ?? l.productId} (${l.reason})`,
+              )
+              .join(" · ")}{" "}
+            — {formatFCFA(order.reception.refundedAmount)} remboursés.
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground mt-1">Tout a été reçu conforme.</div>
+        )}
+      </div>
+    );
+  }
+  const deliveredAt = deliveredAtOf(order);
+  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS)
+    return null;
+  const deadline = new Date(new Date(deliveredAt).getTime() + RECEPTION_WINDOW_MS);
+  const amount = order.items.reduce((s, i) => s + (refused[i.productId] ?? 0) * i.price, 0);
+
+  const submit = (allGood: boolean) => {
+    const lines = allGood
+      ? []
+      : order.items.map((i) => ({
+          productId: i.productId,
+          refusedQty: refused[i.productId] ?? 0,
+          reason: reasons[i.productId] ?? RECEPTION_REASONS[0],
+        }));
+    const result = restaurantOrderActions.reportReception(order.id, lines);
+    if (!result.ok) return toast.error(result.message);
+    toast.success(
+      allGood || amount === 0
+        ? "Réception confirmée"
+        : `${formatFCFA(amount)} vous seront remboursés automatiquement`,
+    );
+    setOpen(false);
+  };
+
+  return (
+    <div className="glass rounded-2xl p-4 border border-amber-500/30 space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <div className="text-sm font-semibold">Contrôler la réception</div>
+          <div className="text-xs text-muted-foreground">
+            Un produit abîmé ou manquant ? Refusez-le ligne par ligne jusqu'au{" "}
+            {deadline.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })} : le
+            montant est remboursé automatiquement.
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => submit(true)}>
+          Tout est conforme
+        </Button>
+        <Button size="sm" onClick={() => setOpen((v) => !v)}>
+          Signaler un écart
+        </Button>
+      </div>
+      {open && (
+        <div className="space-y-3">
+          {order.items.map((i) => {
+            const p = products.find((x) => x.id === i.productId);
+            return (
+              <div
+                key={i.productId}
+                className="grid grid-cols-1 sm:grid-cols-[1fr_110px_1fr] gap-2 items-center"
+              >
+                <div className="text-sm">
+                  {p?.name ?? i.productId}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({i.qty} {p?.unit} reçus)
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={i.qty}
+                  aria-label={`Quantité refusée — ${p?.name ?? i.productId}`}
+                  value={refused[i.productId] ?? 0}
+                  onChange={(e) =>
+                    setRefused((r) => ({
+                      ...r,
+                      [i.productId]: Math.min(i.qty, Math.max(0, Number(e.target.value) || 0)),
+                    }))
+                  }
+                  className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                />
+                <select
+                  aria-label={`Motif — ${p?.name ?? i.productId}`}
+                  value={reasons[i.productId] ?? RECEPTION_REASONS[0]}
+                  onChange={(e) => setReasons((r) => ({ ...r, [i.productId]: e.target.value }))}
+                  className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                >
+                  {RECEPTION_REASONS.map((r) => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">
+              À rembourser : <strong>{formatFCFA(amount)}</strong>
+            </span>
+            <Button onClick={() => submit(false)} disabled={amount === 0}>
+              Valider le refus
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

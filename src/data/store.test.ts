@@ -564,3 +564,39 @@ describe("preuves de remise", () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe("contrôle à la réception", () => {
+  it("rembourse automatiquement les quantités refusées, une seule fois", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current.find((p) => p.stock > 20)!;
+    const refunds = renderHook(() => useRefunds());
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 5, price: target.pricePerKg }],
+        total: target.pricePerKg * 5,
+        deliveryAddress: "Le Baobab, Dakar Plateau",
+        paymentMethod: "Wave",
+      });
+    });
+    const resto = renderHook(() => useRestaurantOrders()).result.current.find((o) => o.id === id)!;
+    walkOrder(resto.reference, "delivered");
+    let r!: ReturnType<typeof restaurantOrderActions.reportReception>;
+    act(() => {
+      r = restaurantOrderActions.reportReception(id, [
+        { productId: target.id, refusedQty: 9, reason: "Abîmé" },
+      ]);
+    });
+    expect(r.ok).toBe(true);
+    const refund = refunds.result.current.find(
+      (x) => x.orderRef === resto.reference && x.source === "reception",
+    );
+    // Plafonné à la quantité livrée (5), jamais 9.
+    expect(refund?.amount).toBe(target.pricePerKg * 5);
+    act(() => {
+      r = restaurantOrderActions.reportReception(id, []);
+    });
+    expect(r.ok).toBe(false);
+  });
+});

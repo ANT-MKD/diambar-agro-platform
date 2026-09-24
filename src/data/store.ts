@@ -1196,6 +1196,15 @@ export function useDeliveryFeeFor(address: string): number {
   return zone ? deliveryFeeForZone(zone) : 0;
 }
 
+export const RECEPTION_WINDOW_MS = 48 * 3600_000;
+
+/** Heure réelle de livraison d'une commande restaurant (dernier passage à
+ * « livrée »), ou undefined pour une commande de démo sans historique. */
+export function deliveredAtOf(o: RestaurantOrder): string | undefined {
+  if (o.status !== "delivered" || o.statusHistory.length < 2) return undefined;
+  return [...o.statusHistory].reverse().find((h) => h.status === "delivered")?.at;
+}
+
 function fourDigitCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
@@ -1297,6 +1306,78 @@ export const restaurantOrderActions = {
     const order = restaurantOrdersStore.get().find((o) => o.id === id);
     if (!order) return { ok: false, message: "Commande introuvable." };
     return transitionOrder(order.reference, status, actor, note);
+  },
+  /** Contrôle à la réception : le restaurant refuse tout ou partie d'une
+   * ligne (produit abîmé, quantité manquante…) dans les 48 h qui suivent la
+   * livraison. Le montant des quantités refusées lui est remboursé
+   * automatiquement, à la charge du producteur. Une seule fois par commande. */
+  reportReception: (
+    id: string,
+    lines: { productId: string; refusedQty: number; reason: string }[],
+    note?: string,
+  ): TransitionCheck => {
+    const order = restaurantOrdersStore.get().find((o) => o.id === id);
+    if (!order) return { ok: false, message: "Commande introuvable." };
+    if (order.status !== "delivered") {
+      return { ok: false, message: "La réception se contrôle une fois la commande livrée." };
+    }
+    if (order.reception) return { ok: false, message: "La réception a déjà été contrôlée." };
+    const deliveredAt = deliveredAtOf(order);
+    if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS) {
+      return {
+        ok: false,
+        message: "Le délai de 48 h après la livraison est dépassé : passez par le support.",
+      };
+    }
+    const kept = lines
+      .map((l) => {
+        const item = order.items.find((i) => i.productId === l.productId);
+        return item ? { ...l, refusedQty: Math.min(Math.max(0, l.refusedQty), item.qty) } : null;
+      })
+      .filter((l): l is NonNullable<typeof l> => !!l && l.refusedQty > 0);
+    const amount = kept.reduce((sum, l) => {
+      const item = order.items.find((i) => i.productId === l.productId)!;
+      return sum + l.refusedQty * item.price;
+    }, 0);
+    const at = new Date().toISOString();
+    restaurantOrdersStore.set((arr) =>
+      arr.map((o) =>
+        o.id === id ? { ...o, reception: { at, lines: kept, refundedAmount: amount, note } } : o,
+      ),
+    );
+    if (amount > 0) {
+      refundActions.create(
+        {
+          source: "reception",
+          orderRef: order.reference,
+          bornBy: "farmer",
+          requester: restaurants.find((r) => r.id === "r1")?.name ?? "Restaurant",
+          amount,
+          method:
+            order.paymentMethod === "Espèces"
+              ? "Wave"
+              : (order.paymentMethod as "Wave" | "Orange Money" | "Free Money"),
+          reason: `Refus à la réception : ${kept
+            .map((l) => `${l.refusedQty} × ${productsStore.get().find((p) => p.id === l.productId)?.name ?? l.productId} (${l.reason})`)
+            .join(", ")}`,
+        },
+        // Règle automatique, plafonnée à la valeur des lignes : pas de
+        // décision au cas par cas, donc pas d'attente de validation.
+        "approved",
+        "Système (réception)",
+      );
+      farmerNotifActions.add({
+        type: "order",
+        title: "Refus à la réception",
+        body: `${order.reference} : ${formatFCFA(amount)} refusés par le restaurant, déduits de vos revenus`,
+      });
+      restaurantNotifActions.add({
+        type: "payment",
+        title: "Remboursement accordé",
+        body: `${formatFCFA(amount)} vous seront remboursés (${order.reference})`,
+      });
+    }
+    return { ok: true };
   },
   /** Le restaurant annule tant que le producteur n'a pas commencé à préparer. */
   cancel: (id: string, reason: string): TransitionCheck =>

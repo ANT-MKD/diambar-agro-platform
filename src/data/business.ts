@@ -290,7 +290,14 @@ export function returnCreationProblem(input: {
   productId: string;
   requestedAmount: number;
   lineValue: number;
+  deliveredAt?: string;
 }): string | null {
+  if (
+    input.deliveredAt &&
+    Date.now() - new Date(input.deliveredAt).getTime() > 48 * 3600_000
+  ) {
+    return "Le délai de réclamation de 48 h après la livraison est dépassé : contactez le support.";
+  }
   if (input.requestedAmount <= 0) return "Indiquez un montant.";
   if (input.requestedAmount > input.lineValue) {
     return `Le montant ne peut pas dépasser la valeur de la ligne (${input.lineValue.toLocaleString("fr-FR")} FCFA).`;

@@ -1373,6 +1373,14 @@ export type RestaurantOrder = {
   // sans lui, la livraison ne peut pas être confirmée (ni payée).
   deliveryCode?: string;
   deliveredWithCode?: boolean;
+  // Contrôle à la réception par le restaurant (48 h après la livraison) :
+  // quantités refusées par ligne, remboursées automatiquement.
+  reception?: {
+    at: string;
+    lines: { productId: string; refusedQty: number; reason: string }[];
+    refundedAmount: number;
+    note?: string;
+  };
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
