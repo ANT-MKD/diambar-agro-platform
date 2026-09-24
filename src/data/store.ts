@@ -1785,6 +1785,75 @@ function refundsForOrder(reference: string): boolean {
 
 /** Changements de statut demandés depuis le portail producteur. */
 export const orderActions = {
+  /** Le producteur accepte en ajustant les quantités qu'il a vraiment. Selon
+   * la préférence du restaurant, la commande est livrée partiellement (la
+   * différence lui est remboursée) ou annulée. */
+  confirmPartial: (id: string, available: Record<string, number>): TransitionCheck => {
+    const order = ordersStore.get().find((o) => o.id === id);
+    if (!order) return { ok: false, message: "Commande introuvable." };
+    if (order.status !== "pending") {
+      return { ok: false, message: "Seule une commande en attente peut être ajustée." };
+    }
+    const items = order.items.map((i) => ({
+      ...i,
+      qty: Math.min(i.qty, Math.max(0, Math.floor(available[i.productId] ?? i.qty))),
+    }));
+    const missing = order.items.reduce(
+      (s, i, idx) => s + (i.qty - items[idx].qty) * i.price,
+      0,
+    );
+    if (missing === 0) return orderActions.setStatus(id, "confirmed");
+    const resto = restaurantOrdersStore.get().find((o) => o.reference === order.reference);
+    if (items.every((i) => i.qty === 0) || resto?.shortagePreference === "cancel") {
+      return orderActions.setStatus(
+        id,
+        "cancelled",
+        "Quantités indisponibles chez le producteur",
+      );
+    }
+    const kept = items.filter((i) => i.qty > 0);
+    // Stock réservé en trop remis en vente.
+    if (order.stockReserved) {
+      order.items.forEach((i, idx) => {
+        const diff = i.qty - items[idx].qty;
+        if (diff > 0) productActions.adjustStock(i.productId, diff);
+      });
+    }
+    const newSubtotal = kept.reduce((s, i) => s + i.qty * i.price, 0);
+    ordersStore.set((arr) =>
+      arr.map((o) => (o.id === id ? { ...o, items: kept, total: newSubtotal } : o)),
+    );
+    if (resto) {
+      restaurantOrdersStore.set((arr) =>
+        arr.map((o) =>
+          o.id === resto.id
+            ? { ...o, items: kept, subtotal: newSubtotal, total: Math.max(0, o.total - missing) }
+            : o,
+        ),
+      );
+      if (resto.paid && resto.paymentMethod !== "Espèces") {
+        refundActions.create(
+          {
+            source: "shortage",
+            orderRef: order.reference,
+            bornBy: "platform",
+            requester: restaurants.find((r) => r.id === "r1")?.name ?? "Restaurant",
+            amount: missing,
+            method: resto.paymentMethod as "Wave" | "Orange Money" | "Free Money",
+            reason: "Quantités indisponibles chez le producteur",
+          },
+          "approved",
+          "Système (ajustement producteur)",
+        );
+      }
+      restaurantNotifActions.add({
+        type: "order",
+        title: "Quantités ajustées",
+        body: `${order.reference} : le producteur n'a pas tout, ${formatFCFA(missing)} en moins${resto.paid && resto.paymentMethod !== "Espèces" ? " (remboursés)" : ""}`,
+      });
+    }
+    return orderActions.setStatus(id, "confirmed", "quantités ajustées par le producteur");
+  },
   setStatus: (
     id: string,
     status: OrderStatus,

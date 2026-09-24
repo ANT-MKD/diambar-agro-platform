@@ -3,7 +3,16 @@ import { ArrowLeft, Check, X, Phone, Truck, Package2, Flag, Clock, Scale } from 
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
-import { useOrder, orderActions } from "@/data/store";
+import { useOrder, orderActions, useProducts } from "@/data/store";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -17,6 +26,7 @@ export const Route = createFileRoute("/farmer/orders/$orderId")({
 function OrderDetailPage() {
   const { orderId } = Route.useParams();
   const order = useOrder(orderId);
+  const liveProducts = useProducts();
   if (!order)
     return (
       <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
@@ -103,7 +113,7 @@ function OrderDetailPage() {
         <div className="text-xs font-semibold text-muted-foreground mb-3">ARTICLES</div>
         <div className="space-y-2">
           {order.items.map((it, i) => {
-            const p = products.find((x) => x.id === it.productId);
+            const p = liveProducts.find((x) => x.id === it.productId);
             return (
               <div
                 key={i}
@@ -163,6 +173,7 @@ function OrderDetailPage() {
             Accepter la commande
           </Button>
         )}
+        {order.status === "pending" && <AdjustQuantities orderId={order.id} />}
         {order.status === "confirmed" && (
           <Button onClick={() => next("preparing")} className="gap-1">
             <Package2 className="h-4 w-4" />
@@ -205,5 +216,78 @@ function OrderDetailPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Le producteur n'a pas tout : il accepte avec les quantités réellement
+ * disponibles (le restaurant est remboursé de la différence, ou la commande
+ * est annulée selon son choix). */
+function AdjustQuantities({ orderId }: { orderId: string }) {
+  const order = useOrder(orderId);
+  const allProducts = useProducts();
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState<Record<string, number>>({});
+  if (!order) return null;
+  const submit = () => {
+    const result = orderActions.confirmPartial(order.id, qty);
+    if (!result.ok) return toast.error(result.message);
+    toast.success("Commande acceptée avec les quantités disponibles");
+    setOpen(false);
+  };
+  return (
+    <>
+      <Button variant="outline" className="gap-1" onClick={() => setOpen(true)}>
+        Accepter en partie
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quantités disponibles</DialogTitle>
+            <DialogDescription>
+              Indiquez ce que vous pouvez vraiment livrer. Le restaurant est prévenu et remboursé de
+              la différence (ou la commande est annulée s'il l'a demandé).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {order.items.map((it) => {
+              const p = allProducts.find((x) => x.id === it.productId);
+              return (
+                <label
+                  key={it.productId}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span>
+                    {p?.name ?? it.productId}{" "}
+                    <span className="text-xs text-muted-foreground">
+                      (commandé : {it.qty} {p?.unit})
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={it.qty}
+                    value={qty[it.productId] ?? it.qty}
+                    onChange={(e) =>
+                      setQty((q) => ({
+                        ...q,
+                        [it.productId]: Math.min(it.qty, Math.max(0, Number(e.target.value) || 0)),
+                      }))
+                    }
+                    className="h-11 w-24 rounded-lg border border-input bg-background px-3"
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={submit}>Accepter ces quantités</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

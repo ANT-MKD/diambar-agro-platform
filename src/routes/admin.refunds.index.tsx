@@ -117,6 +117,7 @@ const SOURCE_COLOR: Record<RefundSource, string> = {
   manual: "#8b5cf6",
   cancellation: "#64748b",
   reception: "#14b8a6",
+  shortage: "#a855f7",
 };
 
 const METHODS: RefundMethod[] = ["Wave", "Orange Money", "Free Money", "Virement"];

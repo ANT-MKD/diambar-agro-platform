@@ -1364,6 +1364,9 @@ export type RestaurantOrder = {
   promoCode?: string;
   creditApplied?: number;
   creditId?: string;
+  // Que faire si le producteur n'a pas toute la quantité : livrer ce qui est
+  // disponible (différence remboursée) ou annuler la commande.
+  shortagePreference?: "partial" | "cancel";
   // Début du créneau de livraison choisi (ISO) : planifie la mission.
   slotStart?: string;
   // Urgence imposée à la mission de livraison (commandes récurrentes

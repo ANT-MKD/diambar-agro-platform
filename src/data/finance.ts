@@ -15,7 +15,8 @@ export type RefundSource =
   | "incident"
   | "manual"
   | "cancellation"
-  | "reception";
+  | "reception"
+  | "shortage";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
 // Qui supporte réellement le coût une fois le remboursement exécuté :
@@ -38,6 +39,7 @@ export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
   manual: "Geste commercial",
   cancellation: "Annulation de commande",
   reception: "Refus à la réception",
+  shortage: "Produit indisponible",
 };
 
 export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {

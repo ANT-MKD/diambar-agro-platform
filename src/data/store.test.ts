@@ -600,3 +600,41 @@ describe("contrôle à la réception", () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe("confirmation partielle", () => {
+  it("réduit la commande, remet le stock et rembourse la différence", () => {
+    const products = renderHook(() => useProducts());
+    const target = products.result.current.find((p) => p.stock > 20)!;
+    const refunds = renderHook(() => useRefunds());
+    let id = "";
+    act(() => {
+      id = restaurantOrderActions.create({
+        farmerId: target.farmerId,
+        items: [{ productId: target.id, qty: 10, price: target.pricePerKg }],
+        subtotal: target.pricePerKg * 10,
+        total: target.pricePerKg * 10,
+        deliveryAddress: "Le Baobab, Dakar Plateau",
+        paymentMethod: "Wave",
+        shortagePreference: "partial",
+      });
+    });
+    const orders = renderHook(() => useOrders());
+    const resto = renderHook(() => useRestaurantOrders()).result.current.find((o) => o.id === id)!;
+    const fo = orders.result.current.find((o) => o.reference === resto.reference)!;
+    const stockBefore = products.result.current.find((p) => p.id === target.id)!.stock;
+    let r!: ReturnType<typeof orderActions.confirmPartial>;
+    act(() => {
+      r = orderActions.confirmPartial(fo.id, { [target.id]: 6 });
+    });
+    expect(r.ok).toBe(true);
+    const after = renderHook(() => useRestaurantOrders()).result.current.find((o) => o.id === id)!;
+    expect(after.status).toBe("confirmed");
+    expect(after.items[0].qty).toBe(6);
+    expect(after.total).toBe(target.pricePerKg * 6);
+    expect(products.result.current.find((p) => p.id === target.id)!.stock).toBe(stockBefore + 4);
+    expect(
+      refunds.result.current.find((x) => x.orderRef === resto.reference && x.source === "shortage")
+        ?.amount,
+    ).toBe(target.pricePerKg * 4);
+  });
+});

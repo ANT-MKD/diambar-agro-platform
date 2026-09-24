@@ -117,6 +117,7 @@ function Checkout() {
     profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
   const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
   const chosenSlot = availableSlots.find((s) => s.label === slot);
+  const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
   const [method, setMethod] = useState<PaymentMethod>(
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
@@ -218,6 +219,7 @@ function Checkout() {
         paymentMethod: method,
         eta: slot,
         slotStart: chosenSlot?.start,
+        shortagePreference,
       });
       created.push(id);
     });
@@ -359,6 +361,27 @@ function Checkout() {
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {m === "Espèces" ? "À la livraison" : "Paiement instantané"}
                     </div>
+                  </button>
+                ))}
+              </div>
+              <h3 className="font-display text-base font-bold pt-3">
+                Si le producteur n'a pas toute la quantité
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {(
+                  [
+                    ["partial", "Livrer ce qui est disponible", "La différence vous est remboursée."],
+                    ["cancel", "Annuler la commande", "Remboursement intégral, rien n'est livré."],
+                  ] as const
+                ).map(([value, title, hint]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setShortagePreference(value)}
+                    className={`p-3 rounded-xl border text-left transition ${shortagePreference === value ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+                  >
+                    <div className="font-semibold text-sm">{title}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>
                   </button>
                 ))}
               </div>
