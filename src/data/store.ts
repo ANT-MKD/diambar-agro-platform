@@ -911,6 +911,52 @@ export const missionActions = {
   dismiss: (id: string) => {
     dismissedMissionsStore.set((ids) => (ids.includes(id) ? ids : [...ids, id]));
   },
+  // Désistement d'une mission déjà acceptée, tant que la marchandise n'est pas
+  // chargée : la course retourne dans le bassin des missions disponibles.
+  withdraw: (
+    id: string,
+    reason: string,
+    driverId = "d1",
+  ): { ok: true } | { ok: false; message: string } => {
+    const current = missionsStore.get().find((m) => m.id === id);
+    if (!current || current.driverId !== driverId) {
+      return { ok: false, message: "Cette mission ne vous est plus attribuée." };
+    }
+    if (current.status !== "accepted" && current.status !== "pickup") {
+      return {
+        ok: false,
+        message:
+          "Désistement impossible une fois la marchandise chargée : signalez plutôt un incident.",
+      };
+    }
+    missionsStore.set((arr) =>
+      arr.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              driverId: undefined,
+              status: "available",
+              statusHistory: [
+                ...(m.statusHistory ?? []),
+                {
+                  status: "available" as MissionStatus,
+                  at: new Date().toISOString(),
+                  note: `Désistement du livreur : ${reason}`,
+                },
+              ],
+            }
+          : m,
+      ),
+    );
+    // Sans ça, l'acceptation automatique la reprendrait aussitôt.
+    missionActions.dismiss(id);
+    driverNotifActions.add({
+      type: "order",
+      title: "Désistement enregistré",
+      body: `${current.reference} a été remise à disposition des autres livreurs`,
+    });
+    return { ok: true };
+  },
   attachProof: (id: string, photos: MissionProofPhoto[]) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));
   },

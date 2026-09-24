@@ -277,3 +277,34 @@ describe("missionActions.dismiss (refus d'une mission par un livreur)", () => {
     expect(all.result.current.find((m) => m.id === mission.id)?.status).toBe("available");
   });
 });
+
+describe("missionActions.withdraw (désistement du livreur)", () => {
+  it("puts an accepted mission back in the pool with the reason, and hides it for this driver", () => {
+    const all = renderHook(() => useMissions());
+    const mine = renderHook(() => useDriverMissions());
+    const mission = all.result.current.find((m) => m.reference === "MIS-4211")!;
+    act(() => {
+      missionActions.accept(mission.id, "d1");
+    });
+
+    let result!: ReturnType<typeof missionActions.withdraw>;
+    act(() => {
+      result = missionActions.withdraw(mission.id, "Panne du véhicule");
+    });
+
+    expect(result.ok).toBe(true);
+    const after = all.result.current.find((m) => m.id === mission.id)!;
+    expect(after.status).toBe("available");
+    expect(after.driverId).toBeUndefined();
+    expect(after.statusHistory?.at(-1)?.note).toContain("Panne du véhicule");
+    expect(mine.result.current.some((m) => m.id === mission.id)).toBe(false);
+  });
+
+  it("refuses once the goods are loaded", () => {
+    const all = renderHook(() => useMissions());
+    const loaded = all.result.current.find((m) => m.reference === "MIS-4220")!;
+    expect(loaded.status).toBe("loaded");
+    const result = missionActions.withdraw(loaded.id, "Trop tard", loaded.driverId);
+    expect(result.ok).toBe(false);
+  });
+});

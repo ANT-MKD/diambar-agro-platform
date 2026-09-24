@@ -18,7 +18,9 @@ import {
   TriangleAlert,
   Camera,
   Wallet,
+  Undo2,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
   useMission,
@@ -82,6 +84,8 @@ function MissionDetail() {
   const fleet = useMyDriverFleet();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
 
@@ -99,8 +103,10 @@ function MissionDetail() {
   const r = restaurants.find((x) => x.id === mission.restaurantId);
   const f = farmers.find((x) => x.id === mission.farmerId);
   const activeIndex = FLOW.findIndex((s) => s.status === mission.status);
+  // Dernière occurrence : après un désistement, les étapes d'un livreur
+  // précédent ne doivent pas s'afficher pour le suivant.
   const stepAt = (status: MissionStatus) =>
-    mission.statusHistory?.find((h) => h.status === status)?.at;
+    [...(mission.statusHistory ?? [])].reverse().find((h) => h.status === status)?.at;
 
   // La correspondance orderRef ↔ commande réelle n'existe que pour une
   // partie des missions de démo (données seedées indépendamment) : on
@@ -140,6 +146,22 @@ function MissionDetail() {
     toast.success("Livraison confirmée · paiement en cours");
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
+  };
+  const withdraw = () => {
+    const reason = withdrawReason.trim();
+    if (reason.length < 5) {
+      toast.error("Indiquez la raison du désistement");
+      return;
+    }
+    const result = missionActions.withdraw(mission.id, reason);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`${mission.reference} remise à disposition des autres livreurs`);
+    setWithdrawOpen(false);
+    setWithdrawReason("");
+    navigate({ to: "/driver/missions" });
   };
   const refuse = () => {
     missionActions.dismiss(mission.id);
@@ -418,10 +440,26 @@ function MissionDetail() {
                   Confirmer la livraison
                 </Button>
               )}
+              {(mission.status === "accepted" || mission.status === "pickup") && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-rose-500 hover:text-rose-600"
+                  onClick={() => setWithdrawOpen(true)}
+                >
+                  <Undo2 className="h-4 w-4" />
+                  Se désister
+                </Button>
+              )}
+              {mission.status === "loaded" && (
+                <p className="text-[11px] text-muted-foreground">
+                  Marchandise chargée : vous ne pouvez plus vous désister. En cas de problème,
+                  signalez un incident.
+                </p>
+              )}
               {mission.status === "delivered" && (
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
                   <Check className="h-4 w-4" />
-                  Livraison terminée · paiement programmé
+                  Livraison terminée · paiement crédité
                 </div>
               )}
               {mission.status === "cancelled" && (
@@ -502,6 +540,37 @@ function MissionDetail() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Se désister de cette mission ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mission.reference} retournera dans les missions disponibles pour les autres livreurs.
+              Le producteur et le restaurant ne perdent pas la commande. Votre raison est transmise
+              à l'administration.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={withdrawReason}
+            onChange={(e) => setWithdrawReason(e.target.value)}
+            placeholder="Ex. panne du véhicule, empêchement personnel…"
+            rows={3}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                withdraw();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Me désister
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={refuseOpen} onOpenChange={setRefuseOpen}>
         <AlertDialogContent>

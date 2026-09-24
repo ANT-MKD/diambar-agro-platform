@@ -292,6 +292,7 @@ function AdminDeliveryDetail() {
                   <li key={i} className="relative">
                     <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
                     <div className="text-sm font-medium">{STATUS_LABEL[h.status]}</div>
+                    {h.note && <div className="text-xs text-muted-foreground">{h.note}</div>}
                     <div className="text-[11px] text-muted-foreground">
                       {new Date(h.at).toLocaleString("fr-FR", {
                         dateStyle: "medium",
