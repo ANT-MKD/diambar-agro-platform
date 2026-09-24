@@ -98,7 +98,7 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
-import { getRefundsSnapshot, refundActions } from "./finance";
+import { getRefundsSnapshot, onRefundPaid, refundActions } from "./finance";
 import {
   checkMissionStep,
   checkOrderTransition,
@@ -796,7 +796,12 @@ export const restaurantProfileActions = {
     restaurantProfileStore.set((s) => ({ ...s, ...patch })),
 };
 
-function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]>>) {
+function makeNotifActions(
+  store: ReturnType<typeof createStore<AppNotification[]>>,
+  // Page à ouvrir déduite de la référence citée (CMD-…, MIS-…) : chaque
+  // notification mène directement à l'élément concerné.
+  linkFor?: (text: string) => string | undefined,
+) {
   return {
     markRead: (id: string) =>
       store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n))),
@@ -810,7 +815,7 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
     add: (
       n: Omit<AppNotification, "id" | "at" | "read"> & { id?: string; at?: string; read?: boolean },
     ) => {
-      const id = n.id ?? `n_${Date.now()}`;
+      const id = n.id ?? `n_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
       store.set((arr) => [
         {
           id,
@@ -820,6 +825,7 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
           title: n.title,
           body: n.body,
           refId: n.refId,
+          link: n.link ?? linkFor?.(`${n.title} ${n.body}`),
         },
         ...arr,
       ]);
@@ -828,9 +834,23 @@ function makeNotifActions(store: ReturnType<typeof createStore<AppNotification[]
   };
 }
 
-export const farmerNotifActions = makeNotifActions(farmerNotifsStore);
-export const restaurantNotifActions = makeNotifActions(restoNotifsStore);
-export const driverNotifActions = makeNotifActions(driverNotifsStore);
+const refIn = (text: string, prefix: string) => text.match(new RegExp(`${prefix}-\\d+`))?.[0];
+
+export const farmerNotifActions = makeNotifActions(farmerNotifsStore, (text) => {
+  const ref = refIn(text, "CMD");
+  const o = ref && ordersStore.get().find((x) => x.reference === ref);
+  return o ? `/farmer/orders/${o.id}` : undefined;
+});
+export const restaurantNotifActions = makeNotifActions(restoNotifsStore, (text) => {
+  const ref = refIn(text, "CMD");
+  const o = ref && restaurantOrdersStore.get().find((x) => x.reference === ref);
+  return o ? `/restaurant/orders/${o.id}` : undefined;
+});
+export const driverNotifActions = makeNotifActions(driverNotifsStore, (text) => {
+  const ref = refIn(text, "MIS");
+  const m = ref && missionsStore.get().find((x) => x.reference === ref);
+  return m ? `/driver/missions/${m.id}` : undefined;
+});
 
 export type AcceptResult = Eligibility | { ok: false; reason: "taken"; message: string };
 
@@ -981,6 +1001,17 @@ export const missionActions = {
         title: "Mission acceptée",
         body: `${mission.reference} ajoutée à vos missions en cours`,
       });
+      const driverName = driverPool.find((d) => d.id === driverId)?.name ?? "Un livreur";
+      restaurantNotifActions.add({
+        type: "order",
+        title: "Livreur trouvé",
+        body: `${driverName} livrera ${mission.orderRef}`,
+      });
+      farmerNotifActions.add({
+        type: "order",
+        title: "Livreur en route",
+        body: `${driverName} viendra récupérer ${mission.orderRef} : préparez le code d'enlèvement`,
+      });
     }
     return { ok: true };
   },
@@ -1123,10 +1154,34 @@ export const driverConversationActions = {
     driverConvosStore.set((arr) =>
       arr.map((c) =>
         c.id === conversationId
-          ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastAt: msg.at }
+          ? {
+              ...c,
+              messages: [...c.messages, msg],
+              lastMessage: text,
+              lastAt: msg.at,
+              // Non-lus côté livreur : seulement les messages reçus.
+              unread: from === "them" ? c.unread + 1 : c.unread,
+            }
           : c,
       ),
     );
+    // Le destinataire est prévenu : restaurant pour un message du livreur,
+    // livreur pour une réponse du restaurant (ou de l'admin).
+    if (from === "me") {
+      restaurantNotifActions.add({
+        type: "message",
+        title: "Message du livreur",
+        body: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+        link: "/restaurant/messages",
+      });
+    } else {
+      driverNotifActions.add({
+        type: "message",
+        title: `Message de ${senderName ?? "l'équipe"}`,
+        body: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+        link: `/driver/messages/${conversationId}`,
+      });
+    }
   },
   markRead: (conversationId: string) => {
     driverConvosStore.set((arr) =>
@@ -2669,3 +2724,15 @@ export const recurringOrderActions = {
     );
   },
 };
+
+// Le bénéficiaire d'un remboursement est prévenu quand l'argent part vraiment.
+onRefundPaid((r) => {
+  const restaurant = restaurants.find((x) => x.id === "r1");
+  if (r.requester === restaurant?.name) {
+    restaurantNotifActions.add({
+      type: "payment",
+      title: "Remboursement effectué",
+      body: `${formatFCFA(r.amount)} versés sur ${r.method} (${r.reference} · ${r.orderRef})`,
+    });
+  }
+});

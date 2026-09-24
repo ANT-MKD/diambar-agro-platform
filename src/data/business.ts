@@ -1,6 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { creditActions, disputeActions, type DisputeAttachment } from "@/data/disputes";
-import { driverWalletActions } from "@/data/store";
+import {
+  driverNotifActions,
+  driverWalletActions,
+  farmerNotifActions,
+  restaurantNotifActions,
+} from "@/data/store";
 import {
   refundActions,
   refundForReturn,
@@ -326,6 +331,12 @@ export const returnActions = {
       history: [{ at: now(), actor: input.restaurantName, text: "Demande de retour ouverte" }],
     };
     returnsStore.set((arr) => [item, ...arr]);
+    farmerNotifActions.add({
+      type: "order",
+      title: "Demande de retour",
+      body: `${item.restaurantName} : ${item.qty} ${item.unit} de ${item.productName} (${item.reference}) — réponse attendue`,
+      link: `/farmer/returns/${item.id}`,
+    });
     return item;
   },
   reply: (id: string, msg: { role: "restaurant" | "farmer"; name: string; text: string }) => {
@@ -358,6 +369,12 @@ export const returnActions = {
     const r = returnsStore.get().find((x) => x.id === id);
     if (!r || r.status !== "pending") return;
     const awardedAmount = Math.max(0, Math.min(requested, r.requestedAmount));
+    restaurantNotifActions.add({
+      type: "order",
+      title: "Retour accepté",
+      body: `${r.reference} : ${awardedAmount.toLocaleString("fr-FR")} FCFA accordés par le producteur`,
+      link: `/restaurant/returns/${r.id}`,
+    });
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -393,6 +410,15 @@ export const returnActions = {
     }
   },
   refuse: (id: string, note: string, actor = "Mamadou Diallo") => {
+    const r0 = returnsStore.get().find((x) => x.id === id);
+    if (r0) {
+      restaurantNotifActions.add({
+        type: "order",
+        title: "Retour refusé",
+        body: `${r0.reference} : ${note}`,
+        link: `/restaurant/returns/${r0.id}`,
+      });
+    }
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -851,6 +877,19 @@ export function useSupplierScoresForRestaurant(restaurantId: string) {
 export const reviewActions = {
   create: (input: Omit<Review, "id" | "createdAt">) => {
     reviewsStore.set((arr) => [{ ...input, id: uid("rv"), createdAt: now() }, ...arr]);
+    const avg =
+      (input.quality +
+        input.quantity +
+        input.freshness +
+        input.timeliness +
+        input.packaging +
+        input.communication) /
+      6;
+    farmerNotifActions.add({
+      type: "system",
+      title: "Nouvel avis reçu",
+      body: `${avg.toFixed(1)}/5 sur ${input.orderRef}`,
+    });
   },
   reply: (id: string, text: string) => {
     reviewsStore.set((arr) =>
@@ -1031,6 +1070,17 @@ export const incidentActions = {
           : i,
       ),
     );
+    if (incident) {
+      driverNotifActions.add({
+        type: "system",
+        title: "Incident traité",
+        body:
+          awarded > 0
+            ? `${incident.reference} : indemnité de ${awarded.toLocaleString("fr-FR")} FCFA accordée`
+            : `${incident.reference} : clôturé sans indemnité${note ? ` (${note})` : ""}`,
+        link: `/driver/incidents/${incident.id}`,
+      });
+    }
     if (incident && awarded > 0) {
       driverWalletActions.credit(
         `Indemnité incident ${incident.reference}`,

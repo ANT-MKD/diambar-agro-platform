@@ -31,6 +31,11 @@ function NotificationsPage() {
 
   const open = (n: AppNotification) => {
     restaurantNotifActions.markRead(n.id);
+    // Lien direct vers l'élément concerné (commande, mission, litige…).
+    if (n.link) {
+      navigate({ to: n.link as never });
+      return;
+    }
     if (n.type === "order") navigate({ to: "/restaurant/orders" });
     else if (n.type === "payment") navigate({ to: "/restaurant/invoices" });
     else if (n.type === "stock") navigate({ to: "/restaurant/marketplace" });

@@ -227,6 +227,14 @@ export function refundedTotalForOrder(refunds: Refund[], orderRef: string, exclu
     .reduce((s, r) => s + r.amount, 0);
 }
 
+// Abonnés au paiement effectif d'un remboursement (notification du
+// bénéficiaire), sans dépendance circulaire vers les autres magasins.
+const refundPaidListeners = new Set<(r: Refund) => void>();
+export function onRefundPaid(fn: (r: Refund) => void) {
+  refundPaidListeners.add(fn);
+  return () => refundPaidListeners.delete(fn);
+}
+
 export const refundActions = {
   create: (
     input: Omit<
@@ -300,6 +308,10 @@ export const refundActions = {
   },
   markPaid: (id: string, actor: string) => {
     const at = new Date().toISOString();
+    const before = refundsStore.get().find((r) => r.id === id);
+    if (before && before.status !== "paid") {
+      queueMicrotask(() => refundPaidListeners.forEach((fn) => fn({ ...before, status: "paid" })));
+    }
     refundsStore.set((arr) =>
       arr.map((r) =>
         r.id === id

@@ -1,5 +1,11 @@
 import { useSyncExternalStore } from "react";
-import { driverWalletActions, onRestaurantOrderCancelled } from "./store";
+import {
+  driverNotifActions,
+  driverWalletActions,
+  farmerNotifActions,
+  onRestaurantOrderCancelled,
+  restaurantNotifActions,
+} from "./store";
 import { refundActions } from "./finance";
 import { createStore } from "./persist";
 
@@ -890,6 +896,18 @@ export const disputeActions = {
           : x,
       ),
     );
+
+    // Les deux parties apprennent la décision, avec le montant.
+    const decisionText = `${d.reference} : ${outcomeLabel(decision.outcome)}${decision.grantedAmount > 0 ? ` — ${decision.grantedAmount.toLocaleString("fr-FR")} FCFA` : ""}`;
+    const notifyParty = (role: DisputeParty) => {
+      const n = { type: "system" as const, title: "Décision sur votre litige", body: decisionText };
+      if (role === "restaurant")
+        restaurantNotifActions.add({ ...n, link: `/restaurant/disputes/${d.id}` });
+      if (role === "farmer") farmerNotifActions.add({ ...n, link: `/farmer/disputes/${d.id}` });
+      if (role === "driver") driverNotifActions.add({ ...n, link: `/driver/disputes/${d.id}` });
+    };
+    notifyParty(d.openedByRole);
+    if (d.againstRole !== d.openedByRole) notifyParty(d.againstRole);
 
     if (decision.grantedAmount > 0 && decision.outcome !== "rejected") {
       // "refund"/"partial" impliquent un vrai virement au plaignant (sauf un

@@ -689,6 +689,8 @@ export type AppNotification = {
   // élément plutôt qu'une liste générique. Absent quand aucune ressource
   // réelle précise n'y correspond.
   refId?: string;
+  // Page de l'application à ouvrir au clic (ex. la commande concernée).
+  link?: string;
 };
 
 export const notifications: AppNotification[] = [

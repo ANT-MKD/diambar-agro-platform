@@ -565,6 +565,11 @@ export const moderationActions = {
     moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
     productActions.update(m.productId, { status: "draft" });
     addModerationEvent(id, actor, "Produit dépublié");
+    farmerNotifActions.add({
+      type: "system",
+      title: "Produit retiré du catalogue",
+      body: `« ${m.name} » a été dépublié par la modération. Contactez le support pour en savoir plus.`,
+    });
     auditActions.log({
       action: "Produit dépublié (modération)",
       target: id,
@@ -603,6 +608,11 @@ export const moderationActions = {
       : usersStore.get().find((u) => u.name === m.farmer);
     if (account) adminUserActions.setStatus(account.id, "suspended");
     addModerationEvent(id, actor, `Producteur suspendu (${m.farmer})`);
+    farmerNotifActions.add({
+      type: "system",
+      title: "Compte suspendu",
+      body: "Votre compte producteur a été suspendu par la modération. Contactez le support.",
+    });
     auditActions.log({
       action: "Producteur suspendu (modération)",
       target: account?.id ?? m.farmer,
