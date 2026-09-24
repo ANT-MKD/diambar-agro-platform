@@ -84,6 +84,11 @@ function ProductsPage() {
   const [tab, setTab] = useState<"all" | "active" | "low" | "out" | "draft">("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [toDelete, setToDelete] = useState<Product | null>(null);
+  // « Hors saison » : retiré du catalogue restaurant sans rien supprimer.
+  const togglePause = (p: Product) => {
+    productActions.update(p.id, { paused: !p.paused });
+    toast.success(p.paused ? `${p.name} est de nouveau en vente` : `${p.name} est hors saison`);
+  };
 
   const filtered = useMemo(
     () =>
@@ -301,6 +306,14 @@ function ProductsPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => togglePause(p)}
+                        >
+                          {p.paused ? "Remettre en vente" : "Hors saison"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className="h-8 gap-1 text-xs text-rose-500 hover:text-rose-600"
                           onClick={() => setToDelete(p)}
                         >
@@ -379,6 +392,15 @@ function ProductsPage() {
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => togglePause(p)}
+                            title={p.paused ? "Remettre en vente" : "Mettre hors saison"}
+                          >
+                            {p.paused ? "Reprendre" : "Pause"}
                           </Button>
                           <Button
                             size="sm"

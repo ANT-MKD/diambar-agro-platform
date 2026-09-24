@@ -39,6 +39,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { isListed, minOrderOf, productOrderability } from "@/lib/product-availability";
 
 export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
   head: () => ({ meta: [{ title: "Produit · Marketplace" }] }),
@@ -77,10 +78,12 @@ function ProductDetail() {
     (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId,
   );
   const supplierSuspended = supplierRecord?.suspended ?? false;
-  const blocked = out || supplierSuspended;
+  const orderability = productOrderability(product);
+  const blocked = !orderability.ok || supplierSuspended;
+  const minQty = minOrderOf(product);
   const liked = wishlist.includes(product.id);
   const similar = all
-    .filter((p) => p.id !== product.id && p.category === product.category && p.status !== "draft")
+    .filter((p) => p.id !== product.id && p.category === product.category && isListed(p))
     .slice(0, 4);
 
   const avg =
@@ -114,7 +117,7 @@ function ProductDetail() {
       toast.error("Ce fournisseur est suspendu dans votre carnet");
       return;
     }
-    cartActions.add(product.id, qty);
+    cartActions.add(product.id, Math.max(qty, minQty));
     navigate({ to: "/restaurant/cart" });
   };
 
@@ -213,10 +216,28 @@ function ProductDetail() {
             </div>
           )}
 
+          <div className="space-y-1 text-sm">
+            {product.organic && (
+              <span className="inline-block rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-xs font-semibold">
+                Bio certifié
+              </span>
+            )}
+            {product.description && <p className="text-muted-foreground">{product.description}</p>}
+            {minQty > 1 && (
+              <p className="text-xs text-muted-foreground">
+                Commande minimum : {minQty} {product.unit}
+              </p>
+            )}
+            {!orderability.ok && (
+              <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                {orderability.reason}
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <div className="inline-flex items-center gap-1 rounded-xl border border-border h-12">
               <button
-                onClick={() => setQty(Math.max(1, qty - 1))}
+                onClick={() => setQty(Math.max(minQty, qty - 1))}
                 className="h-12 w-12 grid place-items-center hover:bg-accent"
               >
                 <Minus className="h-4 w-4" />
@@ -227,10 +248,13 @@ function ProductDetail() {
                 min={1}
                 max={product.stock}
                 aria-label="Quantité"
-                value={qty}
+                value={Math.max(qty, minQty)}
                 onChange={(e) =>
                   setQty(
-                    Math.max(1, Math.min(product.stock, Math.floor(Number(e.target.value) || 1))),
+                    Math.max(
+                      minQty,
+                      Math.min(product.stock, Math.floor(Number(e.target.value) || 1)),
+                    ),
                   )
                 }
                 className="w-16 bg-transparent text-center font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
@@ -246,7 +270,7 @@ function ProductDetail() {
               disabled={blocked}
               variant="outline"
               onClick={() => {
-                const inCart = cartActions.add(product.id, qty);
+                const inCart = cartActions.add(product.id, Math.max(qty, minQty));
                 toast.success(
                   inCart < qty
                     ? `Panier plafonné au stock : ${inCart} ${product.unit}`

@@ -105,6 +105,7 @@ import {
   type OrderActor,
   type TransitionCheck,
 } from "@/lib/order-lifecycle";
+import { minOrderOf, productOrderability } from "@/lib/product-availability";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 // Commandes conservées comme le reste : sans ça, un rechargement effaçait les
@@ -1323,6 +1324,17 @@ export function deliveredAtOf(o: RestaurantOrder): string | undefined {
   return [...o.statusHistory].reverse().find((h) => h.status === "delivered")?.at;
 }
 
+/** Référence unique et croissante (CMD-3101, CMD-3102…) : tout le
+ * rapprochement (missions, remboursements, litiges) se fait par référence,
+ * un tirage au hasard pouvait en produire deux identiques. */
+function nextReference(prefix: string, existing: string[], floor: number) {
+  const max = existing.reduce((m, ref) => {
+    const n = Number(ref.replace(`${prefix}-`, ""));
+    return Number.isFinite(n) && n > m ? n : m;
+  }, floor);
+  return `${prefix}-${max + 1}`;
+}
+
 function fourDigitCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
@@ -1337,7 +1349,8 @@ export function stockShortages(items: { productId: string; qty: number }[]) {
         productId: i.productId,
         name: p?.name ?? i.productId,
         wanted: i.qty,
-        available: p?.stock ?? 0,
+        // Retiré, hors saison ou pas encore disponible : rien de commandable.
+        available: p && productOrderability(p).ok ? p.stock : 0,
       };
     })
     .filter((l) => l.wanted > l.available);
@@ -1368,7 +1381,11 @@ export const restaurantOrderActions = {
   ) => {
     const missionUrgency = opts?.forceUrgency;
     const id = `ro_${Date.now()}`;
-    const reference = `CMD-${String(3100 + Math.floor(Math.random() * 899)).padStart(4, "0")}`;
+    const reference = nextReference(
+      "CMD",
+      [...restaurantOrdersStore.get(), ...ordersStore.get()].map((x) => x.reference),
+      3100,
+    );
     const createdAt = new Date().toISOString();
     // Wave / Orange Money / Free Money : un vrai gateway confirmerait le
     // paiement à l'instant de la commande, donc la facture est payée dès
@@ -1784,7 +1801,11 @@ function openMissionForOrder(reference: string) {
   missionsStore.set((arr) => [
     {
       id: `mi_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      reference: `MIS-${4300 + Math.floor(Math.random() * 699)}`,
+      reference: nextReference(
+        "MIS",
+        missionsStore.get().map((m) => m.reference),
+        4300,
+      ),
       orderRef: reference,
       farmerId: source.farmerId,
       restaurantId,
@@ -2045,7 +2066,10 @@ export const cartActions = {
   // Retourne la quantité réellement appliquée (peut être plafonnée au stock
   // réel du producteur), pour que l'UI puisse prévenir l'utilisateur.
   add: (productId: string, qty = 1) => {
+    const product = productsStore.get().find((p) => p.id === productId);
+    if (!product || !productOrderability(product).ok) return 0;
     const max = stockOf(productId);
+    qty = Math.max(qty, minOrderOf(product));
     let applied = 0;
     cartStore.set((arr) => {
       const existing = arr.find((l) => l.productId === productId);
@@ -2289,7 +2313,12 @@ function processOccurrenceInner(
 
   const liveProducts = productsStore.get();
   const priceOf = (id: string) => liveProducts.find((p) => p.id === id)?.pricePerKg ?? 0;
-  const stockOfProduct = (id: string) => liveProducts.find((p) => p.id === id)?.stock ?? 0;
+  const stockOfProduct = (id: string) => {
+    const p = liveProducts.find((x) => x.id === id);
+    // Un produit retiré, hors saison ou pas encore disponible n'est jamais
+    // commandé par une récurrence, même s'il reste du stock.
+    return p && productOrderability(p).ok ? p.stock : 0;
+  };
 
   // Règle stock
   const outOfStock = items.filter((it) => stockOfProduct(it.productId) < it.qty);

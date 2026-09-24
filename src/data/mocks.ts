@@ -118,6 +118,17 @@ export type Product = {
   status: "active" | "low" | "out" | "draft";
   ordersThisMonth: number;
   farmerId: string;
+  // Détails saisis par le producteur, appliqués côté restaurant.
+  description?: string;
+  /** Quantité minimale par commande. */
+  minOrder?: number;
+  /** Date (AAAA-MM-JJ) à partir de laquelle le produit peut être commandé. */
+  availableFrom?: string;
+  organic?: boolean;
+  photos?: string[];
+  pickupAddress?: string;
+  /** « Hors saison » : retiré du catalogue sans être supprimé. */
+  paused?: boolean;
 };
 
 export const products: Product[] = [

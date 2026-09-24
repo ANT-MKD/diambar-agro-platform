@@ -20,7 +20,7 @@ function EditProductPage() {
     <div className="space-y-6">
       <PageHeader title={`Modifier — ${product.name}`} />
       <ProductForm
-        initial={{ ...rest, photos: [product.image] }}
+        initial={{ ...rest, photos: product.photos?.length ? product.photos : [product.image] }}
         onSubmit={(d) => {
           productActions.update(productId, d);
           toast.success("Produit mis à jour");
