@@ -221,9 +221,22 @@ function ProductDetail() {
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-12 text-center font-bold">{qty}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={product.stock}
+                aria-label="Quantité"
+                value={qty}
+                onChange={(e) =>
+                  setQty(
+                    Math.max(1, Math.min(product.stock, Math.floor(Number(e.target.value) || 1))),
+                  )
+                }
+                className="w-16 bg-transparent text-center font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              />
               <button
-                onClick={() => setQty(qty + 1)}
+                onClick={() => setQty(Math.min(product.stock, qty + 1))}
                 className="h-12 w-12 grid place-items-center hover:bg-accent"
               >
                 <Plus className="h-4 w-4" />
@@ -233,8 +246,12 @@ function ProductDetail() {
               disabled={blocked}
               variant="outline"
               onClick={() => {
-                cartActions.add(product.id, qty);
-                toast.success(`${qty} ${product.unit} ajouté(s) au panier`);
+                const inCart = cartActions.add(product.id, qty);
+                toast.success(
+                  inCart < qty
+                    ? `Panier plafonné au stock : ${inCart} ${product.unit}`
+                    : `${qty} ${product.unit} ajouté(s) au panier`,
+                );
               }}
               className="flex-1 h-12 gap-2 text-base"
             >

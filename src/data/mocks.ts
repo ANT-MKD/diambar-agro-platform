@@ -1369,6 +1369,8 @@ export type RestaurantOrder = {
   // Que faire si le producteur n'a pas toute la quantité : livrer ce qui est
   // disponible (différence remboursée) ou annuler la commande.
   shortagePreference?: "partial" | "cancel";
+  // Consignes pour le livreur (quai, contact, code d'accès…).
+  instructions?: string;
   // Début du créneau de livraison choisi (ISO) : planifie la mission.
   slotStart?: string;
   // Urgence imposée à la mission de livraison (commandes récurrentes
@@ -1600,6 +1602,8 @@ export type Mission = {
   // Arrivées signalées par le livreur (producteur, restaurant) : l'attente
   // au-delà de 10 minutes lui est payée à la livraison.
   waits?: { stage: "pickup" | "dropoff"; arrivedAt: string; endedAt?: string }[];
+  // Consignes de livraison laissées par le restaurant.
+  instructions?: string;
 };
 
 export type MissionProofPhoto = {

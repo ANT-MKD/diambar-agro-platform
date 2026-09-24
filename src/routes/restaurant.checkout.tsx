@@ -118,6 +118,7 @@ function Checkout() {
   const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
   const chosenSlot = availableSlots.find((s) => s.label === slot);
   const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
+  const [instructions, setInstructions] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
@@ -220,6 +221,7 @@ function Checkout() {
         eta: slot,
         slotStart: chosenSlot?.start,
         shortagePreference,
+        instructions: instructions.trim() || undefined,
       });
       created.push(id);
     });
@@ -299,6 +301,18 @@ function Checkout() {
                     {errors.address}
                   </p>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delivery-instructions">
+                  Consignes pour le livreur (facultatif)
+                </Label>
+                <Input
+                  id="delivery-instructions"
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  maxLength={160}
+                  placeholder="Ex. entrée de service rue 12, demander Moussa, quai n°2"
+                />
               </div>
               <h3 className="font-display text-lg font-bold flex items-center gap-2 pt-3">
                 <Calendar className="h-5 w-5 text-primary" />

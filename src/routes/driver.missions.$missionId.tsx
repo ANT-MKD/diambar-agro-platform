@@ -341,6 +341,12 @@ function MissionDetail() {
                 lng={mission.dropoff.lng}
               />
             </div>
+            {mission.instructions && (
+              <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                <span className="font-semibold">Consignes du restaurant : </span>
+                {mission.instructions}
+              </div>
+            )}
           </div>
 
           {/* Live GPS */}

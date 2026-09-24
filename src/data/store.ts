@@ -1816,6 +1816,7 @@ function openMissionForOrder(reference: string) {
           ? "priority"
           : "standard"),
       statusHistory: [{ status: "available", at: now }],
+      instructions: restoOrder?.instructions,
     },
     ...arr,
   ]);
@@ -2069,6 +2070,20 @@ export const cartActions = {
     cartStore.set((arr) => arr.filter((l) => l.productId !== productId));
   },
   clear: () => cartStore.set([]),
+  /** « Recommander » : remet dans le panier les produits d'une commande
+   * passée, dans la limite du stock actuel. Renvoie les produits manquants. */
+  reorder: (items: { productId: string; qty: number }[]) => {
+    const unavailable: string[] = [];
+    items.forEach((i) => {
+      const p = productsStore.get().find((x) => x.id === i.productId);
+      if (!p || p.status === "draft" || p.stock <= 0) {
+        unavailable.push(p?.name ?? i.productId);
+        return;
+      }
+      cartActions.add(i.productId, i.qty);
+    });
+    return unavailable;
+  },
 };
 
 export const wishlistActions = {

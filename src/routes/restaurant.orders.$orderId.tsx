@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   AlertTriangle,
   History,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import {
   deliveredAtOf,
   RECEPTION_WINDOW_MS,
   restaurantOrderActions,
+  cartActions,
   useRestaurantOrder as useROrder,
 } from "@/data/store";
 import { isCancellable } from "@/lib/order-lifecycle";
@@ -127,6 +129,19 @@ function OrderDetail() {
                 <ArrowLeft className="h-4 w-4" />
                 Retour
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                const missing = cartActions.reorder(order.items);
+                if (missing.length > 0) toast.warning(`Indisponible(s) : ${missing.join(", ")}`);
+                else toast.success("Produits ajoutés au panier");
+                navigate({ to: "/restaurant/cart" });
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Recommander
             </Button>
             <Button asChild variant="outline" className="gap-2">
               <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
