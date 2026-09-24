@@ -27,7 +27,7 @@ import {
   useDriverNotifications,
   useDriverOnline,
   driverOnlineActions,
-  useMissions,
+  useDriverMissions,
   useDriverSettings,
   useDriverConversations,
   missionActions,
@@ -62,7 +62,7 @@ function DriverLayout() {
   const notifs = useDriverNotifications();
   const online = useDriverOnline();
   const unread = notifs.filter((n) => !n.read).length;
-  const missions = useMissions();
+  const missions = useDriverMissions();
   const settings = useDriverSettings();
   const fleet = useMyDriverFleet();
   const activeMissions = missions.filter(

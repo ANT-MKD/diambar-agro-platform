@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "../test-utils/render-hook";
 import {
+  useDriverMissions,
   useDriverWallet,
   useFarmerNotifications,
   useMissions,
@@ -258,5 +259,21 @@ describe("missionActions.accept (first come, first served)", () => {
     if (!second.ok) expect(second.reason).toBe("taken");
     const after = missions.result.current.find((m) => m.id === mission.id);
     expect(after?.driverId).toBe("d1");
+  });
+});
+
+describe("missionActions.dismiss (refus d'une mission par un livreur)", () => {
+  it("hides the mission for this driver only, and keeps it open for the others", () => {
+    const all = renderHook(() => useMissions());
+    const mine = renderHook(() => useDriverMissions());
+    const mission = all.result.current.find((m) => m.reference === "MIS-4212")!;
+    expect(mission.status).toBe("available");
+
+    act(() => {
+      missionActions.dismiss(mission.id);
+    });
+
+    expect(mine.result.current.some((m) => m.id === mission.id)).toBe(false);
+    expect(all.result.current.find((m) => m.id === mission.id)?.status).toBe("available");
   });
 });

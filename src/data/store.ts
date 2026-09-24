@@ -151,6 +151,9 @@ const driverNotifsStore = createStore<AppNotification[]>(
   "diambar:driver-notifications",
 );
 const missionsStore = createStore<Mission[]>(seedMissions, "diambar:missions");
+// Missions disponibles que le livreur connecté a refusées : elles quittent
+// sa liste mais restent proposées aux autres livreurs.
+const dismissedMissionsStore = createStore<string[]>([], "diambar:driver-dismissed-missions");
 const driverConvosStore = createStore<DriverConversation[]>(
   seedDriverConvos,
   "diambar:driver-convos",
@@ -306,6 +309,20 @@ export function useMissions() {
 }
 export function useMission(id: string) {
   return useMissions().find((m) => m.id === id) ?? null;
+}
+/** Missions telles que le livreur connecté les voit : sans celles qu'il a
+ * refusées tant qu'elles sont encore disponibles. */
+export function useDriverMissions() {
+  const missions = useMissions();
+  const dismissed = useSyncExternalStore(
+    dismissedMissionsStore.subscribe,
+    dismissedMissionsStore.get,
+    dismissedMissionsStore.get,
+  );
+  return useMemo(
+    () => missions.filter((m) => !(m.status === "available" && dismissed.includes(m.id))),
+    [missions, dismissed],
+  );
 }
 export function getMissionSnapshot(id: string) {
   return missionsStore.get().find((m) => m.id === id) ?? null;
@@ -889,8 +906,10 @@ export const missionActions = {
     }
     return { ok: true };
   },
-  cancel: (id: string) => {
-    missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "cancelled" } : m)));
+  // Refuser une mission disponible la retire de la liste de ce livreur
+  // seulement : elle reste ouverte aux autres (jamais "cancelled").
+  dismiss: (id: string) => {
+    dismissedMissionsStore.set((ids) => (ids.includes(id) ? ids : [...ids, id]));
   },
   attachProof: (id: string, photos: MissionProofPhoto[]) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));

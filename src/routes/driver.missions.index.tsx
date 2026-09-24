@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import {
-  useMissions,
+  useDriverMissions,
   missionActions,
   useDriverWallet,
   useDriverOnline,
@@ -65,7 +65,7 @@ function matchesTab(m: Mission, tab: Tab) {
 }
 
 function MissionsPage() {
-  const all = useMissions();
+  const all = useDriverMissions();
   const wallet = useDriverWallet();
   const online = useDriverOnline();
   const fleet = useMyDriverFleet();
@@ -125,8 +125,8 @@ function MissionsPage() {
     toast.success(`Mission ${ref} acceptée`);
   };
   const refuse = (id: string, ref: string) => {
-    missionActions.cancel(id);
-    toast.success(`Mission ${ref} refusée`);
+    missionActions.dismiss(id);
+    toast.success(`Mission ${ref} refusée · elle reste proposée aux autres livreurs`);
   };
 
   const count = (t: Tab) => all.filter((m) => matchesTab(m, t)).length;

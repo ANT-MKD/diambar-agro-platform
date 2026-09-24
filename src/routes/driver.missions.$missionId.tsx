@@ -142,8 +142,8 @@ function MissionDetail() {
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
   };
   const refuse = () => {
-    missionActions.cancel(mission.id);
-    toast.success("Mission refusée");
+    missionActions.dismiss(mission.id);
+    toast.success("Mission refusée · elle reste proposée aux autres livreurs");
     setRefuseOpen(false);
     navigate({ to: "/driver/missions" });
   };

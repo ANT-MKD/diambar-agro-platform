@@ -24,7 +24,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
-  useMissions,
+  useDriverMissions,
   useDriverOnline,
   driverOnlineActions,
   useDriverWallet,
@@ -84,7 +84,7 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 function DriverDashboard() {
-  const missions = useMissions();
+  const missions = useDriverMissions();
   const online = useDriverOnline();
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
