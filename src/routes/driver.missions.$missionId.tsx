@@ -39,6 +39,7 @@ import {
   useProducts,
   useDriverVehicle,
   useMyDriverFleet,
+  useMyMissionEligibility,
   useDriverSettings,
 } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
@@ -47,7 +48,7 @@ import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { driverCommissionForPayout } from "@/lib/commission";
-import { missionEligibility } from "@/lib/mission-eligibility";
+import { WAIT_FCFA_PER_MINUTE, WAIT_FREE_MINUTES } from "@/lib/mission-eligibility";
 import { timeLabel } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +92,7 @@ function MissionDetail() {
   const products = useProducts();
   const vehicle = useDriverVehicle();
   const fleet = useMyDriverFleet();
+  const eligibilityFor = useMyMissionEligibility();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -135,7 +137,7 @@ function MissionDetail() {
   const navTarget = mission.status === "loaded" ? mission.dropoff : mission.pickup;
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`;
 
-  const eligibility = missionEligibility(mission, fleet);
+  const eligibility = eligibilityFor(mission);
   // Une mission prise par un autre livreur reste consultable, jamais pilotable.
   const isMine = mission.driverId === "d1";
   const accept = () => {
@@ -455,6 +457,40 @@ function MissionDetail() {
                   Cette mission est attribuée à un autre livreur.
                 </p>
               )}
+              {isMine &&
+                (["accepted", "pickup", "loaded"] as MissionStatus[]).includes(mission.status) &&
+                (() => {
+                  const stage = mission.status === "loaded" ? "dropoff" : "pickup";
+                  const wait = mission.waits?.find((w) => w.stage === stage);
+                  if (wait) {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Arrivé à{" "}
+                        {new Date(wait.arrivedAt).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        · au-delà de {WAIT_FREE_MINUTES} min d'attente, chaque minute vous est payée{" "}
+                        {WAIT_FCFA_PER_MINUTE} FCFA.
+                      </p>
+                    );
+                  }
+                  return (
+                    <Button
+                      variant="outline"
+                      className="w-full h-12 gap-2"
+                      onClick={() => {
+                        missionActions.markArrived(mission.id, stage);
+                        toast.success("Arrivée enregistrée · l'attente est chronométrée");
+                      }}
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {stage === "pickup"
+                        ? "Je suis chez le producteur"
+                        : "Je suis chez le restaurant"}
+                    </Button>
+                  );
+                })()}
               {isMine && mission.status === "accepted" && (
                 <Button className="w-full gap-2" onClick={startPickup}>
                   <Navigation className="h-4 w-4" />

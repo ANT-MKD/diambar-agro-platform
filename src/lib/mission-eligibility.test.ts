@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { driverSettings, driverVehicle, type Mission } from "@/data/mocks";
 import { autoAcceptableMissions } from "@/data/store";
-import { fleetForDriver, missionEligibility, type DriverFleet } from "./mission-eligibility";
+import {
+  fleetForDriver,
+  missionEligibility,
+  waitCompensation,
+  withinWorkingHours,
+  type DriverFleet,
+} from "./mission-eligibility";
 
 const moto: DriverFleet = { type: "Moto", capacityKg: 40, status: "ok" };
 
@@ -61,5 +67,33 @@ describe("autoAcceptableMissions", () => {
   it("accepts nothing while the vehicle is non-compliant", () => {
     const picked = autoAcceptableMissions([mission(30)], settings, { ...moto, status: "blocked" });
     expect(picked).toEqual([]);
+  });
+});
+
+describe("charge cumulée, hors ligne, attente payée", () => {
+  const van = { type: "Camionnette" as const, capacityKg: 100, status: "ok" as const };
+  it("refuse une mission qui ferait dépasser la capacité avec la charge déjà acceptée", () => {
+    const r = missionEligibility({ weightKg: 40 }, van, { currentLoadKg: 70 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("overloaded");
+    expect(missionEligibility({ weightKg: 30 }, van, { currentLoadKg: 70 }).ok).toBe(true);
+  });
+  it("refuse toute mission hors ligne", () => {
+    const r = missionEligibility({ weightKg: 1 }, van, { online: false });
+    expect(r.ok).toBe(false);
+  });
+  it("paie l'attente au-delà de 10 minutes, avec un plafond", () => {
+    expect(waitCompensation(8)).toBe(0);
+    expect(waitCompensation(25)).toBe(15 * 50);
+    expect(waitCompensation(500)).toBe(3000);
+  });
+  it("respecte les horaires de travail", () => {
+    const hours = {
+      mon: { enabled: true, start: "07:00", end: "18:00" },
+      sun: { enabled: false, start: "07:00", end: "18:00" },
+    };
+    expect(withinWorkingHours(new Date(2026, 8, 28, 9).toISOString(), hours)).toBe(true); // lundi
+    expect(withinWorkingHours(new Date(2026, 8, 28, 20).toISOString(), hours)).toBe(false);
+    expect(withinWorkingHours(new Date(2026, 8, 27, 9).toISOString(), hours)).toBe(false); // dimanche
   });
 });

@@ -24,6 +24,7 @@ import {
   useDriverOnline,
   driverOnlineActions,
   useMyDriverFleet,
+  useMyMissionEligibility,
 } from "@/data/store";
 import { restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -69,6 +70,7 @@ function MissionsPage() {
   const wallet = useDriverWallet();
   const online = useDriverOnline();
   const fleet = useMyDriverFleet();
+  const eligibilityFor = useMyMissionEligibility();
   const [tab, setTab] = useState<Tab>("available");
   const [q, setQ] = useState("");
   const [city, setCity] = useState("all");
@@ -109,10 +111,9 @@ function MissionsPage() {
     );
     // Les missions que ce véhicule peut réellement prendre passent devant ;
     // les autres restent visibles (grisées) pour que le livreur sache pourquoi.
-    const takeable = (m: Mission) =>
-      m.status !== "available" || missionEligibility(m, fleet).ok ? 0 : 1;
+    const takeable = (m: Mission) => (m.status !== "available" || eligibilityFor(m).ok ? 0 : 1);
     return sorted.sort((a, b) => takeable(a) - takeable(b));
-  }, [all, tab, q, city, sort, fleet]);
+  }, [all, tab, q, city, sort, eligibilityFor]);
 
   const cities = Array.from(new Set(all.flatMap((m) => [m.pickup.city, m.dropoff.city])));
 
@@ -266,7 +267,7 @@ function MissionsPage() {
                   new Date(m.scheduledFor).getTime() + m.estimatedMinutes * 60000,
                 ).toISOString();
                 const eligibility =
-                  m.status === "available" ? missionEligibility(m, fleet) : ({ ok: true } as const);
+                  m.status === "available" ? eligibilityFor(m) : ({ ok: true } as const);
                 return (
                   <div
                     key={m.id}

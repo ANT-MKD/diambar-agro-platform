@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { deliverySlots } from "./reception-slots";
 import type { ReceptionDay, ReceptionSlot } from "@/data/mocks";
 
-const DAYS: ReceptionDay[] = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const DAYS: ReceptionDay[] = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+];
 const hours = Object.fromEntries(
   DAYS.map((d) => [d, { open: d !== "Dimanche", from: "07:00", to: "11:00" }]),
 ) as Record<ReceptionDay, ReceptionSlot>;

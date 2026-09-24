@@ -292,10 +292,7 @@ export function returnCreationProblem(input: {
   lineValue: number;
   deliveredAt?: string;
 }): string | null {
-  if (
-    input.deliveredAt &&
-    Date.now() - new Date(input.deliveredAt).getTime() > 48 * 3600_000
-  ) {
+  if (input.deliveredAt && Date.now() - new Date(input.deliveredAt).getTime() > 48 * 3600_000) {
     return "Le délai de réclamation de 48 h après la livraison est dépassé : contactez le support.";
   }
   if (input.requestedAmount <= 0) return "Indiquez un montant.";

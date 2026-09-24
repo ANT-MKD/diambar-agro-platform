@@ -1595,6 +1595,9 @@ export type Mission = {
   // statut. Pour les missions de démo déjà avancées, on ne connaît que
   // l'état observé à leur création — pas d'heures de transition inventées.
   statusHistory?: { status: MissionStatus; at: string; note?: string }[];
+  // Arrivées signalées par le livreur (producteur, restaurant) : l'attente
+  // au-delà de 10 minutes lui est payée à la livraison.
+  waits?: { stage: "pickup" | "dropoff"; arrivedAt: string; endedAt?: string }[];
 };
 
 export type MissionProofPhoto = {

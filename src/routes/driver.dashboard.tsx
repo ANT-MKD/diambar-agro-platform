@@ -32,6 +32,7 @@ import {
   useVehicleIssues,
   useDriverSettings,
   useMyDriverFleet,
+  useMyMissionEligibility,
   missionActions,
 } from "@/data/store";
 import { missionEligibility } from "@/lib/mission-eligibility";
@@ -89,6 +90,7 @@ function DriverDashboard() {
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
   const fleet = useMyDriverFleet();
+  const eligibilityFor = useMyMissionEligibility();
   const vehicleIssues = useVehicleIssues();
   const incidents = useIncidents();
   const driverSettings = useDriverSettings();
@@ -524,7 +526,7 @@ function DriverDashboard() {
                 const r = restaurants.find((x) => x.id === m.restaurantId);
                 const f = farmers.find((x) => x.id === m.farmerId);
                 const badge = MISSION_BADGE[m.status];
-                const eligibility = missionEligibility(m, fleet);
+                const eligibility = eligibilityFor(m);
                 return (
                   <div
                     key={m.id}

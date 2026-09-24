@@ -13,7 +13,12 @@ export type DriverFleet = {
 };
 
 export type Eligibility =
-  { ok: true } | { ok: false; reason: "vehicle_blocked" | "overweight"; message: string };
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "vehicle_blocked" | "overweight" | "overloaded" | "offline";
+      message: string;
+    };
 
 /**
  * Véhicule et conformité réels d'un livreur. Seul le livreur connecté de la
@@ -49,7 +54,15 @@ export function fleetForDriver(
 export function missionEligibility(
   mission: Pick<Mission, "weightKg">,
   fleet: DriverFleet,
+  opts: { currentLoadKg?: number; online?: boolean } = {},
 ): Eligibility {
+  if (opts.online === false) {
+    return {
+      ok: false,
+      reason: "offline",
+      message: "Vous êtes hors ligne : passez en ligne pour accepter des missions",
+    };
+  }
   if (fleet.status === "blocked") {
     return {
       ok: false,
@@ -64,5 +77,54 @@ export function missionEligibility(
       message: `${mission.weightKg} kg à transporter, capacité ${fleet.type.toLowerCase()} : ${fleet.capacityKg} kg max`,
     };
   }
+  // La marchandise des missions déjà acceptées occupe aussi le véhicule.
+  const load = opts.currentLoadKg ?? 0;
+  if (load > 0 && load + mission.weightKg > fleet.capacityKg) {
+    return {
+      ok: false,
+      reason: "overloaded",
+      message: `Déjà ${load} kg en cours : ${mission.weightKg} kg de plus dépasseraient les ${fleet.capacityKg} kg de votre ${fleet.type.toLowerCase()}`,
+    };
+  }
   return { ok: true };
+}
+
+/** Charge (kg) des missions d'un livreur pas encore livrées. */
+export function currentLoadKg(missions: Mission[], driverId: string, exceptId?: string) {
+  return missions
+    .filter(
+      (m) =>
+        m.driverId === driverId &&
+        m.id !== exceptId &&
+        (m.status === "accepted" || m.status === "pickup" || m.status === "loaded"),
+    )
+    .reduce((s, m) => s + m.weightKg, 0);
+}
+
+// Attente payée (modèle Glovo) : au-delà de 10 minutes chez le producteur ou
+// le restaurant, chaque minute est payée au livreur, dans la limite de 3 000
+// FCFA par arrêt.
+export const WAIT_FREE_MINUTES = 10;
+export const WAIT_FCFA_PER_MINUTE = 50;
+export const WAIT_CAP_FCFA = 3000;
+
+export function waitCompensation(minutes: number) {
+  return Math.min(
+    WAIT_CAP_FCFA,
+    Math.max(0, Math.floor(minutes) - WAIT_FREE_MINUTES) * WAIT_FCFA_PER_MINUTE,
+  );
+}
+
+/** Une mission tombe-t-elle dans les horaires de travail déclarés ? */
+export function withinWorkingHours(
+  scheduledFor: string,
+  hours: Record<string, { enabled: boolean; start: string; end: string }>,
+) {
+  const d = new Date(scheduledFor);
+  const key = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][d.getDay()];
+  const day = hours[key];
+  if (!day) return true;
+  if (!day.enabled) return false;
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return hm >= day.start && hm <= day.end;
 }

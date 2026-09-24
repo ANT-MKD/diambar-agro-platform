@@ -89,8 +89,11 @@ import {
 import { getCommissionTiers, getDeliveryZones, useDeliveryZones } from "./platform-settings";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
+  currentLoadKg,
   fleetForDriver,
   missionEligibility,
+  waitCompensation,
+  withinWorkingHours,
   type DriverFleet,
   type Eligibility,
 } from "@/lib/mission-eligibility";
@@ -444,6 +447,22 @@ export function useMyDriverFleet(): DriverFleet {
   return useMemo(() => fleetForDriver("d1", vehicle, issues)!, [vehicle, issues]);
 }
 
+/** Éligibilité réelle du livreur connecté pour une mission : conformité et
+ * capacité du véhicule, charge des missions déjà acceptées, en ligne ou non. */
+export function useMyMissionEligibility(): (m: Mission) => Eligibility {
+  const fleet = useMyDriverFleet();
+  const missions = useMissions();
+  const online = useDriverOnline();
+  return useMemo(
+    () => (m: Mission) =>
+      missionEligibility(m, fleet, {
+        currentLoadKg: currentLoadKg(missions, "d1", m.id),
+        online,
+      }),
+    [fleet, missions, online],
+  );
+}
+
 /** Livreurs vers lesquels l'admin peut réaffecter une course, chacun avec
  * son éligibilité réelle (capacité du véhicule, conformité). */
 export function useReassignCandidates(mission: Mission | null | undefined) {
@@ -455,7 +474,11 @@ export function useReassignCandidates(mission: Mission | null | undefined) {
       .filter((d) => d.id !== mission.driverId)
       .map((d) => {
         const fleet = fleetForDriver(d.id, vehicle, issues);
-        const eligibility: Eligibility = fleet ? missionEligibility(mission, fleet) : { ok: true };
+        const eligibility: Eligibility = fleet
+          ? missionEligibility(mission, fleet, {
+              currentLoadKg: currentLoadKg(missionsStore.get(), d.id, mission.id),
+            })
+          : { ok: true };
         return { driver: d, fleet, eligibility };
       });
   }, [mission, vehicle, issues]);
@@ -627,16 +650,21 @@ export function autoAcceptableMissions(
   const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
   // Le réglage du livreur ne peut pas dépasser ce que son véhicule supporte.
   const weightLimit = Math.min(maxWeightKg, fleet.capacityKg);
-  return missions.filter(
-    (m) =>
+  let load = currentLoadKg(missions, "d1");
+  return missions.filter((m) => {
+    const fits =
       m.status === "available" &&
       m.payout >= minPayout &&
       m.weightKg <= weightLimit &&
+      load + m.weightKg <= fleet.capacityKg &&
+      withinWorkingHours(m.scheduledFor, settings.workingHours) &&
       acceptedUrgencies.includes(m.urgency) &&
       (acceptedCities.length === 0 ||
         acceptedCities.includes(m.pickup.city) ||
-        acceptedCities.includes(m.dropoff.city)),
-  );
+        acceptedCities.includes(m.dropoff.city));
+    if (fits) load += m.weightKg;
+    return fits;
+  });
 }
 
 export function useWallets() {
@@ -844,10 +872,15 @@ export const missionActions = {
       }
     }
 
+    const nowIso = new Date().toISOString();
+    const closing = status === "loaded" ? "pickup" : status === "delivered" ? "dropoff" : null;
     const updated: Mission = {
       ...current,
       status,
-      statusHistory: [...(current.statusHistory ?? []), { status, at: new Date().toISOString() }],
+      statusHistory: [...(current.statusHistory ?? []), { status, at: nowIso }],
+      waits: current.waits?.map((w) =>
+        w.stage === closing && !w.endedAt ? { ...w, endedAt: nowIso } : w,
+      ),
     };
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? updated : m)));
 
@@ -883,6 +916,19 @@ export const missionActions = {
         title: "Paiement reçu",
         body: `+${formatFCFA(updated.payout - commission)} net (${updated.reference})`,
       });
+      const waitPay = (updated.waits ?? []).reduce((sum, w) => {
+        if (!w.endedAt) return sum;
+        const minutes = (new Date(w.endedAt).getTime() - new Date(w.arrivedAt).getTime()) / 60_000;
+        return sum + waitCompensation(minutes);
+      }, 0);
+      if (waitPay > 0) {
+        driverWalletActions.credit(
+          `Indemnité d'attente ${updated.reference}`,
+          waitPay,
+          "bonus",
+          updated.reference,
+        );
+      }
       syncOrderFromMission(updated.orderRef, "delivered");
       if (opts.code) {
         restaurantOrdersStore.set((arr) =>
@@ -907,7 +953,10 @@ export const missionActions = {
     }
     const fleet = fleetForDriver(driverId, driverVehicleStore.get(), vehicleIssuesStore.get());
     if (fleet) {
-      const eligibility = missionEligibility(current, fleet);
+      const eligibility = missionEligibility(current, fleet, {
+        currentLoadKg: currentLoadKg(missionsStore.get(), driverId, current.id),
+        online: driverId === "d1" ? driverOnlineStore.get() : undefined,
+      });
       if (!eligibility.ok) return eligibility;
     }
     missionsStore.set((arr) =>
@@ -986,6 +1035,18 @@ export const missionActions = {
     });
     return { ok: true };
   },
+  /** Le livreur signale qu'il est arrivé chez le producteur ou le restaurant :
+   * point de départ de l'attente payée. */
+  markArrived: (id: string, stage: "pickup" | "dropoff") => {
+    const at = new Date().toISOString();
+    missionsStore.set((arr) =>
+      arr.map((m) =>
+        m.id === id && !(m.waits ?? []).some((w) => w.stage === stage)
+          ? { ...m, waits: [...(m.waits ?? []), { stage, arrivedAt: at }] }
+          : m,
+      ),
+    );
+  },
   attachProof: (id: string, photos: MissionProofPhoto[]) => {
     missionsStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, proof: photos } : m)));
   },
@@ -997,7 +1058,9 @@ export const missionActions = {
     if (!before) return { ok: false, reason: "taken", message: "Course introuvable." };
     const fleet = fleetForDriver(newDriverId, driverVehicleStore.get(), vehicleIssuesStore.get());
     if (fleet) {
-      const eligibility = missionEligibility(before, fleet);
+      const eligibility = missionEligibility(before, fleet, {
+        currentLoadKg: currentLoadKg(missionsStore.get(), newDriverId, before.id),
+      });
       if (!eligibility.ok) return eligibility;
     }
     const previousDriverId = before.driverId;
@@ -1358,7 +1421,10 @@ export const restaurantOrderActions = {
               ? "Wave"
               : (order.paymentMethod as "Wave" | "Orange Money" | "Free Money"),
           reason: `Refus à la réception : ${kept
-            .map((l) => `${l.refusedQty} × ${productsStore.get().find((p) => p.id === l.productId)?.name ?? l.productId} (${l.reason})`)
+            .map(
+              (l) =>
+                `${l.refusedQty} × ${productsStore.get().find((p) => p.id === l.productId)?.name ?? l.productId} (${l.reason})`,
+            )
             .join(", ")}`,
         },
         // Règle automatique, plafonnée à la valeur des lignes : pas de
@@ -1798,18 +1864,11 @@ export const orderActions = {
       ...i,
       qty: Math.min(i.qty, Math.max(0, Math.floor(available[i.productId] ?? i.qty))),
     }));
-    const missing = order.items.reduce(
-      (s, i, idx) => s + (i.qty - items[idx].qty) * i.price,
-      0,
-    );
+    const missing = order.items.reduce((s, i, idx) => s + (i.qty - items[idx].qty) * i.price, 0);
     if (missing === 0) return orderActions.setStatus(id, "confirmed");
     const resto = restaurantOrdersStore.get().find((o) => o.reference === order.reference);
     if (items.every((i) => i.qty === 0) || resto?.shortagePreference === "cancel") {
-      return orderActions.setStatus(
-        id,
-        "cancelled",
-        "Quantités indisponibles chez le producteur",
-      );
+      return orderActions.setStatus(id, "cancelled", "Quantités indisponibles chez le producteur");
     }
     const kept = items.filter((i) => i.qty > 0);
     // Stock réservé en trop remis en vente.

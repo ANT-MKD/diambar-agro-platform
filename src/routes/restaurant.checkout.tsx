@@ -370,7 +370,11 @@ function Checkout() {
               <div className="grid sm:grid-cols-2 gap-2">
                 {(
                   [
-                    ["partial", "Livrer ce qui est disponible", "La différence vous est remboursée."],
+                    [
+                      "partial",
+                      "Livrer ce qui est disponible",
+                      "La différence vous est remboursée.",
+                    ],
                     ["cancel", "Annuler la commande", "Remboursement intégral, rien n'est livré."],
                   ] as const
                 ).map(([value, title, hint]) => (
