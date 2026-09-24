@@ -73,7 +73,8 @@ export function buildInvoiceData(
       name: "DIAMBAR AGRO SARL",
       addressLines: ["Immeuble Plateau, Avenue Léopold Sédar Senghor,", "Dakar, Sénégal"],
       email: "contact@diambar.sn",
-      legal: "NINEA 008772341 · RC DKR-2024-B-12847",
+      // À remplacer par le NINEA et le RCCM réels de la société.
+      legal: "NINEA et RCCM : immatriculation en cours",
     },
     buyer: {
       label: "Destinataire",

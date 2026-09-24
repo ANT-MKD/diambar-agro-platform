@@ -106,6 +106,7 @@ import {
   type TransitionCheck,
 } from "@/lib/order-lifecycle";
 import { minOrderOf, productOrderability } from "@/lib/product-availability";
+import { newTrackingToken } from "@/lib/tracking-id";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 // Commandes conservées comme le reste : sans ça, un rechargement effaçait les
@@ -1403,6 +1404,7 @@ export const restaurantOrderActions = {
       paidAt: paidNow ? createdAt : undefined,
       missionUrgency,
       deliveryCode: fourDigitCode(),
+      trackingToken: newTrackingToken(),
     };
     restaurantOrdersStore.set((arr) => [next, ...arr]);
 

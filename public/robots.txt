@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /track/
+Disallow: /farmer/
+Disallow: /restaurant/
+Disallow: /driver/
+Disallow: /admin/
+Disallow: /onboarding
+Disallow: /reset-password

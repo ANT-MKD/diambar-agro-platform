@@ -2,11 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Sparkles, MapPin, Package, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Des engagements vérifiables dans l'application, pas des chiffres
+// d'activité inventés.
 const stats = [
-  { value: "20+", label: "Agriculteurs partenaires" },
-  { value: "30+", label: "Restaurants clients" },
-  { value: "10/j", label: "Livraisons quotidiennes" },
-  { value: "4.9★", label: "Note moyenne" },
+  { value: "J+1", label: "Livraison dès le lendemain" },
+  { value: "48 h", label: "Pour refuser un produit abîmé" },
+  { value: "0 FCFA", label: "D'abonnement" },
+  { value: "Code", label: "De remise à chaque livraison" },
 ];
 
 export function Hero() {

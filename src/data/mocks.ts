@@ -482,8 +482,8 @@ export const faq = [
     a: 'Inscrivez-vous avec le rôle "Livreur", soumettez votre permis de conduire et votre carte d\'identité. Vous pouvez commencer à recevoir des missions sous 48h.',
   },
   {
-    q: "Y a-t-il un abonnement premium ?",
-    a: "Oui. L'abonnement Premium Restaurant (15 000 FCFA/mois) offre la mise en avant dans les résultats, les commandes récurrentes automatiques et un accès prioritaire au support.",
+    q: "Y a-t-il un abonnement ?",
+    a: "Non. L'inscription est gratuite pour tous. Les producteurs paient une commission sur les ventes livrées, les restaurants les frais de livraison de leur zone.",
   },
 ];
 
@@ -1393,6 +1393,8 @@ export type RestaurantOrder = {
   // sans lui, la livraison ne peut pas être confirmée (ni payée).
   deliveryCode?: string;
   deliveredWithCode?: boolean;
+  // Jeton aléatoire du lien de suivi public (voir lib/tracking-id).
+  trackingToken?: string;
   // Contrôle à la réception par le restaurant (48 h après la livraison) :
   // quantités refusées par ligne, remboursées automatiquement.
   reception?: {

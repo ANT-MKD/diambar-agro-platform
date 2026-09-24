@@ -23,7 +23,7 @@ export const pricingPlans: PricingPlan[] = [
     features: [
       "Boutique et catalogue illimités",
       "Gestion du stock et alertes",
-      "Paiement sous 24h (Wave, OM, Free)",
+      "Retrait vers Wave, OM ou Free (traité sous 24 h ouvrées)",
       "Analytics de ventes",
       "Support WhatsApp 6j/7",
     ],
@@ -31,21 +31,20 @@ export const pricingPlans: PricingPlan[] = [
   },
   {
     id: "resto",
-    name: "Restaurant Pro",
+    name: "Restaurant",
     audience: "Restaurants, hôtels, cantines",
-    price: "15 000",
-    period: "FCFA / mois",
-    description: "L'approvisionnement piloté : récurrentes, factures et suivi temps réel.",
+    price: "Gratuit",
+    period: "frais de livraison selon la zone",
+    description: "L'approvisionnement piloté : récurrentes, factures et suivi de livraison.",
     features: [
       "Commandes récurrentes automatiques",
-      "Facturation et export comptable",
-      "Suivi GPS des livraisons",
-      "Fournisseurs favoris et scoring",
-      "Support prioritaire 7j/7",
+      "Factures égales au montant payé, export CSV",
+      "Code de remise et photo à chaque livraison",
+      "48 h pour refuser un produit, remboursement automatique",
       "Multi-utilisateurs (équipe)",
     ],
     highlighted: true,
-    cta: "Essayer 30 jours",
+    cta: "Créer mon compte",
   },
   {
     id: "driver",
@@ -53,13 +52,14 @@ export const pricingPlans: PricingPlan[] = [
     audience: "Livreurs indépendants",
     price: "Gratuit",
     period: "80 % de la course",
-    description: "Choisissez vos missions, roulez quand vous voulez, payé le jour même.",
+    description:
+      "Choisissez vos missions, roulez quand vous voulez, payé dès la livraison confirmée.",
     features: [
-      "Missions à la demande",
-      "Paiement journalier",
-      "Itinéraires optimisés",
-      "Assurance mission incluse",
-      "Bonus de performance",
+      "Missions selon votre véhicule",
+      "Gain crédité à chaque livraison",
+      "Attente payée au-delà de 10 minutes",
+      "Retrait vers Wave, OM ou Free",
+      "Tournées optimisées",
     ],
     cta: "Devenir livreur",
   },
@@ -75,8 +75,8 @@ export const pricingFaq = [
     a: "Elle est dégressive selon votre volume mensuel : 15 % en dessous de 250 000 FCFA, jusqu'à 5 % au-delà de 1 500 000 FCFA.",
   },
   {
-    q: "Puis-je annuler l'abonnement Restaurant Pro ?",
-    a: "Oui, à tout moment depuis vos paramètres. L'abonnement reste actif jusqu'à la fin de la période payée.",
+    q: "Et si un produit arrive abîmé ou manquant ?",
+    a: "Vous avez 48 h après la livraison pour refuser tout ou partie d'une ligne depuis la commande : le montant vous est remboursé automatiquement.",
   },
   {
     q: "Les frais de livraison sont-ils inclus ?",
@@ -212,12 +212,12 @@ export const milestones = [
   {
     year: "2024",
     title: "Premier pilote",
-    text: "12 agriculteurs de Thiès et 8 restaurants dakarois testent la plateforme.",
+    text: "Premiers échanges avec des producteurs de Thiès et des restaurants de Dakar.",
   },
   {
     year: "2025",
     title: "Passage à l'échelle",
-    text: "227 comptes actifs, 618 commandes par mois, 3 régions couvertes.",
+    text: "Construction de la plateforme : commandes, livraisons avec preuve de remise, paiements mobiles.",
   },
   {
     year: "2026",
@@ -226,11 +226,12 @@ export const milestones = [
   },
 ];
 
+// Engagements de la plateforme (pas encore de chiffres d'activité publiés).
 export const impactStats = [
-  { value: "227", label: "comptes actifs" },
-  { value: "11,4 M", label: "FCFA de volume mensuel" },
-  { value: "−28 %", label: "de pertes post-récolte" },
-  { value: "24h", label: "délai de paiement producteur" },
+  { value: "J+1", label: "livraison dès le lendemain" },
+  { value: "48 h", label: "pour signaler un problème à la réception" },
+  { value: "24 h", label: "pour traiter un retrait producteur" },
+  { value: "0 FCFA", label: "d'abonnement" },
 ];
 
 export const helpCategories = [

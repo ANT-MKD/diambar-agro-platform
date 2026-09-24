@@ -1,19 +1,11 @@
-const logos = [
-  "Le Baobab",
-  "Hôtel Téranga",
-  "Marché Central Thiès",
-  "Coopérative Sénégal",
-  "Wave",
-  "Orange Money",
-  "Free Money",
-  "Restaurant Ndiambour",
-];
+// Moyens de paiement acceptés — et non des « clients » ou partenaires.
+const logos = ["Wave", "Orange Money", "Free Money", "Espèces à la livraison"];
 
 export function LogosBar() {
   return (
     <section className="border-y border-border/50 bg-card/30 py-10 overflow-hidden">
       <p className="text-center text-xs uppercase tracking-widest text-muted-foreground mb-6">
-        Ils nous font confiance
+        Paiements acceptés
       </p>
       <div className="relative">
         <div className="flex w-max animate-marquee gap-16 px-8">

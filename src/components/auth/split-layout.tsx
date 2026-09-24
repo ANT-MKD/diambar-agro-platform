@@ -59,7 +59,7 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="glass-strong rounded-2xl p-5 max-w-sm ml-12">
             <div className="text-xs text-amber-300">LIVRAISON ARRIVÉE</div>
-            <div className="font-semibold mt-1">Oumar Ba · ★ 4.9</div>
+            <div className="font-semibold mt-1">Remise validée par code</div>
             <div className="text-sm text-white/70 mt-1">Livraison effectuée en 23 min</div>
           </div>
           <div className="text-xs text-white/70 italic">{slides[i].caption}</div>
@@ -67,9 +67,9 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
         <div className="relative flex items-end justify-between gap-4">
           <div className="grid grid-cols-3 gap-3 max-w-sm flex-1">
             {[
-              { v: "50+", l: "Agriculteurs" },
-              { v: "120+", l: "Cmd/sem" },
-              { v: "4.9★", l: "Satisfaction" },
+              { v: "J+1", l: "Livraison" },
+              { v: "48 h", l: "Réclamation" },
+              { v: "0", l: "Abonnement" },
             ].map((s) => (
               <div key={s.l} className="glass rounded-xl p-3 text-center">
                 <div className="font-display text-2xl font-bold">{s.v}</div>

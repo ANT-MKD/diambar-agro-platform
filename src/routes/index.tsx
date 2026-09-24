@@ -6,7 +6,6 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { Features } from "@/components/landing/features";
 import { Ecosystem } from "@/components/landing/ecosystem";
 import { LiveTracking } from "@/components/landing/live-tracking";
-import { Testimonials } from "@/components/landing/testimonials";
 import { Faq } from "@/components/landing/faq";
 import { FinalCta } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
@@ -36,7 +35,6 @@ function LandingPage() {
         <Features />
         <Ecosystem />
         <LiveTracking />
-        <Testimonials />
         <Faq />
         <FinalCta />
       </main>

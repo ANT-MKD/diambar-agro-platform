@@ -53,6 +53,7 @@ import { orderAmounts } from "@/lib/pricing";
 import { useState } from "react";
 import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
 import { whatsappLink } from "@/lib/contact";
+import { publicTrackingId } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -94,10 +95,7 @@ function OrderDetail() {
     ? farmerReviewStats(farmer.id, allProducts, allProductReviews, farmer.rating, businessReviews)
         .avgRating
     : null;
-  const publicId = `TRK-${order.id
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(-6)
-    .toUpperCase()}`;
+  const publicId = publicTrackingId(order);
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/track/${publicId}`

@@ -67,7 +67,7 @@ export function LiveTracking() {
               <div className="flex-1">
                 <div className="font-semibold">Oumar Ba</div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> 4.9 · 234 missions
+                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> Livreur vérifié
                 </div>
               </div>
               <button className="grid h-10 w-10 place-items-center rounded-full bg-emerald-500 text-white hover:scale-110 transition">

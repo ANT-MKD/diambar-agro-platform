@@ -7,35 +7,36 @@ import { Button } from "@/components/ui/button";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
-import { useRestaurantOrders } from "@/data/store";
+import { useMissions, useRestaurantOrders } from "@/data/store";
+import { publicTrackingId } from "@/lib/tracking-id";
 import { farmers, drivers } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/track/$publicId")({
-  head: ({ params }) => ({ meta: [{ title: `Suivi commande ${params.publicId} · Diambar Agro` }] }),
+  head: ({ params }) => ({
+    meta: [
+      { title: `Suivi commande ${params.publicId} · Diambar Agro` },
+      // Lien personnel : ne doit jamais apparaître dans un moteur de recherche.
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
   component: PublicTracking,
 });
-
-// Public IDs use a stable prefix "TRK-" + last 6 chars of the order id, base36.
-function publicIdOf(id: string) {
-  return `TRK-${id
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(-6)
-    .toUpperCase()}`;
-}
 
 function PublicTracking() {
   const { publicId } = Route.useParams();
   const orders = useRestaurantOrders();
+  const missions = useMissions();
   const order = useMemo(
-    () => orders.find((o) => publicIdOf(o.id) === publicId.toUpperCase()) ?? orders[0],
+    // Jamais de repli sur une autre commande : un lien inconnu reste invalide.
+    () => orders.find((o) => publicTrackingId(o) === publicId.toUpperCase()) ?? null,
     [orders, publicId],
   );
   const { snapshot } = useLiveTracking({
     trackingId: order?.reference,
     enabled: !!order,
   });
-  const progress = snapshot?.progress ?? 0.35;
+  const progress = snapshot?.progress ?? (order?.status === "delivered" ? 1 : 0);
   // null until mounted client-side: avoids an SSR/client hydration mismatch
   // (the server-rendered clock would otherwise never match the client's).
   const [now, setNow] = useState<Date | null>(null);
@@ -60,7 +61,12 @@ function PublicTracking() {
   }
 
   const farmer = farmers.find((f) => f.id === order.farmerId);
-  const driver = drivers[0];
+  // Le vrai livreur de la mission, s'il y en a un.
+  const driverId = missions.find(
+    (m) => m.orderRef === order.reference && m.status !== "cancelled",
+  )?.driverId;
+  const driver = driverId ? drivers.find((d) => d.id === driverId) : undefined;
+  const driverName = driver ? driver.name.split(" ")[0] : "En attente d'un livreur";
   const etaMinutes = Math.max(1, Math.round((1 - progress) * 30));
 
   const share = async () => {
@@ -106,7 +112,7 @@ function PublicTracking() {
             </div>
             <h1 className="font-display text-2xl font-bold mt-0.5">{order.reference}</h1>
             <div className="text-xs text-muted-foreground">
-              Passée {relativeTime(order.createdAt)} · ID {publicIdOf(order.id)}
+              Passée {relativeTime(order.createdAt)} · ID {publicTrackingId(order)}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -137,14 +143,10 @@ function PublicTracking() {
             value={`${Math.round(progress * 100)}% du trajet`}
             tone="amber"
           />
-          <SummaryTile icon={Truck} label="Livreur" value={driver.name} tone="blue" />
+          <SummaryTile icon={Truck} label="Livreur" value={driverName} tone="blue" />
         </div>
 
-        <LiveTrackingMapLazy
-          trackingId={order.reference}
-          driverName={driver.name}
-          minHeight={380}
-        />
+        <LiveTrackingMapLazy trackingId={order.reference} driverName={driverName} minHeight={380} />
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
