@@ -7,7 +7,7 @@ export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
 export type TicketCategory =
   "delivery" | "products" | "payments" | "account" | "technical" | "other";
-export type TicketPriority = "low" | "medium" | "high";
+export type TicketPriority = "low" | "medium" | "high" | "urgent";
 
 export type TicketMessage = {
   id: string;
@@ -121,6 +121,7 @@ export const supportTicketActions = {
     fromRole: TicketRole;
     category: TicketCategory;
     orderRef?: string;
+    priority?: TicketPriority;
   }) => {
     const id = `t_${Date.now()}`;
     const createdAt = new Date().toISOString();
@@ -131,7 +132,7 @@ export const supportTicketActions = {
       fromName: input.fromName,
       fromRole: input.fromRole,
       category: input.category,
-      priority: TICKET_CATEGORY_PRIORITY[input.category],
+      priority: input.priority ?? TICKET_CATEGORY_PRIORITY[input.category],
       assignee: null,
       orderRef: input.orderRef,
       status: "open",
@@ -216,6 +217,7 @@ export const TICKET_PRIORITY_LABEL: Record<TicketPriority, string> = {
   low: "Basse",
   medium: "Moyenne",
   high: "Haute",
+  urgent: "Urgente",
 };
 
 export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {

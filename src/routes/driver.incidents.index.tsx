@@ -49,6 +49,7 @@ import {
 import { useMissions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import type { DisputeAttachment } from "@/data/disputes";
+import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
 
 export const Route = createFileRoute("/driver/incidents/")({
   validateSearch: z.object({ missionRef: z.string().optional() }),
@@ -143,17 +144,12 @@ function IncidentsPage() {
     toast.success(`Incident ${item.reference} signalé au support`);
   };
 
-  const sendUrgentTicket = () => {
-    const ticket = supportTicketActions.create({
-      subject: "🚨 Situation urgente — livreur",
-      message:
-        "Le livreur signale une situation urgente pendant une course et demande un rappel immédiat.",
-      fromName: "Oumar Ba",
-      fromRole: "driver",
-      category: "delivery",
-      orderRef: form.missionRef || undefined,
+  const sendUrgentTicket = async () => {
+    const id = await sendSos({ fromName: "Oumar Ba", missionRef: form.missionRef || undefined });
+    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
+      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
     });
-    toast.success(`Ticket ${ticket.id.toUpperCase()} envoyé — priorité urgente`);
+    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
   };
 
   const filtered = useMemo(() => {

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -58,6 +58,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RenewDocButton } from "@/components/driver/renew-doc";
 
 export const Route = createFileRoute("/driver/vehicle")({
   head: () => ({ meta: [{ title: "Mon véhicule · Livreur" }] }),
@@ -299,9 +300,11 @@ function DriverVehiclePage() {
         subtitle="Gérez votre véhicule, ses documents, son entretien et son aptitude aux missions."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2">
-              <LifeBuoy className="h-4 w-4" />
-              Contacter le support
+            <Button variant="outline" className="gap-2" asChild>
+              <Link to="/driver/settings/help">
+                <LifeBuoy className="h-4 w-4" />
+                Contacter le support
+              </Link>
             </Button>
             <Button
               className="gap-2"
@@ -427,8 +430,18 @@ function DriverVehiclePage() {
               Documents &amp; conformité
             </h3>
             <div className="mt-4 grid sm:grid-cols-2 gap-3">
-              <DocCard label="Assurance" date={v.insuranceExpiry} status={insStatus} />
-              <DocCard label="Contrôle technique" date={v.inspectionExpiry} status={inspStatus} />
+              <DocCard
+                label="Assurance"
+                date={v.insuranceExpiry}
+                status={insStatus}
+                renew="insurance"
+              />
+              <DocCard
+                label="Contrôle technique"
+                date={v.inspectionExpiry}
+                status={inspStatus}
+                renew="inspection"
+              />
               <DocCard
                 label="Permis de conduire"
                 date={null}
@@ -680,9 +693,11 @@ function DriverVehiclePage() {
             <p className="text-xs text-muted-foreground">
               Notre équipe support est disponible 7j/7.
             </p>
-            <Button variant="outline" size="sm" className="w-full gap-2">
-              <LifeBuoy className="h-3.5 w-3.5" />
-              Contacter le support
+            <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+              <Link to="/driver/settings/help">
+                <LifeBuoy className="h-3.5 w-3.5" />
+                Contacter le support
+              </Link>
             </Button>
           </div>
         </div>
@@ -1067,10 +1082,12 @@ function DocCard({
   label,
   date,
   status,
+  renew,
 }: {
   label: string;
   date: string | null;
   status: DocStatus;
+  renew?: "insurance" | "inspection";
 }) {
   const Icon = status === "valid" ? CheckCircle2 : AlertTriangle;
   return (
@@ -1087,6 +1104,7 @@ function DocCard({
       <div className="mt-1 text-xs text-muted-foreground">
         {date ? `Expire le ${new Date(date).toLocaleDateString("fr-FR")}` : "Validité longue durée"}
       </div>
+      {renew && <RenewDocButton doc={renew} />}
     </div>
   );
 }

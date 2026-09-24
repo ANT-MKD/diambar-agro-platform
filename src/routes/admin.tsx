@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
+  FileCheck2,
   LayoutDashboard,
   Users,
   ShieldCheck,
@@ -44,6 +45,7 @@ import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
+import { useDocRenewals } from "@/data/store";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: () => requireRole("admin"),
@@ -69,6 +71,7 @@ function AdminLayout() {
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
   const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
+  const pendingDocs = useDocRenewals().filter((r) => r.status === "pending").length;
   const refundsToHandle = refunds.filter(
     (r) => r.status === "pending" || r.status === "failed",
   ).length;
@@ -166,6 +169,13 @@ function AdminLayout() {
           label: "Livraisons",
           icon: Truck,
           badge: 0,
+          permission: "deliveries.view",
+        },
+        {
+          to: "/admin/documents",
+          label: "Documents livreurs",
+          icon: FileCheck2,
+          badge: pendingDocs,
           permission: "deliveries.view",
         },
         {

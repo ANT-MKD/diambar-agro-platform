@@ -15,6 +15,9 @@ import {
   missionPayout,
   MISSION_PAY,
   stockShortages,
+  docRenewalActions,
+  useDocRenewals,
+  useDriverVehicle,
   orderActions,
   restaurantOrderActions,
 } from "./store";
@@ -636,5 +639,29 @@ describe("confirmation partielle", () => {
       refunds.result.current.find((x) => x.orderRef === resto.reference && x.source === "shortage")
         ?.amount,
     ).toBe(target.pricePerKg * 4);
+  });
+});
+
+describe("renouvellement des documents du livreur", () => {
+  it("met à jour l'échéance seulement après validation par l'admin", () => {
+    const vehicle = renderHook(() => useDriverVehicle());
+    const before = vehicle.result.current.insuranceExpiry;
+    const next = "2030-01-01";
+    let r!: ReturnType<typeof docRenewalActions.submit>;
+    act(() => {
+      r = docRenewalActions.submit({ doc: "insurance", newExpiry: next, photos: [] });
+    });
+    expect(r.ok).toBe(false); // photo obligatoire
+    act(() => {
+      docRenewalActions.submit({ doc: "insurance", newExpiry: next, photos: [PHOTO] });
+    });
+    expect(vehicle.result.current.insuranceExpiry).toBe(before);
+    const pending = renderHook(() => useDocRenewals()).result.current.find(
+      (x) => x.status === "pending",
+    )!;
+    act(() => {
+      docRenewalActions.approve(pending.id, "Admin test");
+    });
+    expect(vehicle.result.current.insuranceExpiry).toBe(next);
   });
 });

@@ -2736,3 +2736,119 @@ onRefundPaid((r) => {
     });
   }
 });
+
+/* ------------------------------------------------------------------ */
+/* Renouvellement des documents du véhicule (assurance, contrôle        */
+/* technique) : le livreur envoie la nouvelle échéance et la photo, un  */
+/* admin valide — avant, un document expiré bloquait le livreur à vie. */
+/* ------------------------------------------------------------------ */
+
+export type DocRenewal = {
+  id: string;
+  driverId: string;
+  driverName: string;
+  doc: "insurance" | "inspection";
+  newExpiry: string;
+  photos: MissionProofPhoto[];
+  status: "pending" | "approved" | "rejected";
+  at: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  note?: string;
+};
+
+export const DOC_LABEL: Record<DocRenewal["doc"], string> = {
+  insurance: "Assurance",
+  inspection: "Contrôle technique",
+};
+
+const docRenewalsStore = createStore<DocRenewal[]>([], "diambar:driver-doc-renewals");
+
+export function useDocRenewals() {
+  return useSyncExternalStore(
+    docRenewalsStore.subscribe,
+    docRenewalsStore.get,
+    docRenewalsStore.get,
+  );
+}
+
+export const docRenewalActions = {
+  submit: (input: {
+    doc: DocRenewal["doc"];
+    newExpiry: string;
+    photos: MissionProofPhoto[];
+    driverId?: string;
+    driverName?: string;
+  }): TransitionCheck => {
+    if (input.photos.length === 0) return { ok: false, message: "Ajoutez la photo du document." };
+    if (new Date(input.newExpiry).getTime() <= Date.now()) {
+      return { ok: false, message: "La nouvelle date d'expiration doit être dans le futur." };
+    }
+    const driverId = input.driverId ?? "d1";
+    docRenewalsStore.set((arr) => [
+      {
+        id: `doc_${Date.now()}`,
+        driverId,
+        driverName: input.driverName ?? driverPool.find((d) => d.id === driverId)?.name ?? driverId,
+        doc: input.doc,
+        newExpiry: input.newExpiry,
+        photos: input.photos,
+        status: "pending",
+        at: new Date().toISOString(),
+      },
+      ...arr.filter(
+        (r) => !(r.driverId === driverId && r.doc === input.doc && r.status === "pending"),
+      ),
+    ]);
+    return { ok: true };
+  },
+  approve: (id: string, actor: string) => {
+    const r = docRenewalsStore.get().find((x) => x.id === id);
+    if (!r || r.status !== "pending") return;
+    docRenewalsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? { ...x, status: "approved", decidedAt: new Date().toISOString(), decidedBy: actor }
+          : x,
+      ),
+    );
+    if (r.driverId === "d1") {
+      vehicleActions.update(
+        r.doc === "insurance"
+          ? { insuranceExpiry: r.newExpiry }
+          : { inspectionExpiry: r.newExpiry },
+      );
+      driverNotifActions.add({
+        type: "system",
+        title: "Document validé",
+        body: `${DOC_LABEL[r.doc]} valable jusqu'au ${new Date(r.newExpiry).toLocaleDateString("fr-FR")}`,
+        link: "/driver/vehicle",
+      });
+    }
+  },
+  reject: (id: string, actor: string, note: string) => {
+    const r = docRenewalsStore.get().find((x) => x.id === id);
+    if (!r || r.status !== "pending") return;
+    docRenewalsStore.set((arr) =>
+      arr.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              status: "rejected",
+              decidedAt: new Date().toISOString(),
+              decidedBy: actor,
+              note,
+            }
+          : x,
+      ),
+    );
+    if (r.driverId === "d1") {
+      driverNotifActions.add({
+        type: "system",
+        title: "Document refusé",
+        body: `${DOC_LABEL[r.doc]} : ${note}`,
+        link: "/driver/vehicle",
+      });
+    }
+  },
+};
