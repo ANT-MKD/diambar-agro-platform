@@ -34,6 +34,7 @@ import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
+import { Route as AdminOperationsRouteImport } from './routes/admin.operations'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -302,6 +303,11 @@ const AdminMessagesRoute = AdminMessagesRouteImport.update({
 const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOperationsRoute = AdminOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -1090,6 +1096,7 @@ export interface FileRoutesByFullPath {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1261,6 +1268,7 @@ export interface FileRoutesByTo {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1423,6 +1431,7 @@ export interface FileRoutesById {
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1596,6 +1605,7 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1767,6 +1777,7 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1928,6 +1939,7 @@ export interface FileRouteTypes {
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -2275,6 +2287,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/operations': {
+      id: '/admin/operations'
+      path: '/operations'
+      fullPath: '/admin/operations'
+      preLoaderRoute: typeof AdminOperationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -3296,6 +3315,7 @@ interface AdminRouteChildren {
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
+  AdminOperationsRoute: typeof AdminOperationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
@@ -3331,6 +3351,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
+  AdminOperationsRoute: AdminOperationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,

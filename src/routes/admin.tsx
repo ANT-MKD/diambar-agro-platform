@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
+  Activity,
   FileCheck2,
   LayoutDashboard,
   Users,
@@ -97,6 +98,13 @@ function AdminLayout() {
       label: "PILOTAGE",
       items: [
         { to: "/admin/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard, badge: 0 },
+        {
+          to: "/admin/operations",
+          label: "Opérations du jour",
+          icon: Activity,
+          badge: 0,
+          permission: "deliveries.view",
+        },
         { to: "/admin/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
         {
           to: "/admin/validations",
