@@ -61,6 +61,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { telLink, whatsappLink } from "@/lib/contact";
 
 export const Route = createFileRoute("/driver/missions/$missionId")({
   head: () => ({ meta: [{ title: "Mission · Livreur Diambar" }] }),
@@ -783,12 +784,12 @@ function AddressCard({
         <Phone className="h-3.5 w-3.5" />
         {phone}
       </div>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <a
           href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+          className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
         >
           Google Maps
         </a>
@@ -796,10 +797,28 @@ function AddressCard({
           href={`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+          className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
         >
           Waze
         </a>
+        {phone && (
+          <>
+            <a
+              href={telLink(phone)}
+              className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
+            >
+              Appeler
+            </a>
+            <a
+              href={whatsappLink(phone, `Bonjour, je suis le livreur Diambar Agro pour ${title}.`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="grid place-items-center rounded-xl h-12 text-sm font-semibold text-white bg-[#25D366] hover:opacity-90 transition"
+            >
+              WhatsApp
+            </a>
+          </>
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import { restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { HandoverCode } from "@/components/common/handover-code";
+import { whatsappLink } from "@/lib/contact";
 
 export const Route = createFileRoute("/farmer/orders/$orderId")({
   head: () => ({ meta: [{ title: "Commande · Diambar Agro" }] }),
@@ -89,6 +90,17 @@ function OrderDetailPage() {
             <Button size="icon" variant="outline" asChild>
               <a href={`tel:${r.phone}`} aria-label={`Appeler ${r.name}`}>
                 <Phone className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
+          {r?.phone && (
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={whatsappLink(r.phone, `Bonjour, à propos de la commande ${order.reference}.`)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
               </a>
             </Button>
           )}

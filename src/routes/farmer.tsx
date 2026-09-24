@@ -40,7 +40,6 @@ const bottomNav = [
   { to: "/farmer/products", label: "Produits", icon: Package },
   { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag },
   { to: "/farmer/messages", label: "Messages", icon: MessageSquare },
-  { to: "/farmer/settings", label: "Plus", icon: Settings },
 ];
 
 function FarmerLayout() {
@@ -112,7 +111,7 @@ function FarmerLayout() {
                   >
                     <it.icon className="h-4 w-4" />
                     <span className="flex-1">{it.label}</span>
-                    {"badge" in it && it.badge && (
+                    {"badge" in it && !!it.badge && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground">
                         {it.badge}
                       </span>
@@ -160,10 +159,15 @@ function FarmerLayout() {
                       key={it.to}
                       to={it.to}
                       onClick={() => setOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-accent"
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium hover:bg-accent"
                     >
-                      <it.icon className="h-4 w-4" />
-                      {it.label}
+                      <it.icon className="h-5 w-5" />
+                      <span className="flex-1">{it.label}</span>
+                      {"badge" in it && !!it.badge && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground">
+                          {it.badge}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>
@@ -226,13 +230,23 @@ function FarmerLayout() {
               <Link
                 key={it.to}
                 to={it.to}
-                className={`flex flex-col items-center justify-center gap-0.5 text-[10px] ${active ? "text-primary" : "text-muted-foreground"}`}
+                className={`flex flex-col items-center justify-center gap-0.5 text-[11px] ${active ? "text-primary" : "text-muted-foreground"}`}
               >
-                <it.icon className="h-4 w-4" />
+                <it.icon className="h-5 w-5" />
                 {it.label}
               </Link>
             );
           })}
+          {/* « Plus » ouvre le menu complet : stock, revenus, retours,
+              litiges… n'étaient accessibles que par le menu hamburger. */}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 text-[11px] text-muted-foreground"
+          >
+            <Menu className="h-5 w-5" />
+            Plus
+          </button>
         </nav>
       </div>
     </div>

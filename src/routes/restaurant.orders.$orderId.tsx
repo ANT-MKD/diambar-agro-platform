@@ -52,6 +52,7 @@ import { isCancellable } from "@/lib/order-lifecycle";
 import { orderAmounts } from "@/lib/pricing";
 import { useState } from "react";
 import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
+import { whatsappLink } from "@/lib/contact";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -362,6 +363,20 @@ function OrderDetail() {
                   </a>
                 </Button>
               )}
+              {farmer?.phone && (
+                <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                  <a
+                    href={whatsappLink(
+                      farmer.phone,
+                      `Bonjour, à propos de la commande ${order.reference}.`,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    WhatsApp
+                  </a>
+                </Button>
+              )}
               {farmer && myRestaurant && (
                 <Button
                   variant="outline"
@@ -403,6 +418,20 @@ function OrderDetail() {
                     <a href={`tel:${driver.phone}`} aria-label={`Appeler ${driver.name}`}>
                       <Phone className="h-3.5 w-3.5" />
                       Contacter le livreur
+                    </a>
+                  </Button>
+                )}
+                {driver.phone && (
+                  <Button variant="outline" size="sm" className="w-full mt-2 gap-1" asChild>
+                    <a
+                      href={whatsappLink(
+                        driver.phone,
+                        `Bonjour, à propos de la livraison ${order.reference}.`,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      WhatsApp au livreur
                     </a>
                   </Button>
                 )}

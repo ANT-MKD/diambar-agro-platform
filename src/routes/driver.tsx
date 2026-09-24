@@ -166,7 +166,7 @@ function DriverLayout() {
                   >
                     <it.icon className="h-4 w-4" />
                     <span className="flex-1">{it.label}</span>
-                    {"badge" in it && it.badge && (
+                    {"badge" in it && !!it.badge && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground">
                         {it.badge}
                       </span>
