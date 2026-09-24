@@ -26,7 +26,6 @@ import {
   paymentPrefs as seedPaymentPrefs,
   teamMembers as seedTeamMembers,
   restaurantTeamMembers as seedRestaurantTeamMembers,
-  restaurantBudget as seedRestaurantBudget,
   productReviews as seedProductReviews,
   restaurantProfile as seedRestaurantProfile,
   farmers,
@@ -107,6 +106,7 @@ import {
 } from "@/lib/order-lifecycle";
 import { minOrderOf, productOrderability } from "@/lib/product-availability";
 import { newTrackingToken } from "@/lib/tracking-id";
+import { budgetActions, useBudget } from "./budget";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
 // Commandes conservées comme le reste : sans ça, un rechargement effaçait les
@@ -171,10 +171,6 @@ const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
 const restaurantTeamStore = createStore<RestaurantTeamMember[]>(
   seedRestaurantTeamMembers,
   "diambar:restaurant-team",
-);
-const restaurantBudgetStore = createStore<RestaurantBudget>(
-  seedRestaurantBudget,
-  "diambar:restaurant-budget",
 );
 const productReviewsStore = createStore<ProductReview[]>(
   seedProductReviews,
@@ -751,16 +747,15 @@ export const restaurantTeamActions = {
   remove: (id: string) => restaurantTeamStore.set((arr) => arr.filter((m) => m.id !== id)),
 };
 
-export function useRestaurantBudget() {
-  return useSyncExternalStore(
-    restaurantBudgetStore.subscribe,
-    restaurantBudgetStore.get,
-    restaurantBudgetStore.get,
-  );
+// Un seul budget restaurant (src/data/budget.ts) : le tableau de bord et la
+// page Budget écrivaient deux magasins sous la même clé, et modifier le
+// budget depuis le tableau de bord effaçait le seuil et les enveloppes.
+export function useRestaurantBudget(): RestaurantBudget {
+  return useBudget();
 }
 
 export const restaurantBudgetActions = {
-  setMonthly: (monthly: number) => restaurantBudgetStore.set({ monthly }),
+  setMonthly: (monthly: number) => budgetActions.setMonthly(monthly),
 };
 
 export function useAllProductReviews() {
@@ -2756,14 +2751,33 @@ export const recurringOrderActions = {
         if (r.status !== "active" || !r.nextRunAt) return r;
         let current = r;
         let guard = 0;
+        const now = Date.now();
+        // Une échéance manquée depuis plus de 24 h (application fermée) est
+        // sautée et notée, jamais rattrapée : on ne génère pas d'un coup des
+        // commandes pour des livraisons déjà passées.
         while (
           current.status === "active" &&
           current.nextRunAt &&
-          new Date(current.nextRunAt) <= new Date() &&
-          guard < 12
+          now - new Date(current.nextRunAt).getTime() > 24 * 3600_000 &&
+          guard < 60
+        ) {
+          const missedAt = current.nextRunAt;
+          const skipped = pushHistory(
+            current,
+            "skipped",
+            `Échéance du ${new Date(missedAt).toLocaleDateString("fr-FR")} manquée : non générée après coup.`,
+          );
+          const nextRun = computeNextOccurrence(skipped, new Date(missedAt));
+          current = { ...skipped, nextRunAt: nextRun ? nextRun.toISOString() : null };
+          guard++;
+        }
+        // Au plus une commande par passage.
+        if (
+          current.status === "active" &&
+          current.nextRunAt &&
+          new Date(current.nextRunAt).getTime() <= now
         ) {
           current = processOccurrence(current);
-          guard++;
         }
         return current;
       }),

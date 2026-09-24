@@ -71,6 +71,9 @@ function RestaurantLayout() {
   // que d'attendre une exécution qui ne se déclencherait jamais seule.
   useEffect(() => {
     recurringOrderActions.tick();
+    // Un onglet resté ouvert déclenche aussi les échéances (toutes les minutes).
+    const id = setInterval(() => recurringOrderActions.tick(), 60_000);
+    return () => clearInterval(id);
   }, []);
 
   const navSections = [

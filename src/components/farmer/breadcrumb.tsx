@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { ChevronRight, Home } from "lucide-react";
 
 const LABELS: Record<string, string> = {
@@ -46,6 +47,18 @@ const LABELS: Record<string, string> = {
 
 export function Breadcrumb() {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const router = useRouter();
+  // Chemins réellement routables (« /farmer/stock/$productId/history » →
+  // motif), pour ne pas faire de lien vers un segment intermédiaire qui
+  // n'existe pas (ex. /farmer/stock/p1 → « Page introuvable »).
+  const patterns = useMemo(
+    () =>
+      Object.keys(router.routesByPath).map(
+        (p) => new RegExp(`^${p.replace(/\/$/, "").replace(/\$[^/]+/g, "[^/]+")}/?$`),
+      ),
+    [router],
+  );
+  const exists = (to: string) => patterns.some((re) => re.test(to));
   const parts = path.split("/").filter(Boolean);
   return (
     <nav className="hidden md:flex items-center text-xs text-muted-foreground gap-1.5">
@@ -60,7 +73,7 @@ export function Breadcrumb() {
         return (
           <span key={to} className="flex items-center gap-1.5">
             <ChevronRight className="h-3 w-3 opacity-50" />
-            {isLast ? (
+            {isLast || !exists(to) ? (
               <span className="text-foreground font-medium">{label}</span>
             ) : (
               <Link to={to} className="hover:text-foreground">

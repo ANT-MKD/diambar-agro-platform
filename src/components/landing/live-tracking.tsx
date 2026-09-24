@@ -44,8 +44,8 @@ export function LiveTracking() {
                     } as CSSProperties & { offsetPath: string }
                   }
                 >
-                  <circle r="10" fill="white" />
-                  <circle r="14" fill="white" opacity="0.3" />
+                  <circle cx="0" cy="0" r="10" fill="white" />
+                  <circle cx="0" cy="0" r="14" fill="white" opacity="0.3" />
                 </motion.g>
               </svg>
               <div className="absolute top-4 left-4 glass-strong rounded-xl px-3 py-2 text-xs">
