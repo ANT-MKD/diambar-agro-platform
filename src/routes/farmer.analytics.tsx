@@ -165,7 +165,7 @@ function AnalyticsPage() {
         }
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           icon={Award}
           label="Top produit"
@@ -305,7 +305,7 @@ function AnalyticsPage() {
             Tous vos produits sont bien approvisionnés.
           </p>
         ) : (
-          <div className="grid md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {lowStockProducts.map((p) => (
               <div
                 key={p.id}

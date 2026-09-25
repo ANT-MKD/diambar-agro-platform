@@ -482,7 +482,7 @@ function AdminRefundDetail() {
           {proofs.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune preuve jointe au dossier source.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {proofs.map((p) => (
                 <div key={p.id} className="rounded-xl border border-border overflow-hidden">
                   {p.dataUrl && p.mime.startsWith("image/") ? (

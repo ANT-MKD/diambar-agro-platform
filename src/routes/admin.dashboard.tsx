@@ -228,7 +228,7 @@ function AdminDashboard() {
         subtitle="Centre de contrôle Diambar Agro — calculé en direct sur les données de la plateforme"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Volume d'affaires (livré)"
           value={formatFCFA(gmv)}

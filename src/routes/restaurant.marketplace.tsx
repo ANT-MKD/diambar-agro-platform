@@ -352,7 +352,7 @@ function Marketplace() {
               Aucun produit ne correspond aux filtres.
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {list.map((p) => (
                 <RestaurantProductCard key={p.id} product={p} />
               ))}

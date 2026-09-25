@@ -61,7 +61,7 @@ function AdminDisputes() {
         subtitle={`${stats.open} dossier(s) en cours · ${stats.overdue} hors délai SLA`}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { l: "Dossiers en cours", v: String(stats.open) },
           {

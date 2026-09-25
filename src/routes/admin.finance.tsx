@@ -368,7 +368,7 @@ function AdminFinance() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Encaissements"
           value={formatFCFA(encaissements)}
@@ -395,7 +395,7 @@ function AdminFinance() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Versements effectués" value={formatFCFA(payoutsPaid)} icon={Wallet} />
         <StatCard
           label="Versements en attente"
@@ -448,7 +448,7 @@ function AdminFinance() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-border p-3">
             <div className="text-[11px] text-muted-foreground">Total sur la période</div>
             <div className="mt-0.5 font-display text-lg font-bold">{formatFCFA(chartTotal)}</div>

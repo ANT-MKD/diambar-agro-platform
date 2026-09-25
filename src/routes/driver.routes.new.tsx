@@ -239,7 +239,7 @@ function NewTour() {
         {step === 4 && (
           <div className="space-y-4">
             <h3 className="font-display font-bold">Détails de la tournée</h3>
-            <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="rounded-xl bg-muted/40 p-3">
                 <div className="flex items-center gap-1.5 text-[10px] uppercase text-muted-foreground">
                   <MapPin className="h-3 w-3" />

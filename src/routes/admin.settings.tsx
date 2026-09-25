@@ -130,7 +130,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Plateforme"
           value={maintenance.active ? "En maintenance" : "Opérationnelle"}

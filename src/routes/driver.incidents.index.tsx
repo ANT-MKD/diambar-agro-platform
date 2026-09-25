@@ -217,7 +217,7 @@ function IncidentsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="glass rounded-2xl p-4">
           <div className="text-xs text-muted-foreground">Incidents ouverts</div>
           <div className="mt-1 text-2xl font-bold">{openCount}</div>

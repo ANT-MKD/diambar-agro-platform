@@ -13,6 +13,8 @@ import {
   Coins,
   LayoutGrid,
   List,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -140,7 +142,7 @@ function ProductsPage() {
         }
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard icon={Package} label="Total produits" value={String(items.length)} tone="blue" />
         <KpiCard
           icon={Warehouse}
@@ -230,7 +232,7 @@ function ProductsPage() {
               }
             />
           ) : view === "grid" ? (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map((p) => {
                 const pct = Math.min(
                   100,
@@ -244,7 +246,7 @@ function ProductsPage() {
                     <Link
                       to="/farmer/products/$productId"
                       params={{ productId: p.id }}
-                      className="relative aspect-[4/3] bg-muted overflow-hidden block"
+                      className="relative aspect-square sm:aspect-[4/3] bg-muted overflow-hidden block"
                     >
                       <img
                         src={p.image}
@@ -254,20 +256,26 @@ function ProductsPage() {
                       <div className="absolute top-2 left-2">
                         <StockStatusBadge status={p.status} />
                       </div>
-                      <div className="absolute bottom-2 left-2 text-[10px] font-mono bg-black/60 text-white backdrop-blur px-1.5 py-0.5 rounded">
+                      <div className="hidden sm:block absolute bottom-2 left-2 text-[10px] font-mono bg-black/60 text-white backdrop-blur px-1.5 py-0.5 rounded">
                         {p.sku}
                       </div>
                     </Link>
-                    <div className="p-4 flex-1 flex flex-col">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold leading-tight">{p.name}</h3>
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-2">
+                        <div className="min-w-0">
+                          <Link
+                            to="/farmer/products/$productId"
+                            params={{ productId: p.id }}
+                            className="font-semibold text-sm sm:text-base leading-tight line-clamp-2 hover:text-primary"
+                          >
+                            {p.name}
+                          </Link>
                           <div className="text-[11px] text-muted-foreground mt-0.5">
                             {p.category}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-display text-lg font-bold text-primary">
+                        <div className="sm:text-right flex sm:block items-baseline gap-1">
+                          <div className="font-display text-base sm:text-lg font-bold text-primary">
                             {formatFCFA(p.pricePerKg)}
                           </div>
                           <div className="text-[10px] text-muted-foreground">/ {p.unit}</div>
@@ -287,10 +295,50 @@ function ProductsPage() {
                           />
                         </div>
                       </div>
-                      <div className="mt-3 text-[11px] text-muted-foreground">
+                      <div className="mt-2 sm:mt-3 text-[11px] text-muted-foreground">
                         {p.ordersThisMonth} commandes ce mois
                       </div>
-                      <div className="mt-3 pt-3 border-t border-border grid grid-cols-3 gap-1.5">
+                      {/* Téléphone : 3 boutons icônes (la fiche s'ouvre en touchant la photo ou le nom). */}
+                      <div className="mt-auto pt-3 grid grid-cols-3 gap-1.5 sm:hidden">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="h-10 px-0"
+                          aria-label={`Éditer ${p.name}`}
+                        >
+                          <Link to="/farmer/products/$productId/edit" params={{ productId: p.id }}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 px-0"
+                          aria-label={
+                            p.paused
+                              ? `Remettre ${p.name} en vente`
+                              : `Mettre ${p.name} hors saison`
+                          }
+                          onClick={() => togglePause(p)}
+                        >
+                          {p.paused ? (
+                            <PlayCircle className="h-4 w-4" />
+                          ) : (
+                            <PauseCircle className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 px-0 text-rose-500 hover:text-rose-600"
+                          aria-label={`Supprimer ${p.name}`}
+                          onClick={() => setToDelete(p)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-border hidden sm:grid grid-cols-3 gap-1.5">
                         <Button asChild size="sm" variant="outline" className="h-8 gap-1 text-xs">
                           <Link to="/farmer/products/$productId" params={{ productId: p.id }}>
                             <Eye className="h-3.5 w-3.5" />

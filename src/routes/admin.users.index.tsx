@@ -152,7 +152,7 @@ function AdminUsers() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Tous les utilisateurs" value={String(users.length)} icon={Users} />
         <StatCard label="Actifs" value={String(active)} icon={UserCheck} />
         <StatCard label="En attente" value={String(pending)} icon={UserCog} />

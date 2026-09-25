@@ -57,7 +57,7 @@ function AdminAdmins() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
         <StatCard label="Administrateurs" value={String(admins.length)} icon={ShieldCheck} />
         <StatCard
           label="Super administrateurs"

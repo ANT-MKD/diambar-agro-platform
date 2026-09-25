@@ -197,7 +197,7 @@ function Dashboard() {
         items={farmerCompletionItems(farmerProfile, farmerFarm, paymentPrefs, security.twoFa)}
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             icon: TrendingUp,
@@ -237,15 +237,15 @@ function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="glass rounded-2xl p-5 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
-                <Package className="h-5 w-5" />
+          <div className="glass rounded-2xl p-4 sm:p-5 flex flex-col h-full min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <ProgressCircle value={active} max={products.length} color="oklch(0.65 0.2 260)" />
             </div>
-            <div className="mt-4 flex items-baseline gap-1.5">
-              <span className="font-display text-2xl font-bold">{active}</span>
+            <div className="mt-3 sm:mt-4 flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-display text-lg sm:text-2xl font-bold">{active}</span>
               <span className="text-xs text-muted-foreground">/ {products.length} publiés</span>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">
@@ -391,7 +391,7 @@ function Dashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass rounded-2xl p-6">
           <h3 className="font-semibold mb-4">Produits populaires</h3>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[...products]
               .sort((a, b) => b.ordersThisMonth - a.ordersThisMonth)
               .slice(0, 3)

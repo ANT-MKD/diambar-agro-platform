@@ -165,7 +165,7 @@ function AdminIncidents() {
         subtitle={`${pending.length} incident(s) en attente · ${escalated.length} escaladé(s) au support`}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard label="À traiter" value={String(pending.length)} icon={TriangleAlert} />
         <StatCard
           label="Urgents"

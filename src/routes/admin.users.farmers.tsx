@@ -53,7 +53,7 @@ function AdminFarmers() {
         subtitle="Producteurs inscrits sur la plateforme, leurs produits et leurs ventes"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Agriculteurs" value={String(users.length)} icon={Sprout} />
         <StatCard label="Vérifiés" value={String(verifiedCount)} icon={ShieldCheck} />
         <StatCard label="Produits actifs" value={String(totalActiveProducts)} icon={Package} />

@@ -162,7 +162,7 @@ function RecurringDashboard() {
         }
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: "Actives", value: kpis.active, icon: Repeat, tone: "text-emerald-500" },
           { label: "À venir", value: kpis.upcoming, icon: Calendar, tone: "text-blue-500" },

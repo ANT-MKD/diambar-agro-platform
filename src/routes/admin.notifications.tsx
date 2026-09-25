@@ -140,7 +140,7 @@ function AdminNotifications() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total" value={String(notifications.length)} icon={Bell} />
         <StatCard label="Non lues" value={String(unreadIds.length)} icon={Bell} />
         <StatCard

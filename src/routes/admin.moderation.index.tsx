@@ -59,7 +59,7 @@ function AdminModeration() {
         subtitle="Vérifiez les produits et signalements de la plateforme"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Signalements" value={String(totalReports)} icon={Flag} />
         <StatCard label="À traiter" value={String(pending.length)} icon={ClipboardList} />
         <StatCard label="Urgents" value={String(urgent.length)} icon={TriangleAlert} />

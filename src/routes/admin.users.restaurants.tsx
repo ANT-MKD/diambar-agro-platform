@@ -46,7 +46,7 @@ function AdminRestaurants() {
     <div className="space-y-6">
       <PageHeader title="Restaurants" subtitle="Établissements qui achètent sur la plateforme" />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard label="Restaurants" value={String(users.length)} icon={Utensils} />
         <StatCard label="Commandes cumulées" value={String(totalOrders)} icon={ShoppingBag} />
         <StatCard label="Dépenses cumulées" value={formatFCFA(totalSpent)} icon={Wallet} />

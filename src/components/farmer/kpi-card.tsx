@@ -21,15 +21,23 @@ export function KpiCard({
     rose: "bg-rose-500/10 text-rose-500",
   };
   return (
-    <div className="glass rounded-2xl p-5">
-      <div className="flex items-center justify-between">
-        <div className={`grid h-10 w-10 place-items-center rounded-xl ${toneClass[tone]}`}>
-          <Icon className="h-5 w-5" />
+    <div className="glass rounded-2xl p-4 sm:p-5 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div
+          className={`grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl ${toneClass[tone]}`}
+        >
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
-        {change && <span className="text-xs text-emerald-500 font-semibold">{change}</span>}
+        {change && (
+          <span className="text-[11px] sm:text-xs text-emerald-500 font-semibold text-right truncate">
+            {change}
+          </span>
+        )}
       </div>
-      <div className="mt-4 font-display text-2xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground mt-1">{label}</div>
+      <div className="mt-3 sm:mt-4 font-display text-lg sm:text-2xl font-bold leading-tight break-words">
+        {value}
+      </div>
+      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{label}</div>
     </div>
   );
 }

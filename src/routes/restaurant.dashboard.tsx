@@ -278,7 +278,7 @@ function Dashboard() {
             <Sparkles className="h-4 w-4 text-amber-500" />
             <h2 className="font-display text-base font-bold">À traiter</h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {actionItems.map((a) => (
               <Link
                 key={a.label}
@@ -306,7 +306,7 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <BentoKpi
             icon={ShoppingBag}
@@ -592,7 +592,7 @@ function Dashboard() {
           {lowStockProducts.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune alerte pour le moment.</p>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
               {lowStockProducts.map((p) => {
                 const f = farmers.find((x) => x.id === p.farmerId);
                 return (

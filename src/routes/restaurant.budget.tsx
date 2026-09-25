@@ -410,7 +410,7 @@ function BudgetPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Budget mensuel" value={formatFCFA(budget.monthly)} icon={PiggyBank} />
         <KpiCard label="Déjà dépensé" value={formatFCFA(spent)} icon={Wallet} />
         <KpiCard

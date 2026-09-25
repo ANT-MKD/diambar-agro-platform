@@ -284,7 +284,7 @@ function AdminUserDetail() {
           {(farmer || restaurant || driver) && (
             <div className="glass rounded-2xl p-5">
               <h2 className="font-semibold">Activité opérationnelle</h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {farmer && (
                   <>
                     <MiniStat label="Produits actifs" value={String(activeProducts)} />

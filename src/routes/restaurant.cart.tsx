@@ -128,7 +128,7 @@ function CartPage() {
           {suggestions.length > 0 && (
             <div className="space-y-3">
               <h3 className="font-display text-base font-bold">Vous pourriez aussi aimer</h3>
-              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {suggestions.map((p) => (
                   <RestaurantProductCard key={p.id} product={p} />
                 ))}

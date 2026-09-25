@@ -338,7 +338,7 @@ function DriverVehiclePage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard icon={Shield} label="État du véhicule" value={GLOBAL_STATUS.label} />
         <KpiCard icon={CheckCircle2} label="Documents" value={`${validDocsCount} / 4 validés`} />
         <KpiCard
@@ -395,7 +395,7 @@ function DriverVehiclePage() {
                   {v.plate}
                 </span>
               </div>
-              <div className="mt-5 grid sm:grid-cols-3 gap-3">
+              <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <Stat icon={Weight} label="Capacité" value={`${v.capacityKg} kg`} />
                 <Stat icon={Car} label="Type" value={v.type} />
                 <Stat
@@ -632,7 +632,7 @@ function DriverVehiclePage() {
               <TrendingUp className="h-5 w-5 text-primary" />
               Utilisation du véhicule
             </h3>
-            <div className="mt-4 grid sm:grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Stat
                 icon={Truck}
                 label="Missions réalisées"

@@ -212,7 +212,7 @@ function RevenuePage() {
         />
         <div className="lg:col-span-2 glass rounded-2xl p-5">
           <div className="text-sm font-semibold mb-3">Comptes mobile money</div>
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {wallets.map((w) => (
               <div
                 key={w.id}
@@ -231,7 +231,7 @@ function RevenuePage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard icon={TrendingUp} label="CA période" value={formatFCFA(total)} tone="emerald" />
         <KpiCard icon={Wallet} label="CA total" value={formatFCFA(totalAllTime)} tone="blue" />
         <KpiCard

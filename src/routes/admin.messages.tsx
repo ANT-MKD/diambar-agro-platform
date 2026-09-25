@@ -319,7 +319,7 @@ function AdminMessages() {
         subtitle="Supervisez les conversations et intervenez lorsqu'une situation nécessite l'aide de Diambar Agro"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Conversations" value={String(threads.length)} icon={MessageSquare} />
         <StatCard
           label="Non lues"

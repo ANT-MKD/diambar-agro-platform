@@ -381,7 +381,7 @@ function AdminReturnDetail() {
           {r.photos && r.photos.length > 0 && (
             <div className="glass rounded-2xl p-5">
               <h3 className="font-semibold mb-3">Preuves du client ({r.photos.length})</h3>
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {r.photos.map((p) =>
                   p.dataUrl ? (
                     <a

@@ -123,7 +123,7 @@ function IncidentDetail() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatPill icon={Truck} label="Mission" value={incident.missionRef} />
         <StatPill icon={TriangleAlert} label="Type" value={INCIDENT_TYPE_LABEL[incident.type]} />
         <StatPill
@@ -157,7 +157,7 @@ function IncidentDetail() {
           {incident.photos && incident.photos.length > 0 && (
             <div className="glass rounded-2xl p-5 space-y-3">
               <h3 className="font-display font-bold">Preuves jointes ({incident.photos.length})</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {incident.photos.map((p) => (
                   <div key={p.id} className="rounded-xl border border-border overflow-hidden">
                     {p.dataUrl && p.mime.startsWith("image/") ? (

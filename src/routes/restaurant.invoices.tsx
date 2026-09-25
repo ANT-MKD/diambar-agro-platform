@@ -123,7 +123,7 @@ function InvoicesLayout() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div className="glass rounded-2xl p-4">
           <div className="text-xs text-muted-foreground">Total facturé</div>
           <div className="text-2xl font-bold text-primary">{formatFCFA(totalInvoiced)}</div>

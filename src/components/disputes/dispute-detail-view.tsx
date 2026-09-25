@@ -206,6 +206,7 @@ export function DisputeDetailView({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-auto min-h-9 whitespace-normal py-2"
                   onClick={() => {
                     disputeActions.setStatus(d.id, "investigating", name);
                     toast.success("Dossier en instruction");
@@ -216,6 +217,7 @@ export function DisputeDetailView({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-auto min-h-9 whitespace-normal py-2"
                   onClick={() => {
                     disputeActions.setStatus(
                       d.id,

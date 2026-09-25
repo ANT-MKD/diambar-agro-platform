@@ -50,7 +50,7 @@ function AdminDrivers() {
     <div className="space-y-6">
       <PageHeader title="Livreurs" subtitle="Roster des livreurs et leur activité de livraison" />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard label="Livreurs" value={String(users.length)} icon={Truck} />
         <StatCard label="Livraisons réussies" value={String(totalDelivered)} icon={PackageCheck} />
         <StatCard label="Note moyenne" value={String(avgRating)} icon={Star} />
