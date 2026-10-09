@@ -4,13 +4,14 @@ import { MessageCircle, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-card/40">
+    <footer className="border-t border-border">
       <div className="mx-auto max-w-7xl px-4 py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <Logo showTag />
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-              Logistique alimentaire moderne au Sénégal. Made with ❤️ in Dakar.
+              Produits frais des producteurs sénégalais, livrés aux restaurants le lendemain. Pilote
+              en cours à Dakar.
             </p>
             <div className="mt-5 flex gap-2">
               {/* Seul canal réel affiché : le numéro déjà indiqué dans la

@@ -40,6 +40,9 @@ export type PendingRegistration = {
   password: string;
   details?: RegisterDetails;
   acceptedTermsAt: string;
+  /** Invitation utilisée pour s'inscrire (accès sur demande). */
+  inviteJti?: string;
+  inviteRequestId?: string;
   id: string;
   code: string;
   expiresAt: number;

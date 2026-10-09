@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -96,7 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Plateforme N°1 d'approvisionnement agricole au Sénégal. Connectez agriculteurs, restaurants et livreurs en un seul écosystème.",
+          "Produits frais des producteurs sénégalais, livrés le lendemain aux restaurants. Pilote à Dakar, accès sur demande.",
       },
       { name: "theme-color", content: "#059669" },
       { property: "og:title", content: "Diambar Agro — Du Champ à Votre Cuisine" },
@@ -143,15 +144,24 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Espaces connectés : le thème choisi par l'utilisateur s'applique. Partout
+// ailleurs (site public, connexion, inscription), le thème clair est imposé.
+const PORTAL_PREFIXES = ["/farmer", "/restaurant", "/driver", "/admin"];
+
+function isPublicPath(pathname: string): boolean {
+  return !PORTAL_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <QueryClientProvider client={queryClient}>
       {/* Respecte "réduire les animations" du système : neutralise les
           animations non essentielles de framer-motion pour les visiteurs
           qui l'ont activé, sans avoir à auditer chaque motion.div. */}
       <MotionConfig reducedMotion="user">
-        <ThemeProvider>
+        <ThemeProvider forcedTheme={isPublicPath(pathname) ? "light" : undefined}>
           <ImpersonationBanner />
           <Outlet />
           <Toaster richColors position="top-right" />

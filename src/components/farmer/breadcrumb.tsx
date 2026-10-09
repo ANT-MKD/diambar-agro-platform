@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { ChevronRight, Home } from "lucide-react";
 
 const LABELS: Record<string, string> = {
+  "access-requests": "Demandes d'accès",
   farmer: "Espace",
   restaurant: "Espace",
   dashboard: "Tableau de bord",

@@ -34,11 +34,12 @@ export const Route = createFileRoute("/for-drivers")({
       title="Roulez quand vous voulez, payé le jour même"
       subtitle="Acceptez les missions qui vous arrangent, suivez votre itinéraire optimisé et encaissez chaque soir."
       image="https://images.unsplash.com/photo-1601758174039-4ed7a4d2c0bd?w=1200"
-      cta="Devenir livreur"
+      cta="Demander l'accès"
+      role="driver"
       stats={[
-        { value: "80 %", label: "de la course" },
-        { value: "J+0", label: "paiement" },
-        { value: "0 F", label: "commission fixe" },
+        { value: "80\u00a0%", label: "de chaque course pour vous" },
+        { value: "10\u00a0min", label: "d'attente gratuite, puis payée" },
+        { value: "0\u00a0F", label: "frais d'inscription" },
       ]}
       benefits={[
         {

@@ -35,11 +35,12 @@ export const Route = createFileRoute("/for-restaurants")({
       title="Un approvisionnement enfin prévisible"
       subtitle="Comparez les producteurs, programmez vos livraisons récurrentes et suivez chaque commande en temps réel."
       image="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200"
-      cta="Essayer 30 jours"
+      cta="Demander l'accès"
+      role="restaurant"
       stats={[
-        { value: "−22 %", label: "de coût matière" },
-        { value: "94 %", label: "de ponctualité" },
-        { value: "7j/7", label: "support prioritaire" },
+        { value: "J+1", label: "livraison si commande avant 18\u00a0h" },
+        { value: "48\u00a0h", label: "pour signaler un produit abîmé" },
+        { value: "0\u00a0F", label: "d'abonnement" },
       ]}
       benefits={[
         {

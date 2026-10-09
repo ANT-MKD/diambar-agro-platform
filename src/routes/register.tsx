@@ -1,6 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useState } from "react";
-import { Sprout, UtensilsCrossed, Truck, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  Sprout,
+  UtensilsCrossed,
+  Truck,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  MailCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
@@ -20,14 +28,25 @@ import {
   registerDetailsProblem,
 } from "@/lib/auth/helpers";
 import { DemoNotice } from "@/components/auth/demo-notice";
+import { validateInviteFn, type InviteCheck } from "@/lib/access/functions";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
   // Seuls les trois profils publics sont acceptés dans l'adresse (?role=).
-  validateSearch: (s: Record<string, unknown>): { role?: Role } => ({
+  validateSearch: (s: Record<string, unknown>): { role?: Role; invite?: string } => ({
     role: PUBLIC_ROLES.includes(s.role as Role) ? (s.role as Role) : undefined,
+    invite: typeof s.invite === "string" && s.invite ? s.invite : undefined,
   }),
-  loader: () => getAuthConfigFn(),
+  loaderDeps: ({ search }) => ({ invite: search.invite }),
+  loader: async ({ deps }) => {
+    const [config, invite] = await Promise.all([
+      getAuthConfigFn(),
+      deps.invite
+        ? validateInviteFn({ data: { token: deps.invite } })
+        : Promise.resolve<InviteCheck>({ valid: false, reason: "missing" }),
+    ]);
+    return { config, invite };
+  },
   head: () => ({ meta: [{ title: "Inscription · Diambar Agro" }] }),
   component: RegisterPage,
 });
@@ -48,16 +67,21 @@ type RegisterForm = {
 };
 
 function RegisterPage() {
-  const { role: initialRole } = Route.useSearch();
-  const config = Route.useLoaderData();
+  const { role: searchRole, invite: inviteToken } = Route.useSearch();
+  const { config, invite } = Route.useLoaderData();
   const navigate = useNavigate();
+  // Avec une invitation, le profil est celui de la demande d'accès acceptée.
+  const initialRole = invite.valid ? invite.role : searchRole;
+  const [firstName0, ...rest0] = invite.valid ? invite.fullName.split(" ") : [""];
+  const [demoBypass, setDemoBypass] = useState(false);
+  const gated = config.registrationMode === "invitation" && !invite.valid && !demoBypass;
   const [step, setStep] = useState(initialRole ? 2 : 1);
   const [role, setRole] = useState<Role | "">(initialRole ?? "");
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
+    firstName: firstName0 ?? "",
+    lastName: rest0.join(" "),
     email: "",
-    phone: "",
+    phone: invite.valid ? formatSenegalPhone(invite.phone) : "",
     password: "",
     confirm: "",
     city: "Dakar",
@@ -130,6 +154,8 @@ function RegisterPage() {
           city: form.city,
           acceptTerms: form.acceptTerms as true,
           details,
+          invite: invite.valid ? inviteToken : undefined,
+          demoBypass: demoBypass || undefined,
         },
       });
       if (!res.ok) {
@@ -193,10 +219,72 @@ function RegisterPage() {
     }
   };
 
+  if (gated) {
+    const reason = invite.valid ? null : invite.reason;
+    return (
+      <AuthSplitLayout>
+        <div>
+          {config.demoMode && <DemoNotice />}
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+            <MailCheck className="h-7 w-7" aria-hidden />
+          </div>
+          <h1 className="display-xl mt-6 text-4xl sm:text-5xl">
+            {reason === "expired"
+              ? "Cette invitation a expiré."
+              : reason === "used"
+                ? "Invitation déjà utilisée."
+                : "Inscription sur invitation."}
+          </h1>
+          <p className="mt-4 text-muted-foreground">
+            {reason === "expired"
+              ? "Les liens d'invitation sont valables 7 jours. Contactez-nous pour en recevoir un nouveau."
+              : reason === "used"
+                ? "Ce lien a déjà servi à créer un compte. Si c'est le vôtre, connectez-vous."
+                : "Pendant le pilote, nous ouvrons Diambar Agro zone par zone. Demandez l'accès : après un court appel, vous recevrez votre lien personnel pour créer votre compte."}
+          </p>
+          <div className="mt-8 flex flex-col gap-3">
+            <Link
+              to="/demande-acces"
+              search={searchRole ? { role: searchRole } : {}}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 py-3.5 font-semibold text-white hover:bg-neutral-800"
+            >
+              Demander l'accès <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center rounded-full border border-border py-3.5 font-semibold hover:bg-black/5"
+            >
+              J'ai déjà un compte
+            </Link>
+            {config.demoMode && (
+              <button
+                type="button"
+                onClick={() => setDemoBypass(true)}
+                className="mt-2 text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                Mode démonstration : continuer sans invitation
+              </button>
+            )}
+          </div>
+        </div>
+      </AuthSplitLayout>
+    );
+  }
+
   return (
     <AuthSplitLayout>
       <div>
         {config.demoMode && <DemoNotice />}
+        {invite.valid && (
+          <div className="mb-6 rounded-2xl border border-emerald-700/20 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            Invitation pour <b>{invite.fullName}</b> · profil{" "}
+            {invite.role === "farmer"
+              ? "producteur"
+              : invite.role === "driver"
+                ? "livreur"
+                : "restaurant"}
+          </div>
+        )}
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
         {step === 2 && <Step2 form={form} setForm={setForm} onNext={submitStep2} onBack={back} />}
@@ -220,7 +308,7 @@ function RegisterPage() {
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Retour
             </button>
-            <h1 className="font-display text-2xl font-bold">Vérifiez votre numéro</h1>
+            <h1 className="display-xl text-4xl">Vérifiez votre numéro</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Code envoyé au{" "}
               <span className="font-medium text-foreground">
@@ -234,7 +322,7 @@ function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
+              className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
               Vérifier et créer mon compte
@@ -317,7 +405,7 @@ function Step1({
   ];
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold">Bienvenue sur Diambar Agro</h1>
+      <h1 className="display-xl text-4xl">Bienvenue sur Diambar Agro</h1>
       <p className="mt-1 text-sm text-muted-foreground">Quel est votre profil ?</p>
       <div className="mt-6 grid grid-cols-2 gap-3">
         {roles.map((r) => (
@@ -327,7 +415,7 @@ function Step1({
       <button
         disabled={!role}
         onClick={onNext}
-        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-40"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-40"
       >
         Continuer <ArrowRight className="h-4 w-4" />
       </button>
@@ -361,7 +449,7 @@ function Step2({
         <ArrowLeft className="h-3.5 w-3.5" />
         Retour
       </button>
-      <h1 className="font-display text-2xl font-bold">Informations personnelles</h1>
+      <h1 className="display-xl text-4xl">Informations personnelles</h1>
       <div className="mt-6 grid grid-cols-2 gap-3">
         <Input
           label="Prénom"
@@ -390,7 +478,10 @@ function Step2({
           Téléphone
         </label>
         <div className="mt-1.5 flex gap-2">
-          <span className="glass rounded-xl px-3 py-3 text-sm font-medium" aria-hidden>
+          <span
+            className="rounded-2xl border border-border bg-white px-3 py-3 text-sm font-medium"
+            aria-hidden
+          >
             🇸🇳 +221
           </span>
           <input
@@ -402,7 +493,7 @@ function Step2({
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
             placeholder="77 123 45 67"
-            className="flex-1 glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 rounded-2xl border border-border bg-white px-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
           />
         </div>
         <p id={`${phoneId}-hint`} className="mt-1 text-[11px] text-muted-foreground">
@@ -436,7 +527,7 @@ function Step2({
           id={cityId}
           value={form.city}
           onChange={(e) => set("city", e.target.value)}
-          className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="mt-1.5 w-full rounded-2xl border border-border bg-white px-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
         >
           {cities.map((c) => (
             <option key={c} value={c}>
@@ -476,7 +567,7 @@ function Step2({
       </label>
       <button
         type="submit"
-        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
       >
         Continuer <ArrowRight className="h-4 w-4" />
       </button>
@@ -519,7 +610,7 @@ function Step3({
         <ArrowLeft className="h-3.5 w-3.5" />
         Retour
       </button>
-      <h1 className="font-display text-2xl font-bold">Informations spécifiques</h1>
+      <h1 className="display-xl text-4xl">Informations spécifiques</h1>
       <p className="mt-1 text-sm text-muted-foreground">Quelques détails sur votre activité</p>
       <div className="mt-6 space-y-3">
         {role === "farmer" && (
@@ -545,7 +636,7 @@ function Step3({
               {["Légumes", "Fruits", "Céréales", "Volaille", "Tubercules", "Épices"].map((t) => (
                 <label
                   key={t}
-                  className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer hover:bg-accent"
+                  className="rounded-2xl border border-border bg-white px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer hover:bg-accent"
                 >
                   <input
                     type="checkbox"
@@ -593,7 +684,7 @@ function Step3({
                 id={vehicleId}
                 value={details.vehicleType ?? "Moto"}
                 onChange={(e) => set("vehicleType", e.target.value)}
-                className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm"
+                className="mt-1.5 w-full rounded-2xl border border-border bg-white px-3 py-3 text-sm"
               >
                 <option>Moto</option>
                 <option>Vélo</option>
@@ -615,7 +706,7 @@ function Step3({
               {cities.map((z) => (
                 <label
                   key={z}
-                  className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer"
+                  className="rounded-2xl border border-border bg-white px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer"
                 >
                   <input
                     type="checkbox"
@@ -633,7 +724,7 @@ function Step3({
       <button
         disabled={loading}
         onClick={onNext}
-        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-50"
       >
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         Continuer <ArrowRight className="h-4 w-4" />
@@ -667,7 +758,7 @@ function Input({
         autoComplete={autoComplete}
         value={value || ""}
         onChange={(e) => onChange?.(e.target.value)}
-        className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        className="mt-1.5 w-full rounded-2xl border border-border bg-white px-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
       />
     </div>
   );

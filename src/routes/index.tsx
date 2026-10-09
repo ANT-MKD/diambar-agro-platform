@@ -1,23 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Navbar } from "@/components/landing/navbar";
-import { Hero } from "@/components/landing/hero";
-import { LogosBar } from "@/components/landing/logos-bar";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { Features } from "@/components/landing/features";
-import { Ecosystem } from "@/components/landing/ecosystem";
-import { LiveTracking } from "@/components/landing/live-tracking";
-import { Faq } from "@/components/landing/faq";
-import { FinalCta } from "@/components/landing/final-cta";
 import { Footer } from "@/components/landing/footer";
+import {
+  AudiencesSection,
+  GuaranteesSection,
+  HomeFaq,
+  HomeFinalCta,
+  HomeHero,
+  HowSection,
+  HumanSection,
+  ResultSection,
+} from "@/components/landing/home";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Diambar Agro — Du Champ à Votre Cuisine" },
+      { title: "Diambar Agro — Produits frais livrés le lendemain aux restaurants" },
       {
         name: "description",
         content:
-          "Plateforme N°1 d'approvisionnement agricole au Sénégal. Connectez agriculteurs, restaurants et livreurs.",
+          "Commandez avant 18 h directement aux producteurs sénégalais. Livraison le lendemain, remise par code et 48 h pour vérifier. Pilote à Dakar, accès sur demande.",
       },
     ],
   }),
@@ -26,17 +28,17 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="public-surface min-h-screen">
       <Navbar />
       <main>
-        <Hero />
-        <LogosBar />
-        <HowItWorks />
-        <Features />
-        <Ecosystem />
-        <LiveTracking />
-        <Faq />
-        <FinalCta />
+        <HomeHero />
+        <ResultSection />
+        <HowSection />
+        <GuaranteesSection />
+        <HumanSection />
+        <AudiencesSection />
+        <HomeFaq />
+        <HomeFinalCta />
       </main>
       <Footer />
     </div>

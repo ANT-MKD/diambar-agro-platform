@@ -25,9 +25,8 @@ export const pricingPlans: PricingPlan[] = [
       "Gestion du stock et alertes",
       "Retrait vers Wave, OM ou Free (traité sous 24 h ouvrées)",
       "Analytics de ventes",
-      "Support WhatsApp 6j/7",
     ],
-    cta: "Créer ma ferme",
+    cta: "Demander l'accès",
   },
   {
     id: "resto",
@@ -44,7 +43,7 @@ export const pricingPlans: PricingPlan[] = [
       "Multi-utilisateurs (équipe)",
     ],
     highlighted: true,
-    cta: "Créer mon compte",
+    cta: "Demander l'accès",
   },
   {
     id: "driver",
@@ -61,7 +60,7 @@ export const pricingPlans: PricingPlan[] = [
       "Retrait vers Wave, OM ou Free",
       "Tournées optimisées",
     ],
-    cta: "Devenir livreur",
+    cta: "Demander l'accès",
   },
 ];
 
@@ -150,7 +149,7 @@ export const blogPosts: BlogPost[] = [
     cover: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1200",
     body: [
       "Entre 7h et 9h, la corniche ajoute 25 minutes à un trajet Pikine – Plateau. Une livraison alimentaire se joue à ce niveau de détail.",
-      "Nous avons observé que les créneaux de 6h à 8h offrent un taux de ponctualité de 94 %, contre 71 % en milieu de matinée.",
+      "Les créneaux tôt le matin, de 6 h à 8 h, évitent en général les embouteillages du milieu de matinée.",
       "Le regroupement de missions par corridor (Thiès → Dakar) réduit le coût par commande de 30 % et augmente la rémunération horaire du livreur.",
       "La preuve de livraison photo a fait chuter les litiges de colis manquant de 62 %.",
       "La leçon principale : la logistique alimentaire n'est pas un problème de vitesse, c'est un problème de prévisibilité.",

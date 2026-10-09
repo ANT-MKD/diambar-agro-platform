@@ -63,7 +63,7 @@ export function OtpInput({
           onKeyDown={(e) => {
             if (e.key === "Backspace" && !value[i]?.trim() && i > 0) refs.current[i - 1]?.focus();
           }}
-          className="h-14 w-12 rounded-xl glass text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary"
+          className="h-14 w-11 sm:w-12 rounded-2xl border border-border bg-white text-center text-xl font-bold focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
         />
       ))}
     </div>

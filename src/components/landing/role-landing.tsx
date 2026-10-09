@@ -9,6 +9,8 @@ export type RoleLandingProps = {
   subtitle: string;
   image: string;
   cta: string;
+  /** Profil présélectionné dans la demande d'accès. */
+  role: "farmer" | "restaurant" | "driver";
   benefits: { icon: LucideIcon; title: string; desc: string }[];
   steps: string[];
   stats: { value: string; label: string }[];
@@ -20,6 +22,7 @@ export function RoleLanding({
   subtitle,
   image,
   cta,
+  role,
   benefits,
   steps,
   stats,
@@ -29,23 +32,20 @@ export function RoleLanding({
       <section className="py-14">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-10 items-center">
           <div>
-            <p className="text-emerald-500 font-semibold text-sm uppercase tracking-wider">
-              {eyebrow}
-            </p>
-            <h1 className="mt-3 font-display text-4xl lg:text-6xl font-bold leading-tight">
-              {title}
-            </h1>
+            <p className="eyebrow text-emerald-700">{eyebrow}</p>
+            <h1 className="display-xl mt-4 text-5xl lg:text-7xl">{title}</h1>
             <p className="mt-4 text-lg text-muted-foreground">{subtitle}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/register"
-                className="rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:opacity-90 transition"
+                to="/demande-acces"
+                search={{ role }}
+                className="rounded-full bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 transition"
               >
                 {cta}
               </Link>
               <Link
                 to="/pricing"
-                className="rounded-xl border border-border px-6 py-3.5 text-sm font-semibold hover:bg-accent transition"
+                className="rounded-full border border-border px-6 py-3.5 text-sm font-semibold hover:bg-black/5 transition"
               >
                 Voir les tarifs
               </Link>
@@ -53,7 +53,7 @@ export function RoleLanding({
             <div className="mt-10 grid grid-cols-3 gap-4">
               {stats.map((s) => (
                 <div key={s.label}>
-                  <p className="font-display text-2xl font-bold text-gradient-emerald">{s.value}</p>
+                  <p className="display-xl text-3xl text-emerald-700">{s.value}</p>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                 </div>
               ))}
@@ -102,8 +102,9 @@ export function RoleLanding({
           </ol>
           <div className="mt-10 text-center">
             <Link
-              to="/register"
-              className="inline-flex rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
+              to="/demande-acces"
+              search={{ role }}
+              className="inline-flex rounded-full bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 transition"
             >
               {cta}
             </Link>

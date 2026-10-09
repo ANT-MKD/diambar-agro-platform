@@ -288,12 +288,10 @@ function LoginPage() {
       <AuthSplitLayout>
         <form onSubmit={submitTwoFa}>
           {config.demoMode && <DemoNotice />}
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10 text-primary">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
             <ShieldCheck className="h-7 w-7" aria-hidden />
           </div>
-          <h1 className="mt-4 text-center font-display text-2xl font-bold">
-            Vérification en deux étapes
-          </h1>
+          <h1 className="display-xl mt-4 text-center text-4xl">Vérification en deux étapes</h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
             Saisissez le code à 6 chiffres envoyé pour {twoFa.email}. Il est valable 5 minutes.
           </p>
@@ -303,7 +301,7 @@ function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
+            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-50"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             Vérifier
@@ -312,7 +310,7 @@ function LoginPage() {
             type="button"
             disabled={resendIn > 0}
             onClick={resendTwoFa}
-            className="mt-3 w-full text-sm font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+            className="mt-3 w-full text-sm font-medium text-emerald-800 underline underline-offset-4 disabled:text-muted-foreground disabled:no-underline"
           >
             {resendIn > 0 ? `Renvoyer le code dans ${resendIn} s` : "Renvoyer le code"}
           </button>
@@ -336,13 +334,13 @@ function LoginPage() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/10 text-destructive">
             <copy.icon className="h-8 w-8" aria-hidden />
           </div>
-          <h1 className="mt-6 font-display text-2xl font-bold">{copy.title}</h1>
+          <h1 className="display-xl mt-6 text-4xl">{copy.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
           <div className="mt-8 space-y-2">
             {copy.cta && (
               <Link
                 to="/contact"
-                className="block w-full rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+                className="block w-full rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
               >
                 {copy.cta}
               </Link>
@@ -363,7 +361,7 @@ function LoginPage() {
     <AuthSplitLayout>
       <div>
         {config.demoMode && <DemoNotice />}
-        <h1 className="font-display text-3xl font-bold">Bon retour 👋</h1>
+        <h1 className="display-xl text-5xl">Bon retour.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Connectez-vous à votre espace Diambar Agro
         </p>
@@ -396,7 +394,7 @@ function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full glass rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-2xl border border-border bg-white pl-10 pr-10 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
                 placeholder="••••••••"
               />
               <button
@@ -420,14 +418,17 @@ function LoginPage() {
               />
               <span className="text-muted-foreground">Se souvenir de moi</span>
             </label>
-            <Link to="/forgot-password" className="text-primary hover:underline font-medium">
+            <Link
+              to="/forgot-password"
+              className="font-medium text-foreground underline underline-offset-4"
+            >
               Mot de passe oublié ?
             </Link>
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold hover:opacity-90 transition disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold transition disabled:opacity-50"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             Se connecter
@@ -439,9 +440,19 @@ function LoginPage() {
         )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Pas encore de compte ?{" "}
-          <Link to="/register" className="text-primary hover:underline font-semibold">
-            Créer un compte →
+          Pas encore d'accès ?{" "}
+          <Link
+            to="/demande-acces"
+            className="font-semibold text-foreground underline underline-offset-4"
+          >
+            Demander l'accès
+          </Link>{" "}
+          · Invité ?{" "}
+          <Link
+            to="/register"
+            className="font-semibold text-foreground underline underline-offset-4"
+          >
+            Créer mon compte
           </Link>
         </p>
       </div>
@@ -529,7 +540,7 @@ function Field({
           required={required}
           autoComplete={autoComplete}
           placeholder={placeholder}
-          className="w-full glass rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full rounded-2xl border border-border bg-white pl-10 pr-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
         />
       </div>
     </div>

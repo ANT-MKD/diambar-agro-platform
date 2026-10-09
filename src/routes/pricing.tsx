@@ -47,7 +47,7 @@ function PricingPage() {
             >
               {p.highlighted && (
                 <span className="self-start rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-500">
-                  Le plus choisi
+                  Ouvert en premier au pilote
                 </span>
               )}
               <h2 className="mt-3 font-display text-2xl font-bold">{p.name}</h2>
@@ -68,7 +68,8 @@ function PricingPage() {
                 ))}
               </ul>
               <Link
-                to="/register"
+                to="/demande-acces"
+                search={{ role: p.id === "resto" ? "restaurant" : (p.id as "farmer" | "driver") }}
                 className={`mt-6 rounded-xl px-5 py-3 text-center text-sm font-semibold transition ${p.highlighted ? "bg-primary text-primary-foreground hover:opacity-90" : "border border-border hover:bg-accent"}`}
               >
                 {p.cta}

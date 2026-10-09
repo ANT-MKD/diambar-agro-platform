@@ -34,11 +34,12 @@ export const Route = createFileRoute("/for-farmers")({
       title="Vendez votre récolte au juste prix"
       subtitle="Publiez vos stocks, recevez des commandes de restaurants vérifiés et soyez payé sous 24h. Sans abonnement."
       image="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200"
-      cta="Créer ma ferme"
+      cta="Demander l'accès"
+      role="farmer"
       stats={[
-        { value: "+38 %", label: "de marge moyenne" },
-        { value: "24h", label: "délai de paiement" },
-        { value: "0 F", label: "frais d'inscription" },
+        { value: "Votre", label: "prix, fixé par vous" },
+        { value: "Mobile", label: "money : Wave, Orange, Free" },
+        { value: "0\u00a0F", label: "frais d'inscription" },
       ]}
       benefits={[
         {

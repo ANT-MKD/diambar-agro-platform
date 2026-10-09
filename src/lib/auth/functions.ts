@@ -6,7 +6,9 @@ import type { DemoAccount } from "@/data/demo-accounts";
 import { authSession } from "./session.server";
 import { dashboardPathForRole } from "./roles";
 import { createSignedToken, verifySignedToken } from "./tokens.server";
-import { deliverCode, deliverResetLink, isDemoMode } from "./config.server";
+import { deliverCode, deliverResetLink, isDemoMode, registrationMode } from "./config.server";
+import { consumeInvite, readInvite } from "@/lib/access/invites.server";
+import { updateRequest } from "@/lib/access/requests.server";
 import {
   accountStatus,
   checkPassword,
@@ -66,12 +68,20 @@ function attemptsLeftMessage(left: number): string {
 
 // --- Configuration affichée par les écrans -----------------------------------
 
-export type AuthConfig = { demoMode: boolean; demoAccounts: PublicDemoAccount[] };
+export type AuthConfig = {
+  demoMode: boolean;
+  demoAccounts: PublicDemoAccount[];
+  registrationMode: "invitation" | "open";
+};
 
 export const getAuthConfigFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthConfig> => {
     const demoMode = isDemoMode();
-    return { demoMode, demoAccounts: demoMode ? publicDemoAccounts() : [] };
+    return {
+      demoMode,
+      demoAccounts: demoMode ? publicDemoAccounts() : [],
+      registrationMode: registrationMode(),
+    };
   },
 );
 
@@ -368,6 +378,10 @@ const registerSchema = z
       errorMap: () => ({ message: "Acceptez les conditions générales pour continuer" }),
     }),
     details: registerDetailsSchema,
+    /** Lien d'invitation reçu après une demande d'accès. */
+    invite: z.string().optional(),
+    /** Mode démo uniquement : s'inscrire sans invitation pour une démonstration. */
+    demoBypass: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const problem = registerDetailsProblem(data.role, data.details ?? {});
@@ -384,6 +398,28 @@ export const registerValidateFn = createServerFn({ method: "POST" })
     return parsed.data;
   })
   .handler(async ({ data }): Promise<RegisterStartResult> => {
+    // Pilote en accès sur demande : une invitation valide est exigée (sauf
+    // inscription libre, ou passage « démo » explicite en mode démonstration).
+    let invite: { jti: string; requestId: string } | undefined;
+    if (registrationMode() === "invitation") {
+      const state = await readInvite(data.invite);
+      if (state.valid) {
+        if (state.payload.role !== data.role) {
+          return { ok: false, message: "Cette invitation correspond à un autre profil." };
+        }
+        invite = { jti: state.payload.jti, requestId: state.payload.requestId };
+      } else if (!(data.demoBypass && isDemoMode())) {
+        return {
+          ok: false,
+          message:
+            state.reason === "used"
+              ? "Cette invitation a déjà été utilisée."
+              : state.reason === "expired"
+                ? "Cette invitation a expiré. Demandez-en une nouvelle."
+                : "Pendant le pilote, l'inscription se fait sur invitation. Demandez l'accès.",
+        };
+      }
+    }
     const email = normalizeEmail(data.email);
     if (emailTaken(email)) return { ok: false, message: "Un compte existe déjà avec cet email." };
     if (phoneTaken(data.phone)) {
@@ -405,6 +441,8 @@ export const registerValidateFn = createServerFn({ method: "POST" })
         city: data.city,
         details: data.details,
         acceptedTermsAt: new Date(now).toISOString(),
+        inviteJti: invite?.jti,
+        inviteRequestId: invite?.requestId,
         id: randomId(),
         code,
         sentAt: now,
@@ -470,6 +508,11 @@ export const registerVerifyFn = createServerFn({ method: "POST" })
       return { ok: false, restart: true, message: "Un compte existe déjà avec cet email." };
     }
 
+    // L'invitation a pu servir entre-temps (même lien ouvert deux fois).
+    if (pending.inviteJti && !consumeInvite(pending.inviteJti)) {
+      await session.update({ pendingRegistration: undefined });
+      return { ok: false, restart: true, message: "Cette invitation a déjà été utilisée." };
+    }
     codeLimiter.reset(pending.id);
     const account = createAccount({
       role: pending.role,
@@ -480,6 +523,14 @@ export const registerVerifyFn = createServerFn({ method: "POST" })
       details: pending.details,
       acceptedTermsAt: pending.acceptedTermsAt,
     });
+    if (pending.inviteRequestId) {
+      updateRequest(
+        pending.inviteRequestId,
+        { status: "registered", registeredAt: new Date().toISOString() },
+        account.name,
+        "Compte créé avec l'invitation",
+      );
+    }
     await session.update({
       email: account.email,
       role: account.role,

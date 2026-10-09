@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DemandeAccesRouteImport } from './routes/demande-acces'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FarmerRouteImport } from './routes/farmer'
@@ -27,6 +28,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
+import { Route as AdminAccessRequestsRouteImport } from './routes/admin.access-requests'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
@@ -200,6 +202,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemandeAccesRoute = DemandeAccesRouteImport.update({
+  id: '/demande-acces',
+  path: '/demande-acces',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
@@ -269,6 +276,11 @@ const RestaurantRoute = RestaurantRouteImport.update({
   id: '/restaurant',
   path: '/restaurant',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAccessRequestsRoute = AdminAccessRequestsRouteImport.update({
+  id: '/access-requests',
+  path: '/access-requests',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
@@ -1075,6 +1087,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1089,6 +1102,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1247,6 +1261,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1261,6 +1276,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1410,6 +1426,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1424,6 +1441,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
+  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1584,6 +1602,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1598,6 +1617,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -1756,6 +1776,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1770,6 +1791,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -1918,6 +1940,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1932,6 +1955,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
+    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -2091,6 +2115,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   ContactRoute: typeof ContactRoute
+  DemandeAccesRoute: typeof DemandeAccesRoute
   DriverRoute: typeof DriverRouteWithChildren
   FaqRoute: typeof FaqRoute
   FarmerRoute: typeof FarmerRouteWithChildren
@@ -2140,6 +2165,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demande-acces': {
+      id: '/demande-acces'
+      path: '/demande-acces'
+      fullPath: '/demande-acces'
+      preLoaderRoute: typeof DemandeAccesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/driver': {
@@ -2239,6 +2271,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant'
       preLoaderRoute: typeof RestaurantRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/access-requests': {
+      id: '/admin/access-requests'
+      path: '/access-requests'
+      fullPath: '/admin/access-requests'
+      preLoaderRoute: typeof AdminAccessRequestsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/analytics': {
       id: '/admin/analytics'
@@ -3308,6 +3347,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAccessRequestsRoute: typeof AdminAccessRequestsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
@@ -3344,6 +3384,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccessRequestsRoute: AdminAccessRequestsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
@@ -3766,6 +3807,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   ContactRoute: ContactRoute,
+  DemandeAccesRoute: DemandeAccesRoute,
   DriverRoute: DriverRouteWithChildren,
   FaqRoute: FaqRoute,
   FarmerRoute: FarmerRouteWithChildren,

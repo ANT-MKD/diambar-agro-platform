@@ -1,106 +1,72 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { ArrowLeft, Check, KeyRound, Sprout } from "lucide-react";
 import { Logo } from "@/components/common/logo";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SoftGlow } from "@/components/landing/ui";
 
-const slides = [
-  {
-    src: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1400&q=80",
-    caption: "Tomates fraîches · Ferme Diallo, Thiès",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1400&q=80",
-    caption: "Récolte du jour · Niayes",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=1400&q=80",
-    caption: "Marché de Dakar · circuits courts",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1601758174039-4ed7a4d2c0bd?w=1400&q=80",
-    caption: "Livraison express · Oumar, livreur Wave",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=1400&q=80",
-    caption: "Cuisine sénégalaise · du champ à l'assiette",
-  },
-];
-
+/**
+ * Mise en page des écrans d'authentification, dans le style du site public :
+ * fond crème, grands titres serrés, panneau d'ambiance à gauche sur ordinateur
+ * (sans image externe), formulaire à droite.
+ */
 export function AuthSplitLayout({ children }: { children: ReactNode }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setI((x) => (x + 1) % slides.length), 5000);
-    return () => clearInterval(t);
-  }, []);
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Left visual */}
-      <div className="relative hidden lg:flex flex-col justify-between p-10 text-white overflow-hidden bg-neutral-950">
-        {slides.map((s, k) => (
-          <div
-            key={s.src}
-            aria-hidden
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-[1500ms] ${k === i ? "opacity-100" : "opacity-0"}`}
-            style={{ backgroundImage: `url(${s.src})` }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/85 via-neutral-950/60 to-emerald-950/70" />
-        <div className="absolute inset-0 bg-grid opacity-15" />
+    <div className="public-surface min-h-screen lg:grid lg:grid-cols-[1fr_1.1fr]">
+      <aside className="relative hidden overflow-hidden bg-[#e6f2df] p-10 lg:flex lg:flex-col lg:justify-between">
+        <SoftGlow />
         <div className="relative">
           <Logo />
         </div>
-        <div className="relative space-y-6">
-          <div className="glass-strong rounded-2xl p-5 max-w-sm">
-            <div className="text-xs text-emerald-300">COMMANDE EN COURS</div>
-            <div className="font-semibold mt-1">Le Baobab → Mamadou Diallo</div>
-            <div className="text-sm text-white/70 mt-1">Tomates 50kg · 42 500 FCFA</div>
-            <div className="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-2/3 bg-emerald-500" />
+        <div className="relative">
+          <p className="eyebrow text-emerald-800">Pilote · Dakar</p>
+          <p className="display-xl mt-4 max-w-md text-6xl">
+            Du champ à votre cuisine, sans détour.
+          </p>
+          <div className="mt-10 max-w-sm rounded-[1.6rem] border border-black/5 bg-white/90 p-5 shadow-xl shadow-emerald-900/10">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Livraison du jour</span>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                En route
+              </span>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <Sprout className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+              Tomates 20 kg · Ferme Diallo, Rufisque
+            </div>
+            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-neutral-900 px-4 py-3 text-white">
+              <KeyRound className="h-4 w-4 text-emerald-300" aria-hidden />
+              <span className="text-xs text-white/70">Code de remise</span>
+              <span className="ml-auto font-mono text-lg font-bold tracking-[0.25em]">4827</span>
             </div>
           </div>
-          <div className="glass-strong rounded-2xl p-5 max-w-sm ml-12">
-            <div className="text-xs text-amber-300">LIVRAISON ARRIVÉE</div>
-            <div className="font-semibold mt-1">Remise validée par code</div>
-            <div className="text-sm text-white/70 mt-1">Livraison effectuée en 23 min</div>
-          </div>
-          <div className="text-xs text-white/70 italic">{slides[i].caption}</div>
         </div>
-        <div className="relative flex items-end justify-between gap-4">
-          <div className="grid grid-cols-3 gap-3 max-w-sm flex-1">
-            {[
-              { v: "J+1", l: "Livraison" },
-              { v: "48 h", l: "Réclamation" },
-              { v: "0", l: "Abonnement" },
-            ].map((s) => (
-              <div key={s.l} className="glass rounded-xl p-3 text-center">
-                <div className="font-display text-2xl font-bold">{s.v}</div>
-                <div className="text-[11px] text-white/60 mt-0.5">{s.l}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            {slides.map((_, k) => (
-              <button
-                key={k}
-                aria-label={`Slide ${k + 1}`}
-                onClick={() => setI(k)}
-                className={`h-1.5 rounded-full transition-all ${k === i ? "w-6 bg-emerald-400" : "w-1.5 bg-white/40 hover:bg-white/70"}`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+        <ul className="relative flex flex-wrap gap-2 text-sm">
+          {["Livraison J+1", "48 h pour vérifier", "Sans abonnement"].map((t) => (
+            <li
+              key={t}
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 font-medium"
+            >
+              <Check className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+              {t}
+            </li>
+          ))}
+        </ul>
+      </aside>
 
-      {/* Right form */}
-      <div className="relative flex flex-col">
-        <div className="flex items-center justify-between p-4 lg:p-6">
+      <div className="flex min-h-screen flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-6">
           <div className="lg:hidden">
             <Logo />
           </div>
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
+          <Link
+            to="/"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-black/5 hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour au site
+          </Link>
         </div>
-        <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+        <div className="flex flex-1 items-start justify-center px-4 pb-12 pt-2 sm:items-center sm:px-8">
           <div className="w-full max-w-md">{children}</div>
         </div>
       </div>

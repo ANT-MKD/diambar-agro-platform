@@ -99,15 +99,13 @@ function ResetPage() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/10 text-destructive">
             <TriangleAlert className="h-8 w-8" />
           </div>
-          <h1 className="mt-6 font-display text-2xl font-bold">
-            {INVALID_COPY[reason ?? "expired"].title}
-          </h1>
+          <h1 className="display-xl mt-6 text-4xl">{INVALID_COPY[reason ?? "expired"].title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {INVALID_COPY[reason ?? "expired"].body}
           </p>
           <Link
             to="/forgot-password"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
           >
             Demander un nouveau lien
           </Link>
@@ -123,13 +121,13 @@ function ResetPage() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-emerald-500">
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <h1 className="mt-6 font-display text-2xl font-bold">Mot de passe modifié</h1>
+          <h1 className="display-xl mt-6 text-4xl">Mot de passe modifié</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Votre mot de passe a été mis à jour. Reconnectez-vous avec votre nouveau mot de passe.
           </p>
           <button
             onClick={() => navigate({ to: "/login" })}
-            className="mt-6 w-full rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+            className="mt-6 w-full rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
           >
             Se connecter
           </button>
@@ -141,7 +139,7 @@ function ResetPage() {
   return (
     <AuthSplitLayout>
       <div>
-        <h1 className="font-display text-2xl font-bold">Nouveau mot de passe</h1>
+        <h1 className="display-xl text-4xl">Nouveau mot de passe</h1>
         <p className="mt-1 text-sm text-muted-foreground">Choisissez un mot de passe sécurisé</p>
         <form onSubmit={submit}>
           <div className="mt-6">
@@ -157,7 +155,7 @@ function ResetPage() {
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
                 required
-                className="w-full glass rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-2xl border border-border bg-white pl-10 pr-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
               />
             </div>
             <PasswordStrength value={pw} />
@@ -173,13 +171,13 @@ function ResetPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              className="mt-1.5 w-full glass rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="mt-1.5 w-full rounded-2xl border border-border bg-white px-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-50"
+            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-50"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Mettre à jour

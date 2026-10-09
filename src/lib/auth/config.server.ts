@@ -21,6 +21,14 @@ export function isDemoMode(): boolean {
   return !import.meta.env.PROD;
 }
 
+/**
+ * Mode d'inscription : « invitation » (par défaut, pilote en accès sur
+ * demande) ou « open » (inscription libre). Variable REGISTRATION_MODE.
+ */
+export function registrationMode(): "invitation" | "open" {
+  return process.env.REGISTRATION_MODE?.trim().toLowerCase() === "open" ? "open" : "invitation";
+}
+
 type CodePurpose = "inscription" | "double authentification";
 
 /**
