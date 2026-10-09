@@ -28,7 +28,6 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
-import { Route as AdminAccessRequestsRouteImport } from './routes/admin.access-requests'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
@@ -276,11 +275,6 @@ const RestaurantRoute = RestaurantRouteImport.update({
   id: '/restaurant',
   path: '/restaurant',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AdminAccessRequestsRoute = AdminAccessRequestsRouteImport.update({
-  id: '/access-requests',
-  path: '/access-requests',
-  getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
@@ -1102,7 +1096,6 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
-  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1276,7 +1269,6 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
-  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1441,7 +1433,6 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
-  '/admin/access-requests': typeof AdminAccessRequestsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/documents': typeof AdminDocumentsRoute
@@ -1617,7 +1608,6 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
-    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -1791,7 +1781,6 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
-    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -1955,7 +1944,6 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/restaurant'
-    | '/admin/access-requests'
     | '/admin/analytics'
     | '/admin/dashboard'
     | '/admin/documents'
@@ -2271,13 +2259,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/restaurant'
       preLoaderRoute: typeof RestaurantRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/admin/access-requests': {
-      id: '/admin/access-requests'
-      path: '/access-requests'
-      fullPath: '/admin/access-requests'
-      preLoaderRoute: typeof AdminAccessRequestsRouteImport
-      parentRoute: typeof AdminRoute
     }
     '/admin/analytics': {
       id: '/admin/analytics'
@@ -3347,7 +3328,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
-  AdminAccessRequestsRoute: typeof AdminAccessRequestsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
@@ -3384,7 +3364,6 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminAccessRequestsRoute: AdminAccessRequestsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,

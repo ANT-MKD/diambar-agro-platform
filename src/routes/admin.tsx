@@ -26,7 +26,6 @@ import {
   Utensils,
   UserCog,
   PackageMinus,
-  Inbox,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -126,13 +125,6 @@ function AdminLayout() {
     {
       label: "UTILISATEURS",
       items: [
-        {
-          to: "/admin/access-requests",
-          label: "Demandes d'accès",
-          icon: Inbox,
-          badge: 0,
-          permission: "validations.decide",
-        },
         {
           to: "/admin/users",
           label: "Tous les utilisateurs",

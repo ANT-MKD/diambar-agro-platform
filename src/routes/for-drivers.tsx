@@ -34,7 +34,7 @@ export const Route = createFileRoute("/for-drivers")({
       title="Roulez quand vous voulez, payé le jour même"
       subtitle="Acceptez les missions qui vous arrangent, suivez votre itinéraire optimisé et encaissez chaque soir."
       image="https://images.unsplash.com/photo-1601758174039-4ed7a4d2c0bd?w=1200"
-      cta="Demander l'accès"
+      cta="Créer mon compte"
       role="driver"
       stats={[
         { value: "80\u00a0%", label: "de chaque course pour vous" },

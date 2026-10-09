@@ -19,7 +19,7 @@ import {
   UtensilsCrossed,
   Bike,
 } from "lucide-react";
-import { AccessCta, Eyebrow, SectionTitle, SoftGlow } from "./ui";
+import { SignupCta, Eyebrow, SectionTitle, SoftGlow } from "./ui";
 
 // Page d'accueil du site public : une cible principale (les restaurants),
 // des preuves plutôt que des promesses, aucune donnée chiffrée invérifiable.
@@ -32,7 +32,7 @@ export function HomeHero() {
       <SoftGlow />
       <div className="relative mx-auto max-w-5xl px-4 text-center">
         <span className="eyebrow inline-flex rounded-full border border-black/5 bg-white/70 px-4 py-2 text-foreground/80 backdrop-blur">
-          Pilote · Dakar · Accès sur demande
+          Pilote · Dakar · Inscription gratuite
         </span>
         <h1 className="display-xl mx-auto mt-7 max-w-4xl text-[3.1rem] sm:text-7xl lg:text-[6.5rem]">
           Vos produits frais, <span className="text-emerald-700">livrés demain matin.</span>
@@ -42,7 +42,7 @@ export function HomeHero() {
           preuve de remise et 48&nbsp;h pour vérifier.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
-          <AccessCta />
+          <SignupCta />
           <Link
             to="/"
             hash="video"
@@ -53,8 +53,8 @@ export function HomeHero() {
           </Link>
         </div>
         <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
-          Gratuit et sans abonnement. Aucun paiement sur cette page : les accès sont ouverts zone
-          par zone pendant le pilote.
+          Gratuit et sans abonnement. Après votre inscription, notre équipe vérifie votre compte
+          avant votre première commande.
         </p>
       </div>
       <div className="relative mx-auto mt-14 max-w-5xl px-4">
@@ -153,7 +153,7 @@ export function VideoSection() {
               </li>
             ))}
           </ul>
-          <AccessCta className="mt-9" />
+          <SignupCta className="mt-9" />
         </div>
       </div>
     </section>
@@ -517,12 +517,13 @@ export function HumanSection() {
           </div>
           <div className="flex flex-col justify-center rounded-[2rem] bg-[#12261d] p-7 text-white sm:p-9">
             <p className="text-xl font-semibold leading-snug sm:text-2xl">
-              Pendant le pilote, nous ouvrons les accès un par un : nous vérifions que votre zone
-              est desservie, nous vous appelons et nous suivons vos premières commandes avec vous.
+              Chaque nouveau compte est vérifié par notre équipe : nous contrôlons vos informations,
+              nous vérifions que votre zone est desservie et nous suivons vos premières commandes
+              avec vous.
             </p>
             <ol className="mt-8 space-y-3 text-sm text-white/80">
               {[
-                "Nous vérifions votre zone et vos besoins.",
+                "Nous vérifions vos informations et votre zone.",
                 "Nous vous accompagnons à la première commande.",
                 "Nous restons joignables si quelque chose ne va pas.",
               ].map((t, i) => (
@@ -574,11 +575,11 @@ export function AudiencesSection() {
             <p className="mt-4 text-muted-foreground">{it.text}</p>
             <div className="mt-auto flex flex-wrap items-center gap-5 pt-8">
               <Link
-                to="/demande-acces"
+                to="/register"
                 search={{ role: it.role }}
                 className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-800"
               >
-                Demander l'accès <ArrowRight className="h-4 w-4" aria-hidden />
+                Créer mon compte <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
               <Link
                 to={it.to}
@@ -615,11 +616,11 @@ const HOME_FAQ = [
   },
   {
     q: "Livrez-vous dans mon quartier ?",
-    a: "Pendant le pilote, nous ouvrons zone par zone en commençant par Dakar. Indiquez votre commune dans la demande d'accès : nous vous dirons si elle est déjà desservie.",
+    a: "Pendant le pilote, nous ouvrons zone par zone en commençant par Dakar. Indiquez votre ville à l'inscription : lors de la vérification de votre compte, nous vous dirons si votre quartier est déjà desservi.",
   },
   {
-    q: "Pourquoi un accès sur demande ?",
-    a: "Pour garantir un service fiable : nous n'ouvrons une zone que lorsque les producteurs et les livreurs sont prêts à la servir correctement.",
+    q: "Pourquoi mon compte doit-il être vérifié ?",
+    a: "Pour garantir un service fiable : nous vérifions chaque producteur, livreur et restaurant avant les premières commandes, et nous n'ouvrons une zone que lorsqu'elle peut être servie correctement.",
   },
   {
     q: "Est-ce que je reçois une facture ?",
@@ -687,9 +688,9 @@ export function HomeFinalCta() {
             Votre prochaine commande commence ici.
           </h2>
           <p className="mx-auto mt-5 max-w-md text-muted-foreground">
-            Deux minutes pour demander l'accès. Aucun paiement à cette étape.
+            Quelques minutes pour créer votre compte. Aucun paiement à cette étape.
           </p>
-          <AccessCta className="mt-8" />
+          <SignupCta className="mt-8" />
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Producteurs vérifiés

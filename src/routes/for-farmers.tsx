@@ -34,7 +34,7 @@ export const Route = createFileRoute("/for-farmers")({
       title="Vendez votre récolte au juste prix"
       subtitle="Publiez vos stocks, recevez des commandes de restaurants vérifiés et soyez payé sous 24h. Sans abonnement."
       image="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200"
-      cta="Demander l'accès"
+      cta="Créer mon compte"
       role="farmer"
       stats={[
         { value: "Votre", label: "prix, fixé par vous" },

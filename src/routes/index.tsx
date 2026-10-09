@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Commandez avant 18 h directement aux producteurs sénégalais. Livraison le lendemain, remise par code et 48 h pour vérifier. Pilote à Dakar, accès sur demande.",
+          "Commandez avant 18 h directement aux producteurs sénégalais. Livraison le lendemain, remise par code et 48 h pour vérifier. Pilote à Dakar, inscription gratuite.",
       },
     ],
   }),

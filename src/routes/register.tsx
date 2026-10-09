@@ -1,14 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useState } from "react";
-import {
-  Sprout,
-  UtensilsCrossed,
-  Truck,
-  ArrowRight,
-  ArrowLeft,
-  Loader2,
-  MailCheck,
-} from "lucide-react";
+import { Sprout, UtensilsCrossed, Truck, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
@@ -28,25 +20,14 @@ import {
   registerDetailsProblem,
 } from "@/lib/auth/helpers";
 import { DemoNotice } from "@/components/auth/demo-notice";
-import { validateInviteFn, type InviteCheck } from "@/lib/access/functions";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
   // Seuls les trois profils publics sont acceptés dans l'adresse (?role=).
-  validateSearch: (s: Record<string, unknown>): { role?: Role; invite?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { role?: Role } => ({
     role: PUBLIC_ROLES.includes(s.role as Role) ? (s.role as Role) : undefined,
-    invite: typeof s.invite === "string" && s.invite ? s.invite : undefined,
   }),
-  loaderDeps: ({ search }) => ({ invite: search.invite }),
-  loader: async ({ deps }) => {
-    const [config, invite] = await Promise.all([
-      getAuthConfigFn(),
-      deps.invite
-        ? validateInviteFn({ data: { token: deps.invite } })
-        : Promise.resolve<InviteCheck>({ valid: false, reason: "missing" }),
-    ]);
-    return { config, invite };
-  },
+  loader: async () => ({ config: await getAuthConfigFn() }),
   head: () => ({ meta: [{ title: "Inscription · Diambar Agro" }] }),
   component: RegisterPage,
 });
@@ -67,20 +48,16 @@ type RegisterForm = {
 };
 
 function RegisterPage() {
-  const { role: searchRole, invite: inviteToken } = Route.useSearch();
-  const { config, invite } = Route.useLoaderData();
+  const { role: searchRole } = Route.useSearch();
+  const { config } = Route.useLoaderData();
   const navigate = useNavigate();
-  // Avec une invitation, le profil est celui de la demande d'accès acceptée.
-  const initialRole = invite.valid ? invite.role : searchRole;
-  const [firstName0, ...rest0] = invite.valid ? invite.fullName.split(" ") : [""];
-  const gated = config.registrationMode === "invitation" && !invite.valid;
-  const [step, setStep] = useState(initialRole ? 2 : 1);
-  const [role, setRole] = useState<Role | "">(initialRole ?? "");
+  const [step, setStep] = useState(searchRole ? 2 : 1);
+  const [role, setRole] = useState<Role | "">(searchRole ?? "");
   const [form, setForm] = useState({
-    firstName: firstName0 ?? "",
-    lastName: rest0.join(" "),
+    firstName: "",
+    lastName: "",
     email: "",
-    phone: invite.valid ? formatSenegalPhone(invite.phone) : "",
+    phone: "",
     password: "",
     confirm: "",
     city: "Dakar",
@@ -153,7 +130,6 @@ function RegisterPage() {
           city: form.city,
           acceptTerms: form.acceptTerms as true,
           details,
-          invite: invite.valid ? inviteToken : undefined,
         },
       });
       if (!res.ok) {
@@ -217,63 +193,10 @@ function RegisterPage() {
     }
   };
 
-  if (gated) {
-    const reason = invite.valid ? null : invite.reason;
-    return (
-      <AuthSplitLayout>
-        <div>
-          {config.demoMode && <DemoNotice />}
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
-            <MailCheck className="h-7 w-7" aria-hidden />
-          </div>
-          <h1 className="display-xl mt-6 text-4xl sm:text-5xl">
-            {reason === "expired"
-              ? "Cette invitation a expiré."
-              : reason === "used"
-                ? "Invitation déjà utilisée."
-                : "Inscription sur invitation."}
-          </h1>
-          <p className="mt-4 text-muted-foreground">
-            {reason === "expired"
-              ? "Les liens d'invitation sont valables 7 jours. Contactez-nous pour en recevoir un nouveau."
-              : reason === "used"
-                ? "Ce lien a déjà servi à créer un compte. Si c'est le vôtre, connectez-vous."
-                : "Pendant le pilote, nous ouvrons Diambar Agro zone par zone. Demandez l'accès : après un court appel, vous recevrez votre lien personnel pour créer votre compte."}
-          </p>
-          <div className="mt-8 flex flex-col gap-3">
-            <Link
-              to="/demande-acces"
-              search={searchRole ? { role: searchRole } : {}}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 py-3.5 font-semibold text-white hover:bg-neutral-800"
-            >
-              Demander l'accès <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center rounded-full border border-border py-3.5 font-semibold hover:bg-black/5"
-            >
-              J'ai déjà un compte
-            </Link>
-          </div>
-        </div>
-      </AuthSplitLayout>
-    );
-  }
-
   return (
     <AuthSplitLayout>
       <div>
         {config.demoMode && <DemoNotice />}
-        {invite.valid && (
-          <div className="mb-6 rounded-2xl border border-emerald-700/20 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            Invitation pour <b>{invite.fullName}</b> · profil{" "}
-            {invite.role === "farmer"
-              ? "producteur"
-              : invite.role === "driver"
-                ? "livreur"
-                : "restaurant"}
-          </div>
-        )}
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
         {step === 2 && <Step2 form={form} setForm={setForm} onNext={submitStep2} onBack={back} />}

@@ -9,7 +9,7 @@ export type RoleLandingProps = {
   subtitle: string;
   image: string;
   cta: string;
-  /** Profil présélectionné dans la demande d'accès. */
+  /** Profil présélectionné à l'inscription. */
   role: "farmer" | "restaurant" | "driver";
   benefits: { icon: LucideIcon; title: string; desc: string }[];
   steps: string[];
@@ -37,7 +37,7 @@ export function RoleLanding({
             <p className="mt-4 text-lg text-muted-foreground">{subtitle}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/demande-acces"
+                to="/register"
                 search={{ role }}
                 className="rounded-full bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 transition"
               >
@@ -102,7 +102,7 @@ export function RoleLanding({
           </ol>
           <div className="mt-10 text-center">
             <Link
-              to="/demande-acces"
+              to="/register"
               search={{ role }}
               className="inline-flex rounded-full bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 transition"
             >

@@ -30,16 +30,21 @@ export function SectionTitle({
   );
 }
 
-export function AccessCta({
-  label = "Demander l'accès",
+/** Bouton principal du site : mène à l'inscription (profil présélectionné
+ * si précisé). */
+export function SignupCta({
+  label = "Créer mon compte",
+  role,
   className = "",
 }: {
   label?: string;
+  role?: "restaurant" | "farmer" | "driver";
   className?: string;
 }) {
   return (
     <Link
-      to="/demande-acces"
+      to="/register"
+      search={role ? { role } : {}}
       className={`group inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-neutral-900/15 transition hover:bg-neutral-800 ${className}`}
     >
       {label}

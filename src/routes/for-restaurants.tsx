@@ -35,7 +35,7 @@ export const Route = createFileRoute("/for-restaurants")({
       title="Un approvisionnement enfin prévisible"
       subtitle="Comparez les producteurs, programmez vos livraisons récurrentes et suivez chaque commande en temps réel."
       image="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200"
-      cta="Demander l'accès"
+      cta="Créer mon compte"
       role="restaurant"
       stats={[
         { value: "J+1", label: "livraison si commande avant 18\u00a0h" },

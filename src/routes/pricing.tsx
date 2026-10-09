@@ -68,7 +68,7 @@ function PricingPage() {
                 ))}
               </ul>
               <Link
-                to="/demande-acces"
+                to="/register"
                 search={{ role: p.id === "resto" ? "restaurant" : (p.id as "farmer" | "driver") }}
                 className={`mt-6 rounded-xl px-5 py-3 text-center text-sm font-semibold transition ${p.highlighted ? "bg-primary text-primary-foreground hover:opacity-90" : "border border-border hover:bg-accent"}`}
               >

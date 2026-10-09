@@ -126,10 +126,10 @@ export function Navbar() {
               Connexion
             </Link>
             <Link
-              to="/demande-acces"
+              to="/register"
               className="hidden sm:inline-flex items-center text-sm font-semibold px-4 py-2.5 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 transition"
             >
-              Demander l'accès
+              Créer un compte
             </Link>
             <button
               onClick={() => setOpen(!open)}
@@ -189,10 +189,10 @@ export function Navbar() {
                 Connexion
               </Link>
               <Link
-                to="/demande-acces"
+                to="/register"
                 className="flex-1 text-center px-3 py-2.5 rounded-full bg-neutral-900 text-white text-sm font-semibold"
               >
-                Demander l'accès
+                Créer un compte
               </Link>
             </div>
           </div>

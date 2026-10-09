@@ -26,7 +26,7 @@ export const pricingPlans: PricingPlan[] = [
       "Retrait vers Wave, OM ou Free (traité sous 24 h ouvrées)",
       "Analytics de ventes",
     ],
-    cta: "Demander l'accès",
+    cta: "Créer mon compte",
   },
   {
     id: "resto",
@@ -43,7 +43,7 @@ export const pricingPlans: PricingPlan[] = [
       "Multi-utilisateurs (équipe)",
     ],
     highlighted: true,
-    cta: "Demander l'accès",
+    cta: "Créer mon compte",
   },
   {
     id: "driver",
@@ -60,7 +60,7 @@ export const pricingPlans: PricingPlan[] = [
       "Retrait vers Wave, OM ou Free",
       "Tournées optimisées",
     ],
-    cta: "Demander l'accès",
+    cta: "Créer mon compte",
   },
 ];
 

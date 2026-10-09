@@ -97,7 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Produits frais des producteurs sénégalais, livrés le lendemain aux restaurants. Pilote à Dakar, accès sur demande.",
+          "Produits frais des producteurs sénégalais, livrés le lendemain aux restaurants. Pilote à Dakar, inscription gratuite.",
       },
       { name: "theme-color", content: "#059669" },
       { property: "og:title", content: "Diambar Agro — Du Champ à Votre Cuisine" },

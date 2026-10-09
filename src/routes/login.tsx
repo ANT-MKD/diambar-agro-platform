@@ -440,14 +440,7 @@ function LoginPage() {
         )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Pas encore d'accès ?{" "}
-          <Link
-            to="/demande-acces"
-            className="font-semibold text-foreground underline underline-offset-4"
-          >
-            Demander l'accès
-          </Link>{" "}
-          · Invité ?{" "}
+          Pas encore de compte ?{" "}
           <Link
             to="/register"
             className="font-semibold text-foreground underline underline-offset-4"
