@@ -380,8 +380,6 @@ const registerSchema = z
     details: registerDetailsSchema,
     /** Lien d'invitation reçu après une demande d'accès. */
     invite: z.string().optional(),
-    /** Mode démo uniquement : s'inscrire sans invitation pour une démonstration. */
-    demoBypass: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const problem = registerDetailsProblem(data.role, data.details ?? {});
@@ -398,8 +396,8 @@ export const registerValidateFn = createServerFn({ method: "POST" })
     return parsed.data;
   })
   .handler(async ({ data }): Promise<RegisterStartResult> => {
-    // Pilote en accès sur demande : une invitation valide est exigée (sauf
-    // inscription libre, ou passage « démo » explicite en mode démonstration).
+    // Pilote en accès sur demande : une invitation valide est exigée, y compris
+    // en mode démonstration (l'équipe vérifie chaque personne avant de l'inviter).
     let invite: { jti: string; requestId: string } | undefined;
     if (registrationMode() === "invitation") {
       const state = await readInvite(data.invite);
@@ -408,7 +406,7 @@ export const registerValidateFn = createServerFn({ method: "POST" })
           return { ok: false, message: "Cette invitation correspond à un autre profil." };
         }
         invite = { jti: state.payload.jti, requestId: state.payload.requestId };
-      } else if (!(data.demoBypass && isDemoMode())) {
+      } else {
         return {
           ok: false,
           message:

@@ -73,8 +73,7 @@ function RegisterPage() {
   // Avec une invitation, le profil est celui de la demande d'accès acceptée.
   const initialRole = invite.valid ? invite.role : searchRole;
   const [firstName0, ...rest0] = invite.valid ? invite.fullName.split(" ") : [""];
-  const [demoBypass, setDemoBypass] = useState(false);
-  const gated = config.registrationMode === "invitation" && !invite.valid && !demoBypass;
+  const gated = config.registrationMode === "invitation" && !invite.valid;
   const [step, setStep] = useState(initialRole ? 2 : 1);
   const [role, setRole] = useState<Role | "">(initialRole ?? "");
   const [form, setForm] = useState({
@@ -155,7 +154,6 @@ function RegisterPage() {
           acceptTerms: form.acceptTerms as true,
           details,
           invite: invite.valid ? inviteToken : undefined,
-          demoBypass: demoBypass || undefined,
         },
       });
       if (!res.ok) {
@@ -256,15 +254,6 @@ function RegisterPage() {
             >
               J'ai déjà un compte
             </Link>
-            {config.demoMode && (
-              <button
-                type="button"
-                onClick={() => setDemoBypass(true)}
-                className="mt-2 text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
-              >
-                Mode démonstration : continuer sans invitation
-              </button>
-            )}
           </div>
         </div>
       </AuthSplitLayout>
