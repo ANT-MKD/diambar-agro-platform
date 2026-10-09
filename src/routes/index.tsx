@@ -10,6 +10,7 @@ import {
   HowSection,
   HumanSection,
   ResultSection,
+  VideoSection,
 } from "@/components/landing/home";
 
 export const Route = createFileRoute("/")({
@@ -32,6 +33,7 @@ function LandingPage() {
       <Navbar />
       <main>
         <HomeHero />
+        <VideoSection />
         <ResultSection />
         <HowSection />
         <GuaranteesSection />

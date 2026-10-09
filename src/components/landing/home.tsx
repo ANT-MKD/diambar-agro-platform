@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -10,11 +10,14 @@ import {
   KeyRound,
   Leaf,
   Minus,
+  Play,
   Plus,
   ShieldCheck,
   Smartphone,
   Sprout,
   Truck,
+  UtensilsCrossed,
+  Bike,
 } from "lucide-react";
 import { AccessCta, Eyebrow, SectionTitle, SoftGlow } from "./ui";
 
@@ -42,10 +45,11 @@ export function HomeHero() {
           <AccessCta />
           <Link
             to="/"
-            hash="comment"
-            className="text-sm font-semibold underline decoration-2 underline-offset-[6px] hover:text-emerald-700"
+            hash="video"
+            className="inline-flex items-center gap-2 text-sm font-semibold underline decoration-2 underline-offset-[6px] hover:text-emerald-700"
           >
-            Voir comment ça marche
+            <Play className="h-4 w-4 fill-current" aria-hidden />
+            Voir la vidéo · 43&nbsp;s
           </Link>
         </div>
         <p className="mx-auto mt-6 max-w-md text-sm text-muted-foreground">
@@ -55,6 +59,102 @@ export function HomeHero() {
       </div>
       <div className="relative mx-auto mt-14 max-w-5xl px-4">
         <OrderMock />
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------------- Vidéo */
+
+const VIDEO_AUDIENCES = [
+  {
+    icon: UtensilsCrossed,
+    title: "Restaurants",
+    text: "Commande avant 18 h, livraison le lendemain, remise par code.",
+  },
+  {
+    icon: Sprout,
+    title: "Producteurs",
+    text: "Vos récoltes à votre prix, payées sur Wave ou Orange Money.",
+  },
+  { icon: Bike, title: "Livreurs", text: "Des tournées du matin adaptées à votre véhicule." },
+] as const;
+
+/** Présentation en vidéo (verticale, sous-titrée). Chargée seulement au clic
+ * pour ne pas consommer de données mobiles inutilement. */
+export function VideoSection() {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [started, setStarted] = useState(false);
+  const start = () => {
+    setStarted(true);
+    void ref.current?.play();
+  };
+  return (
+    <section id="video" className="scroll-mt-24 py-16 sm:py-24">
+      <div className="mx-auto grid max-w-6xl gap-x-16 gap-y-10 px-4 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+        <div className="md:col-start-1 md:row-start-1 md:self-end">
+          <Eyebrow>En vidéo · 43 secondes</Eyebrow>
+          <SectionTitle>
+            Diambar Agro,
+            <br />
+            <span className="text-emerald-700">en moins d'une minute.</span>
+          </SectionTitle>
+          <p className="mt-6 max-w-md text-lg text-muted-foreground">
+            Ce que l'app change pour chacun, du champ à la cuisine. Sous-titrée : vous pouvez la
+            regarder sans le son.
+          </p>
+        </div>
+        <div className="relative mx-auto w-full max-w-[340px] md:col-start-2 md:row-span-2 md:row-start-1">
+          <div
+            className="absolute -inset-6 -z-10 rounded-[3rem] bg-emerald-300/30 blur-3xl"
+            aria-hidden
+          />
+          <div className="overflow-hidden rounded-[2.4rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-2xl shadow-emerald-900/25">
+            <div className="relative aspect-[9/16]">
+              <video
+                ref={ref}
+                className="absolute inset-0 h-full w-full object-cover"
+                poster="/videos/diambar-agro-poster.jpg"
+                preload="none"
+                playsInline
+                controls={started}
+                aria-label="Présentation vidéo de Diambar Agro, 43 secondes, sous-titrée"
+              >
+                <source src="/videos/diambar-agro.mp4" type="video/mp4" />
+                <source src="/videos/diambar-agro.webm" type="video/webm" />
+              </video>
+              {!started && (
+                <button
+                  type="button"
+                  onClick={start}
+                  className="group absolute inset-0 grid place-items-center transition hover:bg-black/5"
+                  aria-label="Lire la vidéo de présentation (43 secondes)"
+                >
+                  <span className="inline-flex items-center gap-3 rounded-full bg-neutral-900 px-6 py-4 text-sm font-semibold text-white shadow-xl transition group-hover:scale-105">
+                    <Play className="h-5 w-5 fill-current" aria-hidden />
+                    Regarder · 43&nbsp;s
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="md:col-start-1 md:row-start-2 md:self-start">
+          <ul className="space-y-4">
+            {VIDEO_AUDIENCES.map((a) => (
+              <li key={a.title} className="flex gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#e3f1dc] text-emerald-700">
+                  <a.icon className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <div className="font-semibold">{a.title}</div>
+                  <div className="text-sm text-muted-foreground">{a.text}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <AccessCta className="mt-9" />
+        </div>
       </div>
     </section>
   );
