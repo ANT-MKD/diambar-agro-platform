@@ -1,5 +1,6 @@
 import { Reorder, motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { OrderCard } from "./order-card";
 import { ORDER_LABEL } from "./status-badge";
 import { orderActions } from "@/data/store";
@@ -28,8 +29,12 @@ export function OrderKanban({ orders }: { orders: Order[] }) {
     setColumns(buildColumns(orders));
   }, [orders]);
 
+  // Le glisser-déposer suit la même règle que les boutons : uniquement vers
+  // l'étape suivante permise au producteur, jamais en arrière.
   const move = (id: string, to: OrderStatus) => {
-    orderActions.setStatus(id, to);
+    const result = orderActions.setStatus(id, to);
+    if (!result.ok) toast.error(result.message);
+    else toast.success(`Commande passée en « ${ORDER_LABEL[to]} »`);
   };
 
   return (
@@ -57,14 +62,17 @@ export function OrderKanban({ orders }: { orders: Order[] }) {
                   <motion.div
                     key={o.id}
                     layout
-                    drag
+                    drag="x"
                     dragSnapToOrigin
                     whileDrag={{ scale: 1.04, zIndex: 50 }}
                     onDragEnd={(_, info) => {
                       if (Math.abs(info.offset.x) < 80) return;
                       const idx = COLUMNS.findIndex((c) => c.status === col.status);
-                      const dir = info.offset.x > 0 ? 1 : -1;
-                      const next = COLUMNS[idx + dir];
+                      if (info.offset.x < 0) {
+                        toast.error("Une commande ne revient jamais à une étape précédente.");
+                        return;
+                      }
+                      const next = COLUMNS[idx + 1];
                       if (next) move(o.id, next.status);
                     }}
                   >

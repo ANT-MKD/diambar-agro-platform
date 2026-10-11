@@ -301,23 +301,12 @@ function OrdersPage() {
                 {cards.map((o) => {
                   const f = farmers.find((x) => x.id === o.farmerId);
                   return (
+                    // Le statut suit les actions du producteur et du livreur :
+                    // le restaurant ne le déplace plus à la main.
                     <motion.div
                       key={o.id}
                       layout
-                      drag
-                      dragSnapToOrigin
-                      whileDrag={{ scale: 1.04, zIndex: 50 }}
-                      onDragEnd={(_, info) => {
-                        if (Math.abs(info.offset.x) < 80) return;
-                        const idx = COLS.indexOf(col);
-                        const dir = info.offset.x > 0 ? 1 : -1;
-                        const next = COLS[idx + dir];
-                        if (next) {
-                          restaurantOrderActions.setStatus(o.id, next);
-                          toast.success(`Statut → ${ORDER_LABEL[next]}`);
-                        }
-                      }}
-                      className="block bg-card rounded-xl p-3 border border-border cursor-grab active:cursor-grabbing"
+                      className="block bg-card rounded-xl p-3 border border-border"
                     >
                       <Link
                         to="/restaurant/orders/$orderId"

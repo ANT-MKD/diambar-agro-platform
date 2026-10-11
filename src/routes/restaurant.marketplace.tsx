@@ -16,6 +16,7 @@ import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers } from "@/data/mocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isListed } from "@/lib/product-availability";
 
 export const Route = createFileRoute("/restaurant/marketplace")({
   validateSearch: z.object({ supplier: z.string().optional() }),
@@ -61,7 +62,7 @@ function Marketplace() {
   const [priceMax, setPriceMax] = useState("");
   const [showFilters, setShowFilters] = useState(!!supplierParam);
 
-  const catalog = useMemo(() => products.filter((p) => p.status !== "draft"), [products]);
+  const catalog = useMemo(() => products.filter(isListed), [products]);
   const regions = useMemo(() => ["Toutes", ...new Set(farmers.map((f) => f.city))], []);
   const priceBounds = useMemo(() => {
     if (catalog.length === 0) return { min: 0, max: 0 };
@@ -351,7 +352,7 @@ function Marketplace() {
               Aucun produit ne correspond aux filtres.
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {list.map((p) => (
                 <RestaurantProductCard key={p.id} product={p} />
               ))}

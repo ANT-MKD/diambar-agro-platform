@@ -28,7 +28,7 @@ function InvoiceDetail() {
   const farmer = farmers.find((f) => f.id === order.farmerId);
   const dispute = disputes.find((d) => d.orderId === order.id);
   const originRecurring = recurringOrders.find((ro) => ro.generatedOrderIds.includes(order.id));
-  const invoiceNo = invoiceNumberFor(order.id);
+  const invoiceNo = invoiceNumberFor(order.id, order.createdAt, order.reference);
   const invoiceData = buildInvoiceData(order, farmer, myRestaurant, profile.paymentTermsDays);
   const fmtLongDate = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -203,18 +203,18 @@ function InvoiceDetail() {
           {/* Totals */}
           <div className="flex justify-end">
             <div className="w-72 space-y-2 text-[13px]">
-              <div className="flex justify-between text-neutral-500">
-                <span>Sous-total HT</span>
-                <span>{formatFCFA(invoiceData.subtotalHT)}</span>
-              </div>
-              <div className="flex justify-between text-neutral-500">
-                <span>TVA ({invoiceData.vatRate}%)</span>
-                <span>{formatFCFA(invoiceData.vat)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-neutral-900">
-                <span>Total TTC</span>
-                <span>{formatFCFA(invoiceData.totalTTC)}</span>
-              </div>
+              {invoiceData.totals.map((t) => (
+                <div
+                  key={t.label}
+                  className={`flex justify-between ${t.bold ? "font-semibold text-neutral-900" : "text-neutral-500"}`}
+                >
+                  <span>{t.label}</span>
+                  <span>
+                    {t.amount < 0 ? "−" : ""}
+                    {formatFCFA(Math.abs(t.amount))}
+                  </span>
+                </div>
+              ))}
               <div className="flex justify-between font-bold text-neutral-900">
                 <span>Montant dû</span>
                 <span>{formatFCFA(invoiceData.amountDue)}</span>

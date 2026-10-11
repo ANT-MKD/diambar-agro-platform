@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   AlertTriangle,
   History,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,28 @@ import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, products, drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { ORDER_LABEL } from "@/components/farmer/status-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  deliveredAtOf,
+  RECEPTION_WINDOW_MS,
+  restaurantOrderActions,
+  cartActions,
+  useRestaurantOrder as useROrder,
+} from "@/data/store";
+import { isCancellable } from "@/lib/order-lifecycle";
+import { orderAmounts } from "@/lib/pricing";
+import { useState } from "react";
+import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
+import { whatsappLink } from "@/lib/contact";
+import { publicTrackingId } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -72,10 +95,7 @@ function OrderDetail() {
     ? farmerReviewStats(farmer.id, allProducts, allProductReviews, farmer.rating, businessReviews)
         .avgRating
     : null;
-  const publicId = `TRK-${order.id
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(-6)
-    .toUpperCase()}`;
+  const publicId = publicTrackingId(order);
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/track/${publicId}`
@@ -108,6 +128,19 @@ function OrderDetail() {
                 <ArrowLeft className="h-4 w-4" />
                 Retour
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                const missing = cartActions.reorder(order.items);
+                if (missing.length > 0) toast.warning(`Indisponible(s) : ${missing.join(", ")}`);
+                else toast.success("Produits ajoutés au panier");
+                navigate({ to: "/restaurant/cart" });
+              }}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Recommander
             </Button>
             <Button asChild variant="outline" className="gap-2">
               <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
@@ -174,6 +207,16 @@ function OrderDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <OrderTracker status={order.status} eta={order.eta} />
+          {order.deliveryCode &&
+            ["confirmed", "preparing", "delivering"].includes(order.status) && (
+              <HandoverCode
+                code={order.deliveryCode}
+                title="Code de remise"
+                hint="À donner au livreur seulement quand vous avez reçu et vérifié la marchandise."
+              />
+            )}
+          {order.status === "delivered" && <ProofPhotos photos={mission?.proof} />}
+          {order.status === "delivered" && <ReceptionCard orderId={order.id} />}
 
           <div className="glass rounded-2xl p-5">
             <h3 className="font-display font-bold text-lg mb-3 flex items-center gap-2">
@@ -223,26 +266,77 @@ function OrderDetail() {
                 );
               })}
             </div>
+            {(() => {
+              const a = orderAmounts(order);
+              const rows = [
+                { label: "Marchandise", value: a.subtotal },
+                ...(a.deliveryFee ? [{ label: "Frais de livraison", value: a.deliveryFee }] : []),
+                ...(a.promoDiscount
+                  ? [
+                      {
+                        label: `Remise${order.promoCode ? ` (${order.promoCode})` : ""}`,
+                        value: -a.promoDiscount,
+                      },
+                    ]
+                  : []),
+                ...(a.creditApplied ? [{ label: "Avoir utilisé", value: -a.creditApplied }] : []),
+              ];
+              if (rows.length < 2) return null;
+              return (
+                <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
+                  {rows.map((r) => (
+                    <div key={r.label} className="flex justify-between text-muted-foreground">
+                      <span>{r.label}</span>
+                      <span>
+                        {r.value < 0 ? "−" : ""}
+                        {formatFCFA(Math.abs(r.value))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="mt-4 flex justify-between items-center font-bold text-lg border-t border-border pt-3">
               <span>Total</span>
               <span className="text-primary">{formatFCFA(order.total)}</span>
             </div>
           </div>
 
-          <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            <div className="flex-1 min-w-[200px]">
-              <div className="text-sm font-semibold">Un problème avec cette commande ?</div>
-              <div className="text-xs text-muted-foreground">
-                Signalez un souci de qualité, quantité, livraison ou paiement.
-              </div>
+          {isCancellable(order.status, "restaurant") && (
+            <CancelOrderCard orderId={order.id} reference={order.reference} />
+          )}
+          {order.status === "cancelled" && (
+            <div className="glass rounded-2xl p-4 border border-border text-sm">
+              <div className="font-semibold">Commande annulée</div>
+              {order.cancelReason && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Motif : {order.cancelReason}
+                </div>
+              )}
+              {order.paid && order.paymentMethod !== "Espèces" && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Le montant payé vous est remboursé sur {order.paymentMethod}.
+                </div>
+              )}
             </div>
-            <Button asChild variant="destructive" size="sm" className="gap-2">
-              <Link to="/restaurant/orders/$orderId/dispute" params={{ orderId: order.id }}>
-                Signaler un problème
-              </Link>
-            </Button>
-          </div>
+          )}
+
+          {(order.status === "delivering" || order.status === "delivered") && (
+            <div className="glass rounded-2xl p-4 border border-destructive/30 bg-destructive/5 flex flex-wrap items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="flex-1 min-w-[200px]">
+                <div className="text-sm font-semibold">Un problème avec cette commande ?</div>
+                <div className="text-xs text-muted-foreground">
+                  Signalez un souci de qualité, quantité, livraison ou paiement.
+                </div>
+              </div>
+              <Button asChild variant="destructive" size="sm" className="gap-2">
+                <Link to="/restaurant/orders/$orderId/dispute" params={{ orderId: order.id }}>
+                  Signaler un problème
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -264,6 +358,20 @@ function OrderDetail() {
                   <a href={`tel:${farmer.phone}`} aria-label={`Appeler ${farmer.farm}`}>
                     <Phone className="h-3.5 w-3.5" />
                     Appeler
+                  </a>
+                </Button>
+              )}
+              {farmer?.phone && (
+                <Button variant="outline" size="sm" className="flex-1 gap-1" asChild>
+                  <a
+                    href={whatsappLink(
+                      farmer.phone,
+                      `Bonjour, à propos de la commande ${order.reference}.`,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    WhatsApp
                   </a>
                 </Button>
               )}
@@ -311,6 +419,20 @@ function OrderDetail() {
                     </a>
                   </Button>
                 )}
+                {driver.phone && (
+                  <Button variant="outline" size="sm" className="w-full mt-2 gap-1" asChild>
+                    <a
+                      href={whatsappLink(
+                        driver.phone,
+                        `Bonjour, à propos de la livraison ${order.reference}.`,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      WhatsApp au livreur
+                    </a>
+                  </Button>
+                )}
               </>
             ) : (
               <p className="text-xs text-muted-foreground">
@@ -347,6 +469,198 @@ function OrderDetail() {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CancelOrderCard({ orderId, reference }: { orderId: string; reference: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const submit = () => {
+    const text = reason.trim();
+    if (text.length < 5) {
+      toast.error("Indiquez le motif de l'annulation");
+      return;
+    }
+    const result = restaurantOrderActions.cancel(orderId, text);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`${reference} annulée · le producteur est prévenu`);
+    setOpen(false);
+  };
+  return (
+    <div className="glass rounded-2xl p-4 border border-border flex flex-wrap items-center gap-3">
+      <div className="flex-1 min-w-[200px]">
+        <div className="text-sm font-semibold">Besoin d'annuler ?</div>
+        <div className="text-xs text-muted-foreground">
+          Possible tant que le producteur n'a pas commencé la préparation. Un paiement mobile déjà
+          effectué est remboursé intégralement.
+        </div>
+      </div>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        Annuler la commande
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler {reference}</DialogTitle>
+            <DialogDescription>
+              Le producteur sera prévenu et le stock remis en vente.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Motif (ex. menu modifié, commande en double…)"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Garder la commande
+            </Button>
+            <Button variant="destructive" onClick={submit}>
+              Confirmer l'annulation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+const RECEPTION_REASONS = [
+  "Abîmé / pourri",
+  "Quantité manquante",
+  "Mauvais produit",
+  "Calibre non conforme",
+];
+
+/** Contrôle à la réception : refus de tout ou partie d'une ligne dans les
+ * 48 h, remboursé automatiquement. */
+function ReceptionCard({ orderId }: { orderId: string }) {
+  const order = useROrder(orderId);
+  const products = useProducts();
+  const [open, setOpen] = useState(false);
+  const [refused, setRefused] = useState<Record<string, number>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  if (!order) return null;
+
+  if (order.reception) {
+    return (
+      <div className="glass rounded-2xl p-4 text-sm">
+        <div className="font-semibold">Réception contrôlée</div>
+        {order.reception.refundedAmount > 0 ? (
+          <div className="text-xs text-muted-foreground mt-1">
+            {order.reception.lines
+              .map(
+                (l) =>
+                  `${l.refusedQty} × ${products.find((p) => p.id === l.productId)?.name ?? l.productId} (${l.reason})`,
+              )
+              .join(" · ")}{" "}
+            — {formatFCFA(order.reception.refundedAmount)} remboursés.
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground mt-1">Tout a été reçu conforme.</div>
+        )}
+      </div>
+    );
+  }
+  const deliveredAt = deliveredAtOf(order);
+  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS)
+    return null;
+  const deadline = new Date(new Date(deliveredAt).getTime() + RECEPTION_WINDOW_MS);
+  const amount = order.items.reduce((s, i) => s + (refused[i.productId] ?? 0) * i.price, 0);
+
+  const submit = (allGood: boolean) => {
+    const lines = allGood
+      ? []
+      : order.items.map((i) => ({
+          productId: i.productId,
+          refusedQty: refused[i.productId] ?? 0,
+          reason: reasons[i.productId] ?? RECEPTION_REASONS[0],
+        }));
+    const result = restaurantOrderActions.reportReception(order.id, lines);
+    if (!result.ok) return toast.error(result.message);
+    toast.success(
+      allGood || amount === 0
+        ? "Réception confirmée"
+        : `${formatFCFA(amount)} vous seront remboursés automatiquement`,
+    );
+    setOpen(false);
+  };
+
+  return (
+    <div className="glass rounded-2xl p-4 border border-amber-500/30 space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <div className="text-sm font-semibold">Contrôler la réception</div>
+          <div className="text-xs text-muted-foreground">
+            Un produit abîmé ou manquant ? Refusez-le ligne par ligne jusqu'au{" "}
+            {deadline.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })} : le
+            montant est remboursé automatiquement.
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => submit(true)}>
+          Tout est conforme
+        </Button>
+        <Button size="sm" onClick={() => setOpen((v) => !v)}>
+          Signaler un écart
+        </Button>
+      </div>
+      {open && (
+        <div className="space-y-3">
+          {order.items.map((i) => {
+            const p = products.find((x) => x.id === i.productId);
+            return (
+              <div
+                key={i.productId}
+                className="grid grid-cols-1 sm:grid-cols-[1fr_110px_1fr] gap-2 items-center"
+              >
+                <div className="text-sm">
+                  {p?.name ?? i.productId}{" "}
+                  <span className="text-xs text-muted-foreground">
+                    ({i.qty} {p?.unit} reçus)
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={i.qty}
+                  aria-label={`Quantité refusée — ${p?.name ?? i.productId}`}
+                  value={refused[i.productId] ?? 0}
+                  onChange={(e) =>
+                    setRefused((r) => ({
+                      ...r,
+                      [i.productId]: Math.min(i.qty, Math.max(0, Number(e.target.value) || 0)),
+                    }))
+                  }
+                  className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                />
+                <select
+                  aria-label={`Motif — ${p?.name ?? i.productId}`}
+                  value={reasons[i.productId] ?? RECEPTION_REASONS[0]}
+                  onChange={(e) => setReasons((r) => ({ ...r, [i.productId]: e.target.value }))}
+                  className="h-11 rounded-lg border border-input bg-background px-3 text-sm"
+                >
+                  {RECEPTION_REASONS.map((r) => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">
+              À rembourser : <strong>{formatFCFA(amount)}</strong>
+            </span>
+            <Button onClick={() => submit(false)} disabled={amount === 0}>
+              Valider le refus
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -83,7 +83,10 @@ function AdminSupportPage() {
   const [internalDraft, setInternalDraft] = useState(false);
 
   const openCount = tickets.filter((t) => t.status === "open").length;
-  const rows = tickets.filter((t) => (tab === "all" ? true : t.status === tab));
+  // Les urgences (SOS livreur) toujours en tête de file.
+  const rows = tickets
+    .filter((t) => (tab === "all" ? true : t.status === tab))
+    .sort((a, b) => Number(b.priority === "urgent") - Number(a.priority === "urgent"));
   const selected = tickets.find((t) => t.id === selectedId) ?? rows[0] ?? null;
 
   const order = selected?.orderRef

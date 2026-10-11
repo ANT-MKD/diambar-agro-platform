@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -44,10 +44,10 @@ import {
   type IncidentStatus,
   type IncidentSeverity,
 } from "@/data/business";
-import { useMissions, useOrders, missionActions } from "@/data/store";
+import { useMissions, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import { refundActions, type RefundMethod } from "@/data/finance";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers } from "@/data/mocks";
 
 export const Route = createFileRoute("/admin/incidents/$incidentId")({
@@ -75,6 +75,10 @@ const SEVERITY_CLASS: Record<IncidentSeverity, string> = {
 
 function AdminIncidentDetail() {
   const { incidentId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canDecideIncidents = can(role, "incidents.decide");
+  const canReassignDeliveries = can(role, "deliveries.reassign");
   const incidents = useIncidents();
   const missions = useMissions();
   const orders = useOrders();
@@ -82,6 +86,9 @@ function AdminIncidentDetail() {
   const navigate = useNavigate();
 
   const incident = incidents.find((i) => i.id === incidentId);
+  const candidates = useReassignCandidates(
+    incident ? missions.find((m) => m.reference === incident.missionRef) : undefined,
+  );
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -110,7 +117,6 @@ function AdminIncidentDetail() {
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : undefined;
   const order = mission ? orders.find((o) => o.reference === mission.orderRef) : undefined;
   const dispute = mission ? disputes.find((d) => d.orderRef === mission.orderRef) : undefined;
-  const candidateDrivers = drivers.filter((d) => d.id !== mission?.driverId);
 
   const startDeciding = () => {
     setAmount(String(incident.compensationRequested));
@@ -130,11 +136,16 @@ function AdminIncidentDetail() {
       toast.error("Indiquez un montant valide");
       return;
     }
-    incidentActions.resolve(incident.id, value, note.trim() || undefined);
+    if (!canDecideIncidents) {
+      toast.error("Votre rôle ne permet pas de traiter cet incident.");
+      return;
+    }
+    incidentActions.resolve(incident.id, value, note.trim() || undefined, user.name);
     auditActions.log({
       action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
       target: incident.reference,
       module: "incidents",
+      actor: user.name,
       reason: note.trim() || undefined,
       changes:
         value > 0
@@ -148,12 +159,17 @@ function AdminIncidentDetail() {
   };
 
   const reject = () => {
-    incidentActions.resolve(incident.id, 0, note.trim() || "Demande jugée non fondée");
+    if (!canDecideIncidents) {
+      toast.error("Votre rôle ne permet pas de traiter cet incident.");
+      return;
+    }
+    incidentActions.resolve(incident.id, 0, note.trim() || "Demande jugée non fondée", user.name);
     auditActions.log({
       action: "Indemnité refusée",
       target: incident.reference,
       module: "incidents",
       level: "attention",
+      actor: user.name,
       reason: note.trim() || "Demande jugée non fondée",
     });
     toast.success("Demande d'indemnité refusée");
@@ -165,12 +181,21 @@ function AdminIncidentDetail() {
       toast.error("Choisissez un livreur");
       return;
     }
+    if (!canReassignDeliveries) {
+      toast.error("Votre rôle ne permet pas de réaffecter une course.");
+      return;
+    }
     const newDriver = drivers.find((d) => d.id === newDriverId);
-    missionActions.reassign(mission.id, newDriverId);
+    const result = missionActions.reassign(mission.id, newDriverId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     auditActions.log({
       action: "Course réaffectée",
       target: mission.reference,
       module: "deliveries",
+      actor: user.name,
       changes: [
         { field: "Livreur", before: driver?.name ?? "Aucun livreur", after: newDriver?.name ?? "" },
       ],
@@ -194,23 +219,32 @@ function AdminIncidentDetail() {
       toast.error("Indiquez un montant valide");
       return;
     }
-    const refund = refundActions.create({
-      source: "incident",
-      incidentId: incident.id,
-      orderRef: order.reference,
-      // Un incident de livraison n'est pas imputable au producteur : la
-      // charge reste plateforme, sauf décision explicite contraire au cas
-      // par cas (pas de déduction automatique du livreur ou du producteur).
-      bornBy: "platform",
-      requester: restaurant.name,
-      amount: value,
-      method: refundMethod,
-      reason: refundReason.trim() || `Incident ${incident.reference}`,
-    });
+    if (!canDecideIncidents) {
+      toast.error("Votre rôle ne permet pas de créer un remboursement depuis cet incident.");
+      return;
+    }
+    const refund = refundActions.create(
+      {
+        source: "incident",
+        incidentId: incident.id,
+        orderRef: order.reference,
+        // Un incident de livraison n'est pas imputable au producteur : la
+        // charge reste plateforme, sauf décision explicite contraire au cas
+        // par cas (pas de déduction automatique du livreur ou du producteur).
+        bornBy: "platform",
+        requester: restaurant.name,
+        amount: value,
+        method: refundMethod,
+        reason: refundReason.trim() || `Incident ${incident.reference}`,
+      },
+      "pending",
+      user.name,
+    );
     auditActions.log({
       action: `Remboursement client créé depuis l'incident (${refund.reference})`,
       target: incident.reference,
       module: "refunds",
+      actor: user.name,
     });
     toast.success(`${refund.reference} créé`);
     setRefundOpen(false);
@@ -239,23 +273,26 @@ function AdminIncidentDetail() {
         subtitle={`Signalé ${relativeTime(incident.createdAt)} · Mission ${incident.missionRef}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {order && restaurant && (
+            {order && restaurant && canDecideIncidents && (
               <Button variant="outline" size="sm" className="gap-2" onClick={openRefund}>
                 <Banknote className="h-3.5 w-3.5" />
                 Rembourser le client
               </Button>
             )}
-            {mission && mission.status !== "delivered" && mission.status !== "cancelled" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setReassignOpen(true)}
-              >
-                <Repeat className="h-3.5 w-3.5" />
-                Réaffecter le livreur
-              </Button>
-            )}
+            {mission &&
+              mission.status !== "delivered" &&
+              mission.status !== "cancelled" &&
+              canReassignDeliveries && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setReassignOpen(true)}
+                >
+                  <Repeat className="h-3.5 w-3.5" />
+                  Réaffecter le livreur
+                </Button>
+              )}
           </div>
         }
       />
@@ -276,7 +313,7 @@ function AdminIncidentDetail() {
         </span>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatPill icon={Truck} label="Mission" value={incident.missionRef} />
         <StatPill icon={Clock} label="Temps d'attente" value={`${incident.waitedMinutes} min`} />
         <StatPill
@@ -303,7 +340,7 @@ function AdminIncidentDetail() {
           {incident.photos && incident.photos.length > 0 && (
             <div className="glass rounded-2xl p-5 space-y-3">
               <h3 className="font-display font-bold">Preuves jointes ({incident.photos.length})</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {incident.photos.map((p) => (
                   <div key={p.id} className="rounded-xl border border-border overflow-hidden">
                     {p.dataUrl && p.mime.startsWith("image/") ? (
@@ -354,6 +391,7 @@ function AdminIncidentDetail() {
             )}
 
             {incident.status !== "resolved" &&
+              canDecideIncidents &&
               (deciding ? (
                 <div className="space-y-2 rounded-xl border border-border p-3">
                   <div className="space-y-1">
@@ -456,9 +494,10 @@ function AdminIncidentDetail() {
               <SelectValue placeholder="Choisir un livreur" />
             </SelectTrigger>
             <SelectContent>
-              {candidateDrivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name} · {d.vehicle}
+              {candidates.map(({ driver: d, fleet, eligibility }) => (
+                <SelectItem key={d.id} value={d.id} disabled={!eligibility.ok}>
+                  {d.name} · {fleet ? `${fleet.type} ${fleet.capacityKg} kg` : d.vehicle}
+                  {!eligibility.ok && ` — ${eligibility.message}`}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -10,8 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cities, RECEPTION_DAYS, type ReceptionDay, type ReceptionSlot } from "@/data/mocks";
+import { RECEPTION_DAYS, type ReceptionDay, type ReceptionSlot } from "@/data/mocks";
 import { useRestaurantProfile, restaurantProfileActions } from "@/data/store";
+import { useCities } from "@/data/admin-store";
 
 export const Route = createFileRoute("/restaurant/settings/establishment")({
   head: () => ({
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/restaurant/settings/establishment")({
 
 function EstablishmentSettings() {
   const profile = useRestaurantProfile();
+  const cities = useCities();
   const [form, setForm] = useState({
     address: profile.deliveryAddress,
     city: profile.city,

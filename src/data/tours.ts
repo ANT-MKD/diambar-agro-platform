@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import { farmers, restaurants, type Mission } from "./mocks";
 import { getMissionSnapshot, missionActions, useDriverVehicle, useMissions } from "./store";
+import { ensureDataVersion } from "./persist";
 
 export type TourStop = {
   id: string;
@@ -35,6 +36,7 @@ type OrderMap = Record<string, string[]>;
 
 let orderState: OrderMap = {};
 if (typeof window !== "undefined") {
+  ensureDataVersion();
   try {
     const raw = window.localStorage.getItem(ORDER_KEY);
     if (raw) orderState = JSON.parse(raw) as OrderMap;
@@ -205,39 +207,27 @@ export const tourActions = {
     copy.splice(to, 0, item);
     setOrder(tourId, copy);
   },
-  toggleStop: (stop: TourStop): "ok" | "blocked" => {
+  // Cocher une collecte = enlèvement avec le code du producteur. Les
+  // livraisons se confirment sur la fiche de la mission (code du restaurant
+  // + photo). On ne décoche jamais une étape validée.
+  toggleStop: (stop: TourStop, code?: string): { ok: true } | { ok: false; message: string } => {
     const mission = getMissionSnapshot(stop.missionId);
-    if (!mission) return "blocked";
-    if (stop.kind === "pickup") {
-      if (mission.status === "accepted" || mission.status === "pickup") {
-        missionActions.setStatus(stop.missionId, "loaded");
-        return "ok";
-      }
-      if (mission.status === "loaded") {
-        missionActions.setStatus(stop.missionId, "accepted");
-        return "ok";
-      }
-      return "blocked";
+    if (!mission) return { ok: false, message: "Mission introuvable." };
+    if (stop.kind !== "pickup") {
+      return { ok: false, message: "Confirmez la livraison depuis la fiche de la mission." };
     }
-    if (mission.status === "loaded") {
-      missionActions.setStatus(stop.missionId, "delivered");
-      return "ok";
+    if (mission.status !== "accepted" && mission.status !== "pickup") {
+      return { ok: false, message: "Cette collecte ne peut plus être validée." };
     }
-    if (mission.status === "delivered") {
-      missionActions.setStatus(stop.missionId, "loaded");
-      return "ok";
-    }
-    return "blocked";
+    return missionActions.setStatus(stop.missionId, "loaded", "d1", { code });
   },
   start: (stops: TourStop[]) => {
     const missionIds = new Set(
       stops.filter((s) => s.kind === "pickup" && !s.done).map((s) => s.missionId),
     );
-    missionIds.forEach((id) => missionActions.setStatus(id, "pickup"));
-  },
-  finish: (stops: TourStop[]) => {
-    const missionIds = new Set(stops.map((s) => s.missionId));
-    missionIds.forEach((id) => missionActions.setStatus(id, "delivered"));
+    missionIds.forEach((id) => {
+      if (getMissionSnapshot(id)?.status === "accepted") missionActions.setStatus(id, "pickup");
+    });
   },
   optimize: (tourId: string, stops: TourStop[]) => {
     const ordered = nearestNeighborOrder(stops);

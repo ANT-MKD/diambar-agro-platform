@@ -2,8 +2,6 @@
 
 export type Role = "farmer" | "restaurant" | "driver" | "admin";
 
-export const cities = ["Dakar", "Thiès", "Mbour", "Saint-Louis", "Ziguinchor"] as const;
-
 export const farmers = [
   {
     id: "f1",
@@ -71,7 +69,7 @@ export const drivers = [
   {
     id: "d1",
     name: "Oumar Ba",
-    vehicle: "Moto",
+    vehicle: "Camionnette",
     rating: 4.9,
     missions: 234,
     phone: "+221 77 456 78 90",
@@ -88,6 +86,25 @@ export const drivers = [
   },
 ];
 
+/** Résumé véhicule des livreurs du vivier autres que le livreur connecté
+ * ("d1", dont le dossier complet vit dans `driverVehicle`). */
+export const driverFleetSeed: Record<
+  string,
+  {
+    type: "Moto" | "Camionnette" | "Camion" | "Tricycle";
+    capacityKg: number;
+    insuranceExpiry: string;
+    inspectionExpiry: string;
+  }
+> = {
+  d2: {
+    type: "Camionnette",
+    capacityKg: 1000,
+    insuranceExpiry: "2027-02-01",
+    inspectionExpiry: "2026-12-15",
+  },
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -101,6 +118,17 @@ export type Product = {
   status: "active" | "low" | "out" | "draft";
   ordersThisMonth: number;
   farmerId: string;
+  // Détails saisis par le producteur, appliqués côté restaurant.
+  description?: string;
+  /** Quantité minimale par commande. */
+  minOrder?: number;
+  /** Date (AAAA-MM-JJ) à partir de laquelle le produit peut être commandé. */
+  availableFrom?: string;
+  organic?: boolean;
+  photos?: string[];
+  pickupAddress?: string;
+  /** « Hors saison » : retiré du catalogue sans être supprimé. */
+  paused?: boolean;
 };
 
 export const products: Product[] = [
@@ -232,9 +260,85 @@ export type Order = {
   status: OrderStatus;
   createdAt: string;
   eta?: string;
+  // Où et quand livrer : recopiés depuis la commande du restaurant pour que
+  // le producteur sache pour quand préparer.
+  deliveryAddress?: string;
+  // Vrai quand le stock a été réservé à la création de la commande : c'est
+  // ce stock-là qui est remis en cas d'annulation (jamais celui des
+  // commandes de démo, qui n'ont rien réservé).
+  stockReserved?: boolean;
+  deliveredAt?: string;
+  // Code à 4 chiffres que le producteur donne au livreur à l'enlèvement :
+  // prouve que la marchandise a bien été remise à ce livreur.
+  pickupCode?: string;
 };
 
 export const orders: Order[] = [
+  // Commandes confirmées dont la mission de livraison est ouverte ou en
+  // cours (voir `missions`) : chaque mission de démo a sa commande.
+  {
+    id: "o_3055",
+    reference: "CMD-3055",
+    restaurantId: "r1",
+    farmerId: "f1",
+    items: [
+      { productId: "p1", qty: 25, price: 850 },
+      { productId: "p8", qty: 20, price: 700 },
+    ],
+    total: 35250,
+    status: "confirmed",
+    createdAt: "2025-05-15T10:30:00Z",
+    eta: "Demain · 07:00 – 11:00",
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+  },
+  {
+    id: "o_3056",
+    reference: "CMD-3056",
+    restaurantId: "r2",
+    farmerId: "f2",
+    items: [{ productId: "p6", qty: 22, price: 1200 }],
+    total: 26400,
+    status: "confirmed",
+    createdAt: "2025-05-15T10:45:00Z",
+  },
+  {
+    id: "o_3057",
+    reference: "CMD-3057",
+    restaurantId: "r3",
+    farmerId: "f3",
+    items: [
+      { productId: "p4", qty: 70, price: 600 },
+      { productId: "p5", qty: 50, price: 350 },
+    ],
+    total: 59500,
+    status: "confirmed",
+    createdAt: "2025-05-15T11:00:00Z",
+  },
+  {
+    id: "o_2852",
+    reference: "CMD-2852",
+    restaurantId: "r2",
+    farmerId: "f2",
+    items: [{ productId: "p3", qty: 24, price: 3200 }],
+    total: 76800,
+    status: "confirmed",
+    createdAt: "2025-05-15T08:00:00Z",
+  },
+  {
+    id: "o_3051",
+    reference: "CMD-3051",
+    restaurantId: "r1",
+    farmerId: "f1",
+    items: [
+      { productId: "p1", qty: 30, price: 850 },
+      { productId: "p8", qty: 10, price: 700 },
+    ],
+    total: 32500,
+    status: "delivering",
+    createdAt: "2025-05-15T09:00:00Z",
+    eta: "18 min",
+    deliveryAddress: "Le Baobab, Dakar Plateau",
+  },
   {
     id: "o1",
     reference: "CMD-2851",
@@ -378,8 +482,8 @@ export const faq = [
     a: 'Inscrivez-vous avec le rôle "Livreur", soumettez votre permis de conduire et votre carte d\'identité. Vous pouvez commencer à recevoir des missions sous 48h.',
   },
   {
-    q: "Y a-t-il un abonnement premium ?",
-    a: "Oui. L'abonnement Premium Restaurant (15 000 FCFA/mois) offre la mise en avant dans les résultats, les commandes récurrentes automatiques et un accès prioritaire au support.",
+    q: "Y a-t-il un abonnement ?",
+    a: "Non. L'inscription est gratuite pour tous. Les producteurs paient une commission sur les ventes livrées, les restaurants les frais de livraison de leur zone.",
   },
 ];
 
@@ -596,6 +700,8 @@ export type AppNotification = {
   // élément plutôt qu'une liste générique. Absent quand aucune ressource
   // réelle précise n'y correspond.
   refId?: string;
+  // Page de l'application à ouvrir au clic (ex. la commande concernée).
+  link?: string;
 };
 
 export const notifications: AppNotification[] = [
@@ -953,6 +1059,9 @@ export const restaurantBudget: RestaurantBudget = {
 
 export type Withdrawal = {
   id: string;
+  // Producteur qui a demandé le retrait (absent sur les retraits de démo, qui
+  // sont tous ceux du producteur de démo f1).
+  farmerId?: string;
   date: string;
   method: PaymentMethod;
   amount: number;
@@ -1259,6 +1368,41 @@ export type RestaurantOrder = {
   // moment où le statut passe réellement à "delivered".
   paid: boolean;
   paidAt?: string;
+  // Détail du montant payé (absent sur les commandes de démo anciennes, où
+  // `total` = marchandise). total = subtotal + deliveryFee − promoDiscount −
+  // creditApplied. Le producteur n'est payé que sur `subtotal`.
+  subtotal?: number;
+  deliveryFee?: number;
+  promoDiscount?: number;
+  promoCode?: string;
+  creditApplied?: number;
+  creditId?: string;
+  // Que faire si le producteur n'a pas toute la quantité : livrer ce qui est
+  // disponible (différence remboursée) ou annuler la commande.
+  shortagePreference?: "partial" | "cancel";
+  // Consignes pour le livreur (quai, contact, code d'accès…).
+  instructions?: string;
+  // Début du créneau de livraison choisi (ISO) : planifie la mission.
+  slotStart?: string;
+  // Urgence imposée à la mission de livraison (commandes récurrentes
+  // « express ») ; sinon déduite du créneau.
+  missionUrgency?: "standard" | "priority" | "express";
+  // Motif d'annulation, visible par les deux parties.
+  cancelReason?: string;
+  // Code à 4 chiffres que le restaurant donne au livreur à la réception :
+  // sans lui, la livraison ne peut pas être confirmée (ni payée).
+  deliveryCode?: string;
+  deliveredWithCode?: boolean;
+  // Jeton aléatoire du lien de suivi public (voir lib/tracking-id).
+  trackingToken?: string;
+  // Contrôle à la réception par le restaurant (48 h après la livraison) :
+  // quantités refusées par ligne, remboursées automatiquement.
+  reception?: {
+    at: string;
+    lines: { productId: string; refusedQty: number; reason: string }[];
+    refundedAmount: number;
+    note?: string;
+  };
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -1467,7 +1611,12 @@ export type Mission = {
   // Horodatage réel de chaque transition, alimenté à chaque changement de
   // statut. Pour les missions de démo déjà avancées, on ne connaît que
   // l'état observé à leur création — pas d'heures de transition inventées.
-  statusHistory?: { status: MissionStatus; at: string }[];
+  statusHistory?: { status: MissionStatus; at: string; note?: string }[];
+  // Arrivées signalées par le livreur (producteur, restaurant) : l'attente
+  // au-delà de 10 minutes lui est payée à la livraison.
+  waits?: { stage: "pickup" | "dropoff"; arrivedAt: string; endedAt?: string }[];
+  // Consignes de livraison laissées par le restaurant.
+  instructions?: string;
 };
 
 export type MissionProofPhoto = {
@@ -1965,7 +2114,7 @@ export const driverNotifications: AppNotification[] = [
     id: "dn2",
     type: "payment",
     title: "Paiement reçu",
-    body: "Wave · +8 575 FCFA (MIS-4200)",
+    body: "Wave · +7 200 FCFA (MIS-4200)",
     at: "2025-05-15T11:30:00Z",
     read: false,
   },
@@ -2074,19 +2223,19 @@ export const driverTransactions: DriverTx[] = [
   {
     id: "dtx1",
     at: "2025-05-15T11:30:00Z",
-    label: "Mission MIS-4200 · Le Baobab",
-    ref: "MIS-4200",
+    label: "Mission MIS-4178",
+    ref: "MIS-4178",
     kind: "mission",
-    amount: 9000,
+    amount: 12000,
     status: "Complété",
   },
   {
     id: "dtx2",
     at: "2025-05-15T11:30:00Z",
-    label: "Commission plateforme (5%)",
-    ref: "MIS-4200",
+    label: "Commission plateforme (20%)",
+    ref: "MIS-4178",
     kind: "commission",
-    amount: -425,
+    amount: -2400,
     status: "Complété",
   },
   {
@@ -2101,10 +2250,10 @@ export const driverTransactions: DriverTx[] = [
   {
     id: "dtx4",
     at: "2025-05-14T18:05:00Z",
-    label: "Commission plateforme (5%)",
+    label: "Commission plateforme (20%)",
     ref: "MIS-4180",
     kind: "commission",
-    amount: -175,
+    amount: -700,
     status: "Complété",
   },
   {

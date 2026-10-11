@@ -4,9 +4,9 @@ import {
   validationRequests as seedValidations,
   auditLogs as seedLogs,
   moderationQueue as seedModeration,
-  commissionTiers as seedTiers,
-  deliveryZones as seedZones,
   refundSettings as seedRefundSettings,
+  refundApprovalTiers as seedRefundApprovalTiers,
+  teams as seedTeams,
   type PlatformUser,
   type PlatformUserStatus,
   type ValidationRequest,
@@ -16,6 +16,10 @@ import {
   type AuditStatus,
   type AuditChange,
   type ModerationItem,
+  type AdminRoleName,
+  type RefundApprovalTier,
+  type Team,
+  ADMIN_ROLE_NAMES,
   AUDIT_MODULE_LABEL,
 } from "./admin-mocks";
 import { useAllDisputes } from "./disputes";
@@ -27,39 +31,10 @@ import {
   productActions,
 } from "./store";
 import { products, farmers } from "./mocks";
+import { createStore } from "./persist";
+import { tiersStore, zonesStore, useCommissionTiers, useDeliveryZones } from "./platform-settings";
 
-type Listener = () => void;
-
-function createStore<T>(initial: T, persistKey?: string) {
-  let state = initial;
-  if (persistKey && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set: (next: T | ((prev: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey && typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: Listener) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
+export { useCommissionTiers, useDeliveryZones };
 
 const usersStore = createStore<PlatformUser[]>(seedUsers, "diambar:admin-users");
 const validationsStore = createStore<ValidationRequest[]>(
@@ -68,8 +43,6 @@ const validationsStore = createStore<ValidationRequest[]>(
 );
 const logsStore = createStore<AuditLog[]>(seedLogs, "diambar:admin-logs");
 const moderationStore = createStore<ModerationItem[]>(seedModeration, "diambar:admin-moderation");
-const tiersStore = createStore(seedTiers, "diambar:admin-tiers");
-const zonesStore = createStore(seedZones, "diambar:admin-zones");
 const refundSettingsStore = createStore(seedRefundSettings, "diambar:admin-refund-settings");
 
 export function usePlatformUsers() {
@@ -97,11 +70,11 @@ export function useModerationQueue() {
 export function useModerationItem(id: string) {
   return useModerationQueue().find((m) => m.id === id) ?? null;
 }
-export function useCommissionTiers() {
-  return useSyncExternalStore(tiersStore.subscribe, tiersStore.get, tiersStore.get);
-}
-export function useDeliveryZones() {
-  return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
+/** Liste des villes desservies, dérivée des mêmes zones de livraison —
+ * utilisée par les formulaires d'inscription/profil (agriculteur,
+ * restaurant) pour rester alignée avec ce que l'admin configure. */
+export function useCities(): string[] {
+  return useDeliveryZones().map((z) => z.name);
 }
 export function useRefundSettings() {
   return useSyncExternalStore(
@@ -153,60 +126,115 @@ export const adminUserActions = {
   remove: (id: string) => usersStore.set((arr) => arr.filter((u) => u.id !== id)),
 };
 
-export type AdminRoleName =
-  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
+export { ADMIN_ROLE_NAMES };
+export type { AdminRoleName };
 
-export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
-  "Super Administrateur",
-  "Finance",
-  "Opérations",
-  "Support",
-  "Modération",
+// Clés de permission granulaires par module — remplace l'ancienne matrice
+// cosmétique (4 catégories Voir/Modifier) qui ne configurait que
+// l'affichage de la page Administrateurs. Chaque clé est vérifiée à la fois
+// pour l'affichage ET pour bloquer l'appel de l'action du store
+// correspondante (pas seulement un bouton caché).
+export type PermissionKey =
+  | "users.view"
+  | "users.edit"
+  | "users.suspend"
+  | "validations.decide"
+  | "moderation.decide"
+  | "orders.view"
+  | "deliveries.view"
+  | "deliveries.reassign"
+  | "incidents.decide"
+  | "disputes.decide"
+  | "support.respond"
+  | "returns.decide"
+  | "refunds.view"
+  | "refunds.approve"
+  | "refunds.execute"
+  | "finance.view"
+  | "finance.edit"
+  | "messages.view"
+  | "settings.edit"
+  | "security.manage_admins"
+  | "security.manage_roles"
+  | "audit.view"
+  | "audit.export";
+
+const ALL_PERMISSIONS: PermissionKey[] = [
+  "users.view",
+  "users.edit",
+  "users.suspend",
+  "validations.decide",
+  "moderation.decide",
+  "orders.view",
+  "deliveries.view",
+  "deliveries.reassign",
+  "incidents.decide",
+  "disputes.decide",
+  "support.respond",
+  "returns.decide",
+  "refunds.view",
+  "refunds.approve",
+  "refunds.execute",
+  "finance.view",
+  "finance.edit",
+  "messages.view",
+  "settings.edit",
+  "security.manage_admins",
+  "security.manage_roles",
+  "audit.view",
+  "audit.export",
 ];
 
-export type AdminPermissionCategory = "Utilisateurs" | "Finance" | "Commandes" | "Paramètres";
-
-/**
- * Détermine ce que chaque rôle admin peut voir/modifier — configure
- * l'affichage de la page Administrateurs, ce n'est pas (encore) un moteur
- * qui bloque les routes : un vrai RBAC appliqué partout serait un chantier
- * séparé, plus large que cette page.
- */
-export const ADMIN_ROLE_PERMISSIONS: Record<
-  AdminRoleName,
-  Record<AdminPermissionCategory, { view: boolean; edit: boolean }>
-> = {
-  "Super Administrateur": {
-    Utilisateurs: { view: true, edit: true },
-    Finance: { view: true, edit: true },
-    Commandes: { view: true, edit: true },
-    Paramètres: { view: true, edit: true },
-  },
-  Finance: {
-    Utilisateurs: { view: true, edit: false },
-    Finance: { view: true, edit: true },
-    Commandes: { view: true, edit: false },
-    Paramètres: { view: false, edit: false },
-  },
-  Opérations: {
-    Utilisateurs: { view: true, edit: false },
-    Finance: { view: false, edit: false },
-    Commandes: { view: true, edit: true },
-    Paramètres: { view: false, edit: false },
-  },
-  Support: {
-    Utilisateurs: { view: true, edit: false },
-    Finance: { view: false, edit: false },
-    Commandes: { view: true, edit: false },
-    Paramètres: { view: false, edit: false },
-  },
-  Modération: {
-    Utilisateurs: { view: true, edit: false },
-    Finance: { view: false, edit: false },
-    Commandes: { view: false, edit: false },
-    Paramètres: { view: false, edit: false },
-  },
+// Distinct de AUDIT_MODULE_ACCESS (qui ne fait que scoper la lecture du
+// journal d'audit) : ceci autorise ou non l'exécution d'une action.
+export const ROLE_PERMISSIONS: Record<AdminRoleName, PermissionKey[]> = {
+  "Super Administrateur": ALL_PERMISSIONS,
+  Finance: [
+    "users.view",
+    "orders.view",
+    "refunds.view",
+    "refunds.approve",
+    "refunds.execute",
+    "finance.view",
+    "finance.edit",
+    "audit.view",
+    "audit.export",
+  ],
+  Opérations: [
+    "users.view",
+    "users.edit",
+    "validations.decide",
+    "orders.view",
+    "deliveries.view",
+    "deliveries.reassign",
+    "incidents.decide",
+    "disputes.decide",
+    "support.respond",
+    "returns.decide",
+    "audit.view",
+  ],
+  Support: [
+    "users.view",
+    "orders.view",
+    "support.respond",
+    "disputes.decide",
+    "returns.decide",
+    "messages.view",
+    "audit.view",
+  ],
+  Modération: ["users.view", "moderation.decide", "audit.view"],
 };
+
+export function can(role: AdminRoleName, key: PermissionKey): boolean {
+  return ROLE_PERMISSIONS[role].includes(key);
+}
+
+/** Résout can() directement depuis l'email de session — évite de refaire
+ * useAdminRoleForEmail + can() à chaque appelant. */
+export function useCan(email: string, key: PermissionKey): boolean {
+  const role = useAdminRoleForEmail(email);
+  return can(role, key);
+}
 
 const adminRolesStore = createStore<Record<string, AdminRoleName>>(
   { u13: "Super Administrateur", u14: "Finance", u15: "Opérations" },
@@ -272,6 +300,113 @@ export function useAdminRoleForEmail(email: string): AdminRoleName {
   return roles[match.id] ?? "Support";
 }
 
+const teamsStore = createStore<Team[]>(seedTeams, "diambar:admin-teams");
+
+export function useTeams(): Team[] {
+  return useSyncExternalStore(teamsStore.subscribe, teamsStore.get, teamsStore.get);
+}
+
+export const teamActions = {
+  create: (name: string) => {
+    const team: Team = { id: `team_${Date.now()}`, name, memberIds: [] };
+    teamsStore.set((arr) => [...arr, team]);
+    auditActions.log({ action: "Équipe créée", target: name, module: "security" });
+    return team;
+  },
+  rename: (id: string, name: string) => {
+    teamsStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, name } : t)));
+  },
+  addMember: (id: string, userId: string) => {
+    teamsStore.set((arr) =>
+      arr.map((t) =>
+        t.id === id && !t.memberIds.includes(userId)
+          ? { ...t, memberIds: [...t.memberIds, userId] }
+          : t,
+      ),
+    );
+  },
+  removeMember: (id: string, userId: string) => {
+    teamsStore.set((arr) =>
+      arr.map((t) =>
+        t.id === id ? { ...t, memberIds: t.memberIds.filter((m) => m !== userId) } : t,
+      ),
+    );
+  },
+  remove: (id: string) => teamsStore.set((arr) => arr.filter((t) => t.id !== id)),
+};
+
+const refundApprovalTiersStore = createStore<RefundApprovalTier[]>(
+  seedRefundApprovalTiers,
+  "diambar:refund-approval-tiers",
+);
+
+export function useRefundApprovalTiers(): RefundApprovalTier[] {
+  return useSyncExternalStore(
+    refundApprovalTiersStore.subscribe,
+    refundApprovalTiersStore.get,
+    refundApprovalTiersStore.get,
+  );
+}
+
+/** Un montant est toujours couvert par un palier : le dernier de la liste a
+ * maxAmount = null (pas de plafond). Super Administrateur outrepasse tout
+ * palier — c'est le rôle qui approuve déjà tout dans ROLE_PERMISSIONS. */
+export function refundTierFor(amount: number, tiers: RefundApprovalTier[]): RefundApprovalTier {
+  return (
+    tiers.find((t) => t.maxAmount === null || amount <= t.maxAmount) ?? tiers[tiers.length - 1]
+  );
+}
+
+export function canApproveRefundAmount(
+  role: AdminRoleName,
+  amount: number,
+  tiers: RefundApprovalTier[],
+): boolean {
+  if (role === "Super Administrateur") return true;
+  return refundTierFor(amount, tiers).requiredRole === role;
+}
+
+// Périmètre géographique optionnel par compte admin — limité aux villes
+// réellement présentes sur les fiches utilisateur (PlatformUser.city), pas
+// à une taxonomie de régions administratives inventée. Absent ou vide =
+// aucune restriction (accès à toutes les villes).
+const adminScopeStore = createStore<Record<string, string[]>>(
+  { u15: ["Dakar", "Thiès"] },
+  "diambar:admin-scope",
+);
+
+export function useAdminScopes(): Record<string, string[]> {
+  return useSyncExternalStore(adminScopeStore.subscribe, adminScopeStore.get, adminScopeStore.get);
+}
+
+export function useAdminScope(userId: string): string[] {
+  return useAdminScopes()[userId] ?? [];
+}
+
+export const adminScopeActions = {
+  setScope: (userId: string, cities: string[], actor: string) => {
+    adminScopeStore.set((s) => ({ ...s, [userId]: cities }));
+    auditActions.log({
+      action: "Périmètre admin modifié",
+      target: actor,
+      module: "security",
+      level: "important",
+      changes: [{ field: "Villes autorisées", before: "—", after: cities.join(", ") || "Toutes" }],
+    });
+  },
+};
+
+/** true si l'utilisateur `city` est dans le périmètre de l'admin `email` —
+ * périmètre vide = pas de restriction. */
+export function useIsInAdminScope(email: string, city: string | undefined): boolean {
+  const users = usePlatformUsers();
+  const scopes = useAdminScopes();
+  const match = users.find((u) => u.email === email);
+  const scope = match ? (scopes[match.id] ?? []) : [];
+  if (scope.length === 0) return true;
+  return city ? scope.includes(city) : false;
+}
+
 function notifyApplicant(type: ValidationRequest["type"], title: string, body: string) {
   const actions =
     type === "farmer"
@@ -287,7 +422,7 @@ function nameFor(userId: string) {
 }
 
 export const validationActions = {
-  approve: (id: string) => {
+  approve: (id: string, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) => arr.map((v) => (v.id === id ? { ...v, status: "approved" } : v)));
     if (req) {
@@ -298,6 +433,7 @@ export const validationActions = {
         target: nameFor(req.userId),
         module: "validations",
         level: "info",
+        actor,
       });
       notifyApplicant(
         req.type,
@@ -306,7 +442,7 @@ export const validationActions = {
       );
     }
   },
-  reject: (id: string, note?: string) => {
+  reject: (id: string, note?: string, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) =>
       arr.map((v) => (v.id === id ? { ...v, status: "rejected", note } : v)),
@@ -319,6 +455,7 @@ export const validationActions = {
         module: "validations",
         level: "attention",
         reason: note,
+        actor,
       });
       notifyApplicant(
         req.type,
@@ -329,7 +466,7 @@ export const validationActions = {
       );
     }
   },
-  setDocStatus: (id: string, docLabel: string, ok: boolean) => {
+  setDocStatus: (id: string, docLabel: string, ok: boolean, actor = "Admin Diambar") => {
     const req = validationsStore.get().find((v) => v.id === id);
     validationsStore.set((arr) =>
       arr.map((v) =>
@@ -351,10 +488,17 @@ export const validationActions = {
         target: nameFor(req.userId),
         module: "validations",
         level: ok ? "info" : "attention",
+        actor,
       });
     }
   },
-  requestCorrection: (id: string, docLabel: string, reasons: string[], comment: string) => {
+  requestCorrection: (
+    id: string,
+    docLabel: string,
+    reasons: string[],
+    comment: string,
+    actor = "Admin Diambar",
+  ) => {
     const req = validationsStore.get().find((v) => v.id === id);
     if (!req) return;
     const reasonText = reasons.length ? reasons.join(", ") : "Autre";
@@ -378,6 +522,7 @@ export const validationActions = {
       module: "validations",
       level: "attention",
       reason: `${reasonText}${comment.trim() ? ` — ${comment.trim()}` : ""}`,
+      actor,
     });
     notifyApplicant(
       req.type,
@@ -401,37 +546,49 @@ function addModerationEvent(id: string, actor: string, label: string) {
 }
 
 export const moderationActions = {
-  approve: (id: string) => {
+  approve: (id: string, actor = "Admin Diambar") => {
     moderationStore.set((arr) => arr.map((m) => (m.id === id ? { ...m, status: "approved" } : m)));
-    addModerationEvent(id, "Admin Diambar", "Produit conservé");
-    auditActions.log({ action: "Produit conservé (modération)", target: id, module: "moderation" });
+    addModerationEvent(id, actor, "Produit conservé");
+    auditActions.log({
+      action: "Produit conservé (modération)",
+      target: id,
+      module: "moderation",
+      actor,
+    });
   },
   // Dépublier retire réellement le produit du catalogue (comme un producteur
   // qui le passerait en brouillon), pas seulement l'entrée de la file de
   // modération — sinon le produit resterait visible et commandable.
-  unpublish: (id: string) => {
+  unpublish: (id: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
     moderationStore.set((arr) => arr.map((x) => (x.id === id ? { ...x, status: "removed" } : x)));
     productActions.update(m.productId, { status: "draft" });
-    addModerationEvent(id, "Admin Diambar", "Produit dépublié");
+    addModerationEvent(id, actor, "Produit dépublié");
+    farmerNotifActions.add({
+      type: "system",
+      title: "Produit retiré du catalogue",
+      body: `« ${m.name} » a été dépublié par la modération. Contactez le support pour en savoir plus.`,
+    });
     auditActions.log({
       action: "Produit dépublié (modération)",
       target: id,
       module: "moderation",
       level: "attention",
+      actor,
       changes: [{ field: "Statut produit", before: "Publié", after: "Brouillon" }],
     });
   },
-  requestChange: (id: string, note: string) => {
+  requestChange: (id: string, note: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
-    addModerationEvent(id, "Admin Diambar", `Modification demandée : ${note}`);
+    addModerationEvent(id, actor, `Modification demandée : ${note}`);
     auditActions.log({
       action: "Modification demandée (modération)",
       target: id,
       module: "moderation",
       reason: note,
+      actor,
     });
     farmerNotifActions.add({
       type: "system",
@@ -441,7 +598,7 @@ export const moderationActions = {
   },
   // Suspendre le producteur est une action distincte de dépublier un seul
   // produit : ça bloque tout son compte, pas uniquement cette annonce.
-  suspendFarmer: (id: string) => {
+  suspendFarmer: (id: string, actor = "Admin Diambar") => {
     const m = moderationItem(id);
     if (!m) return;
     const product = products.find((p) => p.id === m.productId);
@@ -450,12 +607,18 @@ export const moderationActions = {
       ? usersStore.get().find((u) => u.name === farmer.name)
       : usersStore.get().find((u) => u.name === m.farmer);
     if (account) adminUserActions.setStatus(account.id, "suspended");
-    addModerationEvent(id, "Admin Diambar", `Producteur suspendu (${m.farmer})`);
+    addModerationEvent(id, actor, `Producteur suspendu (${m.farmer})`);
+    farmerNotifActions.add({
+      type: "system",
+      title: "Compte suspendu",
+      body: "Votre compte producteur a été suspendu par la modération. Contactez le support.",
+    });
     auditActions.log({
       action: "Producteur suspendu (modération)",
       target: account?.id ?? m.farmer,
       module: "security",
       level: "critical",
+      actor,
       changes: [{ field: "Statut du compte", before: "Actif", after: "Suspendu" }],
     });
   },
@@ -508,6 +671,18 @@ export const platformSettingsActions = {
           : undefined,
     });
   },
+  addZone: (name: string, baseFee: number, perKm: number, actor: string) => {
+    const id = `dz_${Date.now()}`;
+    zonesStore.set((arr) => [...arr, { id, name, baseFee, perKm, active: true }]);
+    auditActions.log({
+      action: "Ville ajoutée",
+      target: name,
+      module: "finance",
+      actor,
+      changes: [{ field: "Ville desservie", before: "—", after: name }],
+    });
+    return id;
+  },
   setRefundJustificationThreshold: (amount: number) => {
     const before = refundSettingsStore.get().justificationThreshold;
     refundSettingsStore.set((s) => ({ ...s, justificationThreshold: amount }));
@@ -520,6 +695,73 @@ export const platformSettingsActions = {
         { field: "Seuil de justification", before: `${before} FCFA`, after: `${amount} FCFA` },
       ],
     });
+  },
+  setApprovalTierRole: (tierId: string, requiredRole: AdminRoleName) => {
+    const before = refundApprovalTiersStore.get().find((t) => t.id === tierId)?.requiredRole;
+    refundApprovalTiersStore.set((arr) =>
+      arr.map((t) => (t.id === tierId ? { ...t, requiredRole } : t)),
+    );
+    auditActions.log({
+      action: "Palier d'approbation modifié",
+      target: tierId,
+      module: "security",
+      level: "important",
+      changes: before ? [{ field: "Rôle requis", before, after: requiredRole }] : undefined,
+    });
+  },
+};
+
+// Sécurité de connexion : seuil d'échecs avant blocage réel, et durée du
+// blocage — configurable, appliqué pour de vrai par login.tsx en comptant
+// les événements "Connexion échouée" réels du journal d'audit (pas de
+// simulation, pas de capture d'IP puisqu'aucune n'existe dans l'app).
+const loginSecurityStore = createStore(
+  { maxAttempts: 5, lockoutMinutes: 15 },
+  "diambar:login-security",
+);
+
+export function useLoginSecurity() {
+  return useSyncExternalStore(
+    loginSecurityStore.subscribe,
+    loginSecurityStore.get,
+    loginSecurityStore.get,
+  );
+}
+
+export const loginSecurityActions = {
+  setMaxAttempts: (maxAttempts: number) => {
+    loginSecurityStore.set((s) => ({ ...s, maxAttempts }));
+  },
+  setLockoutMinutes: (lockoutMinutes: number) => {
+    loginSecurityStore.set((s) => ({ ...s, lockoutMinutes }));
+  },
+};
+
+const maintenanceStore = createStore(
+  { active: false, message: "Diambar Agro est temporairement indisponible pour maintenance." },
+  "diambar:maintenance",
+);
+
+export function useMaintenanceMode() {
+  return useSyncExternalStore(
+    maintenanceStore.subscribe,
+    maintenanceStore.get,
+    maintenanceStore.get,
+  );
+}
+
+export const maintenanceActions = {
+  setActive: (active: boolean, actor: string) => {
+    maintenanceStore.set((s) => ({ ...s, active }));
+    auditActions.log({
+      action: active ? "Mode maintenance activé" : "Mode maintenance désactivé",
+      target: actor,
+      module: "system",
+      level: "critical",
+    });
+  },
+  setMessage: (message: string) => {
+    maintenanceStore.set((s) => ({ ...s, message }));
   },
 };
 

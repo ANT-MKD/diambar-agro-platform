@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DemandeAccesRouteImport } from './routes/demande-acces'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FarmerRouteImport } from './routes/farmer'
@@ -29,10 +30,12 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
+import { Route as AdminOperationsRouteImport } from './routes/admin.operations'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
@@ -84,6 +87,7 @@ import { Route as AdminUsersAdminsRouteImport } from './routes/admin.users.admin
 import { Route as AdminUsersDriversRouteImport } from './routes/admin.users.drivers'
 import { Route as AdminUsersFarmersRouteImport } from './routes/admin.users.farmers'
 import { Route as AdminUsersRestaurantsRouteImport } from './routes/admin.users.restaurants'
+import { Route as AdminUsersRolesRouteImport } from './routes/admin.users.roles'
 import { Route as AdminValidationsIndexRouteImport } from './routes/admin.validations.index'
 import { Route as AdminValidationsValidationIdRouteImport } from './routes/admin.validations.$validationId'
 import { Route as DriverDisputesIndexRouteImport } from './routes/driver.disputes.index'
@@ -197,6 +201,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemandeAccesRoute = DemandeAccesRouteImport.update({
+  id: '/demande-acces',
+  path: '/demande-acces',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DriverRoute = DriverRouteImport.update({
   id: '/driver',
   path: '/driver',
@@ -277,6 +286,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -295,6 +309,11 @@ const AdminMessagesRoute = AdminMessagesRouteImport.update({
 const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOperationsRoute = AdminOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -552,6 +571,11 @@ const AdminUsersFarmersRoute = AdminUsersFarmersRouteImport.update({
 const AdminUsersRestaurantsRoute = AdminUsersRestaurantsRouteImport.update({
   id: '/users/restaurants',
   path: '/users/restaurants',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRolesRoute = AdminUsersRolesRouteImport.update({
+  id: '/users/roles',
+  path: '/users/roles',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminValidationsIndexRoute = AdminValidationsIndexRouteImport.update({
@@ -1057,6 +1081,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1073,10 +1098,12 @@ export interface FileRoutesByFullPath {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1120,6 +1147,7 @@ export interface FileRoutesByFullPath {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1226,6 +1254,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1242,10 +1271,12 @@ export interface FileRoutesByTo {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1279,6 +1310,7 @@ export interface FileRoutesByTo {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1386,6 +1418,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/contact': typeof ContactRoute
+  '/demande-acces': typeof DemandeAccesRoute
   '/driver': typeof DriverRouteWithChildren
   '/faq': typeof FaqRoute
   '/farmer': typeof FarmerRouteWithChildren
@@ -1402,10 +1435,12 @@ export interface FileRoutesById {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
@@ -1449,6 +1484,7 @@ export interface FileRoutesById {
   '/admin/users/drivers': typeof AdminUsersDriversRoute
   '/admin/users/farmers': typeof AdminUsersFarmersRoute
   '/admin/users/restaurants': typeof AdminUsersRestaurantsRoute
+  '/admin/users/roles': typeof AdminUsersRolesRoute
   '/admin/validations/$validationId': typeof AdminValidationsValidationIdRoute
   '/driver/disputes/$disputeId': typeof DriverDisputesDisputeIdRoute
   '/driver/disputes/new': typeof DriverDisputesNewRoute
@@ -1557,6 +1593,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1573,10 +1610,12 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1620,6 +1659,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1726,6 +1766,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1742,10 +1783,12 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1779,6 +1822,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -1885,6 +1929,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/contact'
+    | '/demande-acces'
     | '/driver'
     | '/faq'
     | '/farmer'
@@ -1901,10 +1946,12 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
+    | '/admin/operations'
     | '/admin/settings'
     | '/admin/support'
     | '/blog/$slug'
@@ -1948,6 +1995,7 @@ export interface FileRouteTypes {
     | '/admin/users/drivers'
     | '/admin/users/farmers'
     | '/admin/users/restaurants'
+    | '/admin/users/roles'
     | '/admin/validations/$validationId'
     | '/driver/disputes/$disputeId'
     | '/driver/disputes/new'
@@ -2055,6 +2103,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
   ContactRoute: typeof ContactRoute
+  DemandeAccesRoute: typeof DemandeAccesRoute
   DriverRoute: typeof DriverRouteWithChildren
   FaqRoute: typeof FaqRoute
   FarmerRoute: typeof FarmerRouteWithChildren
@@ -2104,6 +2153,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demande-acces': {
+      id: '/demande-acces'
+      path: '/demande-acces'
+      fullPath: '/demande-acces'
+      preLoaderRoute: typeof DemandeAccesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/driver': {
@@ -2218,6 +2274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/documents': {
+      id: '/admin/documents'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/finance': {
       id: '/admin/finance'
       path: '/finance'
@@ -2244,6 +2307,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/admin/notifications'
       preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/operations': {
+      id: '/admin/operations'
+      path: '/operations'
+      fullPath: '/admin/operations'
+      preLoaderRoute: typeof AdminOperationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -2601,6 +2671,13 @@ declare module '@tanstack/react-router' {
       path: '/users/restaurants'
       fullPath: '/admin/users/restaurants'
       preLoaderRoute: typeof AdminUsersRestaurantsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/roles': {
+      id: '/admin/users/roles'
+      path: '/users/roles'
+      fullPath: '/admin/users/roles'
+      preLoaderRoute: typeof AdminUsersRolesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/validations/': {
@@ -3253,10 +3330,12 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
+  AdminOperationsRoute: typeof AdminOperationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
@@ -3271,6 +3350,7 @@ interface AdminRouteChildren {
   AdminUsersDriversRoute: typeof AdminUsersDriversRoute
   AdminUsersFarmersRoute: typeof AdminUsersFarmersRoute
   AdminUsersRestaurantsRoute: typeof AdminUsersRestaurantsRoute
+  AdminUsersRolesRoute: typeof AdminUsersRolesRoute
   AdminValidationsValidationIdRoute: typeof AdminValidationsValidationIdRoute
   AdminDeliveriesIndexRoute: typeof AdminDeliveriesIndexRoute
   AdminDisputesIndexRoute: typeof AdminDisputesIndexRoute
@@ -3286,10 +3366,12 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDocumentsRoute: AdminDocumentsRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
+  AdminOperationsRoute: AdminOperationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
@@ -3304,6 +3386,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminUsersDriversRoute: AdminUsersDriversRoute,
   AdminUsersFarmersRoute: AdminUsersFarmersRoute,
   AdminUsersRestaurantsRoute: AdminUsersRestaurantsRoute,
+  AdminUsersRolesRoute: AdminUsersRolesRoute,
   AdminValidationsValidationIdRoute: AdminValidationsValidationIdRoute,
   AdminDeliveriesIndexRoute: AdminDeliveriesIndexRoute,
   AdminDisputesIndexRoute: AdminDisputesIndexRoute,
@@ -3703,6 +3786,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
   ContactRoute: ContactRoute,
+  DemandeAccesRoute: DemandeAccesRoute,
   DriverRoute: DriverRouteWithChildren,
   FaqRoute: FaqRoute,
   FarmerRoute: FarmerRouteWithChildren,

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { ensureDataVersion } from "./persist";
 
 export type SessionEntry = {
   id: string;
@@ -100,6 +101,7 @@ const initial: SecurityState = {
 
 let state: SecurityState = initial;
 if (typeof window !== "undefined") {
+  ensureDataVersion();
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) state = { ...initial, ...(JSON.parse(raw) as SecurityState) };

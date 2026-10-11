@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/orders/")({
   head: () => ({
@@ -38,6 +39,7 @@ function AdminOrders() {
   const orders = useOrders();
   const restaurantOrders = useRestaurantOrders();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | OrderStatus>("all");
   const [farmerId, setFarmerId] = useState("all");
@@ -77,7 +79,7 @@ function AdminOrders() {
     <div className="space-y-6">
       <PageHeader title="Commandes" subtitle="Supervisez toutes les commandes de la plateforme" />
 
-      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Total" value={String(total)} icon={ShoppingBag} />
         <StatCard label="En attente" value={String(pending)} icon={Clock} />
         <StatCard label="En cours" value={String(inProgress)} icon={Truck} />
@@ -179,7 +181,7 @@ function AdminOrders() {
                   </td>
                   <td className="px-4 py-3 text-right hidden lg:table-cell text-muted-foreground">
                     {o.status === "delivered"
-                      ? formatFCFA(commissionForOrder(o, tiers, volumeByFarmer))
+                      ? formatFCFA(commissionForOrder(o, tiers, volumeByFarmer, recorded))
                       : "—"}
                   </td>
                   <td className="px-4 py-3">

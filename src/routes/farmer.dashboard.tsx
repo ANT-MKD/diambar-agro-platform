@@ -34,7 +34,12 @@ import {
   orderActions,
   useFarmerNotifications,
   farmerNotifActions,
+  useFarmerProfile,
+  useFarmerFarm,
+  usePaymentPrefs,
 } from "@/data/store";
+import { useSecurity } from "@/data/security";
+import { farmerCompletionItems } from "@/lib/profile-completion";
 import { useSupplierScores } from "@/data/business";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { Sparkline, ProgressCircle } from "@/components/farmer/sparkline";
@@ -42,7 +47,7 @@ import { AlertsPanel } from "@/components/farmer/alerts-panel";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
-import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
+import { ProfileCompletion } from "@/components/common/profile-completion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -52,6 +57,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
@@ -61,6 +67,10 @@ export const Route = createFileRoute("/farmer/dashboard")({
 function Dashboard() {
   const products = useProducts();
   const orders = useOrders().filter((o) => o.farmerId === "f1");
+  const farmerProfile = useFarmerProfile();
+  const farmerFarm = useFarmerFarm();
+  const paymentPrefs = usePaymentPrefs();
+  const security = useSecurity();
   const pending = orders.filter((o) => o.status === "pending").slice(0, 3);
   const delivered = orders.filter((o) => o.status === "delivered");
   const active = products.filter((p) => p.status === "active").length;
@@ -182,20 +192,12 @@ function Dashboard() {
         </Link>
       </div>
 
-      <OnboardingChecklist
-        storageKey="farmer"
-        title="Complétez votre profil producteur"
-        items={[
-          { key: "farmer_photo", label: "Ajouter une photo de profil" },
-          { key: "farmer_farm", label: "Renseigner votre exploitation" },
-          { key: "farmer_payment", label: "Connecter un compte Wave/Orange" },
-          { key: "farmer_products", label: "Publier vos 3 premiers produits" },
-          { key: "farmer_verify", label: "Vérifier votre identité" },
-          { key: "farmer_notifs", label: "Activer les notifications" },
-        ]}
+      <ProfileCompletion
+        title="Profil producteur complété"
+        items={farmerCompletionItems(farmerProfile, farmerFarm, paymentPrefs, security.twoFa)}
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             icon: TrendingUp,
@@ -235,15 +237,15 @@ function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="glass rounded-2xl p-5 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
-                <Package className="h-5 w-5" />
+          <div className="glass rounded-2xl p-4 sm:p-5 flex flex-col h-full min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-500">
+                <Package className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <ProgressCircle value={active} max={products.length} color="oklch(0.65 0.2 260)" />
             </div>
-            <div className="mt-4 flex items-baseline gap-1.5">
-              <span className="font-display text-2xl font-bold">{active}</span>
+            <div className="mt-3 sm:mt-4 flex flex-wrap items-baseline gap-x-1.5">
+              <span className="font-display text-lg sm:text-2xl font-bold">{active}</span>
               <span className="text-xs text-muted-foreground">/ {products.length} publiés</span>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">
@@ -350,7 +352,11 @@ function Dashboard() {
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
-                      onClick={() => orderActions.setStatus(o.id, "confirmed")}
+                      onClick={() => {
+                        const result = orderActions.setStatus(o.id, "confirmed");
+                        if (result.ok) toast.success(`${o.reference} acceptée`);
+                        else toast.error(result.message);
+                      }}
                       className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500 text-white text-xs font-semibold py-1.5"
                     >
                       <Check className="h-3 w-3" />
@@ -385,7 +391,7 @@ function Dashboard() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass rounded-2xl p-6">
           <h3 className="font-semibold mb-4">Produits populaires</h3>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[...products]
               .sort((a, b) => b.ordersThisMonth - a.ordersThisMonth)
               .slice(0, 3)

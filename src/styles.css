@@ -279,3 +279,30 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Site public et écrans de connexion : fond crème, encre profonde, vert
+   Diambar en accent. Appliqué par la classe .public-surface. */
+.public-surface {
+  --background: oklch(0.975 0.007 95);
+  --card: oklch(0.995 0.003 95);
+  --muted: oklch(0.945 0.01 110);
+  --muted-foreground: oklch(0.45 0.02 150);
+  --border: oklch(0.89 0.012 110);
+  --input: oklch(0.89 0.012 110);
+  --foreground: oklch(0.2 0.025 160);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+.public-surface .eyebrow {
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.public-surface .display-xl {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}

@@ -25,11 +25,27 @@ export function CartItemRow({ product, qty }: { product: Product; qty: number })
         <div className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border">
           <button
             onClick={() => cartActions.setQty(product.id, qty - 1)}
-            className="h-7 w-7 grid place-items-center hover:bg-accent"
+            className="h-10 w-10 grid place-items-center hover:bg-accent"
           >
             <Minus className="h-3 w-3" />
           </button>
-          <span className="px-2 text-xs font-semibold w-8 text-center">{qty}</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={product.stock}
+            aria-label={`Quantité — ${product.name}`}
+            value={qty}
+            onChange={(e) => {
+              const wanted = Math.floor(Number(e.target.value) || 0);
+              if (wanted <= 0) return;
+              const applied = cartActions.setQty(product.id, wanted);
+              if (applied < wanted) {
+                toast.error(`Stock disponible : ${product.stock} ${product.unit}`);
+              }
+            }}
+            className="h-10 w-16 bg-transparent text-center text-sm font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          />
           <button
             onClick={() => {
               if (atMax) {
@@ -39,7 +55,7 @@ export function CartItemRow({ product, qty }: { product: Product; qty: number })
               cartActions.setQty(product.id, qty + 1);
             }}
             disabled={atMax}
-            className="h-7 w-7 grid place-items-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+            className="h-10 w-10 grid place-items-center hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Plus className="h-3 w-3" />
           </button>

@@ -4,13 +4,14 @@ import { MessageCircle, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-card/40">
+    <footer className="border-t border-border">
       <div className="mx-auto max-w-7xl px-4 py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <Logo showTag />
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-              Logistique alimentaire moderne au Sénégal. Made with ❤️ in Dakar.
+              Produits frais des producteurs sénégalais, livrés aux restaurants le lendemain. Pilote
+              en cours à Dakar.
             </p>
             <div className="mt-5 flex gap-2">
               {/* Seul canal réel affiché : le numéro déjà indiqué dans la
@@ -49,6 +50,11 @@ export function Footer() {
               <li>
                 <Link to="/pricing" className="hover:text-foreground">
                   Tarifs
+                </Link>
+              </li>
+              <li>
+                <Link to="/blog" className="hover:text-foreground">
+                  Blog
                 </Link>
               </li>
               <li>
@@ -93,11 +99,15 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-emerald-500" />
-                contact@diambar-agro.sn
+                <a href="mailto:contact@diambar-agro.sn" className="hover:text-foreground">
+                  contact@diambar-agro.sn
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-emerald-500" />
-                +221 77 000 00 00
+                <a href="tel:+221770000000" className="hover:text-foreground">
+                  +221 77 000 00 00
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-emerald-500" />
@@ -107,7 +117,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-12 pt-6 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© 2025 Diambar Agro · Tous droits réservés</span>
+          <span>© {new Date().getFullYear()} Diambar Agro · Tous droits réservés</span>
           <span>Fait avec ❤️ au Sénégal 🇸🇳</span>
         </div>
       </div>

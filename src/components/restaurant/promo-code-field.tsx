@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface PromoCodeFieldProps {
+  /** Faux dès que le restaurant a déjà une commande (codes « première commande »). */
+  isFirstOrder?: boolean;
   subtotal: number;
   deliveryFee: number;
   appliedCode: string | null;
@@ -14,6 +16,7 @@ interface PromoCodeFieldProps {
 }
 
 export function PromoCodeField({
+  isFirstOrder = true,
   subtotal,
   deliveryFee,
   appliedCode,
@@ -28,6 +31,11 @@ export function PromoCodeField({
     const promo = findPromoCode(input);
     if (!promo) {
       setError("Code invalide ou expiré");
+      onApply(null, 0);
+      return;
+    }
+    if (promo.firstOrderOnly && !isFirstOrder) {
+      setError("Ce code est réservé à la première commande");
       onApply(null, 0);
       return;
     }

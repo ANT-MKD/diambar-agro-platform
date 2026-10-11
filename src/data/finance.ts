@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { createStore } from "./persist";
 
 /* ------------------------------------------------------------------ */
 /* Remboursements — centre de résolution financière (espace admin)     */
@@ -8,7 +9,8 @@ import { useSyncExternalStore } from "react";
 /* Refund sans provoquer d'import circulaire.                           */
 /* ------------------------------------------------------------------ */
 
-export type RefundSource = "return" | "dispute" | "incident" | "manual";
+export type RefundSource =
+  "return" | "dispute" | "incident" | "manual" | "cancellation" | "reception" | "shortage";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
 // Qui supporte réellement le coût une fois le remboursement exécuté :
@@ -29,6 +31,9 @@ export const REFUND_SOURCE_LABEL: Record<RefundSource, string> = {
   dispute: "Litige",
   incident: "Incident de course",
   manual: "Geste commercial",
+  cancellation: "Annulation de commande",
+  reception: "Refus à la réception",
+  shortage: "Produit indisponible",
 };
 
 export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
@@ -65,6 +70,13 @@ export type Refund = {
   attemptCount: number;
   failureReason?: string;
   history: RefundEvent[];
+  // Identité réelle de l'admin à chaque étape sensible — absent quand
+  // l'étape n'a pas été faite par un admin identifié (ex. dossier créé
+  // automatiquement depuis un litige/retour/incident : createdBy reste
+  // vide, ce n'est pas un geste commercial saisi à la main). Sert à
+  // empêcher qu'un même admin crée, approuve ET exécute le même dossier.
+  createdBy?: string;
+  approvedBy?: string;
 };
 
 const seedRefunds: Refund[] = [
@@ -174,38 +186,11 @@ const seedRefunds: Refund[] = [
   },
 ];
 
-function createStore<T>(initial: T, persistKey?: string) {
-  let state = initial;
-  if (persistKey && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<() => void>();
-  return {
-    get: () => state,
-    set: (next: T | ((prev: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey && typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: () => void) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
-
 const refundsStore = createStore<Refund[]>(seedRefunds, "diambar:refunds");
+
+export function getRefundsSnapshot() {
+  return refundsStore.get();
+}
 
 export function useRefunds() {
   return useSyncExternalStore(refundsStore.subscribe, refundsStore.get, refundsStore.get);
@@ -242,10 +227,22 @@ export function refundedTotalForOrder(refunds: Refund[], orderRef: string, exclu
     .reduce((s, r) => s + r.amount, 0);
 }
 
+// Abonnés au paiement effectif d'un remboursement (notification du
+// bénéficiaire), sans dépendance circulaire vers les autres magasins.
+const refundPaidListeners = new Set<(r: Refund) => void>();
+export function onRefundPaid(fn: (r: Refund) => void) {
+  refundPaidListeners.add(fn);
+  return () => refundPaidListeners.delete(fn);
+}
+
 export const refundActions = {
   create: (
-    input: Omit<Refund, "id" | "reference" | "status" | "createdAt" | "attemptCount" | "history">,
+    input: Omit<
+      Refund,
+      "id" | "reference" | "status" | "createdAt" | "attemptCount" | "history" | "createdBy"
+    >,
     initialStatus: RefundStatus = "pending",
+    actor?: string,
   ) => {
     const createdAt = new Date().toISOString();
     const item: Refund = {
@@ -255,17 +252,21 @@ export const refundActions = {
       status: initialStatus,
       createdAt,
       attemptCount: 0,
+      // Un geste commercial saisi à la main par un admin a un créateur
+      // identifié ; un dossier ouvert automatiquement depuis un
+      // litige/retour/incident n'en a pas (personne à exclure ensuite).
+      createdBy: actor,
       history: [
-        { at: createdAt, actor: input.requester, text: "Dossier créé" },
+        { at: createdAt, actor: actor ?? input.requester, text: "Dossier créé" },
         ...(initialStatus === "approved"
-          ? [{ at: createdAt, actor: "Admin Diambar", text: "Remboursement approuvé" }]
+          ? [{ at: createdAt, actor: actor ?? "Admin Diambar", text: "Remboursement approuvé" }]
           : []),
       ],
     };
     refundsStore.set((arr) => [item, ...arr]);
     return item;
   },
-  approve: (id: string, note?: string) => {
+  approve: (id: string, actor: string, note?: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -275,11 +276,12 @@ export const refundActions = {
               status: "approved",
               decidedAt: at,
               note,
+              approvedBy: actor,
               history: [
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: `Remboursement approuvé${note ? ` — ${note}` : ""}`,
                 },
               ],
@@ -288,7 +290,7 @@ export const refundActions = {
       ),
     );
   },
-  reject: (id: string, note: string) => {
+  reject: (id: string, actor: string, note: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -298,14 +300,18 @@ export const refundActions = {
               status: "rejected",
               decidedAt: at,
               note,
-              history: [...r.history, { at, actor: "Admin Diambar", text: `Rejeté — ${note}` }],
+              history: [...r.history, { at, actor, text: `Rejeté — ${note}` }],
             }
           : r,
       ),
     );
   },
-  markPaid: (id: string) => {
+  markPaid: (id: string, actor: string) => {
     const at = new Date().toISOString();
+    const before = refundsStore.get().find((r) => r.id === id);
+    if (before && before.status !== "paid") {
+      queueMicrotask(() => refundPaidListeners.forEach((fn) => fn({ ...before, status: "paid" })));
+    }
     refundsStore.set((arr) =>
       arr.map((r) =>
         r.id === id
@@ -313,7 +319,7 @@ export const refundActions = {
               ...r,
               status: "paid",
               decidedAt: at,
-              history: [...r.history, { at, actor: "Admin Diambar", text: "Paiement confirmé" }],
+              history: [...r.history, { at, actor, text: "Paiement confirmé" }],
             }
           : r,
       ),
@@ -339,7 +345,7 @@ export const refundActions = {
    * (retour) établit une responsabilité différente de celle retenue au
    * moment de la création du dossier. Bloqué une fois payé : l'argent a
    * déjà bougé, la charge réelle ne peut plus être réécrite. */
-  setBornBy: (id: string, bornBy: RefundBornBy, note?: string) => {
+  setBornBy: (id: string, actor: string, bornBy: RefundBornBy, note?: string) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -351,7 +357,7 @@ export const refundActions = {
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: `Prise en charge révisée — ${REFUND_BORN_BY_LABEL[bornBy]}${note ? ` (${note})` : ""}`,
                 },
               ],
@@ -362,7 +368,7 @@ export const refundActions = {
   },
   /** Nouvelle tentative après échec : repasse en "approved" pour permettre
    * un nouveau "Marquer comme remboursé", sans perdre l'historique. */
-  retry: (id: string, method?: RefundMethod) => {
+  retry: (id: string, actor: string, method?: RefundMethod) => {
     const at = new Date().toISOString();
     refundsStore.set((arr) =>
       arr.map((r) =>
@@ -375,7 +381,7 @@ export const refundActions = {
                 ...r.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor,
                   text: method
                     ? `Nouvelle tentative via ${method}`
                     : "Nouvelle tentative de remboursement",

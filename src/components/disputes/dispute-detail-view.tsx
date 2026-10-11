@@ -206,8 +206,9 @@ export function DisputeDetailView({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-auto min-h-9 whitespace-normal py-2"
                   onClick={() => {
-                    disputeActions.setStatus(d.id, "investigating");
+                    disputeActions.setStatus(d.id, "investigating", name);
                     toast.success("Dossier en instruction");
                   }}
                 >
@@ -216,11 +217,12 @@ export function DisputeDetailView({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-auto min-h-9 whitespace-normal py-2"
                   onClick={() => {
                     disputeActions.setStatus(
                       d.id,
                       "awaiting_response",
-                      "Support Diambar",
+                      name,
                       `Réponse demandée à ${d.againstName}`,
                     );
                     toast.success("Réponse demandée");
@@ -234,7 +236,7 @@ export function DisputeDetailView({
                 <Select
                   value={d.assignee ?? ""}
                   onValueChange={(v) => {
-                    disputeActions.assign(d.id, v);
+                    disputeActions.assign(d.id, v, name);
                     toast.success("Dossier assigné");
                   }}
                 >
@@ -255,7 +257,7 @@ export function DisputeDetailView({
                 size="sm"
                 className="w-full"
                 onClick={() => {
-                  disputeActions.escalate(d.id, "Escalade manuelle par le support");
+                  disputeActions.escalate(d.id, "Escalade manuelle par le support", name);
                   toast.success("Dossier escaladé");
                 }}
               >
@@ -326,6 +328,7 @@ export function DisputeDetailView({
                     grantedAmount: amount,
                     liableParty: liable,
                     reason: reason.trim(),
+                    by: name,
                   });
                   toast.success(
                     amount > 0

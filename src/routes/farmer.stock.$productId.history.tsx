@@ -33,7 +33,7 @@ function HistoryPage() {
         }
       />
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="glass rounded-2xl p-5">
           <div className="text-xs text-muted-foreground">Entrées</div>
           <div className="font-display text-2xl font-bold text-emerald-500">

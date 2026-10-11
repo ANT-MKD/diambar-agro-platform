@@ -32,16 +32,18 @@ export function SlaBadge({ dispute }: { dispute: Dispute }) {
   );
 }
 
-export function PriorityBadge({ priority }: { priority: Dispute["priority"] }) {
+export function PriorityBadge({ priority }: { priority: Dispute["priority"] | "urgent" }) {
   return (
     <span
-      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" : priority === "medium" ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400" : "border-border text-muted-foreground"}`}
+      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${priority === "urgent" ? "border-destructive bg-destructive text-destructive-foreground animate-pulse" : priority === "high" ? "border-destructive/20 bg-destructive/10 text-destructive" : priority === "medium" ? "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400" : "border-border text-muted-foreground"}`}
     >
-      {priority === "high"
-        ? "Priorité haute"
-        : priority === "medium"
-          ? "Priorité moyenne"
-          : "Priorité basse"}
+      {priority === "urgent"
+        ? "🚨 Urgence"
+        : priority === "high"
+          ? "Priorité haute"
+          : priority === "medium"
+            ? "Priorité moyenne"
+            : "Priorité basse"}
     </span>
   );
 }

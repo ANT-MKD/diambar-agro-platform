@@ -27,13 +27,16 @@ import {
   useDriverNotifications,
   useDriverOnline,
   driverOnlineActions,
-  useMissions,
+  useDriverMissions,
   useDriverSettings,
   useDriverConversations,
   missionActions,
   autoAcceptableMissions,
+  useMyDriverFleet,
 } from "@/data/store";
 import { driverProfile } from "@/data/mocks";
+import { useMaintenanceMode } from "@/data/admin-store";
+import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/driver")({
@@ -53,13 +56,15 @@ const bottomNav = [
 
 function DriverLayout() {
   const { user } = Route.useRouteContext();
+  const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const notifs = useDriverNotifications();
   const online = useDriverOnline();
   const unread = notifs.filter((n) => !n.read).length;
-  const missions = useMissions();
+  const missions = useDriverMissions();
   const settings = useDriverSettings();
+  const fleet = useMyDriverFleet();
   const activeMissions = missions.filter(
     (m) => m.driverId === MY_DRIVER_ID && ["accepted", "pickup", "loaded"].includes(m.status),
   ).length;
@@ -69,14 +74,14 @@ function DriverLayout() {
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
   useEffect(() => {
     if (!online) return;
-    const matches = autoAcceptableMissions(missions, settings);
+    const matches = autoAcceptableMissions(missions, settings, fleet);
     for (const m of matches) {
-      missionActions.accept(m.id);
+      if (!missionActions.accept(m.id).ok) continue;
       toast.success(
         `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
       );
     }
-  }, [missions, settings, online]);
+  }, [missions, settings, online, fleet]);
 
   const toggleOnline = () => {
     driverOnlineActions.toggle();
@@ -110,6 +115,10 @@ function DriverLayout() {
       ],
     },
   ];
+
+  if (maintenance.active) {
+    return <MaintenanceScreen message={maintenance.message} />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -157,7 +166,7 @@ function DriverLayout() {
                   >
                     <it.icon className="h-4 w-4" />
                     <span className="flex-1">{it.label}</span>
-                    {"badge" in it && it.badge && (
+                    {"badge" in it && !!it.badge && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive text-destructive-foreground">
                         {it.badge}
                       </span>

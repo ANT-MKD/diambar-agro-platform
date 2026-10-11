@@ -18,7 +18,18 @@ import {
   TriangleAlert,
   Camera,
   Wallet,
+  Undo2,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
   useMission,
@@ -27,6 +38,8 @@ import {
   useOrders,
   useProducts,
   useDriverVehicle,
+  useMyDriverFleet,
+  useMyMissionEligibility,
   useDriverSettings,
 } from "@/data/store";
 import { GpsPanel } from "@/components/driver/gps-panel";
@@ -34,6 +47,8 @@ import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { driverCommissionForPayout } from "@/lib/commission";
+import { WAIT_FCFA_PER_MINUTE, WAIT_FREE_MINUTES } from "@/lib/mission-eligibility";
 import { timeLabel } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +61,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { telLink, whatsappLink } from "@/lib/contact";
 
 export const Route = createFileRoute("/driver/missions/$missionId")({
   head: () => ({ meta: [{ title: "Mission · Livreur Diambar" }] }),
@@ -76,10 +92,17 @@ function MissionDetail() {
   const orders = useOrders();
   const products = useProducts();
   const vehicle = useDriverVehicle();
+  const fleet = useMyDriverFleet();
+  const eligibilityFor = useMyMissionEligibility();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
+  const [deliveryCode, setDeliveryCode] = useState("");
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupCode, setPickupCode] = useState("");
 
   if (!mission) {
     return (
@@ -95,8 +118,10 @@ function MissionDetail() {
   const r = restaurants.find((x) => x.id === mission.restaurantId);
   const f = farmers.find((x) => x.id === mission.farmerId);
   const activeIndex = FLOW.findIndex((s) => s.status === mission.status);
+  // Dernière occurrence : après un désistement, les étapes d'un livreur
+  // précédent ne doivent pas s'afficher pour le suivant.
   const stepAt = (status: MissionStatus) =>
-    mission.statusHistory?.find((h) => h.status === status)?.at;
+    [...(mission.statusHistory ?? [])].reverse().find((h) => h.status === status)?.at;
 
   // La correspondance orderRef ↔ commande réelle n'existe que pour une
   // partie des missions de démo (données seedées indépendamment) : on
@@ -113,28 +138,65 @@ function MissionDetail() {
   const navTarget = mission.status === "loaded" ? mission.dropoff : mission.pickup;
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${navTarget.lat},${navTarget.lng}`;
 
+  const eligibility = eligibilityFor(mission);
+  // Une mission prise par un autre livreur reste consultable, jamais pilotable.
+  const isMine = mission.driverId === "d1";
   const accept = () => {
-    missionActions.accept(mission.id);
+    const result = missionActions.accept(mission.id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     toast.success("Mission acceptée");
   };
   const startPickup = () => {
-    missionActions.setStatus(mission.id, "pickup");
+    const result = missionActions.setStatus(mission.id, "pickup");
+    if (!result.ok) return toast.error(result.message);
     toast.success("Trajet vers le producteur démarré");
   };
   const markLoaded = () => {
-    missionActions.setStatus(mission.id, "loaded");
+    const result = missionActions.setStatus(mission.id, "loaded", "d1", { code: pickupCode });
+    if (!result.ok) return toast.error(result.message);
+    setPickupOpen(false);
+    setPickupCode("");
     toast.success("Marchandise chargée · direction restaurant");
   };
   const markDelivered = () => {
-    if (proofPhotos.length > 0) missionActions.attachProof(mission.id, proofPhotos);
-    missionActions.setStatus(mission.id, "delivered");
-    toast.success("Livraison confirmée · paiement en cours");
+    if (proofPhotos.length === 0) {
+      toast.error("Ajoutez au moins une photo de la marchandise livrée.");
+      return;
+    }
+    missionActions.attachProof(mission.id, proofPhotos);
+    const result = missionActions.setStatus(mission.id, "delivered", "d1", {
+      code: deliveryCode,
+    });
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Livraison confirmée · paiement crédité");
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
   };
+  const withdraw = () => {
+    const reason = withdrawReason.trim();
+    if (reason.length < 5) {
+      toast.error("Indiquez la raison du désistement");
+      return;
+    }
+    const result = missionActions.withdraw(mission.id, reason);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(`${mission.reference} remise à disposition des autres livreurs`);
+    setWithdrawOpen(false);
+    setWithdrawReason("");
+    navigate({ to: "/driver/missions" });
+  };
   const refuse = () => {
-    missionActions.cancel(mission.id);
-    toast.success("Mission refusée");
+    missionActions.dismiss(mission.id);
+    toast.success("Mission refusée · elle reste proposée aux autres livreurs");
     setRefuseOpen(false);
     navigate({ to: "/driver/missions" });
   };
@@ -180,6 +242,19 @@ function MissionDetail() {
           <span>
             Véhicule incompatible : {mission.weightKg} kg à transporter pour une capacité de{" "}
             {vehicle.capacityKg} kg ({vehicle.type} {vehicle.brand} {vehicle.model}).
+          </span>
+        </div>
+      )}
+
+      {mission.status === "available" && fleet.status === "blocked" && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-600 dark:text-rose-400">
+          <TriangleAlert className="h-5 w-5 shrink-0" />
+          <span>
+            Véhicule non conforme : assurance ou contrôle technique expiré. Vous ne pouvez pas
+            accepter de mission tant que ce n'est pas régularisé.{" "}
+            <Link to="/driver/vehicle" className="font-semibold underline">
+              Mettre à jour mes documents
+            </Link>
           </span>
         </div>
       )}
@@ -267,6 +342,12 @@ function MissionDetail() {
                 lng={mission.dropoff.lng}
               />
             </div>
+            {mission.instructions && (
+              <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                <span className="font-semibold">Consignes du restaurant : </span>
+                {mission.instructions}
+              </div>
+            )}
           </div>
 
           {/* Live GPS */}
@@ -359,10 +440,15 @@ function MissionDetail() {
             <div className="mt-4 space-y-2">
               {mission.status === "available" && (
                 <>
-                  <Button className="w-full gap-2" onClick={accept}>
+                  <Button className="w-full gap-2" onClick={accept} disabled={!eligibility.ok}>
                     <Truck className="h-4 w-4" />
                     Accepter la mission
                   </Button>
+                  {!eligibility.ok && (
+                    <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                      {eligibility.message}
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     className="w-full text-rose-500 hover:text-rose-600 gap-2"
@@ -373,28 +459,83 @@ function MissionDetail() {
                   </Button>
                 </>
               )}
-              {mission.status === "accepted" && (
+              {!isMine && mission.status !== "available" && mission.status !== "cancelled" && (
+                <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Cette mission est attribuée à un autre livreur.
+                </p>
+              )}
+              {isMine &&
+                (["accepted", "pickup", "loaded"] as MissionStatus[]).includes(mission.status) &&
+                (() => {
+                  const stage = mission.status === "loaded" ? "dropoff" : "pickup";
+                  const wait = mission.waits?.find((w) => w.stage === stage);
+                  if (wait) {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Arrivé à{" "}
+                        {new Date(wait.arrivedAt).toLocaleTimeString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        · au-delà de {WAIT_FREE_MINUTES} min d'attente, chaque minute vous est payée{" "}
+                        {WAIT_FCFA_PER_MINUTE} FCFA.
+                      </p>
+                    );
+                  }
+                  return (
+                    <Button
+                      variant="outline"
+                      className="w-full h-12 gap-2"
+                      onClick={() => {
+                        missionActions.markArrived(mission.id, stage);
+                        toast.success("Arrivée enregistrée · l'attente est chronométrée");
+                      }}
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {stage === "pickup"
+                        ? "Je suis chez le producteur"
+                        : "Je suis chez le restaurant"}
+                    </Button>
+                  );
+                })()}
+              {isMine && mission.status === "accepted" && (
                 <Button className="w-full gap-2" onClick={startPickup}>
                   <Navigation className="h-4 w-4" />
                   Démarrer le trajet
                 </Button>
               )}
-              {mission.status === "pickup" && (
-                <Button className="w-full gap-2" onClick={markLoaded}>
+              {isMine && mission.status === "pickup" && (
+                <Button className="w-full gap-2" onClick={() => setPickupOpen(true)}>
                   <Package className="h-4 w-4" />
                   Marchandise récupérée
                 </Button>
               )}
-              {mission.status === "loaded" && (
+              {isMine && mission.status === "loaded" && (
                 <Button className="w-full gap-2" onClick={() => setProofOpen(true)}>
                   <Check className="h-4 w-4" />
                   Confirmer la livraison
                 </Button>
               )}
+              {isMine && (mission.status === "accepted" || mission.status === "pickup") && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-rose-500 hover:text-rose-600"
+                  onClick={() => setWithdrawOpen(true)}
+                >
+                  <Undo2 className="h-4 w-4" />
+                  Se désister
+                </Button>
+              )}
+              {isMine && mission.status === "loaded" && (
+                <p className="text-[11px] text-muted-foreground">
+                  Marchandise chargée : vous ne pouvez plus vous désister. En cas de problème,
+                  signalez un incident.
+                </p>
+              )}
               {mission.status === "delivered" && (
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">
                   <Check className="h-4 w-4" />
-                  Livraison terminée · paiement programmé
+                  Livraison terminée · paiement crédité
                 </div>
               )}
               {mission.status === "cancelled" && (
@@ -476,6 +617,37 @@ function MissionDetail() {
         </div>
       </div>
 
+      <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Se désister de cette mission ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mission.reference} retournera dans les missions disponibles pour les autres livreurs.
+              Le producteur et le restaurant ne perdent pas la commande. Votre raison est transmise
+              à l'administration.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={withdrawReason}
+            onChange={(e) => setWithdrawReason(e.target.value)}
+            placeholder="Ex. panne du véhicule, empêchement personnel…"
+            rows={3}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                withdraw();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Me désister
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={refuseOpen} onOpenChange={setRefuseOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -497,30 +669,79 @@ function MissionDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={proofOpen} onOpenChange={setProofOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Preuve de livraison</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ajoutez une photo (facultatif) et confirmez la remise. Le paiement de{" "}
-              {formatFCFA(mission.payout)} sera programmé sous 24h.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      <Dialog open={proofOpen} onOpenChange={setProofOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Preuve de livraison</DialogTitle>
+            <DialogDescription>
+              Demandez au restaurant son code de remise à 4 chiffres et prenez une photo de la
+              marchandise livrée. Vous recevrez immédiatement{" "}
+              {formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre
+              portefeuille (commission plateforme déjà déduite).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="delivery-code">
+              Code de remise donné par le restaurant
+            </label>
+            <Input
+              id="delivery-code"
+              inputMode="numeric"
+              maxLength={4}
+              value={deliveryCode}
+              onChange={(e) => setDeliveryCode(e.target.value.replace(/\D/g, ""))}
+              placeholder="0000"
+              className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+            />
+          </div>
           <FileDrop
             value={proofPhotos}
             onChange={setProofPhotos}
             by="Vous"
             kind="photo"
-            label="Photo de livraison"
+            label="Photo de livraison (obligatoire)"
             accept="image/*"
             max={3}
           />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={markDelivered}>Confirmer la livraison</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProofOpen(false)}>
+              Annuler
+            </Button>
+            <Button className="h-12" onClick={markDelivered}>
+              Confirmer la livraison
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pickupOpen} onOpenChange={setPickupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enlèvement chez le producteur</DialogTitle>
+            <DialogDescription>
+              Vérifiez la marchandise puis saisissez le code d'enlèvement que le producteur vous
+              donne.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            aria-label="Code d'enlèvement"
+            inputMode="numeric"
+            maxLength={4}
+            value={pickupCode}
+            onChange={(e) => setPickupCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="0000"
+            className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickupOpen(false)}>
+              Annuler
+            </Button>
+            <Button className="h-12" onClick={markLoaded}>
+              Marchandise récupérée
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -563,12 +784,12 @@ function AddressCard({
         <Phone className="h-3.5 w-3.5" />
         {phone}
       </div>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <a
           href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+          className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
         >
           Google Maps
         </a>
@@ -576,10 +797,28 @@ function AddressCard({
           href={`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center rounded-lg border border-border py-1.5 text-[11px] font-semibold hover:bg-accent transition"
+          className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
         >
           Waze
         </a>
+        {phone && (
+          <>
+            <a
+              href={telLink(phone)}
+              className="grid place-items-center rounded-xl border border-border h-12 text-sm font-semibold hover:bg-accent transition"
+            >
+              Appeler
+            </a>
+            <a
+              href={whatsappLink(phone, `Bonjour, je suis le livreur Diambar Agro pour ${title}.`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="grid place-items-center rounded-xl h-12 text-sm font-semibold text-white bg-[#25D366] hover:opacity-90 transition"
+            >
+              WhatsApp
+            </a>
+          </>
+        )}
       </div>
     </div>
   );

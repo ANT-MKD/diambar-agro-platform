@@ -20,14 +20,22 @@ import {
   restaurantOrderActions,
   useRestaurantProfile,
   restaurantProfileActions,
-  onboardingActions,
   useSuppliers,
   getRestaurantOrderById,
+  stockShortages,
+  useRestaurantOrders,
 } from "@/data/store";
+import { useDeliveryZones } from "@/data/platform-settings";
+import {
+  allocate,
+  deliveryFeeForZone,
+  MIN_ORDER_PER_PRODUCER,
+  zoneForAddress,
+} from "@/lib/pricing";
 import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
 import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { nextReceptionSlots } from "@/lib/reception-slots";
+import { cutoffHint, deliverySlots } from "@/lib/reception-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,7 +68,21 @@ function Checkout() {
   );
   const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
   const subtotal = lines.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0);
-  const delivery = Math.round(subtotal * 0.03);
+  const zones = useDeliveryZones();
+  const pastOrders = useRestaurantOrders();
+  const isFirstOrder = !pastOrders.some((o) => o.status !== "cancelled");
+  const [address, setAddress] = useState(profile.deliveryAddress);
+  // Frais réglés par l'admin pour la zone de livraison, une livraison par
+  // producteur du panier (chaque producteur a sa propre course).
+  const zone = zoneForAddress(zones, profile.city, address);
+  const producerCount = new Set(lines.map((l) => l.product.farmerId)).size;
+  const feePerDelivery = zone ? deliveryFeeForZone(zone) : 0;
+  const delivery = feePerDelivery * producerCount;
+  const zoneProblem = !zone
+    ? "Cette adresse n'est dans aucune zone desservie par Diambar Agro."
+    : !zone.active
+      ? `La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`
+      : null;
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
@@ -88,13 +110,15 @@ function Checkout() {
     total: number;
   } | null>(null);
   const availableSlots = useMemo(
-    () => nextReceptionSlots(profile.receptionHours),
+    () => deliverySlots(profile.receptionHours),
     [profile.receptionHours],
   );
   const availableMethods =
     profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
-  const [address, setAddress] = useState(profile.deliveryAddress);
-  const [slot, setSlot] = useState(availableSlots[0] ?? "");
+  const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
+  const chosenSlot = availableSlots.find((s) => s.label === slot);
+  const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
+  const [instructions, setInstructions] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
@@ -113,7 +137,28 @@ function Checkout() {
     );
   }
 
+  const underMinimum = farmerGroups
+    .map((f) => ({
+      name: f.name,
+      amount: lines
+        .filter((l) => l.product.farmerId === f.id)
+        .reduce((s, l) => s + l.product.pricePerKg * l.qty, 0),
+    }))
+    .filter((g) => g.amount < MIN_ORDER_PER_PRODUCER);
+  const minimumProblem =
+    underMinimum.length > 0
+      ? `Minimum ${formatFCFA(MIN_ORDER_PER_PRODUCER)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
+      : null;
+
   const goStep2 = () => {
+    if (minimumProblem) {
+      toast.error(minimumProblem);
+      return;
+    }
+    if (zoneProblem) {
+      toast.error(zoneProblem);
+      return;
+    }
     const parsed = step1Schema.safeParse({ address, slot });
     if (!parsed.success) {
       const errs: Record<string, string> = {};
@@ -133,32 +178,58 @@ function Checkout() {
       toast.error("Retirez du panier les produits d'un fournisseur suspendu avant de commander");
       return;
     }
-    const created: string[] = [];
-    farmerGroups.forEach((f, idx) => {
+    if (zoneProblem || minimumProblem) {
+      toast.error(zoneProblem ?? minimumProblem);
+      return;
+    }
+    // Le stock a pu baisser depuis l'ajout au panier (autre restaurant,
+    // commande récurrente…) : on revérifie au moment de payer.
+    const shortages = stockShortages(lines.map((l) => ({ productId: l.productId, qty: l.qty })));
+    if (shortages.length > 0) {
+      toast.error(
+        `Stock insuffisant : ${shortages
+          .map((x) => `${x.name} (${x.available} disponible(s))`)
+          .join(", ")}. Ajustez votre panier.`,
+      );
+      return;
+    }
+    const groups = farmerGroups.map((f) => {
       const items = lines
         .filter((l) => l.product.farmerId === f.id)
         .map((l) => ({ productId: l.productId, qty: l.qty, price: l.product.pricePerKg }));
-      const fSubtotal = items.reduce((s, i) => s + i.qty * i.price, 0);
-      // Une remise (promo ou avoir) ne se répartit pas naturellement entre
-      // plusieurs producteurs : on l'impute simplement à la première
-      // commande créée.
-      const fTotal =
-        idx === 0 ? Math.max(0, fSubtotal - promoDiscount - creditDiscount) : fSubtotal;
+      return { farmer: f, items, subtotal: items.reduce((s, i) => s + i.qty * i.price, 0) };
+    });
+    // Promo et avoir sont répartis entre les commandes au prorata de leur
+    // montant : chaque commande (et chaque facture) porte sa vraie part.
+    const weights = groups.map((g) => g.subtotal + feePerDelivery);
+    const promoParts = allocate(promoDiscount, weights);
+    const creditParts = allocate(creditDiscount, weights);
+    const created: string[] = [];
+    groups.forEach((g, idx) => {
       const id = restaurantOrderActions.create({
-        farmerId: f.id,
-        items,
-        total: fTotal,
+        farmerId: g.farmer.id,
+        items: g.items,
+        subtotal: g.subtotal,
+        deliveryFee: feePerDelivery,
+        promoDiscount: promoParts[idx],
+        promoCode: promoCode ?? undefined,
+        creditApplied: creditParts[idx],
+        creditId: creditParts[idx] > 0 ? appliedCredit?.id : undefined,
+        total: g.subtotal + feePerDelivery - promoParts[idx] - creditParts[idx],
         deliveryAddress: address,
         paymentMethod: method,
         eta: slot,
+        slotStart: chosenSlot?.start,
+        shortagePreference,
+        instructions: instructions.trim() || undefined,
       });
       created.push(id);
     });
-    if (appliedCredit && created[0]) {
-      // Applique réellement l'avoir : son solde baisse pour de vrai et il
-      // est marqué utilisé, plus une simple réduction visuelle.
+    if (appliedCredit && created[0] && creditDiscount > 0) {
+      // Seule la part réellement utilisée est retirée de l'avoir : le reste
+      // reste disponible pour une prochaine commande.
       const ref = getRestaurantOrderById(created[0])?.reference ?? created[0];
-      creditActions.redeem(appliedCredit.id, ref);
+      creditActions.redeem(appliedCredit.id, ref, creditDiscount);
     }
     setOrderIds(created);
     setConfirmedSummary({
@@ -173,8 +244,6 @@ function Checkout() {
     // L'adresse et la méthode utilisées deviennent les vraies préférences du
     // restaurant, préremplies aux prochaines commandes.
     restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
-    onboardingActions.set("resto_address", true);
-    onboardingActions.set("resto_payment", true);
     toast.success("Commande passée avec succès");
     setStep(3);
   };
@@ -214,6 +283,18 @@ function Checkout() {
                   onChange={(e) => setAddress(e.target.value)}
                   aria-invalid={!!errors.address}
                 />
+                {minimumProblem && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {minimumProblem}
+                  </p>
+                )}
+                {zoneProblem && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {zoneProblem}
+                  </p>
+                )}
                 {errors.address && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
@@ -221,10 +302,23 @@ function Checkout() {
                   </p>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="delivery-instructions">
+                  Consignes pour le livreur (facultatif)
+                </Label>
+                <Input
+                  id="delivery-instructions"
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  maxLength={160}
+                  placeholder="Ex. entrée de service rue 12, demander Moussa, quai n°2"
+                />
+              </div>
               <h3 className="font-display text-lg font-bold flex items-center gap-2 pt-3">
                 <Calendar className="h-5 w-5 text-primary" />
                 Créneau souhaité
               </h3>
+              <p className="text-xs text-muted-foreground">{cutoffHint()}</p>
               {availableSlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Aucun créneau de réception n'est configuré. Ouvrez au moins un jour dans{" "}
@@ -240,11 +334,11 @@ function Checkout() {
                 <div className="grid sm:grid-cols-2 gap-2">
                   {availableSlots.map((s) => (
                     <button
-                      key={s}
-                      onClick={() => setSlot(s)}
-                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+                      key={s.start}
+                      onClick={() => setSlot(s.label)}
+                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s.label ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
                     >
-                      {s}
+                      {s.label}
                     </button>
                   ))}
                 </div>
@@ -281,6 +375,31 @@ function Checkout() {
                     <div className="text-[11px] text-muted-foreground mt-0.5">
                       {m === "Espèces" ? "À la livraison" : "Paiement instantané"}
                     </div>
+                  </button>
+                ))}
+              </div>
+              <h3 className="font-display text-base font-bold pt-3">
+                Si le producteur n'a pas toute la quantité
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {(
+                  [
+                    [
+                      "partial",
+                      "Livrer ce qui est disponible",
+                      "La différence vous est remboursée.",
+                    ],
+                    ["cancel", "Annuler la commande", "Remboursement intégral, rien n'est livré."],
+                  ] as const
+                ).map(([value, title, hint]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setShortagePreference(value)}
+                    className={`p-3 rounded-xl border text-left transition ${shortagePreference === value ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
+                  >
+                    <div className="font-semibold text-sm">{title}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>
                   </button>
                 ))}
               </div>
@@ -334,6 +453,7 @@ function Checkout() {
           </div>
           {step !== 3 && (
             <PromoCodeField
+              isFirstOrder={isFirstOrder}
               subtotal={subtotal}
               deliveryFee={delivery}
               appliedCode={promoCode}
@@ -385,7 +505,14 @@ function Checkout() {
               <span>{formatFCFA(confirmedSummary?.subtotal ?? subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Livraison</span>
+              <span className="text-muted-foreground">
+                Livraison
+                {!confirmedSummary && zone && producerCount > 1
+                  ? ` (${producerCount} × ${formatFCFA(feePerDelivery)})`
+                  : zone && !confirmedSummary
+                    ? ` · zone ${zone.name}`
+                    : ""}
+              </span>
               <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
             </div>
             {(confirmedSummary?.discount ?? promoDiscount) > 0 && (

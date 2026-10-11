@@ -3,10 +3,21 @@ import { ArrowLeft, Check, X, Phone, Truck, Package2, Flag, Clock, Scale } from 
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
-import { useOrder, orderActions } from "@/data/store";
+import { useOrder, orderActions, useProducts } from "@/data/store";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { HandoverCode } from "@/components/common/handover-code";
+import { whatsappLink } from "@/lib/contact";
 
 export const Route = createFileRoute("/farmer/orders/$orderId")({
   head: () => ({ meta: [{ title: "Commande · Diambar Agro" }] }),
@@ -16,6 +27,7 @@ export const Route = createFileRoute("/farmer/orders/$orderId")({
 function OrderDetailPage() {
   const { orderId } = Route.useParams();
   const order = useOrder(orderId);
+  const liveProducts = useProducts();
   if (!order)
     return (
       <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
@@ -29,8 +41,16 @@ function OrderDetailPage() {
   const idx = steps.indexOf(order.status);
 
   const next = (s: OrderStatus) => {
-    orderActions.setStatus(order.id, s);
-    toast.success(`Commande ${ORDER_LABEL[s].toLowerCase()}`);
+    const result = orderActions.setStatus(order.id, s);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success(
+      s === "confirmed"
+        ? "Commande acceptée · une mission de livraison est ouverte aux livreurs"
+        : `Commande ${ORDER_LABEL[s].toLowerCase()}`,
+    );
   };
 
   return (
@@ -73,6 +93,17 @@ function OrderDetailPage() {
               </a>
             </Button>
           )}
+          {r?.phone && (
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={whatsappLink(r.phone, `Bonjour, à propos de la commande ${order.reference}.`)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -94,7 +125,7 @@ function OrderDetailPage() {
         <div className="text-xs font-semibold text-muted-foreground mb-3">ARTICLES</div>
         <div className="space-y-2">
           {order.items.map((it, i) => {
-            const p = products.find((x) => x.id === it.productId);
+            const p = liveProducts.find((x) => x.id === it.productId);
             return (
               <div
                 key={i}
@@ -139,30 +170,41 @@ function OrderDetailPage() {
         </div>
       )}
 
+      {order.pickupCode && (order.status === "confirmed" || order.status === "preparing") && (
+        <HandoverCode
+          code={order.pickupCode}
+          title="Code d'enlèvement"
+          hint="À donner au livreur quand il récupère la marchandise, jamais avant."
+        />
+      )}
+
       <div className="flex flex-wrap gap-2 sticky bottom-0 bg-background/80 backdrop-blur p-3 rounded-xl">
         {order.status === "pending" && (
           <Button onClick={() => next("confirmed")} className="gap-1">
             <Check className="h-4 w-4" />
-            Confirmer
+            Accepter la commande
           </Button>
         )}
+        {order.status === "pending" && <AdjustQuantities orderId={order.id} />}
         {order.status === "confirmed" && (
           <Button onClick={() => next("preparing")} className="gap-1">
             <Package2 className="h-4 w-4" />
-            Préparer
+            Commencer la préparation
           </Button>
         )}
-        {order.status === "preparing" && (
-          <Button onClick={() => next("delivering")} className="gap-1">
+        {(order.status === "confirmed" || order.status === "preparing") && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground self-center">
             <Truck className="h-4 w-4" />
-            Marquer prête
-          </Button>
+            Le livreur passera récupérer la commande : c'est son enlèvement qui la met « en
+            livraison ».
+          </p>
         )}
         {order.status === "delivering" && (
-          <Button onClick={() => next("delivered")} className="gap-1">
-            <Check className="h-4 w-4" />
-            Livrée
-          </Button>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground self-center">
+            <Truck className="h-4 w-4" />
+            En route vers le restaurant · la livraison sera confirmée par le livreur, puis la vente
+            créditée sur vos revenus.
+          </p>
         )}
         {["pending", "confirmed", "preparing"].includes(order.status) && (
           <Button asChild variant="outline" className="gap-1 text-rose-500">
@@ -186,5 +228,78 @@ function OrderDetailPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Le producteur n'a pas tout : il accepte avec les quantités réellement
+ * disponibles (le restaurant est remboursé de la différence, ou la commande
+ * est annulée selon son choix). */
+function AdjustQuantities({ orderId }: { orderId: string }) {
+  const order = useOrder(orderId);
+  const allProducts = useProducts();
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState<Record<string, number>>({});
+  if (!order) return null;
+  const submit = () => {
+    const result = orderActions.confirmPartial(order.id, qty);
+    if (!result.ok) return toast.error(result.message);
+    toast.success("Commande acceptée avec les quantités disponibles");
+    setOpen(false);
+  };
+  return (
+    <>
+      <Button variant="outline" className="gap-1" onClick={() => setOpen(true)}>
+        Accepter en partie
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quantités disponibles</DialogTitle>
+            <DialogDescription>
+              Indiquez ce que vous pouvez vraiment livrer. Le restaurant est prévenu et remboursé de
+              la différence (ou la commande est annulée s'il l'a demandé).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {order.items.map((it) => {
+              const p = allProducts.find((x) => x.id === it.productId);
+              return (
+                <label
+                  key={it.productId}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span>
+                    {p?.name ?? it.productId}{" "}
+                    <span className="text-xs text-muted-foreground">
+                      (commandé : {it.qty} {p?.unit})
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={it.qty}
+                    value={qty[it.productId] ?? it.qty}
+                    onChange={(e) =>
+                      setQty((q) => ({
+                        ...q,
+                        [it.productId]: Math.min(it.qty, Math.max(0, Number(e.target.value) || 0)),
+                      }))
+                    }
+                    className="h-11 w-24 rounded-lg border border-input bg-background px-3"
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={submit}>Accepter ces quantités</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -4,6 +4,7 @@ export interface PromoCode {
   type: "percent" | "fixed";
   value: number;
   minSubtotal?: number;
+  firstOrderOnly?: boolean;
 }
 
 export const PROMO_CODES: PromoCode[] = [
@@ -13,6 +14,7 @@ export const PROMO_CODES: PromoCode[] = [
     type: "percent",
     value: 10,
     minSubtotal: 5_000,
+    firstOrderOnly: true,
   },
   {
     code: "FRAISGRATUIT",

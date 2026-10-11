@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useRestaurantProfile, useRestaurantTeam } from "@/data/store";
 import { useSecurity } from "@/data/security";
 import { relativeTime } from "@/lib/format";
+import { restaurantCompletionPct } from "@/lib/profile-completion";
 
 export const Route = createFileRoute("/restaurant/settings/")({
   head: () => ({
@@ -15,23 +16,12 @@ export const Route = createFileRoute("/restaurant/settings/")({
   component: SettingsOverview,
 });
 
-const PROFILE_FIELDS = [
-  "displayName",
-  "cuisine",
-  "phone",
-  "email",
-  "manager",
-  "bio",
-  "avatarUrl",
-] as const;
-
 function SettingsOverview() {
   const profile = useRestaurantProfile();
   const team = useRestaurantTeam();
   const security = useSecurity();
 
-  const filledFields = PROFILE_FIELDS.filter((k) => String(profile[k] ?? "").trim().length > 0);
-  const completion = Math.round((filledFields.length / PROFILE_FIELDS.length) * 100);
+  const completion = restaurantCompletionPct(profile);
   const openDays = Object.values(profile.receptionHours).filter((s) => s.open).length;
 
   const cards = [

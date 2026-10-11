@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cities } from "@/data/mocks";
+import { useCities } from "@/data/admin-store";
 import { useFarmerFarm, farmerFarmActions } from "@/data/store";
 
 export const Route = createFileRoute("/farmer/settings/farm")({
@@ -44,6 +44,7 @@ const PRODUCT_TYPES = [
 
 function FarmSettings() {
   const farm = useFarmerFarm();
+  const cities = useCities();
   const [form, setForm] = useState(farm);
   const toggle = (t: string) =>
     setForm({

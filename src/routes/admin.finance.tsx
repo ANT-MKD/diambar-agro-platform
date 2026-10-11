@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -35,7 +35,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { payouts } from "@/data/admin-mocks";
-import { auditActions, useCommissionTiers } from "@/data/admin-store";
+import { auditActions, useCommissionTiers, useAdminRoleForEmail, can } from "@/data/admin-store";
 import {
   useOrders,
   useTransactions,
@@ -52,6 +52,7 @@ import {
   computeCommission,
 } from "@/lib/commission";
 import { farmers, restaurants } from "@/data/mocks";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/finance")({
   head: () => ({
@@ -85,8 +86,12 @@ const METHOD_COLOR: Record<string, string> = {
 const LONG_PENDING_MS = 24 * 3600_000;
 
 function AdminFinance() {
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canEditFinance = can(role, "finance.edit");
   const orders = useOrders();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
   const refunds = useRefunds();
   const transactions = useTransactions();
   const withdrawals = useWithdrawals();
@@ -99,7 +104,7 @@ function AdminFinance() {
   const delivered = orders.filter((o) => o.status === "delivered");
   const gmv = delivered.reduce((s, o) => s + o.total, 0);
   const volumeByFarmer = useMemo(() => deliveredVolumeByFarmer(orders), [orders]);
-  const commissionGenerated = computeCommission(orders, tiers);
+  const commissionGenerated = computeCommission(orders, tiers, recorded);
 
   // La commission "générée" (théorique, sur toutes les commandes livrées)
   // et la commission "encaissée" (uniquement les transactions au statut
@@ -190,7 +195,10 @@ function AdminFinance() {
         const time = new Date(o.createdAt).getTime();
         if (time <= start || time > refNow) continue;
         const day = o.createdAt.slice(0, 10);
-        totals.set(day, (totals.get(day) ?? 0) + commissionForOrder(o, tiers, volumeByFarmer));
+        totals.set(
+          day,
+          (totals.get(day) ?? 0) + commissionForOrder(o, tiers, volumeByFarmer, recorded),
+        );
       }
     }
     return Array.from(totals.entries())
@@ -199,7 +207,7 @@ function AdminFinance() {
         day: new Date(day).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
         value,
       }));
-  }, [paidTx, delivered, tiers, volumeByFarmer, metric, periodDays, refNow]);
+  }, [paidTx, delivered, tiers, volumeByFarmer, recorded, metric, periodDays, refNow]);
 
   const chartTotal = chart.reduce((s, c) => s + c.value, 0);
   const chartAvg = chart.length > 0 ? Math.round(chartTotal / chart.length) : 0;
@@ -226,16 +234,25 @@ function AdminFinance() {
   const nameForFarmer = (id: string) => farmers.find((f) => f.id === id)?.name ?? id;
 
   const completeFarmerWithdrawal = (id: string, reference: string) => {
+    if (!canEditFinance) {
+      toast.error("Votre rôle ne permet pas de confirmer un versement.");
+      return;
+    }
     withdrawalActions.markCompleted(id);
     auditActions.log({
       action: "Versement agriculteur confirmé",
       target: reference,
       module: "finance",
+      actor: user.name,
       changes: [{ field: "Statut", before: "En cours", after: "Effectué" }],
     });
     toast.success(`${reference} marqué comme effectué`);
   };
   const failFarmerWithdrawal = (id: string, reference: string) => {
+    if (!canEditFinance) {
+      toast.error("Votre rôle ne permet pas de marquer un versement en échec.");
+      return;
+    }
     withdrawalActions.markFailed(id);
     auditActions.log({
       action: "Versement agriculteur en échec",
@@ -243,20 +260,30 @@ function AdminFinance() {
       module: "finance",
       level: "important",
       status: "failed",
+      actor: user.name,
     });
     toast.error(`${reference} marqué en échec`);
   };
   const completeDriverWithdrawal = (id: string, label: string) => {
+    if (!canEditFinance) {
+      toast.error("Votre rôle ne permet pas de confirmer un versement.");
+      return;
+    }
     driverWalletActions.completeWithdrawal(id);
     auditActions.log({
       action: "Versement livreur confirmé",
       target: label,
       module: "finance",
+      actor: user.name,
       changes: [{ field: "Statut", before: "En attente", after: "Complété" }],
     });
     toast.success(`${label} marqué comme effectué`);
   };
   const failDriverWithdrawal = (id: string, label: string) => {
+    if (!canEditFinance) {
+      toast.error("Votre rôle ne permet pas de marquer un versement en échec.");
+      return;
+    }
     driverWalletActions.failWithdrawal(id);
     auditActions.log({
       action: "Versement livreur en échec",
@@ -264,6 +291,7 @@ function AdminFinance() {
       module: "finance",
       level: "important",
       status: "failed",
+      actor: user.name,
     });
     toast.error(`${label} marqué en échec`);
   };
@@ -340,7 +368,7 @@ function AdminFinance() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Encaissements"
           value={formatFCFA(encaissements)}
@@ -367,7 +395,7 @@ function AdminFinance() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Versements effectués" value={formatFCFA(payoutsPaid)} icon={Wallet} />
         <StatCard
           label="Versements en attente"
@@ -420,7 +448,7 @@ function AdminFinance() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-border p-3">
             <div className="text-[11px] text-muted-foreground">Total sur la période</div>
             <div className="mt-0.5 font-display text-lg font-bold">{formatFCFA(chartTotal)}</div>
@@ -657,25 +685,27 @@ function AdminFinance() {
                   <div className="text-xs text-muted-foreground">
                     {formatFCFA(w.amount - w.fee)} net · {w.method}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => completeFarmerWithdrawal(w.id, w.reference)}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Marquer effectué
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-destructive"
-                      onClick={() => failFarmerWithdrawal(w.id, w.reference)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Marquer en échec
-                    </Button>
-                  </div>
+                  {canEditFinance && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => completeFarmerWithdrawal(w.id, w.reference)}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Marquer effectué
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-destructive"
+                        onClick={() => failFarmerWithdrawal(w.id, w.reference)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Marquer en échec
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
               {stuckDriverWithdrawals.map((t) => (
@@ -687,25 +717,27 @@ function AdminFinance() {
                   <div className="text-xs text-muted-foreground">
                     {formatFCFA(Math.abs(t.amount))} · {t.method}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => completeDriverWithdrawal(t.id, t.label)}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Marquer effectué
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 text-destructive"
-                      onClick={() => failDriverWithdrawal(t.id, t.label)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Marquer en échec
-                    </Button>
-                  </div>
+                  {canEditFinance && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => completeDriverWithdrawal(t.id, t.label)}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Marquer effectué
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-destructive"
+                        onClick={() => failDriverWithdrawal(t.id, t.label)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Marquer en échec
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </>

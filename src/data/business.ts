@@ -1,6 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { creditActions, disputeActions, type DisputeAttachment } from "@/data/disputes";
-import { driverWalletActions } from "@/data/store";
+import {
+  driverNotifActions,
+  driverWalletActions,
+  farmerNotifActions,
+  restaurantNotifActions,
+} from "@/data/store";
 import {
   refundActions,
   refundForReturn,
@@ -8,6 +13,7 @@ import {
   type RefundBornBy,
 } from "@/data/finance";
 import { orders, farmers } from "@/data/mocks";
+import { createStore } from "./persist";
 
 /** Producteur réel concerné par un retour — dérivé de la commande d'origine
  * (Order.farmerId), jamais stocké sur ReturnRequest pour éviter une source
@@ -15,39 +21,6 @@ import { orders, farmers } from "@/data/mocks";
 export function farmerForReturn(r: { orderRef: string }) {
   const order = orders.find((o) => o.reference === r.orderRef);
   return order ? farmers.find((f) => f.id === order.farmerId) : undefined;
-}
-
-type Listener = () => void;
-
-function createStore<T>(initial: T, persistKey?: string) {
-  let state = initial;
-  if (persistKey && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set: (next: T | ((prev: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey && typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: Listener) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
 }
 
 const now = () => new Date().toISOString();
@@ -314,6 +287,33 @@ export function useReturnsForRestaurant(restaurantId: string) {
   return useReturns().filter((r) => r.restaurantId === restaurantId);
 }
 
+/** Raison pour laquelle un retour ne peut pas être ouvert (null = OK) :
+ * montant au-delà de la valeur de la ligne, ou retour déjà en cours sur
+ * cette même ligne de commande. */
+export function returnCreationProblem(input: {
+  orderRef: string;
+  productId: string;
+  requestedAmount: number;
+  lineValue: number;
+  deliveredAt?: string;
+}): string | null {
+  if (input.deliveredAt && Date.now() - new Date(input.deliveredAt).getTime() > 48 * 3600_000) {
+    return "Le délai de réclamation de 48 h après la livraison est dépassé : contactez le support.";
+  }
+  if (input.requestedAmount <= 0) return "Indiquez un montant.";
+  if (input.requestedAmount > input.lineValue) {
+    return `Le montant ne peut pas dépasser la valeur de la ligne (${input.lineValue.toLocaleString("fr-FR")} FCFA).`;
+  }
+  const open = returnsStore
+    .get()
+    .some(
+      (r) =>
+        r.orderRef === input.orderRef && r.productId === input.productId && r.status !== "refused",
+    );
+  if (open) return "Un retour existe déjà pour ce produit sur cette commande.";
+  return null;
+}
+
 export const returnActions = {
   create: (
     input: Omit<
@@ -331,6 +331,12 @@ export const returnActions = {
       history: [{ at: now(), actor: input.restaurantName, text: "Demande de retour ouverte" }],
     };
     returnsStore.set((arr) => [item, ...arr]);
+    farmerNotifActions.add({
+      type: "order",
+      title: "Demande de retour",
+      body: `${item.restaurantName} : ${item.qty} ${item.unit} de ${item.productName} (${item.reference}) — réponse attendue`,
+      link: `/farmer/returns/${item.id}`,
+    });
     return item;
   },
   reply: (id: string, msg: { role: "restaurant" | "farmer"; name: string; text: string }) => {
@@ -359,8 +365,16 @@ export const returnActions = {
       arr.map((x) => (x.id === id ? { ...x, photos: [...(x.photos ?? []), ...files] } : x)),
     );
   },
-  accept: (id: string, awardedAmount: number, note?: string, actor = "Mamadou Diallo") => {
+  accept: (id: string, requested: number, note?: string, actor = "Mamadou Diallo") => {
     const r = returnsStore.get().find((x) => x.id === id);
+    if (!r || r.status !== "pending") return;
+    const awardedAmount = Math.max(0, Math.min(requested, r.requestedAmount));
+    restaurantNotifActions.add({
+      type: "order",
+      title: "Retour accepté",
+      body: `${r.reference} : ${awardedAmount.toLocaleString("fr-FR")} FCFA accordés par le producteur`,
+      link: `/restaurant/returns/${r.id}`,
+    });
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -396,6 +410,15 @@ export const returnActions = {
     }
   },
   refuse: (id: string, note: string, actor = "Mamadou Diallo") => {
+    const r0 = returnsStore.get().find((x) => x.id === id);
+    if (r0) {
+      restaurantNotifActions.add({
+        type: "order",
+        title: "Retour refusé",
+        body: `${r0.reference} : ${note}`,
+        link: `/restaurant/returns/${r0.id}`,
+      });
+    }
     returnsStore.set((arr) =>
       arr.map((x) =>
         x.id === id
@@ -417,7 +440,13 @@ export const returnActions = {
   /* ---------------------------------------------------------------- */
   adminSchedulePickup: (
     id: string,
-    input: { driverId: string; driverName: string; scheduledFor: string; address: string },
+    input: {
+      driverId: string;
+      driverName: string;
+      scheduledFor: string;
+      address: string;
+      actor?: string;
+    },
   ) => {
     const at = now();
     returnsStore.set((arr) =>
@@ -437,7 +466,7 @@ export const returnActions = {
                 ...x.history,
                 {
                   at,
-                  actor: "Admin Diambar",
+                  actor: input.actor ?? "Admin Diambar",
                   text: `Récupération programmée — ${input.driverName}, ${new Date(input.scheduledFor).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}`,
                 },
               ],
@@ -463,7 +492,7 @@ export const returnActions = {
       ),
     );
   },
-  adminMarkReceived: (id: string, condition: string) => {
+  adminMarkReceived: (id: string, condition: string, actor = "Admin Diambar") => {
     const at = now();
     returnsStore.set((arr) =>
       arr.map((x) =>
@@ -478,7 +507,7 @@ export const returnActions = {
               },
               history: [
                 ...x.history,
-                { at, actor: "Admin Diambar", text: `Produit réceptionné — état : ${condition}` },
+                { at, actor, text: `Produit réceptionné — état : ${condition}` },
               ],
             }
           : x,
@@ -531,7 +560,10 @@ export const returnActions = {
     if (!r) return;
     const decidedBy = input.decidedBy ?? "Admin Diambar";
     const at = now();
-    const amount = input.amount ?? r.awardedAmount ?? r.requestedAmount;
+    const amount = Math.min(
+      input.amount ?? r.awardedAmount ?? r.requestedAmount,
+      r.requestedAmount,
+    );
     const resolution: ReturnResolution = {
       type: input.type,
       bornBy: input.bornBy,
@@ -567,10 +599,12 @@ export const returnActions = {
         existingRefund &&
         (existingRefund.status === "pending" || existingRefund.status === "approved")
       ) {
-        refundActions.reject(existingRefund.id, "Converti en échange produit");
+        refundActions.reject(existingRefund.id, decidedBy, "Converti en échange produit");
       }
     } else if (existingRefund) {
-      refundActions.setBornBy(existingRefund.id, input.bornBy, input.note);
+      refundActions.setBornBy(existingRefund.id, decidedBy, input.bornBy, input.note);
+    } else if (r.status === "credited") {
+      // Un avoir a déjà indemnisé ce retour : pas de remboursement en plus.
     } else {
       refundActions.create(
         {
@@ -583,7 +617,8 @@ export const returnActions = {
           method: "Wave",
           reason: `Retour ${r.reference} — décision admin (${input.note})`,
         },
-        "approved",
+        // Passe par les paliers d'approbation comme tout remboursement.
+        "pending",
       );
     }
 
@@ -610,10 +645,19 @@ export const returnActions = {
       ),
     );
   },
-  adminEscalateToDispute: (id: string, note: string) => {
+  adminEscalateToDispute: (id: string, note: string, actor = "Admin Diambar") => {
     const r = returnsStore.get().find((x) => x.id === id);
     if (!r || r.escalatedDisputeId) return;
     const farmer = farmerForReturn(r);
+    // Le litige décidera de l'indemnisation : le remboursement du retour,
+    // s'il n'est pas encore payé, est abandonné pour ne pas payer deux fois.
+    const pendingRefund = refundForReturn(id);
+    if (
+      pendingRefund &&
+      (pendingRefund.status === "pending" || pendingRefund.status === "approved")
+    ) {
+      refundActions.reject(pendingRefund.id, actor, "Retour escaladé en litige");
+    }
     const disputeId = disputeActions.open({
       category: "quality",
       subcategory: "Retour litigieux",
@@ -634,16 +678,13 @@ export const returnActions = {
           ? {
               ...x,
               escalatedDisputeId: disputeId,
-              history: [
-                ...x.history,
-                { at: now(), actor: "Admin Diambar", text: `Escaladé en litige — ${note}` },
-              ],
+              history: [...x.history, { at: now(), actor, text: `Escaladé en litige — ${note}` }],
             }
           : x,
       ),
     );
   },
-  adminClose: (id: string) => {
+  adminClose: (id: string, actor = "Admin Diambar") => {
     const at = now();
     returnsStore.set((arr) =>
       arr.map((x) =>
@@ -651,15 +692,32 @@ export const returnActions = {
           ? {
               ...x,
               closedAt: at,
-              history: [...x.history, { at, actor: "Admin Diambar", text: "Dossier clôturé" }],
+              history: [...x.history, { at, actor, text: "Dossier clôturé" }],
             }
           : x,
       ),
     );
   },
-  issueCredit: (id: string) => {
+  /** Indemnise le retour par un avoir AU LIEU d'un remboursement : le
+   * remboursement prévu est abandonné. Impossible si l'argent a déjà été
+   * rendu ou si un avoir a déjà été émis. */
+  issueCredit: (id: string): { ok: true } | { ok: false; message: string } => {
     const r = returnsStore.get().find((x) => x.id === id);
-    if (!r) return;
+    if (!r) return { ok: false, message: "Retour introuvable." };
+    if (r.status === "credited") return { ok: false, message: "Un avoir a déjà été émis." };
+    if (r.escalatedDisputeId) {
+      return { ok: false, message: "Ce retour est traité dans un litige." };
+    }
+    const refund = refundForReturn(id);
+    if (refund?.status === "paid") {
+      return { ok: false, message: "Le restaurant a déjà été remboursé : pas d'avoir en plus." };
+    }
+    if (
+      refund &&
+      (refund.status === "pending" || refund.status === "approved" || refund.status === "failed")
+    ) {
+      refundActions.reject(refund.id, "Mamadou Diallo", "Remplacé par un avoir");
+    }
     const amount = r.awardedAmount ?? r.requestedAmount;
     const { reference } = creditActions.issueForReturn(r.id, r.restaurantName, amount);
     returnsStore.set((arr) =>
@@ -681,6 +739,7 @@ export const returnActions = {
           : x,
       ),
     );
+    return { ok: true };
   },
 };
 
@@ -818,6 +877,19 @@ export function useSupplierScoresForRestaurant(restaurantId: string) {
 export const reviewActions = {
   create: (input: Omit<Review, "id" | "createdAt">) => {
     reviewsStore.set((arr) => [{ ...input, id: uid("rv"), createdAt: now() }, ...arr]);
+    const avg =
+      (input.quality +
+        input.quantity +
+        input.freshness +
+        input.timeliness +
+        input.packaging +
+        input.communication) /
+      6;
+    farmerNotifActions.add({
+      type: "system",
+      title: "Nouvel avis reçu",
+      body: `${avg.toFixed(1)}/5 sur ${input.orderRef}`,
+    });
   },
   reply: (id: string, text: string) => {
     reviewsStore.set((arr) =>
@@ -973,7 +1045,7 @@ export const incidentActions = {
       ),
     );
   },
-  resolve: (id: string, awarded: number, note?: string) => {
+  resolve: (id: string, awarded: number, note?: string, actor = "Admin Diambar") => {
     const incident = incidentsStore.get().find((i) => i.id === id);
     incidentsStore.set((arr) =>
       arr.map((i) =>
@@ -987,7 +1059,7 @@ export const incidentActions = {
                 ...i.history,
                 {
                   at: now(),
-                  actor: "Support Diambar",
+                  actor,
                   text:
                     awarded > 0
                       ? `Clôturé — indemnité ${awarded} FCFA accordée${note ? ` (${note})` : ""}`
@@ -998,6 +1070,17 @@ export const incidentActions = {
           : i,
       ),
     );
+    if (incident) {
+      driverNotifActions.add({
+        type: "system",
+        title: "Incident traité",
+        body:
+          awarded > 0
+            ? `${incident.reference} : indemnité de ${awarded.toLocaleString("fr-FR")} FCFA accordée`
+            : `${incident.reference} : clôturé sans indemnité${note ? ` (${note})` : ""}`,
+        link: `/driver/incidents/${incident.id}`,
+      });
+    }
     if (incident && awarded > 0) {
       driverWalletActions.credit(
         `Indemnité incident ${incident.reference}`,

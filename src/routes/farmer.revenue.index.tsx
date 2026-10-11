@@ -108,7 +108,11 @@ function RevenuePage() {
   // plusieurs fois tant que le retrait précédent n'est pas marqué "Effectué").
   const available =
     transactions.filter((t) => t.status === "Payé").reduce((a, t) => a + t.net, 0) -
-    withdrawals.filter((w) => w.status !== "Échec").reduce((a, w) => a + w.amount + w.fee, 0);
+    withdrawals
+      .filter((w) => w.status !== "Échec")
+      // Les frais sont prélevés sur le montant retiré (reçu = montant − frais) :
+      // seul le montant retiré sort du solde, pas montant + frais.
+      .reduce((a, w) => a + w.amount, 0);
   const totalWithdrawn = withdrawals
     .filter((w) => w.status === "Effectué")
     .reduce((a, w) => a + w.amount, 0);
@@ -208,7 +212,7 @@ function RevenuePage() {
         />
         <div className="lg:col-span-2 glass rounded-2xl p-5">
           <div className="text-sm font-semibold mb-3">Comptes mobile money</div>
-          <div className="grid sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {wallets.map((w) => (
               <div
                 key={w.id}
@@ -227,7 +231,7 @@ function RevenuePage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard icon={TrendingUp} label="CA période" value={formatFCFA(total)} tone="emerald" />
         <KpiCard icon={Wallet} label="CA total" value={formatFCFA(totalAllTime)} tone="blue" />
         <KpiCard

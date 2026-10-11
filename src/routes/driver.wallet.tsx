@@ -177,7 +177,7 @@ function WalletPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MiniStat label="Aujourd'hui" value={formatFCFA(gainsToday)} />
         <MiniStat label="Cette semaine" value={formatFCFA(gainsWeek)} />
         <MiniStat label="Ce mois" value={formatFCFA(gainsMonth)} />

@@ -49,6 +49,7 @@ import { useOrders, useMissions } from "@/data/store";
 import { payouts } from "@/data/admin-mocks";
 import { drivers, farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
+import { useRecordedCommissions } from "@/data/store";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({
@@ -88,10 +89,11 @@ function AdminDashboard() {
   const orders = useOrders();
   const missions = useMissions();
   const tiers = useCommissionTiers();
+  const recorded = useRecordedCommissions();
 
   const delivered = orders.filter((o) => o.status === "delivered");
   const gmv = delivered.reduce((s, o) => s + o.total, 0);
-  const commission = computeCommission(orders, tiers);
+  const commission = computeCommission(orders, tiers, recorded);
   const active = users.filter((u) => u.status === "active").length;
   const pendingValidations = validations.filter((v) => v.status === "pending");
   const openDisputes = disputes.filter((d) => d.status === "open" || d.status === "investigating");
@@ -226,7 +228,7 @@ function AdminDashboard() {
         subtitle="Centre de contrôle Diambar Agro — calculé en direct sur les données de la plateforme"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Volume d'affaires (livré)"
           value={formatFCFA(gmv)}

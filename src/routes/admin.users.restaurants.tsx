@@ -25,28 +25,28 @@ function AdminRestaurants() {
   const orders = useOrders();
   const [q, setQ] = useState("");
 
-  const rows = users
-    .filter((u) => q === "" || `${u.name} ${u.city}`.toLowerCase().includes(q.toLowerCase()))
-    .map((u) => {
-      const restaurant = findRestaurantRecord(u);
-      const restaurantOrders = restaurant
-        ? orders.filter((o) => o.restaurantId === restaurant.id)
-        : [];
-      const spent = restaurantOrders.reduce((s, o) => s + o.total, 0);
-      const lastOrder = [...restaurantOrders].sort((a, b) =>
-        a.createdAt < b.createdAt ? 1 : -1,
-      )[0];
-      return { user: u, restaurant, orderCount: restaurantOrders.length, spent, lastOrder };
-    });
+  const allRows = users.map((u) => {
+    const restaurant = findRestaurantRecord(u);
+    const restaurantOrders = restaurant
+      ? orders.filter((o) => o.restaurantId === restaurant.id)
+      : [];
+    const spent = restaurantOrders.reduce((s, o) => s + o.total, 0);
+    const lastOrder = [...restaurantOrders].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+    return { user: u, restaurant, orderCount: restaurantOrders.length, spent, lastOrder };
+  });
 
-  const totalOrders = rows.reduce((s, r) => s + r.orderCount, 0);
-  const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
+  const rows = allRows.filter(
+    (r) => q === "" || `${r.user.name} ${r.user.city}`.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  const totalOrders = allRows.reduce((s, r) => s + r.orderCount, 0);
+  const totalSpent = allRows.reduce((s, r) => s + r.spent, 0);
 
   return (
     <div className="space-y-6">
       <PageHeader title="Restaurants" subtitle="Établissements qui achètent sur la plateforme" />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard label="Restaurants" value={String(users.length)} icon={Utensils} />
         <StatCard label="Commandes cumulées" value={String(totalOrders)} icon={ShoppingBag} />
         <StatCard label="Dépenses cumulées" value={formatFCFA(totalSpent)} icon={Wallet} />

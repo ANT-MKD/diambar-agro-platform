@@ -306,6 +306,7 @@ function AdminMessages() {
       action: `Ticket support créé depuis une conversation (${ticket.id.toUpperCase()})`,
       target: activeCtx.restaurant?.name ?? active.counterpartName,
       module: "messages",
+      actor: user.name,
     });
     toast.success(`Ticket ${ticket.id.toUpperCase()} créé`);
     setTicketOpen(false);
@@ -318,7 +319,7 @@ function AdminMessages() {
         subtitle="Supervisez les conversations et intervenez lorsqu'une situation nécessite l'aide de Diambar Agro"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Conversations" value={String(threads.length)} icon={MessageSquare} />
         <StatCard
           label="Non lues"

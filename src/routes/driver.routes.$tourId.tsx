@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -37,6 +37,7 @@ const STATUS_LABEL = { planned: "Planifiée", running: "En cours", done: "Termin
 
 function TourDetail() {
   const { tourId } = Route.useParams();
+  const navigate = useNavigate();
   const tours = useTours();
   const missions = useMissions();
   const conversations = useDriverConversations();
@@ -62,10 +63,19 @@ function TourDetail() {
     : null;
 
   const toggleStop = (stop: TourStop) => {
-    const result = tourActions.toggleStop(stop);
-    if (result === "blocked") {
-      toast.error("Confirmez d'abord la collecte de cette mission");
+    if (stop.done) {
+      toast.info("Étape déjà validée : elle ne peut pas être annulée.");
+      return;
     }
+    if (stop.kind === "dropoff") {
+      // La remise se confirme avec le code du restaurant et une photo.
+      navigate({ to: "/driver/missions/$missionId", params: { missionId: stop.missionId } });
+      return;
+    }
+    const code = window.prompt("Code d'enlèvement donné par le producteur (4 chiffres) :") ?? "";
+    const result = tourActions.toggleStop(stop, code);
+    if (!result.ok) toast.error(result.message);
+    else toast.success("Marchandise récupérée");
   };
 
   const exportCsv = () => {
@@ -151,7 +161,7 @@ function TourDetail() {
               className={`shrink-0 rounded-xl border p-2.5 min-w-[110px] text-center ${s.done ? "border-emerald-500/30 bg-emerald-500/5" : "border-border"}`}
             >
               <div
-                className={`mx-auto h-7 w-7 rounded-full grid place-items-center text-xs font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
+                className={`mx-auto h-11 w-11 rounded-full grid place-items-center text-xs font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
               >
                 {s.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
               </div>
@@ -253,7 +263,7 @@ function TourDetail() {
                 >
                   <button
                     onClick={() => toggleStop(s)}
-                    className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
+                    className={`mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-xs font-bold ${s.done ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"}`}
                     aria-label={s.done ? "Marquer non fait" : "Marquer comme fait"}
                   >
                     {s.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
@@ -293,14 +303,14 @@ function TourDetail() {
                   <div className="flex flex-col gap-1">
                     <button
                       onClick={() => tourActions.move(t.id, t.stops, i, -1)}
-                      className="grid h-6 w-6 place-items-center rounded-md hover:bg-accent text-muted-foreground"
+                      className="grid h-10 w-10 place-items-center rounded-md hover:bg-accent text-muted-foreground"
                       aria-label="Monter"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => tourActions.move(t.id, t.stops, i, 1)}
-                      className="grid h-6 w-6 place-items-center rounded-md hover:bg-accent text-muted-foreground"
+                      className="grid h-10 w-10 place-items-center rounded-md hover:bg-accent text-muted-foreground"
                       aria-label="Descendre"
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
@@ -332,16 +342,10 @@ function TourDetail() {
                 </Button>
               )}
               {t.status === "running" && (
-                <Button
-                  className="w-full gap-2"
-                  onClick={() => {
-                    tourActions.finish(t.stops);
-                    toast.success("Tournée clôturée");
-                  }}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Clôturer la tournée
-                </Button>
+                <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  La tournée se termine d'elle-même quand chaque livraison est confirmée avec le
+                  code du restaurant et une photo.
+                </p>
               )}
               {t.status === "done" && (
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 p-3 text-xs font-semibold flex items-center gap-2">

@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { StockStatusBadge } from "./status-badge";
+import { resizeImage } from "@/lib/image-resize";
 
 export const CATEGORIES: Product["category"][] = [
   "Légumes",
@@ -69,7 +70,7 @@ const empty: ProductDraft = {
   publicVisible: true,
   recurring: false,
   notes: "",
-  photos: [SAMPLE_IMAGES[0]],
+  photos: [],
 };
 
 export function ProductForm({
@@ -101,10 +102,17 @@ export function ProductForm({
   };
 
   const submit = (publish: boolean) => {
-    if (!form.name || form.pricePerKg <= 0 || !form.sku) {
-      toast.error("Renseignez nom, prix et SKU");
+    if (!form.name || form.pricePerKg <= 0) {
+      toast.error("Renseignez le nom et le prix");
       return;
     }
+    if (form.stock < 0 || form.minStock < 0 || (form.minPrice ?? 0) < 0) {
+      toast.error("Le stock et les prix ne peuvent pas être négatifs");
+      return;
+    }
+    // Le SKU n'est plus obligatoire : généré s'il est vide.
+    if (!form.sku)
+      form.sku = `SKU-${form.name.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
     onSubmit(
       {
         ...form,
@@ -132,7 +140,7 @@ export function ProductForm({
                 placeholder="Tomates fraîches"
               />
             </Field>
-            <Field label="SKU *">
+            <Field label="Référence interne (facultatif)">
               <Input
                 value={form.sku}
                 onChange={(e) => set("sku", e.target.value)}
@@ -302,16 +310,26 @@ export function ProductForm({
               </div>
             ))}
             {(form.photos ?? []).length < 5 && (
-              <button
-                type="button"
-                onClick={() =>
-                  addPhoto(SAMPLE_IMAGES[(form.photos ?? []).length % SAMPLE_IMAGES.length])
-                }
-                className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-muted-foreground text-[10px]"
-              >
-                <Upload className="h-4 w-4" />
-                Ajouter
-              </button>
+              <label className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-muted-foreground text-[10px] cursor-pointer">
+                <Upload className="h-5 w-5" />
+                Prendre / choisir
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    try {
+                      addPhoto(await resizeImage(file));
+                    } catch {
+                      toast.error("Cette photo n'a pas pu être lue");
+                    }
+                  }}
+                />
+              </label>
             )}
           </div>
           <p className="text-[10px] text-muted-foreground">

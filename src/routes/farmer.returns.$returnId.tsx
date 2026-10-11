@@ -230,8 +230,9 @@ function FarmerReturnDetail() {
                   size="sm"
                   className="w-full gap-2"
                   onClick={() => {
-                    returnActions.issueCredit(r.id);
-                    toast.success("Avoir émis");
+                    const result = returnActions.issueCredit(r.id);
+                    if (!result.ok) toast.error(result.message);
+                    else toast.success("Avoir émis · il remplace le remboursement");
                   }}
                 >
                   <ReceiptText className="h-4 w-4" />
@@ -332,7 +333,7 @@ function FarmerReturnDetail() {
           {r.photos && r.photos.length > 0 && (
             <div className="glass rounded-2xl p-5">
               <h3 className="font-semibold mb-3">Documents joints ({r.photos.length})</h3>
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {r.photos.map((p) =>
                   p.dataUrl ? (
                     <a

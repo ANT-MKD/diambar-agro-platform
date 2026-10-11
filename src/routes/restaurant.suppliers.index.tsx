@@ -215,7 +215,7 @@ function SuppliersList() {
         }
       />
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
             <ShieldCheck className="h-3.5 w-3.5" /> Fournisseurs actifs

@@ -332,7 +332,7 @@ function AdminReturns() {
 
       {view === "apercu" ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Demandes ouvertes"
               value={String(openReturns.length)}
@@ -357,7 +357,7 @@ function AdminReturns() {
               hint={toInspect.length > 0 ? "Action requise" : undefined}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Acceptés" value={String(accepted.length)} icon={PackageMinus} />
             <StatCard label="Refusés" value={String(refused.length)} icon={PackageMinus} />
             <StatCard label="Montant concerné" value={formatFCFA(openAmount)} icon={PackageMinus} />
@@ -633,7 +633,7 @@ function AdminReturns() {
         </>
       ) : (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <StatCard label="Commandes" value={String(totalOrders)} icon={PackageMinus} />
             <StatCard label="Retours" value={String(returns.length)} icon={PackageMinus} />
             <StatCard

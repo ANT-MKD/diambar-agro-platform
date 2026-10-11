@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink, TriangleAlert } from "lucide-react";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
 import { useDisputeById } from "@/data/disputes";
 import { useOrders, useMissions } from "@/data/store";
 import { useIncidents } from "@/data/business";
+import { useAdminRoleForEmail, can } from "@/data/admin-store";
 
 export const Route = createFileRoute("/admin/disputes/$disputeId")({
   head: () => ({
@@ -23,6 +24,9 @@ export const Route = createFileRoute("/admin/disputes/$disputeId")({
 
 function AdminDisputeDetail() {
   const { disputeId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canDecideDisputes = can(role, "disputes.decide");
   const d = useDisputeById(disputeId);
   const orders = useOrders();
   const missions = useMissions();
@@ -49,8 +53,8 @@ function AdminDisputeDetail() {
     <DisputeDetailView
       dispute={d}
       role="platform"
-      name="Support Diambar"
-      canDecide
+      name={user.name}
+      canDecide={canDecideDisputes}
       breadcrumb={
         <Link
           to="/admin/disputes"

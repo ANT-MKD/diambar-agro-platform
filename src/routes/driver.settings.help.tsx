@@ -13,6 +13,7 @@ import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supportTicketActions } from "@/data/support";
+import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
 
 export const Route = createFileRoute("/driver/settings/help")({
   head: () => ({ meta: [{ title: "Aide & support · Paramètres livreur" }] }),
@@ -60,15 +61,12 @@ function HelpSettings() {
     [q],
   );
 
-  const sendUrgent = () => {
-    const ticket = supportTicketActions.create({
-      subject: "🚨 Situation urgente — livreur",
-      message: "Le livreur signale une situation urgente et demande un rappel immédiat.",
-      fromName: "Oumar Ba",
-      fromRole: "driver",
-      category: "technical",
+  const sendUrgent = async () => {
+    const id = await sendSos({ fromName: "Oumar Ba" });
+    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
+      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
     });
-    toast.success(`Ticket ${ticket.id.toUpperCase()} envoyé — priorité urgente`);
+    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
   };
 
   return (

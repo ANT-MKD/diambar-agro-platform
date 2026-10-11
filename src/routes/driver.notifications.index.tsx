@@ -30,6 +30,11 @@ function NotificationsPage() {
 
   const open = (n: AppNotification) => {
     driverNotifActions.markRead(n.id);
+    // Lien direct vers l'élément concerné (commande, mission, litige…).
+    if (n.link) {
+      navigate({ to: n.link as never });
+      return;
+    }
     if (n.type === "order") navigate({ to: "/driver/missions" });
     else if (n.type === "payment") navigate({ to: "/driver/wallet" });
     else if (n.type === "message") {

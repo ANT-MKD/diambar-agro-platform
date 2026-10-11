@@ -1,18 +1,45 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Mail, MailCheck, ArrowLeft } from "lucide-react";
+import { useId, useState } from "react";
+import { Mail, MailCheck, ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
+import { DemoNotice } from "@/components/auth/demo-notice";
+import { getAuthConfigFn, requestPasswordResetFn } from "@/lib/auth/functions";
+import { normalizeEmail } from "@/lib/auth/helpers";
 
 export const Route = createFileRoute("/forgot-password")({
+  loader: () => getAuthConfigFn(),
   head: () => ({ meta: [{ title: "Mot de passe oublié · Diambar Agro" }] }),
   component: ForgotPage,
 });
 
 function ForgotPage() {
+  const config = Route.useLoaderData();
+  const emailId = useId();
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [devResetLink, setDevResetLink] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { devResetLink } = await requestPasswordResetFn({
+        data: { email: normalizeEmail(email) },
+      });
+      setDevResetLink(devResetLink ?? null);
+      setSent(true);
+    } catch {
+      toast.error("Connexion impossible. Vérifiez votre accès à internet et réessayez.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthSplitLayout>
+      {config.demoMode && <DemoNotice />}
       <Link
         to="/login"
         className="text-sm text-muted-foreground inline-flex items-center gap-1 mb-4 hover:text-foreground"
@@ -21,33 +48,34 @@ function ForgotPage() {
         Retour à la connexion
       </Link>
       {!sent ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSent(true);
-          }}
-        >
-          <h1 className="font-display text-2xl font-bold">Mot de passe oublié ?</h1>
+        <form onSubmit={submit}>
+          <h1 className="display-xl text-4xl">Mot de passe oublié ?</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Entrez votre email pour recevoir un lien de réinitialisation.
           </p>
           <div className="mt-6">
-            <label className="text-sm font-medium">Email</label>
+            <label htmlFor={emailId} className="text-sm font-medium">
+              Email
+            </label>
             <div className="mt-1.5 relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
+                id={emailId}
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full glass rounded-xl pl-10 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-2xl border border-border bg-white pl-10 pr-3 py-3 text-sm focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10"
               />
             </div>
           </div>
           <button
             type="submit"
-            className="mt-6 w-full rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+            disabled={loading}
+            className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold disabled:opacity-50"
           >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Envoyer le lien
           </button>
         </form>
@@ -56,14 +84,27 @@ function ForgotPage() {
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-500/10 text-emerald-500">
             <MailCheck className="h-10 w-10" />
           </div>
-          <h1 className="mt-6 font-display text-2xl font-bold">Email envoyé !</h1>
+          <h1 className="display-xl mt-6 text-4xl">Vérifiez votre boîte de réception</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Un lien de réinitialisation a été envoyé à{" "}
-            <span className="font-medium text-foreground">{email}</span>
+            Si un compte correspond à <span className="font-medium text-foreground">{email}</span>,
+            un lien de réinitialisation vient de lui être envoyé. Il expire dans 30 minutes.
           </p>
+          {devResetLink && (
+            <div className="mt-6 rounded-xl border border-dashed border-border p-3 text-left">
+              <div className="text-[11px] font-semibold text-muted-foreground">
+                Environnement de démonstration — aucun email réel n'est envoyé
+              </div>
+              <Link
+                to={devResetLink}
+                className="mt-1 block break-all text-xs text-emerald-800 underline"
+              >
+                {devResetLink}
+              </Link>
+            </div>
+          )}
           <Link
             to="/login"
-            className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary text-primary-foreground py-3 font-semibold"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
           >
             Retour à la connexion
           </Link>

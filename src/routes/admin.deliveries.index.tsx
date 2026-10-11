@@ -154,7 +154,7 @@ function AdminDeliveries() {
     <div className="space-y-6">
       <PageHeader title="Livraisons" subtitle="Supervisez toutes les courses de la plateforme" />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Courses actives" value={String(active.length)} icon={Truck} />
         <StatCard label="À récupérer" value={String(pickup.length)} icon={Package} />
         <StatCard label="En livraison" value={String(delivering.length)} icon={Truck} />
@@ -165,7 +165,7 @@ function AdminDeliveries() {
           hint="Récemment"
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="En retard"
           value={String(late.length)}

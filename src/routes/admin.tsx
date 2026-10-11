@@ -1,5 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
+  Activity,
+  FileCheck2,
   LayoutDashboard,
   Users,
   ShieldCheck,
@@ -31,13 +33,20 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useAdminNotifications, useAdminRoleForEmail, useValidations } from "@/data/admin-store";
+import {
+  useAdminNotifications,
+  useAdminRoleForEmail,
+  useValidations,
+  can,
+  type PermissionKey,
+} from "@/data/admin-store";
 import { useAllDisputes } from "@/data/disputes";
 import { useConversations, useDriverConversations } from "@/data/store";
 import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
+import { useDocRenewals } from "@/data/store";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: () => requireRole("admin"),
@@ -63,6 +72,7 @@ function AdminLayout() {
     (d) => d.status === "open" || d.status === "investigating",
   ).length;
   const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
+  const pendingDocs = useDocRenewals().filter((r) => r.status === "pending").length;
   const refundsToHandle = refunds.filter(
     (r) => r.status === "pending" || r.status === "failed",
   ).length;
@@ -74,53 +84,157 @@ function AdminLayout() {
   const unreadMessages =
     farmerConvos.reduce((s, c) => s + c.unread, 0) + driverConvos.reduce((s, c) => s + c.unread, 0);
 
-  const navSections = [
+  const navSectionsAll: {
+    label: string;
+    items: {
+      to: string;
+      label: string;
+      icon: typeof LayoutDashboard;
+      badge: number;
+      permission?: PermissionKey;
+    }[];
+  }[] = [
     {
       label: "PILOTAGE",
       items: [
         { to: "/admin/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard, badge: 0 },
+        {
+          to: "/admin/operations",
+          label: "Opérations du jour",
+          icon: Activity,
+          badge: 0,
+          permission: "deliveries.view",
+        },
         { to: "/admin/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
         {
           to: "/admin/validations",
           label: "Validations",
           icon: ShieldCheck,
           badge: pendingValidations,
+          permission: "validations.decide",
         },
-        { to: "/admin/moderation", label: "Modération", icon: PackageSearch, badge: 0 },
+        {
+          to: "/admin/moderation",
+          label: "Modération",
+          icon: PackageSearch,
+          badge: 0,
+          permission: "moderation.decide",
+        },
       ],
     },
     {
       label: "UTILISATEURS",
       items: [
-        { to: "/admin/users", label: "Tous les utilisateurs", icon: Users, badge: 0 },
-        { to: "/admin/users/farmers", label: "Agriculteurs", icon: Sprout, badge: 0 },
-        { to: "/admin/users/restaurants", label: "Restaurants", icon: Utensils, badge: 0 },
-        { to: "/admin/users/drivers", label: "Livreurs", icon: Truck, badge: 0 },
-        { to: "/admin/users/admins", label: "Administrateurs", icon: UserCog, badge: 0 },
+        {
+          to: "/admin/users",
+          label: "Tous les utilisateurs",
+          icon: Users,
+          badge: 0,
+          permission: "users.view",
+        },
+        {
+          to: "/admin/users/farmers",
+          label: "Agriculteurs",
+          icon: Sprout,
+          badge: 0,
+          permission: "users.view",
+        },
+        {
+          to: "/admin/users/restaurants",
+          label: "Restaurants",
+          icon: Utensils,
+          badge: 0,
+          permission: "users.view",
+        },
+        {
+          to: "/admin/users/drivers",
+          label: "Livreurs",
+          icon: Truck,
+          badge: 0,
+          permission: "users.view",
+        },
+        {
+          to: "/admin/users/admins",
+          label: "Administrateurs",
+          icon: UserCog,
+          badge: 0,
+          permission: "security.manage_admins",
+        },
       ],
     },
     {
       label: "OPÉRATIONS",
       items: [
-        { to: "/admin/orders", label: "Commandes", icon: ShoppingBag, badge: 0 },
-        { to: "/admin/deliveries", label: "Livraisons", icon: Truck, badge: 0 },
+        {
+          to: "/admin/orders",
+          label: "Commandes",
+          icon: ShoppingBag,
+          badge: 0,
+          permission: "orders.view",
+        },
+        {
+          to: "/admin/deliveries",
+          label: "Livraisons",
+          icon: Truck,
+          badge: 0,
+          permission: "deliveries.view",
+        },
+        {
+          to: "/admin/documents",
+          label: "Documents livreurs",
+          icon: FileCheck2,
+          badge: pendingDocs,
+          permission: "deliveries.view",
+        },
         {
           to: "/admin/incidents",
           label: "Incidents",
           icon: TriangleAlert,
           badge: escalatedIncidents,
+          permission: "incidents.decide",
         },
-        { to: "/admin/disputes", label: "Litiges", icon: Scale, badge: openDisputes },
-        { to: "/admin/support", label: "Support", icon: LifeBuoy, badge: openTickets },
-        { to: "/admin/finance", label: "Finance", icon: Wallet, badge: 0 },
+        {
+          to: "/admin/disputes",
+          label: "Litiges",
+          icon: Scale,
+          badge: openDisputes,
+          permission: "disputes.decide",
+        },
+        {
+          to: "/admin/support",
+          label: "Support",
+          icon: LifeBuoy,
+          badge: openTickets,
+          permission: "support.respond",
+        },
+        {
+          to: "/admin/finance",
+          label: "Finance",
+          icon: Wallet,
+          badge: 0,
+          permission: "finance.view",
+        },
         {
           to: "/admin/refunds",
           label: "Remboursements",
           icon: Undo2,
           badge: refundsToHandle,
+          permission: "refunds.view",
         },
-        { to: "/admin/returns", label: "Retours", icon: PackageMinus, badge: pendingReturns },
-        { to: "/admin/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
+        {
+          to: "/admin/returns",
+          label: "Retours",
+          icon: PackageMinus,
+          badge: pendingReturns,
+          permission: "returns.decide",
+        },
+        {
+          to: "/admin/messages",
+          label: "Messages",
+          icon: MessageSquare,
+          badge: unreadMessages,
+          permission: "messages.view",
+        },
         {
           to: "/admin/notifications",
           label: "Notifications",
@@ -132,11 +246,27 @@ function AdminLayout() {
     {
       label: "PLATEFORME",
       items: [
-        { to: "/admin/logs", label: "Journal d'audit", icon: ScrollText, badge: 0 },
+        {
+          to: "/admin/logs",
+          label: "Journal d'audit",
+          icon: ScrollText,
+          badge: 0,
+          permission: "audit.view",
+        },
         { to: "/admin/settings", label: "Paramètres", icon: Settings, badge: 0 },
       ],
     },
   ];
+
+  // Filtrage réel par rôle : un item nécessitant une permission que le rôle
+  // n'a pas n'apparaît pas dans la nav (pas seulement grisé) — et une
+  // section qui n'a plus aucun item visible disparaît entièrement.
+  const navSections = navSectionsAll
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((it) => !it.permission || can(adminRole, it.permission)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   // Certaines entrées (ex. "Tous les utilisateurs") ont maintenant des
   // sous-pages sœurs dont le chemin les préfixe ("/admin/users/farmers"…) :
@@ -151,13 +281,24 @@ function AdminLayout() {
     );
   };
 
-  const bottomNav = [
+  const bottomNavAll: {
+    to: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    permission?: PermissionKey;
+  }[] = [
     { to: "/admin/dashboard", label: "Accueil", icon: LayoutDashboard },
-    { to: "/admin/users", label: "Users", icon: Users },
-    { to: "/admin/validations", label: "Validations", icon: ShieldCheck },
-    { to: "/admin/disputes", label: "Litiges", icon: Scale },
+    { to: "/admin/users", label: "Users", icon: Users, permission: "users.view" },
+    {
+      to: "/admin/validations",
+      label: "Validations",
+      icon: ShieldCheck,
+      permission: "validations.decide",
+    },
+    { to: "/admin/disputes", label: "Litiges", icon: Scale, permission: "disputes.decide" },
     { to: "/admin/settings", label: "Plus", icon: Settings },
   ];
+  const bottomNav = bottomNavAll.filter((it) => !it.permission || can(adminRole, it.permission));
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -288,7 +429,10 @@ function AdminLayout() {
           <Outlet />
         </main>
         <CommandPalette scope="admin" />
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16 print:hidden">
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid h-16 print:hidden"
+          style={{ gridTemplateColumns: `repeat(${bottomNav.length}, minmax(0, 1fr))` }}
+        >
           {bottomNav.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (

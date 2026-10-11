@@ -6,7 +6,13 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
 import { farmers, restaurants } from "@/data/mocks";
-import { useConversations, useSuppliers, conversationActions } from "@/data/store";
+import {
+  useConversations,
+  useSuppliers,
+  conversationActions,
+  useDriverConversations,
+  driverConversationActions,
+} from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -206,6 +212,71 @@ function Messages() {
           </div>
         )}
       </div>
+      {myRestaurant && <DriverThreads restaurantId={myRestaurant.id} name={myRestaurant.name} />}
+    </div>
+  );
+}
+
+/** Messages échangés avec les livreurs de vos commandes (avant, seul l'admin
+ * les voyait). */
+function DriverThreads({ restaurantId, name }: { restaurantId: string; name: string }) {
+  const threads = useDriverConversations().filter(
+    (c) => c.restaurantId === restaurantId && c.messages.length > 0,
+  );
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [reply, setReply] = useState("");
+  if (threads.length === 0) return null;
+  const active = threads.find((t) => t.id === openId) ?? null;
+  return (
+    <div className="glass rounded-2xl p-4 space-y-3">
+      <h3 className="font-semibold">Messages des livreurs</h3>
+      <div className="flex flex-wrap gap-2">
+        {threads.map((t) => (
+          <Button
+            key={t.id}
+            variant={t.id === openId ? "default" : "outline"}
+            size="sm"
+            onClick={() => setOpenId(t.id)}
+          >
+            Livreur · {relativeTime(t.lastAt)}
+          </Button>
+        ))}
+      </div>
+      {active && (
+        <div className="space-y-2">
+          <div className="max-h-72 overflow-auto space-y-2">
+            {active.messages.map((m) => (
+              <div
+                key={m.id}
+                className={`rounded-xl px-3 py-2 text-sm max-w-[85%] ${m.from === "me" ? "bg-muted" : "bg-primary text-primary-foreground ml-auto"}`}
+              >
+                <div className="text-[10px] opacity-70">
+                  {m.from === "me" ? "Livreur" : (m.senderName ?? name)} · {relativeTime(m.at)}
+                </div>
+                {m.text}
+              </div>
+            ))}
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!reply.trim()) return;
+              driverConversationActions.send(active.id, reply.trim(), "them", name);
+              setReply("");
+            }}
+          >
+            <Input
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder="Répondre au livreur…"
+            />
+            <Button type="submit" size="icon" aria-label="Envoyer">
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

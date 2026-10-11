@@ -34,6 +34,8 @@ import {
 import { restaurants } from "@/data/mocks";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
+import { useMaintenanceMode } from "@/data/admin-store";
+import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { requireRole } from "@/lib/auth/functions";
 
 export const Route = createFileRoute("/restaurant")({
@@ -51,6 +53,7 @@ const bottomNav = [
 
 function RestaurantLayout() {
   const { user } = Route.useRouteContext();
+  const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const cart = useCart();
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);
@@ -68,6 +71,9 @@ function RestaurantLayout() {
   // que d'attendre une exécution qui ne se déclencherait jamais seule.
   useEffect(() => {
     recurringOrderActions.tick();
+    // Un onglet resté ouvert déclenche aussi les échéances (toutes les minutes).
+    const id = setInterval(() => recurringOrderActions.tick(), 60_000);
+    return () => clearInterval(id);
   }, []);
 
   const navSections = [
@@ -107,6 +113,10 @@ function RestaurantLayout() {
       ],
     },
   ];
+
+  if (maintenance.active) {
+    return <MaintenanceScreen message={maintenance.message} />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex">

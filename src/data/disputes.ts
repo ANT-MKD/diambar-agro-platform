@@ -1,6 +1,13 @@
 import { useSyncExternalStore } from "react";
-import { driverWalletActions } from "./store";
+import {
+  driverNotifActions,
+  driverWalletActions,
+  farmerNotifActions,
+  onRestaurantOrderCancelled,
+  restaurantNotifActions,
+} from "./store";
 import { refundActions } from "./finance";
+import { createStore } from "./persist";
 
 export type DisputeParty = "restaurant" | "farmer" | "driver" | "platform";
 export type DisputeStatus =
@@ -93,6 +100,10 @@ export type CreditNote = {
   expiresAt?: string;
   status: "issued" | "applied";
   usedOnOrderRef?: string;
+  // Montant d'origine quand l'avoir a déjà été utilisé en partie (`amount`
+  // est alors le solde restant), et le détail de chaque utilisation.
+  initialAmount?: number;
+  usages?: { orderRef: string; amount: number; at: string }[];
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -148,8 +159,6 @@ const seedDisputes: Dispute[] = [
     description:
       "8 kg de poulet fermier livrés avec un écart de fraîcheur constaté à la réception.",
     orderRef: "CMD-2848",
-    orderId: "ro1",
-    invoiceId: "inv1",
     hasGpsTrack: true,
     openedByRole: "restaurant",
     openedByName: "Le Baobab",
@@ -227,8 +236,6 @@ const seedDisputes: Dispute[] = [
     subcategory: "Retard important",
     description: "Livraison arrivée 2h après le créneau confirmé, service du midi impacté.",
     orderRef: "CMD-2842",
-    orderId: "ro2",
-    missionId: "m1",
     hasGpsTrack: true,
     openedByRole: "restaurant",
     openedByName: "Hôtel Téranga",
@@ -287,8 +294,6 @@ const seedDisputes: Dispute[] = [
     subcategory: "Colis manquant",
     description: "Un sac de 10 kg d'oignons manquant sur la commande.",
     orderRef: "CMD-2829",
-    orderId: "ro3",
-    invoiceId: "inv3",
     hasGpsTrack: false,
     openedByRole: "restaurant",
     openedByName: "Chez Aminata",
@@ -475,38 +480,6 @@ const seedCredits: CreditNote[] = [
   },
 ];
 
-type Listener = () => void;
-function createStore<T>(initial: T, persistKey: string) {
-  let state = initial;
-  if (typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set: (next: T | ((p: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: Listener) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
-
 const disputesStore = createStore<Dispute[]>(seedDisputes, "diambar:disputes");
 const creditsStore = createStore<CreditNote[]>(seedCredits, "diambar:credit-notes");
 
@@ -565,18 +538,48 @@ export const creditActions = {
     ]);
     return { id, reference };
   },
-  /** Applique réellement un avoir à une commande (au checkout) : le solde
-   * disponible baisse pour de vrai, pas juste visuellement. */
-  redeem: (id: string, orderRef: string) => {
+  /** Utilise tout ou partie d'un avoir sur une commande : le solde baisse du
+   * montant réellement utilisé, et le reste reste disponible. */
+  redeem: (id: string, orderRef: string, amountUsed?: number) => {
+    const at = new Date().toISOString();
+    creditsStore.set((arr) =>
+      arr.map((c) => {
+        if (c.id !== id || c.status !== "issued" || isCreditExpired(c)) return c;
+        const used = Math.min(c.amount, amountUsed ?? c.amount);
+        const remaining = c.amount - used;
+        return {
+          ...c,
+          initialAmount: c.initialAmount ?? c.amount,
+          amount: remaining,
+          status: remaining > 0 ? "issued" : "applied",
+          usedOnOrderRef: orderRef,
+          usages: [...(c.usages ?? []), { orderRef, amount: used, at }],
+        };
+      }),
+    );
+  },
+  /** Recrédite la part d'un avoir utilisée sur une commande annulée. */
+  restore: (id: string, orderRef: string, amount: number) => {
     creditsStore.set((arr) =>
       arr.map((c) =>
-        c.id === id && c.status === "issued" && !isCreditExpired(c)
-          ? { ...c, status: "applied", usedOnOrderRef: orderRef }
+        c.id === id
+          ? {
+              ...c,
+              amount: c.amount + amount,
+              status: "issued",
+              usages: (c.usages ?? []).filter((u) => u.orderRef !== orderRef),
+            }
           : c,
       ),
     );
   },
 };
+
+// Une commande annulée rend l'avoir qu'elle avait utilisé.
+onRestaurantOrderCancelled((o) => {
+  if (o.creditId && o.creditApplied)
+    creditActions.restore(o.creditId, o.reference, o.creditApplied);
+});
 
 export const PARTY_LABEL: Record<DisputeParty, string> = {
   restaurant: "Restaurant",
@@ -774,7 +777,7 @@ export const disputeActions = {
       ),
     );
   },
-  assign: (id: string, agent: string) => {
+  assign: (id: string, agent: string, actor = "Support Diambar") => {
     disputesStore.set((arr) =>
       arr.map((d) =>
         d.id === id
@@ -786,7 +789,7 @@ export const disputeActions = {
                 {
                   id: `e_${Date.now()}`,
                   at: new Date().toISOString(),
-                  actor: "Support Diambar",
+                  actor,
                   label: "Dossier assigné",
                   detail: agent,
                 },
@@ -796,7 +799,7 @@ export const disputeActions = {
       ),
     );
   },
-  escalate: (id: string, reason: string) => {
+  escalate: (id: string, reason: string, actor = "Support Diambar") => {
     disputesStore.set((arr) =>
       arr.map((d) =>
         d.id === id
@@ -810,7 +813,7 @@ export const disputeActions = {
                 {
                   id: `e_${Date.now()}`,
                   at: new Date().toISOString(),
-                  actor: "Support Diambar",
+                  actor,
                   label: `Escalade niveau ${d.escalations + 1}`,
                   detail: reason,
                 },
@@ -831,8 +834,24 @@ export const disputeActions = {
       by?: string;
     },
   ) => {
-    const d = disputesStore.get().find((x) => x.id === id);
-    if (!d) return;
+    const d0 = disputesStore.get().find((x) => x.id === id);
+    if (!d0 || d0.decision) return;
+    const d = d0;
+    // Jamais plus que ce qui est réclamé, et jamais une deuxième fois ce qui a
+    // déjà été indemnisé par le retour d'origine (avoir déjà émis).
+    const alreadyCompensated = d.returnId
+      ? creditsStore
+          .get()
+          .filter((c) => c.returnId === d.returnId)
+          .reduce((sum, c) => sum + (c.initialAmount ?? c.amount), 0)
+      : 0;
+    decision = {
+      ...decision,
+      grantedAmount: Math.max(
+        0,
+        Math.min(decision.grantedAmount, d.claimedAmount) - alreadyCompensated,
+      ),
+    };
     const at = new Date().toISOString();
     const by = decision.by ?? "Support Diambar";
     const resolved = decision.outcome === "rejected" ? "rejected" : "resolved";
@@ -878,6 +897,18 @@ export const disputeActions = {
       ),
     );
 
+    // Les deux parties apprennent la décision, avec le montant.
+    const decisionText = `${d.reference} : ${outcomeLabel(decision.outcome)}${decision.grantedAmount > 0 ? ` — ${decision.grantedAmount.toLocaleString("fr-FR")} FCFA` : ""}`;
+    const notifyParty = (role: DisputeParty) => {
+      const n = { type: "system" as const, title: "Décision sur votre litige", body: decisionText };
+      if (role === "restaurant")
+        restaurantNotifActions.add({ ...n, link: `/restaurant/disputes/${d.id}` });
+      if (role === "farmer") farmerNotifActions.add({ ...n, link: `/farmer/disputes/${d.id}` });
+      if (role === "driver") driverNotifActions.add({ ...n, link: `/driver/disputes/${d.id}` });
+    };
+    notifyParty(d.openedByRole);
+    if (d.againstRole !== d.openedByRole) notifyParty(d.againstRole);
+
     if (decision.grantedAmount > 0 && decision.outcome !== "rejected") {
       // "refund"/"partial" impliquent un vrai virement au plaignant (sauf un
       // livreur, déjà compensé via son wallet ci-dessous) : un vrai dossier
@@ -909,9 +940,12 @@ export const disputeActions = {
             method: "Wave",
             reason: `Litige ${d.reference} — ${decision.reason}`,
           },
-          "approved",
+          // Passe par les paliers d'approbation comme tout remboursement.
+          "pending",
         );
-      } else {
+      } else if (d.openedByRole !== "driver") {
+        // Un livreur est indemnisé sur son portefeuille (ci-dessous), jamais
+        // en plus par un avoir qu'il ne pourrait de toute façon pas utiliser.
         creditsStore.set((arr) => [
           {
             id: `cn_${Date.now()}`,

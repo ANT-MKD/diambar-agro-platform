@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Flag, Ban, Check, MessageSquareWarning, UserX } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +25,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { useModerationItem, moderationActions } from "@/data/admin-store";
+import {
+  useModerationItem,
+  moderationActions,
+  useAdminRoleForEmail,
+  can,
+} from "@/data/admin-store";
 import { useProducts } from "@/data/store";
 import { farmers } from "@/data/mocks";
 
@@ -45,6 +50,10 @@ export const Route = createFileRoute("/admin/moderation/$itemId")({
 
 function ModerationDetail() {
   const { itemId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canModerate = can(role, "moderation.decide");
+  const canSuspendAccount = can(role, "users.suspend");
   const m = useModerationItem(itemId);
   const products = useProducts();
   const [changeOpen, setChangeOpen] = useState(false);
@@ -74,7 +83,11 @@ function ModerationDetail() {
       toast.error("Décrivez la modification attendue");
       return;
     }
-    moderationActions.requestChange(m.id, changeNote.trim());
+    if (!canModerate) {
+      toast.error("Votre rôle ne permet pas de modérer ce produit.");
+      return;
+    }
+    moderationActions.requestChange(m.id, changeNote.trim(), user.name);
     toast.success("Modification demandée au producteur");
     setChangeOpen(false);
     setChangeNote("");
@@ -147,46 +160,57 @@ function ModerationDetail() {
 
         <div className="glass rounded-2xl p-5 space-y-2 h-fit">
           <h2 className="font-semibold mb-1">Décision</h2>
-          <Button
-            disabled={closed}
-            className="w-full justify-start gap-2"
-            onClick={() => {
-              moderationActions.approve(m.id);
-              toast.success("Produit conservé");
-            }}
-          >
-            <Check className="h-4 w-4" />
-            Conserver le produit
-          </Button>
-          <Button
-            disabled={closed}
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={() => setChangeOpen(true)}
-          >
-            <MessageSquareWarning className="h-4 w-4" />
-            Demander une modification
-          </Button>
-          <Button
-            disabled={closed}
-            variant="outline"
-            className="w-full justify-start gap-2 text-destructive"
-            onClick={() => {
-              moderationActions.unpublish(m.id);
-              toast.success("Produit dépublié");
-            }}
-          >
-            <Ban className="h-4 w-4" />
-            Dépublier le produit
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 text-destructive"
-            onClick={() => setSuspendOpen(true)}
-          >
-            <UserX className="h-4 w-4" />
-            Suspendre le producteur
-          </Button>
+          {!canModerate && (
+            <p className="text-xs text-muted-foreground pb-1">
+              Votre rôle ({role}) ne permet pas de modérer ce produit.
+            </p>
+          )}
+          {canModerate && (
+            <>
+              <Button
+                disabled={closed}
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  moderationActions.approve(m.id, user.name);
+                  toast.success("Produit conservé");
+                }}
+              >
+                <Check className="h-4 w-4" />
+                Conserver le produit
+              </Button>
+              <Button
+                disabled={closed}
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={() => setChangeOpen(true)}
+              >
+                <MessageSquareWarning className="h-4 w-4" />
+                Demander une modification
+              </Button>
+              <Button
+                disabled={closed}
+                variant="outline"
+                className="w-full justify-start gap-2 text-destructive"
+                onClick={() => {
+                  moderationActions.unpublish(m.id, user.name);
+                  toast.success("Produit dépublié");
+                }}
+              >
+                <Ban className="h-4 w-4" />
+                Dépublier le produit
+              </Button>
+            </>
+          )}
+          {canSuspendAccount && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 text-destructive"
+              onClick={() => setSuspendOpen(true)}
+            >
+              <UserX className="h-4 w-4" />
+              Suspendre le producteur
+            </Button>
+          )}
           {closed && (
             <p className="text-[11px] text-muted-foreground pt-1">
               Décision déjà prise sur ce produit — action enregistrée dans le journal d'audit.
@@ -232,7 +256,7 @@ function ModerationDetail() {
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={() => {
-                moderationActions.suspendFarmer(m.id);
+                moderationActions.suspendFarmer(m.id, user.name);
                 toast.success("Producteur suspendu");
                 setSuspendOpen(false);
               }}

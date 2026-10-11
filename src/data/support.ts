@@ -1,12 +1,13 @@
 import { useSyncExternalStore } from "react";
 import type { Role } from "./mocks";
 import { SUPPORT_AGENTS } from "./disputes";
+import { createStore } from "./persist";
 
 export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
 export type TicketCategory =
   "delivery" | "products" | "payments" | "account" | "technical" | "other";
-export type TicketPriority = "low" | "medium" | "high";
+export type TicketPriority = "low" | "medium" | "high" | "urgent";
 
 export type TicketMessage = {
   id: string;
@@ -102,39 +103,6 @@ const SEED: SupportTicket[] = [
   },
 ];
 
-type Listener = () => void;
-
-function createStore<T>(initial: T, persistKey?: string) {
-  let state = initial;
-  if (persistKey && typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem(persistKey);
-      if (raw) state = JSON.parse(raw) as T;
-    } catch {
-      /* ignore */
-    }
-  }
-  const listeners = new Set<Listener>();
-  return {
-    get: () => state,
-    set: (next: T | ((prev: T) => T)) => {
-      state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey && typeof window !== "undefined") {
-        try {
-          window.localStorage.setItem(persistKey, JSON.stringify(state));
-        } catch {
-          /* ignore */
-        }
-      }
-      listeners.forEach((l) => l());
-    },
-    subscribe: (l: Listener) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-}
-
 const ticketsStore = createStore<SupportTicket[]>(SEED, "diambar:support-tickets");
 
 export function useSupportTickets() {
@@ -153,6 +121,7 @@ export const supportTicketActions = {
     fromRole: TicketRole;
     category: TicketCategory;
     orderRef?: string;
+    priority?: TicketPriority;
   }) => {
     const id = `t_${Date.now()}`;
     const createdAt = new Date().toISOString();
@@ -163,7 +132,7 @@ export const supportTicketActions = {
       fromName: input.fromName,
       fromRole: input.fromRole,
       category: input.category,
-      priority: TICKET_CATEGORY_PRIORITY[input.category],
+      priority: input.priority ?? TICKET_CATEGORY_PRIORITY[input.category],
       assignee: null,
       orderRef: input.orderRef,
       status: "open",
@@ -248,6 +217,7 @@ export const TICKET_PRIORITY_LABEL: Record<TicketPriority, string> = {
   low: "Basse",
   medium: "Moyenne",
   high: "Haute",
+  urgent: "Urgente",
 };
 
 export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {

@@ -24,17 +24,24 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
-  useMissions,
+  useDriverMissions,
   useDriverOnline,
   driverOnlineActions,
   useDriverWallet,
   useDriverVehicle,
   useVehicleIssues,
+  useDriverSettings,
+  useMyDriverFleet,
+  useMyMissionEligibility,
   missionActions,
 } from "@/data/store";
+import { missionEligibility } from "@/lib/mission-eligibility";
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
+import { useSecurity } from "@/data/security";
 import { driverProfile, restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { ProfileCompletion } from "@/components/common/profile-completion";
+import { driverCompletionItems } from "@/lib/profile-completion";
 import {
   dayKey,
   timeLabel,
@@ -78,12 +85,16 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 function DriverDashboard() {
-  const missions = useMissions();
+  const missions = useDriverMissions();
   const online = useDriverOnline();
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
+  const fleet = useMyDriverFleet();
+  const eligibilityFor = useMyMissionEligibility();
   const vehicleIssues = useVehicleIssues();
   const incidents = useIncidents();
+  const driverSettings = useDriverSettings();
+  const security = useSecurity();
 
   const grossMissions = wallet.transactions
     .filter((t) => t.kind === "mission")
@@ -228,7 +239,11 @@ function DriverDashboard() {
       : { label: "Collecte", ...m.pickup };
 
   const acceptMission = (id: string, ref: string) => {
-    missionActions.accept(id);
+    const result = missionActions.accept(id);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     toast.success(`Mission ${ref} acceptée`);
   };
 
@@ -251,6 +266,11 @@ function DriverDashboard() {
             {online ? "Passer hors-ligne" : "Se mettre en ligne"}
           </Button>
         }
+      />
+
+      <ProfileCompletion
+        title="Profil livreur complété"
+        items={driverCompletionItems(driverSettings, driverProfile.documents, security.twoFa)}
       />
 
       {/* KPIs du jour */}
@@ -506,6 +526,7 @@ function DriverDashboard() {
                 const r = restaurants.find((x) => x.id === m.restaurantId);
                 const f = farmers.find((x) => x.id === m.farmerId);
                 const badge = MISSION_BADGE[m.status];
+                const eligibility = eligibilityFor(m);
                 return (
                   <div
                     key={m.id}
@@ -531,7 +552,12 @@ function DriverDashboard() {
                       <div className="font-bold text-primary">{formatFCFA(m.payout)}</div>
                     </div>
                     {m.status === "available" ? (
-                      <Button size="sm" onClick={() => acceptMission(m.id, m.reference)}>
+                      <Button
+                        size="sm"
+                        disabled={!eligibility.ok}
+                        title={eligibility.ok ? undefined : eligibility.message}
+                        onClick={() => acceptMission(m.id, m.reference)}
+                      >
                         Prendre la mission
                       </Button>
                     ) : m.status === "delivered" ? (

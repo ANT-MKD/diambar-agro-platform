@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { useMission, useOrders, missionActions } from "@/data/store";
+import { useMission, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import {
   useIncidents,
@@ -38,8 +38,9 @@ import {
   INCIDENT_TYPE_LABEL,
   type IncidentType,
 } from "@/data/business";
-import { auditActions } from "@/data/admin-store";
+import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
+import { ProofPhotos } from "@/components/common/handover-code";
 
 export const Route = createFileRoute("/admin/deliveries/$missionId")({
   head: () => ({
@@ -76,7 +77,11 @@ const INCIDENT_TYPES: IncidentType[] = [
 
 function AdminDeliveryDetail() {
   const { missionId } = Route.useParams();
+  const { user } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(user.email);
+  const canReassignDeliveries = can(role, "deliveries.reassign");
   const mission = useMission(missionId);
+  const candidates = useReassignCandidates(mission);
   const orders = useOrders();
   const disputes = useAllDisputes();
   const incidents = useIncidents();
@@ -107,7 +112,6 @@ function AdminDeliveryDetail() {
   const incident = incidents.find(
     (i) => i.missionRef === mission.reference && i.status !== "resolved",
   );
-  const candidateDrivers = drivers.filter((d) => d.id !== mission.driverId);
 
   const history = [...(mission.statusHistory ?? [])].sort((a, b) => (a.at < b.at ? -1 : 1));
 
@@ -116,13 +120,22 @@ function AdminDeliveryDetail() {
       toast.error("Choisissez un livreur");
       return;
     }
+    if (!canReassignDeliveries) {
+      toast.error("Votre rôle ne permet pas de réaffecter une course.");
+      return;
+    }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
-    missionActions.reassign(mission.id, newDriverId);
+    const result = missionActions.reassign(mission.id, newDriverId);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     auditActions.log({
       action: "Course réaffectée",
       target: mission.reference,
       module: "deliveries",
+      actor: user.name,
       changes: [
         {
           field: "Livreur",
@@ -149,13 +162,14 @@ function AdminDeliveryDetail() {
         waitedMinutes: 0,
         compensationRequested: 0,
       },
-      "Admin Diambar",
+      user.name,
     );
     auditActions.log({
       action: `Incident créé depuis la livraison (${item.reference})`,
       target: mission.reference,
       module: "incidents",
       level: "attention",
+      actor: user.name,
     });
     toast.success(`${item.reference} créé`);
     setIncidentOpen(false);
@@ -203,17 +217,19 @@ function AdminDeliveryDetail() {
               <TriangleAlert className="h-3.5 w-3.5" />
               Signaler un incident
             </Button>
-            {mission.status !== "delivered" && mission.status !== "cancelled" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => setReassignOpen(true)}
-              >
-                <Repeat className="h-3.5 w-3.5" />
-                Réaffecter
-              </Button>
-            )}
+            {mission.status !== "delivered" &&
+              mission.status !== "cancelled" &&
+              canReassignDeliveries && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setReassignOpen(true)}
+                >
+                  <Repeat className="h-3.5 w-3.5" />
+                  Réaffecter
+                </Button>
+              )}
           </div>
         }
       />
@@ -264,6 +280,8 @@ function AdminDeliveryDetail() {
             </div>
           </div>
 
+          <ProofPhotos photos={mission.proof} />
+
           <div className="glass rounded-2xl p-5">
             <h2 className="font-semibold mb-3">Timeline</h2>
             {history.length === 0 ? (
@@ -277,6 +295,7 @@ function AdminDeliveryDetail() {
                   <li key={i} className="relative">
                     <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
                     <div className="text-sm font-medium">{STATUS_LABEL[h.status]}</div>
+                    {h.note && <div className="text-xs text-muted-foreground">{h.note}</div>}
                     <div className="text-[11px] text-muted-foreground">
                       {new Date(h.at).toLocaleString("fr-FR", {
                         dateStyle: "medium",
@@ -355,13 +374,18 @@ function AdminDeliveryDetail() {
               <SelectValue placeholder="Choisir un livreur" />
             </SelectTrigger>
             <SelectContent>
-              {candidateDrivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name} · {d.vehicle}
+              {candidates.map(({ driver: d, fleet, eligibility }) => (
+                <SelectItem key={d.id} value={d.id} disabled={!eligibility.ok}>
+                  {d.name} · {fleet ? `${fleet.type} ${fleet.capacityKg} kg` : d.vehicle}
+                  {!eligibility.ok && ` — ${eligibility.message}`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Seuls les livreurs dont le véhicule peut transporter {mission.weightKg} kg et est en
+            règle peuvent recevoir la course.
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReassignOpen(false)}>
               Annuler

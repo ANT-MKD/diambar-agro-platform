@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791750668174,
+      "tag": "20261011203906_init_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791750684939,
+      "tag": "20261011204153_lock_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791751444020,
+      "tag": "20261011205306_index_settings_updated_by",
+      "breakpoints": true
+    }
+  ]
+}

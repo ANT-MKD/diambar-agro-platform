@@ -44,7 +44,9 @@ import {
   useAllProductReviews,
 } from "@/data/store";
 import { useReturns, useReviews as useBusinessReviews } from "@/data/business";
-import { OnboardingChecklist } from "@/components/common/onboarding-checklist";
+import { useSecurity } from "@/data/security";
+import { ProfileCompletion } from "@/components/common/profile-completion";
+import { restaurantCompletionItems } from "@/lib/profile-completion";
 import { farmers } from "@/data/mocks";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
@@ -89,6 +91,7 @@ function Dashboard() {
   const businessReviews = useBusinessReviews();
   const budget = useRestaurantBudget();
   const profile = useRestaurantProfile();
+  const security = useSecurity();
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [budgetInput, setBudgetInput] = useState(String(budget.monthly));
 
@@ -275,7 +278,7 @@ function Dashboard() {
             <Sparkles className="h-4 w-4 text-amber-500" />
             <h2 className="font-display text-base font-bold">À traiter</h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {actionItems.map((a) => (
               <Link
                 key={a.label}
@@ -303,7 +306,7 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <BentoKpi
             icon={ShoppingBag}
@@ -471,17 +474,9 @@ function Dashboard() {
         </div>
       </div>
 
-      <OnboardingChecklist
-        storageKey="restaurant"
-        title="Configurez votre restaurant"
-        items={[
-          { key: "resto_profile", label: "Compléter le profil du restaurant" },
-          { key: "resto_address", label: "Ajouter l'adresse de livraison" },
-          { key: "resto_payment", label: "Configurer un moyen de paiement" },
-          { key: "resto_first_order", label: "Passer votre première commande" },
-          { key: "resto_team", label: "Inviter votre équipe" },
-          { key: "resto_recurring", label: "Programmer une commande récurrente" },
-        ]}
+      <ProfileCompletion
+        title="Profil restaurant complété"
+        items={restaurantCompletionItems(profile, security.twoFa)}
       />
 
       <div className="grid lg:grid-cols-3 gap-4">
@@ -597,7 +592,7 @@ function Dashboard() {
           {lowStockProducts.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune alerte pour le moment.</p>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
               {lowStockProducts.map((p) => {
                 const f = farmers.find((x) => x.id === p.farmerId);
                 return (

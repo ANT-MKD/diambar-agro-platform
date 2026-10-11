@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -40,6 +40,8 @@ import {
   useValidation,
   useAuditLogs,
   validationActions,
+  useAdminRoleForEmail,
+  can,
 } from "@/data/admin-store";
 import type { ValidationDoc } from "@/data/admin-mocks";
 
@@ -86,6 +88,9 @@ function fileIcon(file: string) {
 
 function ValidationDetail() {
   const { validationId } = Route.useParams();
+  const { user: admin } = useRouteContext({ from: "/admin" });
+  const role = useAdminRoleForEmail(admin.email);
+  const canDecideValidations = can(role, "validations.decide");
   const v = useValidation(validationId);
   const user = usePlatformUser(v?.userId ?? "");
   const auditLogs = useAuditLogs();
@@ -135,22 +140,34 @@ function ValidationDetail() {
     setReasons((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
 
   const submitCorrection = () => {
+    if (!canDecideValidations) {
+      toast.error("Votre rôle ne permet pas de traiter ce dossier.");
+      return;
+    }
     if (!correctionDoc || reasons.length === 0) {
       toast.error("Choisissez au moins un motif");
       return;
     }
-    validationActions.requestCorrection(v.id, correctionDoc, reasons, comment);
+    validationActions.requestCorrection(v.id, correctionDoc, reasons, comment, admin.name);
     toast.success("Demande de correction envoyée au demandeur");
     setCorrectionOpen(false);
   };
 
   const approve = () => {
-    validationActions.approve(v.id);
+    if (!canDecideValidations) {
+      toast.error("Votre rôle ne permet pas de traiter ce dossier.");
+      return;
+    }
+    validationActions.approve(v.id, admin.name);
     toast.success("Compte validé et activé");
     navigate({ to: "/admin/validations" });
   };
   const reject = () => {
-    validationActions.reject(v.id, note.trim() || undefined);
+    if (!canDecideValidations) {
+      toast.error("Votre rôle ne permet pas de traiter ce dossier.");
+      return;
+    }
+    validationActions.reject(v.id, note.trim() || undefined, admin.name);
     toast.success("Dossier rejeté");
     navigate({ to: "/admin/validations" });
   };
@@ -186,7 +203,7 @@ function ValidationDetail() {
                 </a>
               </Button>
             )}
-            {!closed && (
+            {!closed && canDecideValidations && (
               <Button variant="outline" size="sm" onClick={() => openCorrection()}>
                 Demander une correction
               </Button>
@@ -283,7 +300,7 @@ function ValidationDetail() {
                         {d.note}
                       </p>
                     )}
-                    {!closed && (
+                    {!closed && canDecideValidations && (
                       <div className="flex gap-2">
                         {d.ok ? (
                           <Button
@@ -300,7 +317,11 @@ function ValidationDetail() {
                             size="sm"
                             className="gap-2"
                             onClick={() => {
-                              validationActions.setDocStatus(v.id, d.label, true);
+                              if (!canDecideValidations) {
+                                toast.error("Votre rôle ne permet pas de traiter ce dossier.");
+                                return;
+                              }
+                              validationActions.setDocStatus(v.id, d.label, true, admin.name);
                               toast.success(`${d.label} marqué conforme`);
                             }}
                           >
@@ -363,16 +384,20 @@ function ValidationDetail() {
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder="Motif interne (utilisé en cas de refus)…"
-            disabled={closed}
+            disabled={closed || !canDecideValidations}
           />
 
           <div className="flex flex-col gap-2">
-            <Button disabled={closed || !allDocsOk} className="gap-2" onClick={approve}>
+            <Button
+              disabled={closed || !allDocsOk || !canDecideValidations}
+              className="gap-2"
+              onClick={approve}
+            >
               <Check className="h-4 w-4" />
               Approuver et activer le compte
             </Button>
             <Button
-              disabled={closed}
+              disabled={closed || !canDecideValidations}
               variant="outline"
               className="gap-2 text-destructive"
               onClick={reject}
@@ -386,6 +411,10 @@ function ValidationDetail() {
             <p className="text-[11px] text-muted-foreground">
               Dossier déjà {v.status === "approved" ? "approuvé" : "refusé"} — action enregistrée
               dans le journal d'audit.
+            </p>
+          ) : !canDecideValidations ? (
+            <p className="text-[11px] text-muted-foreground">
+              Votre rôle ne permet pas de décider de ce dossier.
             </p>
           ) : (
             <p className="text-[11px] text-muted-foreground">
