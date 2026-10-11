@@ -10,13 +10,7 @@ import { createStore } from "./persist";
 /* ------------------------------------------------------------------ */
 
 export type RefundSource =
-  | "return"
-  | "dispute"
-  | "incident"
-  | "manual"
-  | "cancellation"
-  | "reception"
-  | "shortage";
+  "return" | "dispute" | "incident" | "manual" | "cancellation" | "reception" | "shortage";
 export type RefundStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
 export type RefundMethod = "Wave" | "Orange Money" | "Free Money" | "Virement";
 // Qui supporte réellement le coût une fois le remboursement exécuté :

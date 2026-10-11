@@ -1407,11 +1407,11 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Prefer working locally? You need Node.js 22+ and [Bun](https://bun.sh) — this project uses Bun only (`bun.lock`); do not use npm, it creates a conflicting `package-lock.json`.
 
 ```sh
 git clone <this-repository-url>
 cd <repository-name>
-npm i
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```

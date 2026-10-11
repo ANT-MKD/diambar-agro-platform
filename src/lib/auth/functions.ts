@@ -177,8 +177,7 @@ export const demoLoginFn = createServerFn({ method: "POST" })
   });
 
 export type CodeCheckResult =
-  | { ok: true; user: CurrentUser }
-  | { ok: false; message: string; restart?: boolean };
+  { ok: true; user: CurrentUser } | { ok: false; message: string; restart?: boolean };
 
 const TOO_MANY_2FA = "Trop d'essais. Reconnectez-vous pour recevoir un nouveau code.";
 
@@ -382,8 +381,7 @@ const registerSchema = z
   });
 
 export type RegisterStartResult =
-  | { ok: true; devCode?: string; resendInSeconds: number }
-  | { ok: false; message: string };
+  { ok: true; devCode?: string; resendInSeconds: number } | { ok: false; message: string };
 
 export const registerValidateFn = createServerFn({ method: "POST" })
   .inputValidator((input: z.input<typeof registerSchema>) => {

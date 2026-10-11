@@ -748,12 +748,7 @@ export const returnActions = {
 /* ------------------------------------------------------------------ */
 
 export type ReviewCriterion =
-  | "quality"
-  | "quantity"
-  | "freshness"
-  | "timeliness"
-  | "packaging"
-  | "communication";
+  "quality" | "quantity" | "freshness" | "timeliness" | "packaging" | "communication";
 
 export const REVIEW_CRITERION_LABEL: Record<ReviewCriterion, string> = {
   quality: "Qualité des produits",
@@ -909,13 +904,7 @@ export const reviewActions = {
 /* ------------------------------------------------------------------ */
 
 export type IncidentType =
-  | "client_absent"
-  | "refused"
-  | "breakdown"
-  | "accident"
-  | "traffic"
-  | "address"
-  | "other";
+  "client_absent" | "refused" | "breakdown" | "accident" | "traffic" | "address" | "other";
 export type IncidentStatus = "open" | "escalated" | "resolved";
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 

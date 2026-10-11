@@ -20,20 +20,20 @@ sans règle, droits retirés aux rôles publics `anon` et `authenticated`).
 
 ```sh
 # Après une modification de schema.ts : générer la migration SQL
-npm run db:generate -- --name courte_description
+bun run db:generate --name courte_description
 
 # Appliquer les migrations et les données de départ sur une base
-DATABASE_URL=postgres://… npm run db:migrate
-DATABASE_URL=postgres://… npm run db:seed            # référentiels seuls
-DATABASE_URL=postgres://… npm run db:seed -- --demo  # + comptes et produits de démo (jamais en production)
+DATABASE_URL=postgres://… bun run db:migrate
+DATABASE_URL=postgres://… bun run db:seed            # référentiels seuls
+DATABASE_URL=postgres://… bun run db:seed --demo  # + comptes et produits de démo (jamais en production)
 
 # Tester le schéma sur un PostgreSQL local (la base de test est recréée à chaque fois)
-TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres npm run test:db
+TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres bun run test:db
 ```
 
 ## Appliquer une migration sur Supabase
 
-1. Générer la migration, puis la tester en local (`npm run test:db`).
+1. Générer la migration, puis la tester en local (`bun run test:db`).
 2. L'appliquer sur le projet Supabase (outil Supabase ou connecteur), avec le
    même nom que le fichier.
 3. Renommer le fichier local (et sa ligne dans `meta/_journal.json`, et son

@@ -11,11 +11,7 @@ import { createStore } from "./persist";
 
 export type DisputeParty = "restaurant" | "farmer" | "driver" | "platform";
 export type DisputeStatus =
-  | "open"
-  | "investigating"
-  | "awaiting_response"
-  | "resolved"
-  | "rejected";
+  "open" | "investigating" | "awaiting_response" | "resolved" | "rejected";
 export type DisputeChannel = "app" | "whatsapp" | "email" | "phone";
 export type DisputeOutcome = "refund" | "credit" | "partial" | "rejected" | "goodwill";
 

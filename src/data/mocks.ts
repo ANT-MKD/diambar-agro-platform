@@ -247,12 +247,7 @@ export const products: Product[] = [
 ];
 
 export type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "preparing"
-  | "delivering"
-  | "delivered"
-  | "cancelled";
+  "pending" | "confirmed" | "preparing" | "delivering" | "delivered" | "cancelled";
 
 export type Order = {
   id: string;
@@ -947,13 +942,7 @@ export type RestaurantBudget = {
 };
 
 export type ReceptionDay =
-  | "Lundi"
-  | "Mardi"
-  | "Mercredi"
-  | "Jeudi"
-  | "Vendredi"
-  | "Samedi"
-  | "Dimanche";
+  "Lundi" | "Mardi" | "Mercredi" | "Jeudi" | "Vendredi" | "Samedi" | "Dimanche";
 export const RECEPTION_DAYS: ReceptionDay[] = [
   "Lundi",
   "Mardi",
@@ -1134,10 +1123,7 @@ export type RecurringOrderItem = {
 
 export type PriceRuleAction = "auto_continue" | "ask_confirmation" | "suspend";
 export type StockRuleAction =
-  | "cancel_item"
-  | "replace_equivalent"
-  | "cancel_all"
-  | "ask_confirmation";
+  "cancel_item" | "replace_equivalent" | "cancel_all" | "ask_confirmation";
 export type BudgetRuleAction = "ask_confirmation" | "cancel" | "reduce_quantities";
 export type HolidayRuleAction = "day_before" | "day_after" | "ask_confirmation";
 
@@ -1151,9 +1137,7 @@ export type RecurringOrderRules = {
 };
 
 export type RecurringOrderEnd =
-  | { type: "never" }
-  | { type: "on_date"; date: string }
-  | { type: "after_count"; count: number };
+  { type: "never" } | { type: "on_date"; date: string } | { type: "after_count"; count: number };
 
 export type RecurringOrderException = {
   id: string;
