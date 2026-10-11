@@ -145,7 +145,7 @@ async function startSession(account: DemoAccount, rememberMe: boolean): Promise<
 }
 
 export const loginFn = createServerFn({ method: "POST" })
-  .validator((input: { email: string; password: string; rememberMe?: boolean }) => {
+  .inputValidator((input: { email: string; password: string; rememberMe?: boolean }) => {
     if (!input.email || !input.password) throw new Error("Email et mot de passe requis");
     return { ...input, email: normalizeEmail(input.email) };
   })
@@ -168,7 +168,7 @@ export const loginFn = createServerFn({ method: "POST" })
 /** Connexion en un clic, réservée aux comptes de démonstration et au mode démo :
  * les mots de passe de démo ne quittent jamais le serveur. */
 export const demoLoginFn = createServerFn({ method: "POST" })
-  .validator((input: { email: string; rememberMe?: boolean }) => input)
+  .inputValidator((input: { email: string; rememberMe?: boolean }) => input)
   .handler(async ({ data }): Promise<LoginResult> => {
     if (!isDemoMode()) throw new Error("Connexion de démonstration désactivée.");
     const account = findDemoAccount(data.email);
@@ -177,12 +177,13 @@ export const demoLoginFn = createServerFn({ method: "POST" })
   });
 
 export type CodeCheckResult =
-  { ok: true; user: CurrentUser } | { ok: false; message: string; restart?: boolean };
+  | { ok: true; user: CurrentUser }
+  | { ok: false; message: string; restart?: boolean };
 
 const TOO_MANY_2FA = "Trop d'essais. Reconnectez-vous pour recevoir un nouveau code.";
 
 export const verifyTwoFaFn = createServerFn({ method: "POST" })
-  .validator((input: { code: string }) => input)
+  .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<CodeCheckResult> => {
     const session = await authSession();
     const pending = session.data.pendingTwoFa;
@@ -285,7 +286,7 @@ type ResetTokenPayload = { email: string; jti: string };
 const RESET_TTL_MS = 30 * 60_000;
 
 export const requestPasswordResetFn = createServerFn({ method: "POST" })
-  .validator((input: { email: string }) => ({ email: normalizeEmail(input.email) }))
+  .inputValidator((input: { email: string }) => ({ email: normalizeEmail(input.email) }))
   .handler(async ({ data }): Promise<{ devResetLink?: string }> => {
     // La réponse est la même que le compte existe ou non (et au-delà de
     // 3 demandes par quart d'heure) : elle ne permet pas de deviner si une
@@ -312,14 +313,14 @@ async function readResetToken(
 }
 
 export const validateResetTokenFn = createServerFn({ method: "GET" })
-  .validator((input: { token: string }) => input)
+  .inputValidator((input: { token: string }) => input)
   .handler(async ({ data }): Promise<ResetTokenState> => {
     const { valid, reason } = await readResetToken(data.token);
     return { valid, reason };
   });
 
 export const resetPasswordFn = createServerFn({ method: "POST" })
-  .validator((input: { token: string; password: string }) => {
+  .inputValidator((input: { token: string; password: string }) => {
     if (input.password.length < 8) throw new Error("8 caractères minimum");
     if (input.password.length > 128) throw new Error("128 caractères maximum");
     return input;
@@ -381,10 +382,11 @@ const registerSchema = z
   });
 
 export type RegisterStartResult =
-  { ok: true; devCode?: string; resendInSeconds: number } | { ok: false; message: string };
+  | { ok: true; devCode?: string; resendInSeconds: number }
+  | { ok: false; message: string };
 
 export const registerValidateFn = createServerFn({ method: "POST" })
-  .validator((input: z.input<typeof registerSchema>) => {
+  .inputValidator((input: z.input<typeof registerSchema>) => {
     const parsed = registerSchema.safeParse(input);
     if (!parsed.success) throw new Error(parsed.error.issues[0].message);
     return parsed.data;
@@ -447,7 +449,7 @@ export const resendRegistrationCodeFn = createServerFn({ method: "POST" }).handl
 );
 
 export const registerVerifyFn = createServerFn({ method: "POST" })
-  .validator((input: { code: string }) => input)
+  .inputValidator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<CodeCheckResult> => {
     const session = await authSession();
     const pending = session.data.pendingRegistration;
