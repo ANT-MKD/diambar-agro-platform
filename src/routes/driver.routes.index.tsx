@@ -178,9 +178,7 @@ function DriverRoutes() {
               lng: s.lng,
               label: `${i + 1}`,
               color: (s.done ? "emerald" : s.kind === "pickup" ? "amber" : "blue") as
-                | "emerald"
-                | "amber"
-                | "blue",
+                "emerald" | "amber" | "blue",
             }));
             return (
               <div key={t.id} className="glass rounded-2xl p-4 flex flex-col sm:flex-row gap-4">

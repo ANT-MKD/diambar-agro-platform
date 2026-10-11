@@ -6,12 +6,7 @@ import { createStore } from "./persist";
 export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
 export type TicketCategory =
-  | "delivery"
-  | "products"
-  | "payments"
-  | "account"
-  | "technical"
-  | "other";
+  "delivery" | "products" | "payments" | "account" | "technical" | "other";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
 
 export type TicketMessage = {

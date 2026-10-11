@@ -527,11 +527,7 @@ export const refundSettings = {
 // Rôle admin — défini ici (couche données) plutôt que dans admin-store.ts
 // pour que les deux fichiers puissent le référencer sans cycle d'import.
 export type AdminRoleName =
-  | "Super Administrateur"
-  | "Finance"
-  | "Opérations"
-  | "Support"
-  | "Modération";
+  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
 
 export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
   "Super Administrateur",

@@ -112,9 +112,7 @@ function TourDetail() {
     lng: s.lng,
     label: `${i + 1}. ${s.label}`,
     color: (s.done ? "emerald" : s.kind === "pickup" ? "amber" : "blue") as
-      | "emerald"
-      | "amber"
-      | "blue",
+      "emerald" | "amber" | "blue",
     description: s.kind === "pickup" ? "Collecte" : "Livraison",
   }));
   const mapRoutes = [
