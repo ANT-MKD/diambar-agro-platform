@@ -1,0 +1,1 @@
+CREATE INDEX "settings_updated_by_idx" ON "settings" USING btree ("updated_by");
