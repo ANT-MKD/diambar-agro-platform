@@ -73,6 +73,7 @@ import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
 import { Route as AdminIncidentsIndexRouteImport } from './routes/admin.incidents.index'
 import { Route as AdminIncidentsIncidentIdRouteImport } from './routes/admin.incidents.$incidentId'
+import { Route as AdminInscriptionsApplicationIdRouteImport } from './routes/admin.inscriptions.$applicationId'
 import { Route as AdminModerationIndexRouteImport } from './routes/admin.moderation.index'
 import { Route as AdminModerationItemIdRouteImport } from './routes/admin.moderation.$itemId'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin.orders.index'
@@ -501,6 +502,12 @@ const AdminIncidentsIncidentIdRoute =
   AdminIncidentsIncidentIdRouteImport.update({
     id: '/incidents/$incidentId',
     path: '/incidents/$incidentId',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminInscriptionsApplicationIdRoute =
+  AdminInscriptionsApplicationIdRouteImport.update({
+    id: '/inscriptions/$applicationId',
+    path: '/inscriptions/$applicationId',
     getParentRoute: () => AdminRoute,
   } as any)
 const AdminModerationIndexRoute = AdminModerationIndexRouteImport.update({
@@ -1138,6 +1145,7 @@ export interface FileRoutesByFullPath {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1301,6 +1309,7 @@ export interface FileRoutesByTo {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1475,6 +1484,7 @@ export interface FileRoutesById {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1650,6 +1660,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -1813,6 +1824,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -1986,6 +1998,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -2573,6 +2586,13 @@ declare module '@tanstack/react-router' {
       path: '/incidents/$incidentId'
       fullPath: '/admin/incidents/$incidentId'
       preLoaderRoute: typeof AdminIncidentsIncidentIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inscriptions/$applicationId': {
+      id: '/admin/inscriptions/$applicationId'
+      path: '/inscriptions/$applicationId'
+      fullPath: '/admin/inscriptions/$applicationId'
+      preLoaderRoute: typeof AdminInscriptionsApplicationIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/moderation/': {
@@ -3341,6 +3361,7 @@ interface AdminRouteChildren {
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
   AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
   AdminIncidentsIncidentIdRoute: typeof AdminIncidentsIncidentIdRoute
+  AdminInscriptionsApplicationIdRoute: typeof AdminInscriptionsApplicationIdRoute
   AdminModerationItemIdRoute: typeof AdminModerationItemIdRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminRefundsRefundIdRoute: typeof AdminRefundsRefundIdRoute
@@ -3377,6 +3398,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
   AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
   AdminIncidentsIncidentIdRoute: AdminIncidentsIncidentIdRoute,
+  AdminInscriptionsApplicationIdRoute: AdminInscriptionsApplicationIdRoute,
   AdminModerationItemIdRoute: AdminModerationItemIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminRefundsRefundIdRoute: AdminRefundsRefundIdRoute,

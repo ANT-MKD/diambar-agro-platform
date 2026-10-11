@@ -33,11 +33,12 @@ export type RegisterDetails = {
 export type PendingRegistration = {
   email: string;
   phone: string;
-  role: Role;
+  role: "farmer" | "restaurant" | "driver";
   firstName: string;
   lastName: string;
   city: string;
-  password: string;
+  /** Déjà haché (bcrypt) : le mot de passe en clair ne reste pas dans le cookie. */
+  passwordHash: string;
   details?: RegisterDetails;
   acceptedTermsAt: string;
   id: string;
@@ -50,6 +51,9 @@ export type PendingRegistration = {
 export type AuthSessionData = {
   email?: string;
   role?: Role;
+  /** Empreinte du mot de passe à l'ouverture de la session : si le mot de
+   * passe change, la session n'est plus reconnue. */
+  pv?: string;
   pendingTwoFa?: PendingTwoFa;
   pendingRegistration?: PendingRegistration;
 };

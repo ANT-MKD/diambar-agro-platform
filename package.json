@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "vitest run src/db",
+    "test:db": "vitest run .db.test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/cli/migrate.ts",
     "db:seed": "node src/db/cli/seed.ts"

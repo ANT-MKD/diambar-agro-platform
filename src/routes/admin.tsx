@@ -34,6 +34,7 @@ import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import {
+  setSessionStaffRole,
   useAdminNotifications,
   useAdminRoleForEmail,
   useValidations,
@@ -46,10 +47,17 @@ import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
 import { requireRole } from "@/lib/auth/functions";
+import { applicationsSummaryFn } from "@/lib/auth/applications";
 import { useDocRenewals } from "@/data/store";
 
 export const Route = createFileRoute("/admin")({
-  beforeLoad: () => requireRole("admin"),
+  beforeLoad: async () => {
+    const context = await requireRole("admin");
+    // Rôle d'équipe lu par le serveur (base) : il décide des menus et actions.
+    setSessionStaffRole(context.user.email, context.user.adminRole);
+    return context;
+  },
+  loader: () => applicationsSummaryFn(),
   component: AdminLayout,
 });
 
@@ -67,7 +75,11 @@ function AdminLayout() {
   const notifications = useAdminNotifications();
   const farmerConvos = useConversations();
   const driverConvos = useDriverConversations();
-  const pendingValidations = validations.filter((v) => v.status === "pending").length;
+  const applicationsSummary = Route.useLoaderData();
+  // Vraies inscriptions en attente (serveur) + dossiers fictifs en mode démo.
+  const pendingValidations =
+    applicationsSummary.pending +
+    (applicationsSummary.demoMode ? validations.filter((v) => v.status === "pending").length : 0);
   const openDisputes = disputes.filter(
     (d) => d.status === "open" || d.status === "investigating",
   ).length;

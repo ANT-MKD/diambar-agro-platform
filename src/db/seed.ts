@@ -321,6 +321,15 @@ export async function seedDemo(db: Db) {
     productCount = (await db.insert(products).values(rows).returning({ id: products.id })).length;
   }
 
+  // Plateforme de démonstration : déjà configurée, inscriptions ouvertes.
+  await db
+    .insert(settings)
+    .values([
+      { key: "registrations_open", value: true },
+      { key: "platform_setup", value: { completedAt: now.toISOString(), demo: true } },
+    ])
+    .onConflictDoNothing();
+
   return {
     cities: cityRows.length,
     zones: zoneRows.length,

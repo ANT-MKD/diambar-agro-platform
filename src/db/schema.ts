@@ -267,6 +267,9 @@ export const validations = pgTable(
     decidedBy: uuid("decided_by").references(() => users.id),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     note: text("note"),
+    /** Ce que la personne a rempli à l'inscription (ville, exploitation,
+     * véhicule, zones…), tel quel : l'admin valide sur pièces. */
+    submitted: jsonb("submitted"),
   },
   (t) => [
     index("validations_user_idx").on(t.userId),

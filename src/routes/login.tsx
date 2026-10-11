@@ -79,6 +79,7 @@ function LoginPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [blocked, setBlocked] = useState<"pending" | "suspended" | "rejected" | null>(null);
+  const [blockedNote, setBlockedNote] = useState<string | null>(null);
   const [twoFa, setTwoFa] = useState<{ email: string } | null>(null);
   const [code, setCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
@@ -180,6 +181,7 @@ function LoginPage() {
           reason: result.reason,
         });
         setBlocked(result.reason);
+        setBlockedNote(result.note ?? null);
         return;
     }
   };
@@ -334,15 +336,27 @@ function LoginPage() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/10 text-destructive">
             <copy.icon className="h-8 w-8" aria-hidden />
           </div>
-          <h1 className="display-xl mt-6 text-4xl">{copy.title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
+          <h1 className="display-xl mt-6 text-4xl">
+            {blockedNote ? "Une précision est demandée" : copy.title}
+          </h1>
+          {blockedNote ? (
+            <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-left text-sm text-amber-900">
+              <p className="font-semibold">Message de l'équipe Diambar Agro :</p>
+              <p className="mt-1 whitespace-pre-line">{blockedNote}</p>
+              <p className="mt-3 text-amber-800">
+                Répondez-nous depuis la page contact : votre dossier sera revu dès réception.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
+          )}
           <div className="mt-8 space-y-2">
-            {copy.cta && (
+            {(copy.cta || blockedNote) && (
               <Link
                 to="/contact"
                 className="block w-full rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
               >
-                {copy.cta}
+                {copy.cta ?? "Répondre à l'équipe"}
               </Link>
             )}
             <button
