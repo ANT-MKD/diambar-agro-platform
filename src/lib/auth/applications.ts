@@ -34,21 +34,8 @@ export const listApplicationsFn = createServerFn({ method: "GET" }).handler(
     }),
 );
 
-/** Pour le menu de l'administration : dossiers réels en attente. */
-export const applicationsSummaryFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ pending: number; demoMode: boolean }> =>
-    withAccountStore(async (store) => {
-      await requireStaff(store);
-      const all = await store.listApplications();
-      return {
-        pending: all.filter((a) => a.status === "pending").length,
-        demoMode: isDemoMode(),
-      };
-    }),
-);
-
 export const getApplicationFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { id: string }) => {
+  .validator((input: { id: string }) => {
     if (typeof input.id !== "string" || input.id.length > 64) throw new Error("Dossier inconnu");
     return input;
   })
@@ -63,7 +50,7 @@ export type DecideApplicationResult =
   { ok: true; application: Application } | { ok: false; message: string };
 
 export const decideApplicationFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; decision: ApplicationDecision; note?: string }) => {
+  .validator((input: { id: string; decision: ApplicationDecision; note?: string }) => {
     if (!["approve", "reject", "needs_correction"].includes(input.decision)) {
       throw new Error("Décision inconnue");
     }

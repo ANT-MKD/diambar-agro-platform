@@ -22,6 +22,8 @@ import { Route as ForFarmersRouteImport } from './routes/for-farmers'
 import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as InstallationRouteImport } from './routes/installation'
+import { Route as InvitationRouteImport } from './routes/invitation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -37,6 +39,7 @@ import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminOperationsRouteImport } from './routes/admin.operations'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
@@ -247,6 +250,16 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstallationRoute = InstallationRouteImport.update({
+  id: '/installation',
+  path: '/installation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitationRoute = InvitationRouteImport.update({
+  id: '/invitation',
+  path: '/invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -320,6 +333,11 @@ const AdminOperationsRoute = AdminOperationsRouteImport.update({
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSetupRoute = AdminSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSupportRoute = AdminSupportRouteImport.update({
@@ -1097,6 +1115,8 @@ export interface FileRoutesByFullPath {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -1112,6 +1132,7 @@ export interface FileRoutesByFullPath {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
@@ -1271,6 +1292,8 @@ export interface FileRoutesByTo {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -1286,6 +1309,7 @@ export interface FileRoutesByTo {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
@@ -1436,6 +1460,8 @@ export interface FileRoutesById {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
@@ -1451,6 +1477,7 @@ export interface FileRoutesById {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
@@ -1612,6 +1639,8 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -1627,6 +1656,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/operations'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
@@ -1786,6 +1816,8 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -1801,6 +1833,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/operations'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
@@ -1950,6 +1983,8 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
@@ -1965,6 +2000,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/operations'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
@@ -2125,6 +2161,8 @@ export interface RootRouteChildren {
   ForRestaurantsRoute: typeof ForRestaurantsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HelpRoute: typeof HelpRoute
+  InstallationRoute: typeof InstallationRoute
+  InvitationRoute: typeof InvitationRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
@@ -2231,6 +2269,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/installation': {
+      id: '/installation'
+      path: '/installation'
+      fullPath: '/installation'
+      preLoaderRoute: typeof InstallationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitation': {
+      id: '/invitation'
+      path: '/invitation'
+      fullPath: '/invitation'
+      preLoaderRoute: typeof InvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -2334,6 +2386,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/setup': {
+      id: '/admin/setup'
+      path: '/setup'
+      fullPath: '/admin/setup'
+      preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/support': {
@@ -3357,6 +3416,7 @@ interface AdminRouteChildren {
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOperationsRoute: typeof AdminOperationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminSetupRoute: typeof AdminSetupRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
   AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
@@ -3394,6 +3454,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOperationsRoute: AdminOperationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminSetupRoute: AdminSetupRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
   AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
@@ -3817,6 +3878,8 @@ const rootRouteChildren: RootRouteChildren = {
   ForRestaurantsRoute: ForRestaurantsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   HelpRoute: HelpRoute,
+  InstallationRoute: InstallationRoute,
+  InvitationRoute: InvitationRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,

@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   adminProfiles,
   auditLogs,
+  categories,
   cities,
   driverZones,
   drivers,
@@ -13,14 +14,18 @@ import {
   validations,
   zones,
 } from "@/db/schema";
+import type { PilotZone, StaffSummary } from "@/lib/platform/setup-model";
 import type { RegisterDetails } from "./session.server";
 import type {
   AccountRecord,
   AccountStore,
+  CategoryRow,
   Application,
   ApplicationDecision,
   AuditEntry,
   CreateApplicantResult,
+  CreateStaffResult,
+  NewStaffMember,
   DecideResult,
   NewApplicant,
   RegistrationOptions,
@@ -235,7 +240,7 @@ export class DbAccountStore implements AccountStore {
   private applications() {
     const decider = sql<
       string | null
-    >`(select u2.first_name || ' ' || u2.last_name from users u2 where u2.id = ${validations.decidedBy})`;
+    >`(select u2.first_name || ' ' || u2.last_name from users u2 where u2.id = "validations"."decided_by")`;
     return this.db
       .select({
         id: validations.id,
@@ -302,6 +307,274 @@ export class DbAccountStore implements AccountStore {
       .orderBy(desc(validations.submittedAt))
       .limit(1);
     return row ? this.toApplication(row) : null;
+  }
+
+  async superAdminExists(): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: users.id })
+      .from(adminProfiles)
+      .innerJoin(users, eq(users.id, adminProfiles.userId))
+      .where(and(eq(adminProfiles.adminRole, "super_admin"), isNull(users.deletedAt)))
+      .limit(1);
+    return !!row;
+  }
+
+  async createFirstSuperAdmin(
+    input: Omit<NewStaffMember, "staffRole">,
+  ): Promise<CreateStaffResult> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        // Verrou le temps de la transaction : deux installations lancées en
+        // même temps passent l'une après l'autre, la seconde est refusée.
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('diambar_installation'))`);
+        if (await new DbAccountStore(tx as unknown as Db).superAdminExists()) {
+          return { ok: false as const, reason: "already_installed" as const };
+        }
+        const [user] = await tx
+          .insert(users)
+          .values({
+            role: "admin",
+            email: input.email,
+            phone: input.phone,
+            passwordHash: input.passwordHash,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            status: "active",
+          })
+          .returning({ id: users.id });
+        await tx.insert(adminProfiles).values({ userId: user.id, adminRole: "super_admin" });
+        await tx
+          .insert(settings)
+          .values({
+            key: "platform_setup",
+            value: { startedAt: new Date().toISOString(), steps: {} },
+            updatedBy: user.id,
+          })
+          .onConflictDoNothing();
+        await tx.insert(auditLogs).values({
+          actorId: user.id,
+          module: "installation",
+          action: "Installation : premier super administrateur créé",
+          targetType: "user",
+          targetId: user.id,
+          after: { email: input.email },
+        });
+        const account = await new DbAccountStore(tx as unknown as Db).findById(user.id);
+        return { ok: true as const, account: account! };
+      });
+    } catch (err) {
+      const constraint = uniqueViolation(err);
+      if (constraint === null) throw err;
+      return { ok: false, reason: constraint.includes("phone") ? "phone_taken" : "email_taken" };
+    }
+  }
+
+  async getSettings(keys: string[]): Promise<Record<string, unknown>> {
+    if (!keys.length) return {};
+    const rows = await this.db
+      .select({ key: settings.key, value: settings.value })
+      .from(settings)
+      .where(inArray(settings.key, keys));
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  }
+
+  async setSettings(values: Record<string, unknown>, actorId: string): Promise<void> {
+    const entries = Object.entries(values);
+    if (!entries.length) return;
+    await this.db.transaction(async (tx) => {
+      const before = await new DbAccountStore(tx as unknown as Db).getSettings(
+        entries.map(([k]) => k),
+      );
+      for (const [key, value] of entries) {
+        await tx
+          .insert(settings)
+          .values({ key, value, updatedBy: actorId })
+          .onConflictDoUpdate({
+            target: settings.key,
+            set: { value, updatedBy: actorId, updatedAt: new Date() },
+          });
+      }
+      await tx.insert(auditLogs).values({
+        actorId,
+        module: "settings",
+        action: "Réglages modifiés",
+        targetType: "settings",
+        targetId: entries.map(([k]) => k).join(","),
+        before,
+        after: values,
+      });
+    });
+  }
+
+  async getPilotZone(): Promise<PilotZone | null> {
+    const { pilot_city: name } = await this.getSettings(["pilot_city"]);
+    if (typeof name !== "string") return null;
+    const [city] = await this.db.select().from(cities).where(eq(cities.name, name)).limit(1);
+    if (!city) return null;
+    const zoneRows = await this.db
+      .select({ name: zones.name })
+      .from(zones)
+      .where(and(eq(zones.cityId, city.id), eq(zones.active, true)))
+      .orderBy(zones.name);
+    return {
+      city: city.name,
+      baseFee: city.baseFee ?? 0,
+      perKmFee: city.perKmFee ?? 0,
+      zones: zoneRows.map((z) => z.name),
+    };
+  }
+
+  async savePilotZone(zone: PilotZone, actorId: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [city] = await tx
+        .insert(cities)
+        .values({ name: zone.city, active: true, baseFee: zone.baseFee, perKmFee: zone.perKmFee })
+        .onConflictDoUpdate({
+          target: cities.name,
+          set: { active: true, baseFee: zone.baseFee, perKmFee: zone.perKmFee },
+        })
+        .returning({ id: cities.id });
+      // Pilote : une seule ville ouverte.
+      await tx.update(cities).set({ active: false }).where(ne(cities.id, city.id));
+      if (zone.zones.length) {
+        await tx
+          .insert(zones)
+          .values(zone.zones.map((name) => ({ cityId: city.id, name })))
+          .onConflictDoNothing();
+        await tx
+          .update(zones)
+          .set({ active: true })
+          .where(and(eq(zones.cityId, city.id), inArray(zones.name, zone.zones)));
+      }
+      // Un quartier retiré est désactivé, jamais supprimé (commandes passées).
+      await tx
+        .update(zones)
+        .set({ active: false })
+        .where(
+          zone.zones.length
+            ? and(eq(zones.cityId, city.id), notInArray(zones.name, zone.zones))
+            : eq(zones.cityId, city.id),
+        );
+      await tx
+        .insert(settings)
+        .values({ key: "pilot_city", value: zone.city, updatedBy: actorId })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: zone.city, updatedBy: actorId, updatedAt: new Date() },
+        });
+      await tx.insert(auditLogs).values({
+        actorId,
+        module: "settings",
+        action: "Zone pilote enregistrée",
+        targetType: "city",
+        targetId: city.id,
+        after: zone,
+      });
+    });
+  }
+
+  async listCategories(): Promise<CategoryRow[]> {
+    const rows = await this.db
+      .select({
+        name: categories.name,
+        // Colonnes écrites en entier : dans une sous-requête, drizzle ne
+        // préfixerait pas « id » par la table, qui désignerait alors products.id.
+        used: sql<boolean>`exists (select 1 from "products" p where p."category_id" = "categories"."id")`,
+      })
+      .from(categories)
+      .orderBy(categories.sortOrder, categories.name);
+    return rows;
+  }
+
+  async saveCategories(names: string[], actorId: string): Promise<string[]> {
+    return this.db.transaction(async (tx) => {
+      const existing = await new DbAccountStore(tx as unknown as Db).listCategories();
+      const kept = existing.filter((c) => !names.includes(c.name) && c.used).map((c) => c.name);
+      const removable = existing.filter((c) => !names.includes(c.name) && !c.used);
+      if (removable.length) {
+        await tx.delete(categories).where(
+          inArray(
+            categories.name,
+            removable.map((c) => c.name),
+          ),
+        );
+      }
+      for (const [i, name] of [...names, ...kept].entries()) {
+        await tx
+          .insert(categories)
+          .values({ name, sortOrder: i + 1 })
+          .onConflictDoUpdate({ target: categories.name, set: { sortOrder: i + 1 } });
+      }
+      await tx.insert(auditLogs).values({
+        actorId,
+        module: "settings",
+        action: "Catégories du catalogue enregistrées",
+        targetType: "categories",
+        before: existing.map((c) => c.name),
+        after: [...names, ...kept],
+      });
+      return kept;
+    });
+  }
+
+  async setTwoFa(userId: string, enabled: boolean): Promise<void> {
+    await this.db
+      .update(users)
+      .set({ twoFaEnabled: enabled, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    await this.audit({
+      actorId: userId,
+      module: "security",
+      action: enabled ? "Double authentification activée" : "Double authentification désactivée",
+      targetType: "user",
+      targetId: userId,
+    });
+  }
+
+  async listStaff(): Promise<StaffSummary[]> {
+    const rows = await this.accounts()
+      .where(and(eq(users.role, "admin"), isNull(users.deletedAt)))
+      .orderBy(users.createdAt);
+    return rows.map((r) => ({
+      email: r.email,
+      name: `${r.firstName} ${r.lastName}`.trim(),
+      staffRole: r.staffRole,
+      status: r.status,
+    }));
+  }
+
+  async createStaffMember(input: NewStaffMember): Promise<CreateStaffResult> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const [user] = await tx
+          .insert(users)
+          .values({
+            role: "admin",
+            email: input.email,
+            phone: input.phone,
+            passwordHash: input.passwordHash,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            status: "active",
+          })
+          .returning({ id: users.id });
+        await tx.insert(adminProfiles).values({ userId: user.id, adminRole: input.staffRole });
+        await tx.insert(auditLogs).values({
+          actorId: user.id,
+          module: "security",
+          action: "Invitation acceptée : membre de l'équipe ajouté",
+          targetType: "user",
+          targetId: user.id,
+          after: { email: input.email, role: input.staffRole },
+        });
+        const account = await new DbAccountStore(tx as unknown as Db).findById(user.id);
+        return { ok: true as const, account: account! };
+      });
+    } catch (err) {
+      const constraint = uniqueViolation(err);
+      if (constraint === null) throw err;
+      return { ok: false, reason: constraint.includes("phone") ? "phone_taken" : "email_taken" };
+    }
   }
 
   async decideApplication(input: {

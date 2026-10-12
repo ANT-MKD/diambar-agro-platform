@@ -42,3 +42,27 @@ export function deliverResetLink(email: string, link: string) {
   );
   return { devResetLink: undefined };
 }
+
+/** Longueur minimale du code d'installation (SETUP_CODE). */
+export const MIN_SETUP_CODE_LENGTH = 16;
+
+/**
+ * Code secret demandé par la page /installation pour créer le premier super
+ * administrateur. Réglage : variable d'environnement SETUP_CODE (secret du
+ * déploiement, jamais dans le code). Trop court ou absent : installation
+ * impossible.
+ */
+export function setupCode(): string | null {
+  const code = process.env.SETUP_CODE?.trim();
+  return code && code.length >= MIN_SETUP_CODE_LENGTH ? code : null;
+}
+
+/**
+ * Un code de vérification peut-il réellement parvenir à la personne ? En mode
+ * démo il s'affiche à l'écran ; hors démo il faut un fournisseur SMS/email
+ * (lot 1.2). Sans cela, activer la double authentification bloquerait le
+ * compte.
+ */
+export function codeDeliveryAvailable(): boolean {
+  return isDemoMode();
+}

@@ -1,6 +1,8 @@
 import { hashSync } from "bcryptjs";
 import { demoAccounts } from "@/data/demo-accounts";
-import { platformUsers } from "@/data/admin-mocks";
+import { deliveryZones, platformUsers } from "@/data/admin-mocks";
+import { CATEGORY_NAMES, DEFAULT_SETTINGS } from "@/db/seed";
+import { DAKAR_ZONES, type PilotZone, type StaffSummary } from "@/lib/platform/setup-model";
 import { normalizeEmail, normalizeSenegalPhone } from "./helpers";
 import type {
   AccountRecord,
@@ -8,9 +10,12 @@ import type {
   AccountStore,
   Application,
   AuditEntry,
+  CategoryRow,
   CreateApplicantResult,
+  CreateStaffResult,
   DecideResult,
   NewApplicant,
+  NewStaffMember,
   RegistrationOptions,
   StaffRole,
 } from "./store.server";
@@ -38,6 +43,20 @@ class MemoryAccountStore implements AccountStore {
   private readonly accounts: MemoryAccount[] = [];
   private readonly applications: Application[] = [];
   private seq = 0;
+  // Plateforme de démonstration : déjà configurée, inscriptions ouvertes.
+  private readonly settings = new Map<string, unknown>([
+    ...Object.entries(DEFAULT_SETTINGS),
+    ["registrations_open", true],
+    ["platform_setup", { demo: true, completedAt: new Date().toISOString() }],
+    ["pilot_city", "Dakar"],
+  ]);
+  private pilotZone: PilotZone = {
+    city: "Dakar",
+    baseFee: deliveryZones[0]?.baseFee ?? 1000,
+    perKmFee: deliveryZones[0]?.perKm ?? 120,
+    zones: [...DAKAR_ZONES],
+  };
+  private categories: string[] = [...CATEGORY_NAMES];
 
   constructor() {
     for (const demo of demoAccounts) {
@@ -158,7 +177,7 @@ class MemoryAccountStore implements AccountStore {
   }
 
   async registrationsOpen() {
-    return true;
+    return this.settings.get("registrations_open") === true;
   }
 
   async registrationOptions(): Promise<RegistrationOptions> {
@@ -182,6 +201,80 @@ class MemoryAccountStore implements AccountStore {
   async latestApplicationFor(userId: string) {
     const app = this.applications.find((a) => a.account.id === userId);
     return app ? this.withLiveAccount(app) : null;
+  }
+
+  async superAdminExists() {
+    return this.accounts.some((a) => a.staffRole === "super_admin" && a.status === "active");
+  }
+
+  async createFirstSuperAdmin(): Promise<CreateStaffResult> {
+    // Mode démo : les comptes d'administration de démonstration existent déjà.
+    return { ok: false, reason: "already_installed" };
+  }
+
+  async getSettings(keys: string[]) {
+    return Object.fromEntries(
+      keys.filter((k) => this.settings.has(k)).map((k) => [k, this.settings.get(k)]),
+    );
+  }
+
+  async setSettings(values: Record<string, unknown>) {
+    for (const [k, v] of Object.entries(values)) this.settings.set(k, v);
+  }
+
+  async getPilotZone() {
+    return this.pilotZone;
+  }
+
+  async savePilotZone(zone: PilotZone) {
+    this.pilotZone = zone;
+    this.settings.set("pilot_city", zone.city);
+  }
+
+  async listCategories(): Promise<CategoryRow[]> {
+    return this.categories.map((name) => ({ name, used: false }));
+  }
+
+  async saveCategories(names: string[]) {
+    this.categories = [...names];
+    return [];
+  }
+
+  async setTwoFa(userId: string, enabled: boolean) {
+    const account = this.accounts.find((a) => a.id === userId);
+    if (account) account.twoFaEnabled = enabled;
+  }
+
+  async listStaff(): Promise<StaffSummary[]> {
+    return this.accounts
+      .filter((a) => a.role === "admin")
+      .map((a) => ({
+        email: a.email,
+        name: `${a.firstName} ${a.lastName}`.trim(),
+        staffRole: a.staffRole,
+        status: a.status,
+      }));
+  }
+
+  async createStaffMember(input: NewStaffMember): Promise<CreateStaffResult> {
+    if (await this.emailTaken(input.email)) return { ok: false, reason: "email_taken" };
+    if (await this.phoneTaken(input.phone)) return { ok: false, reason: "phone_taken" };
+    const account: MemoryAccount = {
+      id: this.nextId("user"),
+      email: normalizeEmail(input.email),
+      role: "admin",
+      status: "active",
+      passwordHash: input.passwordHash,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone,
+      twoFaEnabled: false,
+      staffRole: input.staffRole,
+      lastLoginAt: null,
+      city: null,
+    };
+    this.accounts.push(account);
+    return { ok: true, account };
   }
 
   async decideApplication(input: {

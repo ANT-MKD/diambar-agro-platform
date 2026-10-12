@@ -41,3 +41,25 @@ TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres bun run t
    pour que l'historique local et celui de Supabase restent identiques.
 
 Ne jamais modifier une migration déjà appliquée : en écrire une nouvelle.
+
+## Réglages du serveur (secrets du déploiement)
+
+| Variable         | Rôle                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`   | Adresse de la base (Supabase, pooler en mode transaction, port 6543). Sans elle : mode démo en mémoire. |
+| `SESSION_SECRET` | 32 caractères minimum, obligatoire hors mode démo.                                                      |
+| `SETUP_CODE`     | 16 caractères minimum : code demandé par `/installation` pour créer le premier super administrateur.    |
+| `DEMO_MODE`      | `false` avant d'accueillir de vrais utilisateurs (codes et comptes de démo masqués).                    |
+
+Ne jamais écrire ces valeurs dans le code ni dans une conversation : uniquement
+dans les secrets du déploiement.
+
+## Première installation (base de production)
+
+1. `bun run db:migrate` puis `bun run db:seed` (référentiels seuls, jamais `--demo`).
+2. Ouvrir `/installation`, saisir le code `SETUP_CODE` et créer le super administrateur.
+   La page se ferme ensuite définitivement.
+3. L'assistant `/admin/setup` s'ouvre : 8 étapes (sécurité, entreprise, zone
+   pilote, règles de commande, commission et TVA, paiements, catalogue, équipe).
+4. « Ouvrir les inscriptions » : la page d'inscription devient accessible ; chaque
+   compte attend la validation de l'équipe dans Validations.

@@ -189,7 +189,7 @@ async function startSession(
 }
 
 export const loginFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string; password: string; rememberMe?: boolean }) => {
+  .validator((input: { email: string; password: string; rememberMe?: boolean }) => {
     if (!input.email || !input.password) throw new Error("Email et mot de passe requis");
     if (input.password.length > 128) throw new Error("Mot de passe trop long");
     return { ...input, email: normalizeEmail(input.email) };
@@ -226,7 +226,7 @@ export const loginFn = createServerFn({ method: "POST" })
 /** Connexion en un clic, réservée aux comptes de démonstration et au mode démo :
  * les mots de passe de démo ne quittent jamais le serveur. */
 export const demoLoginFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string; rememberMe?: boolean }) => ({
+  .validator((input: { email: string; rememberMe?: boolean }) => ({
     ...input,
     email: normalizeEmail(input.email),
   }))
@@ -246,7 +246,7 @@ export type CodeCheckResult =
 const TOO_MANY_2FA = "Trop d'essais. Reconnectez-vous pour recevoir un nouveau code.";
 
 export const verifyTwoFaFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string }) => input)
+  .validator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<CodeCheckResult> => {
     const session = await authSession();
     const pending = session.data.pendingTwoFa;
@@ -360,7 +360,7 @@ type ResetTokenPayload = { email: string; jti: string; pv: string };
 const RESET_TTL_MS = 30 * 60_000;
 
 export const requestPasswordResetFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string }) => ({ email: normalizeEmail(input.email) }))
+  .validator((input: { email: string }) => ({ email: normalizeEmail(input.email) }))
   .handler(async ({ data }): Promise<{ devResetLink?: string }> => {
     // La réponse est la même que le compte existe ou non (et au-delà de
     // 3 demandes par quart d'heure) : elle ne permet pas de deviner si une
@@ -399,7 +399,7 @@ async function readResetToken(
 }
 
 export const validateResetTokenFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { token: string }) => input)
+  .validator((input: { token: string }) => input)
   .handler(async ({ data }): Promise<ResetTokenState> =>
     withAccountStore(async (store) => {
       const { valid, reason } = await readResetToken(store, data.token);
@@ -408,7 +408,7 @@ export const validateResetTokenFn = createServerFn({ method: "GET" })
   );
 
 export const resetPasswordFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { token: string; password: string }) => {
+  .validator((input: { token: string; password: string }) => {
     if (input.password.length < 8) throw new Error("8 caractères minimum");
     if (input.password.length > 128) throw new Error("128 caractères maximum");
     return input;
@@ -487,7 +487,7 @@ const REGISTRATIONS_CLOSED =
   "Les inscriptions ne sont pas encore ouvertes. Revenez bientôt ou contactez-nous.";
 
 export const registerValidateFn = createServerFn({ method: "POST" })
-  .inputValidator((input: z.input<typeof registerSchema>) => {
+  .validator((input: z.input<typeof registerSchema>) => {
     const parsed = registerSchema.safeParse(input);
     if (!parsed.success) throw new Error(parsed.error.issues[0].message);
     return parsed.data;
@@ -562,7 +562,7 @@ export type RegisterVerifyResult =
   { ok: true; firstName: string } | { ok: false; message: string; restart?: boolean };
 
 export const registerVerifyFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string }) => input)
+  .validator((input: { code: string }) => input)
   .handler(async ({ data }): Promise<RegisterVerifyResult> => {
     const session = await authSession();
     const pending = session.data.pendingRegistration;

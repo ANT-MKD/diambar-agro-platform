@@ -172,4 +172,88 @@ describe.skipIf(!adminUrl)("annuaire des comptes (base)", () => {
     // l'adresse reste réservée : pas de nouveau compte avec le même email
     expect(await store.emailTaken("ibrahima@exemple.sn")).toBe(true);
   });
+
+  it("enregistre les réglages, la zone pilote et le catalogue", async () => {
+    await store.setSettings({ cutoff_hour: 17, company: { legalName: "Diambar" } }, adminId);
+    expect(await store.getSettings(["cutoff_hour", "company", "absent"])).toEqual({
+      cutoff_hour: 17,
+      company: { legalName: "Diambar" },
+    });
+
+    await store.savePilotZone(
+      { city: "Dakar", baseFee: 1500, perKmFee: 100, zones: ["Plateau", "Nouveau quartier"] },
+      adminId,
+    );
+    const zone = await store.getPilotZone();
+    expect(zone).toEqual({
+      city: "Dakar",
+      baseFee: 1500,
+      perKmFee: 100,
+      zones: ["Nouveau quartier", "Plateau"],
+    });
+    // pilote : les autres villes sont fermées
+    expect((await store.registrationOptions())?.cities).toEqual(["Dakar"]);
+
+    // « Légumes » porte des produits de démo : jamais supprimée
+    const kept = await store.saveCategories(["Fruits", "Produits laitiers"], adminId);
+    expect(kept).toContain("Légumes");
+    const names = (await store.listCategories()).map((c) => c.name);
+    expect(names.slice(0, 2)).toEqual(["Fruits", "Produits laitiers"]);
+    expect(names).toContain("Légumes");
+    expect(names).not.toContain("Épices");
+  });
+
+  it("n'installe qu'un seul premier super administrateur", async () => {
+    expect(await store.superAdminExists()).toBe(true);
+    const refused = await store.createFirstSuperAdmin({
+      email: "intrus@exemple.sn",
+      phone: "771010101",
+      passwordHash: hashSync("x", 4),
+      firstName: "In",
+      lastName: "Trus",
+    });
+    expect(refused).toEqual({ ok: false, reason: "already_installed" });
+
+    // Base vide : deux installations simultanées → une seule réussit.
+    await db.execute(sql`update admin_profiles set admin_role = 'operations'`);
+    expect(await store.superAdminExists()).toBe(false);
+    const attempt = (n: number) =>
+      store.createFirstSuperAdmin({
+        email: `install${n}@exemple.sn`,
+        phone: `77202020${n}`,
+        passwordHash: hashSync("x", 4),
+        firstName: "Super",
+        lastName: `Admin${n}`,
+      });
+    const results = await Promise.all([attempt(1), attempt(2)]);
+    expect(results.filter((r) => r.ok).length).toBe(1);
+    expect(results.filter((r) => !r.ok && r.reason === "already_installed").length).toBe(1);
+  });
+
+  it("ajoute un membre de l'équipe invité et active la double authentification", async () => {
+    const res = await store.createStaffMember({
+      email: "finance2@exemple.sn",
+      phone: "763030303",
+      passwordHash: hashSync("x", 4),
+      firstName: "Fatou",
+      lastName: "Sow",
+      staffRole: "finance",
+    });
+    expect(res.ok && res.account.staffRole).toBe("finance");
+    expect(
+      await store.createStaffMember({
+        email: "finance2@exemple.sn",
+        phone: "763030304",
+        passwordHash: "x",
+        firstName: "F",
+        lastName: "S",
+        staffRole: "finance",
+      }),
+    ).toEqual({ ok: false, reason: "email_taken" });
+    expect((await store.listStaff()).some((m) => m.email === "finance2@exemple.sn")).toBe(true);
+    if (res.ok) {
+      await store.setTwoFa(res.account.id, true);
+      expect((await store.findById(res.account.id))?.twoFaEnabled).toBe(true);
+    }
+  });
 });

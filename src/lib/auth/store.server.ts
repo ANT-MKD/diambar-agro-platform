@@ -2,6 +2,7 @@ import type { Role } from "@/data/mocks";
 import type { AdminRoleName } from "@/data/admin-mocks";
 import { createDb } from "@/db/client.server";
 import { isDemoMode } from "./config.server";
+import type { PilotZone, StaffSummary } from "@/lib/platform/setup-model";
 import type { RegisterDetails } from "./session.server";
 import { DbAccountStore } from "./store-db.server";
 import { memoryAccountStore } from "./store-memory.server";
@@ -99,6 +100,21 @@ export type CreateApplicantResult =
 export type DecideResult =
   { ok: true; application: Application } | { ok: false; reason: "not_found" | "already_decided" };
 
+export type NewStaffMember = {
+  email: string;
+  phone: string;
+  passwordHash: string;
+  firstName: string;
+  lastName: string;
+  staffRole: StaffRole;
+};
+
+export type CreateStaffResult =
+  | { ok: true; account: AccountRecord }
+  | { ok: false; reason: "already_installed" | "email_taken" | "phone_taken" };
+
+export type CategoryRow = { name: string; used: boolean };
+
 export interface AccountStore {
   readonly kind: "database" | "memory";
   findByEmail(email: string): Promise<AccountRecord | null>;
@@ -116,6 +132,25 @@ export interface AccountStore {
   getApplication(id: string): Promise<Application | null>;
   /** Dernier dossier d'un compte (motif d'une demande de correction…). */
   latestApplicationFor(userId: string): Promise<Application | null>;
+  /** Un super administrateur existe déjà : l'installation est fermée. */
+  superAdminExists(): Promise<boolean>;
+  /** Premier super administrateur (page d'installation). Refusé, de façon
+   * sûre même en cas de doubles clics simultanés, si un super admin existe. */
+  createFirstSuperAdmin(input: Omit<NewStaffMember, "staffRole">): Promise<CreateStaffResult>;
+  // --- Réglages de la plateforme (assistant de configuration) ---------------
+  getSettings(keys: string[]): Promise<Record<string, unknown>>;
+  setSettings(values: Record<string, unknown>, actorId: string): Promise<void>;
+  getPilotZone(): Promise<PilotZone | null>;
+  /** Ville pilote (seule active) et ses quartiers livrés. */
+  savePilotZone(zone: PilotZone, actorId: string): Promise<void>;
+  listCategories(): Promise<CategoryRow[]>;
+  /** Catégories dans l'ordre voulu ; une catégorie déjà utilisée n'est jamais
+   * supprimée. Retourne les noms conservés malgré la demande. */
+  saveCategories(names: string[], actorId: string): Promise<string[]>;
+  setTwoFa(userId: string, enabled: boolean): Promise<void>;
+  listStaff(): Promise<StaffSummary[]>;
+  /** Membre de l'équipe ajouté sur invitation (compte actif). */
+  createStaffMember(input: NewStaffMember): Promise<CreateStaffResult>;
   decideApplication(input: {
     id: string;
     decision: ApplicationDecision;

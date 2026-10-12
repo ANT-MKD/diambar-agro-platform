@@ -11,6 +11,7 @@ import { eq, inArray } from "drizzle-orm";
 import { commissionTiers, deliveryZones } from "../data/admin-mocks.ts";
 import { demoAccounts } from "../data/demo-accounts.ts";
 import { products as demoProducts } from "../data/mocks.ts";
+import { DAKAR_ZONES } from "../lib/platform/setup-model.ts";
 import type { Db } from "./client.server.ts";
 import {
   adminProfiles,
@@ -62,24 +63,6 @@ export async function seedReference(db: Db) {
     .returning({ key: settings.key });
   return { categories: insertedCategories.length, settings: insertedSettings.length };
 }
-
-const DAKAR_ZONES = [
-  "Plateau",
-  "Médina",
-  "Fann – Point E – Amitié",
-  "Mermoz – Sacré-Cœur",
-  "Ouakam",
-  "Ngor",
-  "Almadies",
-  "Yoff",
-  "Grand Yoff",
-  "Parcelles Assainies",
-  "HLM",
-  "Pikine",
-  "Guédiawaye",
-  "Keur Massar",
-  "Rufisque",
-];
 
 type DemoPerson = {
   firstName: string;

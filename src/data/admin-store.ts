@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 import {
   platformUsers as seedUsers,
   validationRequests as seedValidations,
@@ -293,25 +293,17 @@ export function auditModulesFor(role: AdminRoleName): AuditModule[] {
  * email (le seul identifiant stable renvoyé par la session) — pas du nom,
  * qui peut se recouper entre comptes de démo. */
 // Rôle d'équipe du compte connecté, tel que le serveur l'a lu dans l'annuaire
-// (base de données). Il prime sur la correspondance de démonstration par
-// email : un administrateur réel n'existe pas dans les données de démo.
-const sessionStaffStore = createStore<{ email: string; role: AdminRoleName } | null>(null);
-
-export function setSessionStaffRole(email: string, role: AdminRoleName | undefined) {
-  const current = sessionStaffStore.get();
-  const next = role ? { email, role } : null;
-  if (current?.email === next?.email && current?.role === next?.role) return;
-  sessionStaffStore.set(next);
-}
+// (base de données), fourni par la mise en page de l'administration. Il prime
+// sur la correspondance de démonstration par email : un administrateur réel
+// n'existe pas dans les données de démo.
+export const SessionStaffContext = createContext<{ email: string; role: AdminRoleName } | null>(
+  null,
+);
 
 export function useAdminRoleForEmail(email: string): AdminRoleName {
+  const sessionStaff = useContext(SessionStaffContext);
   const users = usePlatformUsers();
   const roles = useAdminRoles();
-  const sessionStaff = useSyncExternalStore(
-    sessionStaffStore.subscribe,
-    sessionStaffStore.get,
-    sessionStaffStore.get,
-  );
   if (sessionStaff && sessionStaff.email === email) return sessionStaff.role;
   const match = users.find((u) => u.email === email);
   if (!match) return "Support";
