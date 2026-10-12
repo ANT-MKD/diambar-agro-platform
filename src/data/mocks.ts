@@ -2317,6 +2317,9 @@ export type DriverWallet = {
   pending: number;
   withdrawn: number;
   transactions: DriverTx[];
+  // Avec la base : espèces encaissées chez les restaurants, pas encore
+  // remises à Diambar (retenues sur le solde retirable).
+  cashHeld?: number;
 };
 
 export const driverWallet: DriverWallet = {

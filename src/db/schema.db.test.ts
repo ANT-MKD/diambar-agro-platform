@@ -73,7 +73,7 @@ describe.skipIf(!adminUrl)("schéma de la base", () => {
   it("remplit les référentiels et les comptes de démo", async () => {
     expect((await db.select().from(categories)).length).toBe(7);
     // 5 réglages de référence + inscriptions ouvertes et configuration faite (démo)
-    expect((await db.select().from(settings)).length).toBe(7);
+    expect((await db.select().from(settings)).length).toBe(8);
     const demoUsers = await db.select().from(users);
     expect(demoUsers.length).toBe(8);
     const farmer = demoUsers.find((u) => u.email === "agriculteur@diambar.sn")!;

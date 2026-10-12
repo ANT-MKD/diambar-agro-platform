@@ -45,7 +45,11 @@ export async function requestPayout(
     }
     const balance = (await readBalances(tx, [userId])).get(userId)!;
     if (amount > balance.available) {
-      fail(`Solde disponible insuffisant : ${formatFCFA(balance.available)}.`);
+      fail(
+        balance.cashHeld > 0
+          ? `Solde disponible insuffisant : ${formatFCFA(balance.available)}. ${formatFCFA(balance.cashHeld)} d'espèces encaissées sont à remettre à Diambar avant d'être retirables.`
+          : `Solde disponible insuffisant : ${formatFCFA(balance.available)}.`,
+      );
     }
     const number = input.accountNumber?.trim()
       ? normalizeWalletNumber(input.accountNumber)

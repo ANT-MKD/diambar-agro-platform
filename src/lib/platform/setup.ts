@@ -44,6 +44,7 @@ const SETTING_KEYS = [
   "cutoff_hour",
   "min_order_per_producer",
   "reception_window_hours",
+  "payment_deadline_hour",
   "commission_tiers",
   "tva",
   "payment_methods",
@@ -81,6 +82,10 @@ export const getSetupFn = createServerFn({ method: "GET" }).handler(
           receptionWindowHours: num(
             s.reception_window_hours,
             DEFAULT_SETTINGS.reception_window_hours as number,
+          ),
+          paymentDeadlineHour: num(
+            s.payment_deadline_hour,
+            DEFAULT_SETTINGS.payment_deadline_hour as number,
           ),
         },
         money: {
@@ -128,6 +133,7 @@ const ordersSchema = z.object({
   cutoffHour: z.number().int().min(0).max(23),
   minOrderPerProducer: z.number().int().min(0).max(10_000_000),
   receptionWindowHours: z.number().int().min(1).max(168),
+  paymentDeadlineHour: z.number().int().min(0).max(23),
 });
 
 const moneySchema = z.object({
@@ -159,7 +165,10 @@ const paymentsSchema = z
   .object({
     wave: z.object({ enabled: z.boolean(), number: z.string().max(30) }),
     orangeMoney: z.object({ enabled: z.boolean(), number: z.string().max(30) }),
-    cashOnDelivery: z.object({ enabled: z.boolean() }),
+    cashOnDelivery: z.object({
+      enabled: z.boolean(),
+      driverLimit: z.number().int().min(0).max(5_000_000).optional(),
+    }),
   })
   .superRefine((p, ctx) => {
     if (!p.wave.enabled && !p.orangeMoney.enabled && !p.cashOnDelivery.enabled) {
@@ -267,6 +276,7 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
               cutoff_hour: o.cutoffHour,
               min_order_per_producer: o.minOrderPerProducer,
               reception_window_hours: o.receptionWindowHours,
+              payment_deadline_hour: o.paymentDeadlineHour,
             },
             me.id,
           );
@@ -288,7 +298,10 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
                   enabled: p.orangeMoney.enabled,
                   number: clean(p.orangeMoney.number),
                 },
-                cashOnDelivery: { enabled: p.cashOnDelivery.enabled },
+                cashOnDelivery: {
+                  enabled: p.cashOnDelivery.enabled,
+                  driverLimit: p.cashOnDelivery.driverLimit ?? 50_000,
+                },
               } satisfies PaymentMethodsSetting,
             },
             me.id,

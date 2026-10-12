@@ -46,6 +46,8 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   min_order_per_producer: 5000,
   // Délai pour signaler un produit abîmé ou manquant.
   reception_window_hours: 48,
+  // Paiement Wave / Orange Money attendu au plus tard la veille du créneau à 20 h.
+  payment_deadline_hour: 20,
   commission_tiers: commissionTiers.map(({ label, rate, min, max }) => ({ label, rate, min, max })),
   tva: { enabled: false, rate: 18 },
 };

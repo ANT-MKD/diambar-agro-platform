@@ -767,6 +767,8 @@ export const payments = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true }),
     /** Motif d'un refus par l'admin (référence introuvable, montant…). */
     note: text("note"),
+    /** Rappel envoyé au restaurant avant l'annulation faute de paiement. */
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -331,6 +331,18 @@ function WalletPage() {
               <ArrowDownLeft className="h-4 w-4 text-primary" />
               Retirer mes gains
             </h3>
+            {wallet.cashHeld ? (
+              <p
+                className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400"
+                data-testid="cash-held"
+              >
+                <span className="font-semibold">
+                  {formatFCFA(wallet.cashHeld)} d'espèces à remettre à Diambar.
+                </span>{" "}
+                Ce montant est retenu sur votre solde jusqu'à la remise. Au-delà du plafond, vous ne
+                pouvez plus accepter de course payée en espèces.
+              </p>
+            ) : null}
             <div className="space-y-1.5">
               <Label htmlFor="amt">Montant (FCFA)</Label>
               <Input

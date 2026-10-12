@@ -263,6 +263,19 @@ export function PaymentPanel({
           <p className="text-sm text-muted-foreground">
             La commande est préparée et livrée une fois le paiement confirmé par Diambar.
           </p>
+          {payment.dueBy && (
+            <p
+              className="flex gap-2 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400"
+              data-testid="payment-due-by"
+            >
+              <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                À payer avant le <span className="font-semibold">{dateTime(payment.dueBy)}</span>.
+                Sans paiement déclaré à cette heure, la commande est annulée et les produits remis
+                en vente.
+              </span>
+            </p>
+          )}
           <DeclareForm payment={payment} submitLabel="J'ai payé" />
         </>
       )}

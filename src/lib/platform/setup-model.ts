@@ -42,6 +42,9 @@ export type OrderRules = {
   cutoffHour: number;
   minOrderPerProducer: number;
   receptionWindowHours: number;
+  /** Paiement Wave / Orange Money attendu au plus tard la veille du créneau
+   * à cette heure (et dans les 24 h après la commande) ; sinon annulée. */
+  paymentDeadlineHour: number;
 };
 
 export type CommissionTierSetting = {
@@ -56,7 +59,9 @@ export type TvaSetting = { enabled: boolean; rate: number };
 export type PaymentMethodsSetting = {
   wave: { enabled: boolean; number: string };
   orangeMoney: { enabled: boolean; number: string };
-  cashOnDelivery: { enabled: boolean };
+  /** driverLimit : espèces non remises au-delà desquelles un livreur
+   * n'accepte plus de course payée en espèces. */
+  cashOnDelivery: { enabled: boolean; driverLimit?: number };
 };
 
 export type PilotZone = {

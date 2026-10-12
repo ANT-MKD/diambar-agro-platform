@@ -1,5 +1,5 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import { ledgerEntries, payouts, settings } from "@/db/schema";
+import { ledgerEntries, payments, payouts, settings } from "@/db/schema";
 import { driverCommissionForPayout, tierRateForVolume } from "@/lib/commission";
 import type { Q, Tx } from "./market-common.server";
 
@@ -180,9 +180,29 @@ export type AccountBalance = {
   balance: number;
   /** Retraits demandés, pas encore payés : réservés. */
   reserved: number;
+  /** Livreur : espèces encaissées chez les restaurants, pas encore remises
+   * à Diambar. Elles sont retenues sur ce qu'il peut retirer. */
+  cashHeld: number;
   /** Ce qui peut encore être retiré. */
   available: number;
 };
+
+/** Espèces encaissées par chaque livreur et pas encore remises. */
+export async function readCashHeld(q: Q, userIds: string[]): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await q
+    .select({ userId: payments.collectedBy, total: sql<number>`sum(${payments.amount})::int` })
+    .from(payments)
+    .where(
+      and(
+        inArray(payments.collectedBy, userIds),
+        eq(payments.status, "pending"),
+        sql`${payments.collectedAt} is not null`,
+      ),
+    )
+    .groupBy(payments.collectedBy);
+  return new Map(rows.flatMap((r) => (r.userId ? [[r.userId, Number(r.total) || 0]] : [])));
+}
 
 /** Soldes de plusieurs comptes producteur / livreur. */
 export async function readBalances(q: Q, userIds: string[]): Promise<Map<string, AccountBalance>> {
@@ -203,10 +223,17 @@ export async function readBalances(q: Q, userIds: string[]): Promise<Map<string,
       and(inArray(payouts.userId, userIds), inArray(payouts.status, ["requested", "processing"])),
     )
     .groupBy(payouts.userId);
+  const cash = await readCashHeld(q, userIds);
   for (const id of userIds) {
     const balance = Number(sums.find((s) => s.userId === id)?.total ?? 0);
     const reserved = Number(held.find((h) => h.userId === id)?.total ?? 0);
-    out.set(id, { balance, reserved, available: Math.max(0, balance - reserved) });
+    const cashHeld = cash.get(id) ?? 0;
+    out.set(id, {
+      balance,
+      reserved,
+      cashHeld,
+      available: Math.max(0, balance - reserved - cashHeld),
+    });
   }
   return out;
 }

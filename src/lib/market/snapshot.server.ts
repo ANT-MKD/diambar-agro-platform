@@ -54,6 +54,7 @@ import {
 } from "./payment-view";
 import { orderDue, readMerchantAccounts } from "./payments-db.server";
 import { readBalances } from "./ledger-db.server";
+import { paymentDeadline } from "@/lib/payment-deadline";
 import { isStored, publicUrl, signedUrl } from "./storage.server";
 import type {
   AdminAccount,
@@ -127,6 +128,7 @@ async function cachedSignedUrl(storageKeyValue: string): Promise<string | undefi
 
 export type MarketRules = Omit<MarketSnapshot["rules"], "merchant"> & {
   receptionWindowHours: number;
+  paymentDeadlineHour: number;
 };
 
 export async function readRules(db: Db): Promise<MarketRules> {
@@ -139,6 +141,7 @@ export async function readRules(db: Db): Promise<MarketRules> {
         "min_order_per_producer",
         "payment_methods",
         "reception_window_hours",
+        "payment_deadline_hour",
       ]),
     );
   const v = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>;
@@ -162,6 +165,7 @@ export async function readRules(db: Db): Promise<MarketRules> {
     cutoffHour: num(v.cutoff_hour, 18),
     minOrderPerProducer: num(v.min_order_per_producer, 5000),
     receptionWindowHours: num(v.reception_window_hours, 48),
+    paymentDeadlineHour: num(v.payment_deadline_hour, 20),
     paymentMethods,
   };
 }
@@ -489,12 +493,17 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     const covered = (ordersByCheckout.get(c.id) ?? []).filter((x) =>
       p.orderId ? x.id === p.orderId : x.status !== "cancelled",
     );
+    const state = paymentState(p);
     return {
       id: p.id,
       checkoutId: c.id,
       checkoutReference: c.reference,
       mode: p.orderId ? "cash" : "prepaid",
-      state: paymentState(p),
+      state,
+      dueBy:
+        state === "to_pay" || state === "refused"
+          ? paymentDeadline(c.createdAt, c.slotStart, rules.paymentDeadlineHour).toISOString()
+          : undefined,
       method: PAYMENT_METHOD_LABEL[p.method] ?? "Wave",
       amount: p.amount,
       orderReferences: covered.map((x) => x.reference),
@@ -898,6 +907,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       }
       txs.sort((a, b) => b.at.localeCompare(a.at));
       driverWallet = {
+        cashHeld: bal.cashHeld,
         balance: bal.available,
         pending: bal.reserved,
         withdrawn: myPayouts

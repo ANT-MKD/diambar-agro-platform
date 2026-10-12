@@ -28,6 +28,7 @@ import {
   reportReception,
   saveProduct,
   setOrderStatus,
+  sweepUnpaidCheckouts,
   withdrawMission,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
@@ -87,15 +88,32 @@ function parse<S extends z.ZodTypeAny>(schema: S, data: unknown): z.output<S> {
   return res.data;
 }
 
+// --- Commandes non payées ----------------------------------------------------------
+
+// Au plus une fois par minute et par instance : rappel puis annulation des
+// paniers Wave / Orange Money non payés dans le délai. (Une tâche planifiée
+// Cloudflare pourra l'appeler aussi à la mise en ligne.)
+let lastSweep = 0;
+async function sweepUnpaid(db: Db) {
+  if (Date.now() - lastSweep < 60_000) return;
+  lastSweep = Date.now();
+  try {
+    await sweepUnpaidCheckouts(db);
+  } catch (err) {
+    console.error("[paiements] annulation des commandes non payées", err);
+  }
+}
+
 // --- Lecture --------------------------------------------------------------------
 
 /** Données du compte connecté ; null sans base (mode démo dans le navigateur). */
 export const getMarketSnapshotFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<MarketSnapshot | null> => {
     if (!process.env.DATABASE_URL?.trim()) return null;
-    const res = await withMarket(["farmer", "restaurant", "driver", "admin"], (db, me) =>
-      readSnapshot(db, { id: me.id, role: me.role }),
-    );
+    const res = await withMarket(["farmer", "restaurant", "driver", "admin"], async (db, me) => {
+      await sweepUnpaid(db);
+      return readSnapshot(db, { id: me.id, role: me.role });
+    });
     if ("ok" in res && res.ok === false) throw new Error(res.message);
     return res as MarketSnapshot;
   },
@@ -260,6 +278,8 @@ export const placeOrderFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof orderSchema>) => parse(orderSchema, input))
   .handler(async ({ data }): Promise<PlaceOrderResult> =>
     withMarket(["restaurant"], async (db, me) => {
+      // Le stock des paniers non payés à temps est d'abord remis en vente.
+      await sweepUnpaid(db);
       const placed = await placeOrder(db, me.id, data);
       // Chaque producteur est prévenu par email (en plus de l'application).
       const farmerRows = await db
@@ -485,6 +505,8 @@ export const declarePaymentFn = createServerFn({ method: "POST" })
 const confirmPaymentSchema = z.object({
   paymentId: id,
   providerRef: z.string().trim().max(64).optional(),
+  /** Montant vu sur le compte marchand (ou remis par le livreur). */
+  amountReceived: z.number().int("Montant en francs entiers").positive("Montant reçu requis"),
 });
 
 /** Admin : l'argent est bien arrivé (compte marchand ou espèces remises). */
@@ -494,7 +516,7 @@ export const confirmPaymentFn = createServerFn({ method: "POST" })
     withMarket(
       ["admin"],
       async (db, me) => {
-        await confirmPayment(db, me.id, data.paymentId, data.providerRef);
+        await confirmPayment(db, me.id, data.paymentId, data.providerRef, data.amountReceived);
         return { ok: true as const };
       },
       MONEY_STAFF,

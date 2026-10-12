@@ -46,6 +46,7 @@ import {
   type AdminPayout,
   type AdminRefund,
 } from "@/lib/market/payment-view";
+import { downloadCsv } from "@/lib/export";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/payments")({
@@ -226,6 +227,8 @@ function PaymentsPage() {
           </span>
         )}
       </div>
+
+      <Reconciliation payments={payments} payouts={payouts} refunds={refunds} />
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
@@ -418,17 +421,25 @@ function ConfirmDialog({
   onClose: () => void;
 }) {
   const [ref, setRef] = useState("");
+  // Le montant est saisi tel qu'il apparaît sur le compte marchand (ou
+  // compté dans les mains du livreur) : il n'est pas prérempli exprès.
+  const [received, setReceived] = useState("");
   const [busy, setBusy] = useState(false);
   if (!payment) return null;
   const needsRef = payment.mode === "prepaid" && payment.state !== "declared";
   const amount = payment.state === "declared" ? payment.amount : payment.dueNow;
   const submit = async () => {
+    const value = Number(received.replace(/\D/g, ""));
+    if (!value) {
+      toast.error("Saisissez le montant reçu.");
+      return;
+    }
     if (needsRef && ref.trim().length < 4) {
       toast.error("Indiquez la référence de la transaction vue sur le compte marchand.");
       return;
     }
     setBusy(true);
-    const res = await market.confirmPayment(payment.id, needsRef ? ref : undefined);
+    const res = await market.confirmPayment(payment.id, value, needsRef ? ref : undefined);
     setBusy(false);
     if (!res.ok) {
       toast.error(res.message);
@@ -440,6 +451,7 @@ function ConfirmDialog({
         : "Paiement confirmé : les producteurs peuvent préparer",
     );
     setRef("");
+    setReceived("");
     onClose();
   };
   return (
@@ -460,6 +472,25 @@ function ConfirmDialog({
             Référence déclarée : <span className="font-mono">{payment.providerRef}</span>
           </p>
         )}
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-amount">
+            {payment.mode === "cash"
+              ? "Montant compté (F CFA)"
+              : "Montant vu sur le compte marchand (F CFA)"}
+          </Label>
+          <Input
+            id="admin-amount"
+            inputMode="numeric"
+            value={received}
+            onChange={(e) => setReceived(e.target.value.replace(/\D/g, ""))}
+            placeholder="Recopiez le montant, sans le deviner"
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted-foreground">
+            Attendu : {formatFCFA(payment.mode === "cash" ? payment.amount : amount)}. Si ce n'est
+            pas le même montant, la confirmation est refusée.
+          </p>
+        </div>
         {needsRef && (
           <div className="space-y-1.5">
             <Label htmlFor="admin-ref">Référence de la transaction</Label>
@@ -823,6 +854,7 @@ function BalancesTab({ search }: { search: string }) {
             <th className="p-3">Téléphone</th>
             <th className="p-3 text-right">Solde</th>
             <th className="p-3 text-right">Retraits en cours</th>
+            <th className="p-3 text-right">Espèces à remettre</th>
             <th className="p-3 text-right">Disponible</th>
           </tr>
         </thead>
@@ -838,6 +870,7 @@ function BalancesTab({ search }: { search: string }) {
               <td className="p-3">{a.phone}</td>
               <td className="p-3 text-right font-semibold">{formatFCFA(a.balance)}</td>
               <td className="p-3 text-right">{formatFCFA(a.reserved)}</td>
+              <td className="p-3 text-right">{a.cashHeld ? formatFCFA(a.cashHeld) : "—"}</td>
               <td className="p-3 text-right">{formatFCFA(a.available)}</td>
             </tr>
           ))}
@@ -972,5 +1005,139 @@ function ReasonDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// --- Rapprochement du jour ----------------------------------------------------------
+
+/** Entrées et sorties confirmées un jour donné, par moyen de paiement : à
+ * comparer chaque soir avec le relevé du compte marchand (et la caisse). */
+function Reconciliation({
+  payments,
+  payouts,
+  refunds,
+}: {
+  payments: AdminPayment[];
+  payouts: AdminPayout[];
+  refunds: AdminRefund[];
+}) {
+  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const rows = useMemo(() => {
+    const onDay = (iso?: string) => !!iso && iso.slice(0, 10) === day;
+    const out: {
+      at: string;
+      kind: "Encaissement" | "Retrait versé" | "Remboursement";
+      method: string;
+      amount: number;
+      ourRef: string;
+      providerRef: string;
+      who: string;
+      by: string;
+    }[] = [];
+    for (const p of payments) {
+      if (p.state !== "paid" || !onDay(p.paidAt)) continue;
+      out.push({
+        at: p.paidAt!,
+        kind: "Encaissement",
+        method: p.mode === "cash" ? "Espèces" : p.method,
+        amount: p.amount,
+        ourRef: p.mode === "cash" ? p.orderReferences.join(" ") : p.checkoutReference,
+        providerRef: p.providerRef ?? "",
+        who:
+          p.mode === "cash"
+            ? `${p.restaurantName} (via ${p.collectedBy?.name ?? "livreur"})`
+            : p.restaurantName,
+        by: p.confirmedByName ?? "",
+      });
+    }
+    for (const w of payouts) {
+      if (w.status !== "paid" || !onDay(w.paidAt)) continue;
+      out.push({
+        at: w.paidAt!,
+        kind: "Retrait versé",
+        method: w.method,
+        amount: -w.amount,
+        ourRef: w.reference,
+        providerRef: w.providerRef ?? "",
+        who: `${w.name} · ${w.accountNumber}`,
+        by: "",
+      });
+    }
+    for (const r of refunds) {
+      if (r.status !== "paid" || !onDay(r.paidAt)) continue;
+      out.push({
+        at: r.paidAt!,
+        kind: "Remboursement",
+        method: r.method ?? "",
+        amount: -r.amount,
+        ourRef: r.reference,
+        providerRef: r.providerRef ?? "",
+        who: `${r.restaurantName}${r.paidTo ? ` · ${r.paidTo}` : ""}`,
+        by: "",
+      });
+    }
+    return out.sort((a, b) => a.at.localeCompare(b.at));
+  }, [payments, payouts, refunds, day]);
+  const net = (method: string) =>
+    rows.filter((r) => r.method === method).reduce((s, r) => s + r.amount, 0);
+  const exportDay = () =>
+    downloadCsv(
+      `diambar-rapprochement-${day}`,
+      [
+        "Heure",
+        "Type",
+        "Moyen",
+        "Montant (F CFA)",
+        "Référence Diambar",
+        "Référence transaction",
+        "Contrepartie",
+        "Confirmé par",
+      ],
+      rows.map((r) => [
+        new Date(r.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        r.kind,
+        r.method,
+        r.amount,
+        r.ourRef,
+        r.providerRef,
+        r.who,
+        r.by,
+      ]),
+    );
+  return (
+    <div className="glass space-y-3 rounded-2xl p-4" data-testid="reconciliation">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Rapprochement du jour</h3>
+          <p className="text-xs text-muted-foreground">
+            À comparer chaque soir avec le relevé du compte marchand et la caisse des espèces.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            className="w-40"
+            aria-label="Jour"
+          />
+          <Button variant="outline" size="sm" onClick={exportDay} disabled={rows.length === 0}>
+            Exporter (CSV)
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+        {["Wave", "Orange Money", "Espèces"].map((m) => (
+          <div key={m} className="rounded-xl border border-border p-3">
+            <div className="text-xs text-muted-foreground">{m} : solde du jour</div>
+            <div className="font-display text-lg font-bold">{formatFCFA(net(m))}</div>
+            <div className="text-xs text-muted-foreground">
+              {rows.filter((r) => r.method === m && r.amount > 0).length} entrée(s) ·{" "}
+              {rows.filter((r) => r.method === m && r.amount < 0).length} sortie(s)
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

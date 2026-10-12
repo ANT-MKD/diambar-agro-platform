@@ -444,7 +444,7 @@ function OrdersStep({ snapshot, save, saving }: StepProps) {
         void save({ step: "orders", data: o });
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Heure limite de commande"
           hint="Commande passée avant cette heure : livrée le lendemain matin."
@@ -479,6 +479,25 @@ function OrdersStep({ snapshot, save, saving }: StepProps) {
           max={168}
           hint="Temps laissé au restaurant pour signaler un produit abîmé ou manquant."
         />
+        <Field
+          label="Paiement attendu avant"
+          hint="La veille de la livraison (et dans les 24 h après la commande). Sans paiement, la commande est annulée et le stock remis en vente."
+        >
+          {(id) => (
+            <select
+              id={id}
+              value={o.paymentDeadlineHour}
+              onChange={(e) => setO({ ...o, paymentDeadlineHour: Number(e.target.value) })}
+              className={fieldClass}
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {h} h la veille
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
       </div>
       <SaveButton saving={saving} />
     </form>
@@ -636,6 +655,7 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
     number: p?.orangeMoney.number ? formatSenegalPhone(p.orangeMoney.number) : "",
   });
   const [cash, setCash] = useState(p?.cashOnDelivery.enabled ?? true);
+  const [cashLimit, setCashLimit] = useState(p?.cashOnDelivery.driverLimit ?? 50_000);
   const row = (
     id: string,
     label: string,
@@ -672,7 +692,11 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
         e.preventDefault();
         void save({
           step: "payments",
-          data: { wave, orangeMoney: om, cashOnDelivery: { enabled: cash } },
+          data: {
+            wave,
+            orangeMoney: om,
+            cashOnDelivery: { enabled: cash, driverLimit: cashLimit },
+          },
         });
       }}
     >
@@ -682,11 +706,22 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
       </p>
       {row("wave", "Wave", wave, setWave)}
       {row("om", "Orange Money", om, setOm)}
-      <div className="flex items-center gap-3 rounded-xl border border-border p-4">
-        <Switch id="cash" checked={cash} onCheckedChange={setCash} />
-        <label htmlFor="cash" className="text-sm font-medium">
-          Paiement en espèces à la livraison
-        </label>
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <Switch id="cash" checked={cash} onCheckedChange={setCash} />
+          <label htmlFor="cash" className="text-sm font-medium">
+            Paiement en espèces à la livraison
+          </label>
+        </div>
+        {cash && (
+          <NumberField
+            label="Espèces maximum chez un livreur (F CFA)"
+            value={cashLimit}
+            onChange={setCashLimit}
+            min={0}
+            hint="Au-delà, le livreur doit remettre l'argent à Diambar avant d'accepter une nouvelle course payée en espèces. 0 = pas de plafond."
+          />
+        )}
       </div>
       <SaveButton saving={saving} />
     </form>

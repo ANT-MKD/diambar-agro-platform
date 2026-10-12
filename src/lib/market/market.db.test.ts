@@ -32,11 +32,14 @@ import {
   reportReception,
   saveProduct,
   setOrderStatus,
+  sweepUnpaidCheckouts,
   type PlaceOrderInput,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
 import { payPayout, payRefund, rejectPayout, requestPayout } from "./payouts-db.server";
 import { readBalances } from "./ledger-db.server";
+import { paymentDeadline } from "@/lib/payment-deadline";
+import { checkouts } from "@/db/schema";
 import { readSnapshot } from "./snapshot.server";
 
 const adminUrl = process.env.TEST_DATABASE_URL;
@@ -88,7 +91,8 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
   /** Le restaurant paie par Wave et l'admin confirme. */
   const pay = async (checkoutId: string) => {
     await declarePayment(db, restaurantId, { checkoutId, method: "wave", providerRef: newRef() });
-    await confirmPayment(db, adminId, (await checkoutPaymentOf(checkoutId)).id);
+    const p = await checkoutPaymentOf(checkoutId);
+    await confirmPayment(db, adminId, p.id, undefined, p.amount);
   };
 
   beforeAll(async () => {
@@ -251,7 +255,8 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     expect(farmerWaiting.orders.find((x) => x.id === o.id)?.awaitingPayment).toBe(true);
     // L'admin confirme : la course s'ouvre et les 5 oignons manquants
     // deviennent un remboursement.
-    await confirmPayment(db, adminId, (await checkoutPaymentOf(placed.checkoutId)).id);
+    const declared = await checkoutPaymentOf(placed.checkoutId);
+    await confirmPayment(db, adminId, declared.id, undefined, declared.amount);
     const owed = await db.select().from(refunds).where(eq(refunds.orderId, o.id));
     expect(owed).toHaveLength(1);
     expect(owed[0].source).toBe("shortage");
@@ -436,8 +441,14 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const seen = adminSnap.payments?.find((x) => x.id === p.id);
     expect(seen?.state).toBe("declared");
     expect(seen?.restaurantName).toBe("Le Baobab");
-    await confirmPayment(db, adminId, p.id);
-    await expect(confirmPayment(db, adminId, p.id)).rejects.toThrow(/déjà confirmé/);
+    // Montant différent de ce qui est dû : refusé.
+    await expect(confirmPayment(db, adminId, p.id, undefined, first.total - 1)).rejects.toThrow(
+      /Montant différent/,
+    );
+    await confirmPayment(db, adminId, p.id, undefined, first.total);
+    await expect(confirmPayment(db, adminId, p.id, undefined, first.total)).rejects.toThrow(
+      /déjà confirmé/,
+    );
     snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
     ro = snap.restaurantOrders.find((x) => x.id === first.orders[0].id)!;
     expect(ro.payment?.state).toBe("paid");
@@ -509,7 +520,9 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
       /encaissé/,
     );
     // L'admin ne peut pas confirmer des espèces pas encore encaissées.
-    await expect(confirmPayment(db, adminId, cash.id)).rejects.toThrow(/pas encore encaissé/);
+    await expect(confirmPayment(db, adminId, cash.id, undefined, cash.amount)).rejects.toThrow(
+      /pas encore encaissé/,
+    );
     await missionStep(db, driverId, m.id, "delivered", row.deliveryCode, true);
     const [collected] = await db.select().from(payments).where(eq(payments.id, cash.id));
     expect(collected.collectedBy).toBe(driverId);
@@ -517,7 +530,10 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const seen = adminSnap.payments?.find((x) => x.id === cash.id);
     expect(seen?.state).toBe("collected");
     expect(seen?.collectedBy?.id).toBe(driverId);
-    await confirmPayment(db, adminId, cash.id);
+    await expect(
+      confirmPayment(db, adminId, cash.id, undefined, cash.amount - 500),
+    ).rejects.toThrow(/Montant différent/);
+    await confirmPayment(db, adminId, cash.id, undefined, cash.amount);
     const [paid] = await db.select().from(payments).where(eq(payments.id, cash.id));
     expect(paid.status).toBe("confirmed");
     expect(paid.confirmedBy).toBe(adminId);
@@ -683,6 +699,130 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
       .from(ledgerEntries)
       .where(eq(ledgerEntries.kind, "payout"));
     expect(n).toBe(1);
+  });
+
+  it("non payé à temps : rappel, puis annulation et stock remis ; déclaré : jamais annulé", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const unpaid = await placeOrder(db, restaurantId, order());
+    const declared = await placeOrder(db, restaurantId, order());
+    await declarePayment(db, restaurantId, {
+      checkoutId: declared.checkoutId,
+      method: "wave",
+      providerRef: newRef(),
+    });
+    const stockAfterOrders = await stockOf(tomatoes.id);
+    const [c] = await db.select().from(checkouts).where(eq(checkouts.id, unpaid.checkoutId));
+    const deadline = paymentDeadline(c.createdAt, c.slotStart, 20);
+    // Le restaurant voit l'échéance.
+    const snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    expect(snap.restaurantOrders.find((o) => o.id === unpaid.orders[0].id)?.payment?.dueBy).toBe(
+      deadline.toISOString(),
+    );
+
+    // Une heure avant : un seul rappel, rien d'annulé.
+    const soon = new Date(deadline.getTime() - 30 * 60_000);
+    await sweepUnpaidCheckouts(db, soon);
+    await sweepUnpaidCheckouts(db, soon);
+    const reminders = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(eq(notifications.userId, restaurantId), eq(notifications.title, "Paiement attendu")),
+      );
+    expect(reminders.filter((n) => n.body?.includes(c.reference))).toHaveLength(1);
+    expect(
+      (await db.select().from(orders).where(eq(orders.id, unpaid.orders[0].id)))[0].status,
+    ).toBe("pending");
+
+    // Échéance passée : annulée, stock remis ; le panier déclaré reste.
+    await sweepUnpaidCheckouts(db, new Date(deadline.getTime() + 60_000));
+    const [gone] = await db.select().from(orders).where(eq(orders.id, unpaid.orders[0].id));
+    expect(gone.status).toBe("cancelled");
+    expect(gone.cancelReason).toBe("Non payée dans le délai");
+    expect((await checkoutPaymentOf(unpaid.checkoutId)).status).toBe("cancelled");
+    // Les 10 kg reviennent en vente (avec ceux d'autres paniers non payés des
+    // tests précédents, annulés eux aussi).
+    expect(await stockOf(tomatoes.id)).toBeGreaterThanOrEqual(stockAfterOrders + 10);
+    const back = await db
+      .select()
+      .from(stockMovements)
+      .where(
+        and(
+          eq(stockMovements.orderId, unpaid.orders[0].id),
+          eq(stockMovements.reason, "order_cancelled"),
+        ),
+      );
+    expect(back.map((x) => Number(x.delta))).toEqual([10]);
+    const [kept] = await db.select().from(orders).where(eq(orders.id, declared.orders[0].id));
+    expect(kept.status).toBe("pending");
+    // Déclaré après l'échéance par le restaurant ? Trop tard : panier annulé.
+    await expect(
+      declarePayment(db, restaurantId, {
+        checkoutId: unpaid.checkoutId,
+        method: "wave",
+        providerRef: newRef(),
+      }),
+    ).rejects.toThrow(/Plus rien à payer/);
+  });
+
+  it("espèces chez le livreur : retenues sur ses retraits, plafond pour accepter", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 200 });
+    const setLimit = (driverLimit: number) =>
+      db
+        .update(settings)
+        .set({
+          value: {
+            wave: { enabled: true, number: "770000000" },
+            orangeMoney: { enabled: false, number: "" },
+            cashOnDelivery: { enabled: true, driverLimit },
+          },
+        })
+        .where(eq(settings.key, "payment_methods"));
+    await setLimit(1_000_000);
+    const before = (await readBalances(db, [driverId])).get(driverId)!;
+    const placed = await placeOrder(db, restaurantId, order({ paymentMethod: "Espèces" }));
+    const o = placed.orders[0];
+    await confirmOrder(db, farmerId, o.id, {});
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+    await acceptMission(db, driverId, m.id);
+    const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+    await missionStep(db, driverId, m.id, "loaded", row.pickupCode);
+    await addDeliveryProof(db, driverId, {
+      missionId: m.id,
+      stage: "dropoff",
+      storageKey: "non-conserve/cash.jpg",
+      mime: "image/jpeg",
+      size: 1000,
+    });
+    await missionStep(db, driverId, m.id, "delivered", row.deliveryCode, true);
+    const held = (await readBalances(db, [driverId])).get(driverId)!;
+    expect(held.cashHeld).toBe(placed.total);
+    // Le gain de la course est crédité, mais les espèces sont retenues.
+    expect(held.available).toBe(Math.max(0, held.balance - held.reserved - placed.total));
+    expect(held.balance).toBeGreaterThan(before.balance);
+    const driverSnap = await readSnapshot(db, { id: driverId, role: "driver" });
+    expect(driverSnap.driverWallet?.cashHeld).toBe(placed.total);
+    if (held.balance - held.reserved > held.available) {
+      await expect(
+        requestPayout(db, driverId, {
+          amount: held.balance - held.reserved,
+          method: "wave",
+        }),
+      ).rejects.toThrow(/espèces encaissées sont à remettre/);
+    }
+
+    // Plafond : avec déjà ces espèces en poche, pas de nouvelle course en espèces.
+    await setLimit(placed.total + 1000);
+    const next = await placeOrder(db, restaurantId, order({ paymentMethod: "Espèces" }));
+    await confirmOrder(db, farmerId, next.orders[0].id, {});
+    const [m2] = await db.select().from(missions).where(eq(missions.orderId, next.orders[0].id));
+    await expect(acceptMission(db, driverId, m2.id)).rejects.toThrow(/Remettez vos espèces/);
+    // Une fois l'argent remis à l'admin, il peut accepter.
+    const [cashRow] = await db.select().from(payments).where(eq(payments.orderId, o.id));
+    await confirmPayment(db, adminId, cashRow.id, undefined, cashRow.amount);
+    await acceptMission(db, driverId, m2.id);
+    expect((await readBalances(db, [driverId])).get(driverId)!.cashHeld).toBe(0);
+    await setLimit(50_000);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

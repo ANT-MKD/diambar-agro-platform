@@ -350,8 +350,12 @@ export const market = {
   },
 
   /** Admin : argent reçu (compte marchand ou espèces remises). */
-  async confirmPayment(paymentId: string, providerRef?: string): Promise<Result> {
-    return remote(() => confirmPaymentFn({ data: { paymentId, providerRef } }));
+  async confirmPayment(
+    paymentId: string,
+    amountReceived: number,
+    providerRef?: string,
+  ): Promise<Result> {
+    return remote(() => confirmPaymentFn({ data: { paymentId, providerRef, amountReceived } }));
   },
 
   /** Admin : transaction introuvable, le restaurant déclare à nouveau. */

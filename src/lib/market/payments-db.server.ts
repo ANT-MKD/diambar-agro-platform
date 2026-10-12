@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
-import { checkouts, orders, payments, refunds, settings } from "@/db/schema";
+import { checkouts, missions, orders, payments, refunds, settings } from "@/db/schema";
 import { formatFCFA } from "@/lib/format";
 import {
   audit,
@@ -30,7 +30,12 @@ export type MerchantAccounts = {
   wave: string | null;
   orangeMoney: string | null;
   cash: boolean;
+  /** Espèces non remises au-delà desquelles un livreur n'accepte plus de
+   * course payée en espèces. */
+  driverCashLimit: number;
 };
+
+export const DEFAULT_DRIVER_CASH_LIMIT = 50_000;
 
 /** Numéros marchands ouverts par l'admin (Paramètres → Paiements). */
 export async function readMerchantAccounts(q: Q): Promise<MerchantAccounts> {
@@ -42,15 +47,20 @@ export async function readMerchantAccounts(q: Q): Promise<MerchantAccounts> {
     | {
         wave?: { enabled?: boolean; number?: string };
         orangeMoney?: { enabled?: boolean; number?: string };
-        cashOnDelivery?: { enabled?: boolean };
+        cashOnDelivery?: { enabled?: boolean; driverLimit?: number };
       }
     | undefined;
+  const limit = v?.cashOnDelivery?.driverLimit;
   const number = (x?: { enabled?: boolean; number?: string }) =>
     x?.enabled && x.number?.trim() ? x.number.trim() : null;
   return {
     wave: number(v?.wave),
     orangeMoney: number(v?.orangeMoney),
     cash: !!v?.cashOnDelivery?.enabled,
+    driverCashLimit:
+      typeof limit === "number" && Number.isFinite(limit) && limit >= 0
+        ? limit
+        : DEFAULT_DRIVER_CASH_LIMIT,
   };
 }
 
@@ -204,6 +214,23 @@ export async function cashToCollect(q: Q, o: OrderRow): Promise<number> {
   const p = await cashPayment(q, o.id);
   if (!p || p.status !== "pending" || p.collectedAt) return 0;
   return orderDue(o);
+}
+
+/** Espèces que le livreur va encaisser sur ses courses en cours. */
+export async function cashCommitted(q: Q, driverId: string): Promise<number> {
+  const [row] = await q
+    .select({ total: sql<number>`coalesce(sum(${payments.amount}), 0)::int` })
+    .from(payments)
+    .innerJoin(missions, eq(missions.orderId, payments.orderId))
+    .where(
+      and(
+        eq(missions.driverId, driverId),
+        inArray(missions.status, ["accepted", "pickup", "loaded"]),
+        eq(payments.status, "pending"),
+        isNull(payments.collectedAt),
+      ),
+    );
+  return Number(row?.total ?? 0);
 }
 
 /** À la remise : le livreur a encaissé les espèces de la commande. */

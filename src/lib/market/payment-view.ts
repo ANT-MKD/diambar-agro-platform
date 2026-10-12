@@ -62,6 +62,9 @@ export type OrderPayment = {
   declaredAt?: string;
   collectedAt?: string;
   paidAt?: string;
+  /** Wave / OM pas encore déclaré : sans paiement à cette heure, le panier
+   * est annulé. */
+  dueBy?: string;
 };
 
 export type RefundSourceView =

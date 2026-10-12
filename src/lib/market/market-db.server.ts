@@ -1,4 +1,4 @@
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   categories,
@@ -22,6 +22,7 @@ import {
   stockMovements,
   users,
   vehicles,
+  settings,
   zones,
 } from "@/db/schema";
 import type { MissionStatus, OrderStatus, PaymentMethod } from "@/data/mocks";
@@ -47,15 +48,18 @@ import {
   type Tx,
 } from "./market-common.server";
 import {
+  cashCommitted,
   cashToCollect,
   normalizeProviderRef,
+  readMerchantAccounts,
   orderDue,
   paymentAllowsDelivery,
   recordCashCollected,
   refundOverpayment,
   syncPayments,
 } from "./payments-db.server";
-import { recordDelivery, recordReceptionRefusal } from "./ledger-db.server";
+import { readCashHeld, recordDelivery, recordReceptionRefusal } from "./ledger-db.server";
+import { PAYMENT_REMINDER_BEFORE_MS, paymentDeadline } from "@/lib/payment-deadline";
 
 // Opérations de la place de marché sur la base. Chaque règle est vérifiée
 // ici, côté serveur, dans une transaction : le navigateur ne fait que
@@ -910,6 +914,20 @@ export async function acceptMission(db: Db, driverId: string, missionId: string)
         );
       }
     }
+    // Course payée en espèces : plafond d'argent chez un même livreur.
+    const [order] = await tx.select().from(orders).where(eq(orders.id, m.orderId));
+    const cash = order ? await cashToCollect(tx, order) : 0;
+    if (cash > 0) {
+      const { driverCashLimit } = await readMerchantAccounts(tx);
+      const held =
+        ((await readCashHeld(tx, [driverId])).get(driverId) ?? 0) +
+        (await cashCommitted(tx, driverId));
+      if (driverCashLimit > 0 && held + cash > driverCashLimit) {
+        fail(
+          `Course payée en espèces (${formatFCFA(cash)}) : vous avez déjà ${formatFCFA(held)} d'espèces encaissées ou à encaisser, pour ${formatFCFA(driverCashLimit)} maximum. Remettez vos espèces à Diambar pour accepter de nouvelles courses en espèces.`,
+        );
+      }
+    }
     await tx
       .update(missions)
       .set({ driverId, status: "accepted", updatedAt: new Date() })
@@ -1170,7 +1188,9 @@ export async function confirmPayment(
   db: Db,
   adminId: string,
   paymentId: string,
-  providerRef?: string,
+  providerRef: string | undefined,
+  /** Montant que l'admin a vu arriver (compte marchand ou mains du livreur). */
+  amountReceived: number,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
@@ -1183,6 +1203,11 @@ export async function confirmPayment(
       // Espèces remises par le livreur.
       if (p.status !== "pending" || !p.collectedAt || !p.collectedBy) {
         fail("Le livreur n'a pas encore encaissé cette commande.");
+      }
+      if (amountReceived !== p.amount) {
+        fail(
+          `Montant différent : le livreur doit remettre ${formatFCFA(p.amount)}, vous avez saisi ${formatFCFA(amountReceived)}. Réglez l'écart avec lui avant de confirmer.`,
+        );
       }
       await tx
         .update(payments)
@@ -1225,6 +1250,12 @@ export async function confirmPayment(
           .where(eq(orders.id, o.id));
       }
       await tx.update(payments).set({ amount: due }).where(eq(payments.id, p.id));
+    }
+    const expected = declared ? p.amount : list.reduce((sum, o) => sum + orderDue(o), 0);
+    if (amountReceived !== expected) {
+      fail(
+        `Montant différent : ${formatFCFA(expected)} attendus, ${formatFCFA(amountReceived)} saisis. Si le restaurant n'a pas payé le bon montant, refusez le paiement avec ce motif.`,
+      );
     }
     const [taken] = await tx
       .select({ id: payments.id })
@@ -1278,5 +1309,88 @@ export async function confirmPayment(
       before: { status: p.status, providerRef: p.providerRef },
       after: { status: "confirmed", providerRef: ref, amount: paid.amount },
     });
+  });
+}
+
+// --- Commandes non payées --------------------------------------------------------------
+
+const UNPAID_NOTE = "Non payée dans le délai";
+
+async function readDeadlineHour(q: Q): Promise<number> {
+  const [row] = await q
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, "payment_deadline_hour"));
+  const h = row?.value;
+  return typeof h === "number" && h >= 0 && h <= 23 ? h : 20;
+}
+
+/** Paniers Wave / Orange Money sans paiement déclaré : rappel une heure
+ * avant l'échéance, puis annulation (stock remis en vente). Un paiement
+ * déclaré mais pas encore vérifié n'est jamais annulé : l'admin tranche.
+ * Appelé régulièrement (lecture des données, nouvelle commande). */
+export async function sweepUnpaidCheckouts(
+  db: Db,
+  now = new Date(),
+): Promise<{ reminded: number; cancelled: number }> {
+  const deadlineHour = await readDeadlineHour(db);
+  const rows = await db
+    .select({ p: payments, c: checkouts })
+    .from(payments)
+    .innerJoin(checkouts, eq(checkouts.id, payments.checkoutId))
+    .where(
+      and(
+        isNull(payments.orderId),
+        or(
+          and(eq(payments.status, "pending"), isNull(payments.declaredAt)),
+          eq(payments.status, "failed"),
+        ),
+      ),
+    );
+  let reminded = 0;
+  let cancelled = 0;
+  for (const { p, c } of rows) {
+    const deadline = paymentDeadline(c.createdAt, c.slotStart, deadlineHour);
+    if (now.getTime() >= deadline.getTime()) {
+      if (await cancelUnpaid(db, p.id)) cancelled++;
+    } else if (!p.remindedAt && deadline.getTime() - now.getTime() <= PAYMENT_REMINDER_BEFORE_MS) {
+      const [first] = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(eq(orders.checkoutId, c.id))
+        .limit(1);
+      await db.transaction(async (tx) => {
+        await tx.update(payments).set({ remindedAt: now }).where(eq(payments.id, p.id));
+        await notifyUser(tx, c.restaurantId, {
+          type: "payment",
+          title: "Paiement attendu",
+          body: `${c.reference} : ${formatFCFA(p.amount)} à payer avant ${deadline.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}, sinon la commande sera annulée`,
+          link: first ? `/restaurant/orders/${first.id}` : "/restaurant/orders",
+        });
+      });
+      reminded++;
+    }
+  }
+  return { reminded, cancelled };
+}
+
+async function cancelUnpaid(db: Db, paymentId: string): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
+    // Déclaré ou confirmé entre-temps : on ne touche à rien.
+    if (!p || !(p.status === "failed" || (p.status === "pending" && !p.declaredAt))) return false;
+    const list = await tx
+      .select()
+      .from(orders)
+      .where(
+        and(eq(orders.checkoutId, p.checkoutId), inArray(orders.status, ["pending", "confirmed"])),
+      )
+      .for("update");
+    for (const o of list) {
+      await applyStatus(tx, o, "cancelled", "admin", null, UNPAID_NOTE);
+      await cancelCascade(tx, o, "admin", null, UNPAID_NOTE);
+    }
+    await syncPayments(tx, p.checkoutId);
+    return list.length > 0;
   });
 }

@@ -112,5 +112,7 @@ export type AdminAccount = {
   balance: number;
   /** Retraits demandés, pas encore payés. */
   reserved: number;
+  /** Livreur : espèces encaissées, pas encore remises à Diambar. */
+  cashHeld: number;
   available: number;
 };
