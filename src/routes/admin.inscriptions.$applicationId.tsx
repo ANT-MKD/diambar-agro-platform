@@ -216,7 +216,7 @@ function ApplicationDetail() {
                 <span className="text-[11px] text-muted-foreground w-24 shrink-0">
                   {relativeTime(a.submittedAt)}
                 </span>
-                Inscription déposée, téléphone vérifié
+                Inscription déposée, email vérifié
               </li>
               {a.decidedAt && (
                 <li className="flex gap-3">
