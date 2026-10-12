@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import {
   ArrowDown,
@@ -360,8 +360,10 @@ function CompanyStep({ snapshot, save, saving }: StepProps) {
 function ZoneStep({ snapshot, save, saving }: StepProps) {
   const z = snapshot.zone;
   const [city, setCity] = useState(z?.city ?? "Dakar");
-  const [baseFee, setBaseFee] = useState(z?.baseFee ?? 1000);
-  const [perKmFee, setPerKmFee] = useState(z?.perKmFee ?? 120);
+  // Anciens frais par zone : conservés tels quels, les frais de livraison
+  // suivent désormais la distance (Tarifs de livraison).
+  const baseFee = z?.baseFee ?? 1000;
+  const perKmFee = z?.perKmFee ?? 120;
   const [zones, setZones] = useState<string[]>(z?.zones.length ? z.zones : [...DAKAR_ZONES]);
   const [draft, setDraft] = useState("");
   const addZone = () => {
@@ -385,9 +387,15 @@ function ZoneStep({ snapshot, save, saving }: StepProps) {
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         <TextField label="Ville pilote" value={city} onChange={setCity} />
-        <NumberField label="Frais de base (F CFA)" value={baseFee} onChange={setBaseFee} min={0} />
-        <NumberField label="Frais par km (F CFA)" value={perKmFee} onChange={setPerKmFee} min={0} />
       </div>
+      <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+        Les frais de livraison suivent la distance entre le producteur et le restaurant. Le barème
+        et la position des quartiers se règlent dans{" "}
+        <Link to="/admin/delivery-pricing" className="font-medium text-primary underline">
+          Tarifs de livraison
+        </Link>
+        .
+      </p>
       <div>
         <div className="text-sm font-medium">Quartiers livrés ({zones.length})</div>
         <ul className="mt-2 flex flex-wrap gap-2">

@@ -22,6 +22,10 @@ import {
   approvePayoutFn,
   approveRefundFn,
   getStatementFn,
+  getDeliverySettingsFn,
+  saveDeliveryPricingFn,
+  saveFarmerDeliveryFn,
+  savePlaceCoordsFn,
   payPayoutFn,
   payRefundFn,
   rejectPayoutFn,
@@ -42,6 +46,7 @@ import {
 import type { Product, StockMovement } from "./mocks";
 import type { OrderActor } from "@/lib/order-lifecycle";
 import type { StatementView } from "@/lib/market/documents-view";
+import type { DeliveryPricing, FarmerPlaceRow, PlaceRow } from "@/lib/delivery-pricing";
 import { requireRole } from "@/lib/auth/functions";
 import { clearBusinessDemoData } from "./business";
 import { clearDisputesDemoData } from "./disputes";
@@ -406,6 +411,47 @@ export const market = {
         message: err instanceof Error && err.message ? err.message : UNREACHABLE,
       };
     }
+  },
+
+  /** Admin : barème, positions des lieux et des producteurs (mode base). */
+  async deliverySettings(): Promise<
+    Result<{ pricing: DeliveryPricing; places: PlaceRow[]; farmers: FarmerPlaceRow[] }>
+  > {
+    try {
+      return await getDeliverySettingsFn();
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error && err.message ? err.message : UNREACHABLE,
+      };
+    }
+  },
+
+  async saveDeliveryPricing(pricing: DeliveryPricing): Promise<Result> {
+    return remote(() => saveDeliveryPricingFn({ data: pricing }));
+  },
+
+  /** Position d'une ville ou d'un quartier ; null : position de référence. */
+  async savePlaceCoords(
+    kind: "city" | "zone",
+    id: string,
+    coords: { lat: number; lng: number } | null,
+  ): Promise<Result> {
+    return remote(() =>
+      savePlaceCoordsFn({ data: { kind, id, lat: coords?.lat ?? null, lng: coords?.lng ?? null } }),
+    );
+  },
+
+  async saveFarmerDelivery(
+    farmerId: string,
+    adjustKm: number,
+    coords: { lat: number; lng: number } | null,
+  ): Promise<Result> {
+    return remote(() =>
+      saveFarmerDeliveryFn({
+        data: { farmerId, adjustKm, lat: coords?.lat ?? null, lng: coords?.lng ?? null },
+      }),
+    );
   },
 
   /** Admin : retrait versé, avec la référence de la transaction. */

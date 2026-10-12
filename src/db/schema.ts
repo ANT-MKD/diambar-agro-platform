@@ -159,6 +159,9 @@ export const cities = pgTable(
     /** Frais de livraison de base et par km (barème par distance). */
     baseFee: integer("base_fee"),
     perKmFee: integer("per_km_fee"),
+    /** Position (calcul des distances) ; vide : position de référence. */
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -180,6 +183,9 @@ export const zones = pgTable(
     name: text("name").notNull(),
     /** Supplément ou frais fixes propres à la zone (facultatif). */
     deliveryFee: integer("delivery_fee"),
+    /** Position du quartier (calcul des distances) ; vide : position de référence. */
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
   },
@@ -325,6 +331,8 @@ export const farmers = pgTable(
     zoneId: uuid("zone_id").references(() => zones.id),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    /** Correction de distance réglée par l'admin (piste absente de la carte…). */
+    distanceAdjustKm: integer("distance_adjust_km").notNull().default(0),
     certification: certification("certification").notNull().default("none"),
     areaHa: numeric("area_ha", { precision: 8, scale: 2, mode: "number" }),
     lang: preferredLang("lang").notNull().default("fr"),
@@ -554,6 +562,9 @@ export const orders = pgTable(
     subtotal: integer("subtotal").notNull(),
     /** Part de la commande dans le panier : frais de sa course, remise. */
     deliveryFee: integer("delivery_fee").notNull().default(0),
+    /** Distance estimée producteur → restaurant à la commande : sert aux frais
+     * du restaurant et à la paie du livreur. */
+    distanceKm: numeric("distance_km", { precision: 7, scale: 1, mode: "number" }),
     discount: integer("discount").notNull().default(0),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     /** Fin du délai de vérification (livraison + 48 h). */

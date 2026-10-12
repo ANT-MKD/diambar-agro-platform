@@ -6,7 +6,9 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb, type Db } from "@/db/client.server";
 import {
+  cities,
   drivers,
+  farmers,
   ledgerEntries,
   missions,
   notifications,
@@ -19,6 +21,7 @@ import {
   stockMovements,
   users,
   vehicles,
+  zones,
 } from "@/db/schema";
 import { seedDemo, seedReference } from "@/db/seed";
 import {
@@ -29,6 +32,7 @@ import {
   missionStep,
   moveStock,
   placeOrder,
+  quoteCheckoutDelivery,
   reportReception,
   saveProduct,
   setOrderStatus,
@@ -47,6 +51,8 @@ import {
 import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { readBalances } from "./ledger-db.server";
 import { paymentDeadline } from "@/lib/payment-deadline";
+import { DEFAULT_DELIVERY_PRICING, deliveryFee, driverNetCost } from "@/lib/delivery-pricing";
+import { missionPayout } from "@/lib/mission-pay";
 import { checkouts, invoices } from "@/db/schema";
 import { readSnapshot } from "./snapshot.server";
 
@@ -988,6 +994,95 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const adminSnap = await readSnapshot(db, { id: adminId, role: "admin" });
     expect(adminSnap.payouts?.find((x) => x.id === big.id)?.approvedByName).toBeTruthy();
     expect(adminSnap.payouts?.find((x) => x.id === big.id)?.needsTwoAdmins).toBe(true);
+  });
+
+  it("frais selon la distance : devis = commande, même distance pour le livreur, lieu inconnu bloqué", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const lines = [{ productId: tomatoes.id, qty: 10 }];
+    const quoteFor = (deliveryAddress = "Le Baobab, Dakar Plateau") =>
+      quoteCheckoutDelivery(db, restaurantId, { deliveryAddress, lines });
+
+    // Ferme Diallo (route de Khombole, Thiès) → Plateau : environ 74 km.
+    const quote = await quoteFor();
+    expect(quote.deliveries).toHaveLength(1);
+    const q = quote.deliveries[0];
+    expect(q.origin).toBe("Thiès");
+    expect(q.distanceKm).toBeGreaterThanOrEqual(65);
+    expect(q.distanceKm).toBeLessThanOrEqual(85);
+    expect(q.fee).toBe(deliveryFee(q.distanceKm, 10, DEFAULT_DELIVERY_PRICING).fee);
+    expect(q.fee).toBeGreaterThanOrEqual(driverNetCost(q.distanceKm, 10));
+    expect(quote.total).toBe(q.fee);
+
+    // La commande reprend exactement le devis, et la course la même distance.
+    const placed = await placeOrder(db, restaurantId, order({ lines }));
+    const o = placed.orders[0];
+    const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(row.deliveryFee).toBe(q.fee);
+    expect(Number(row.distanceKm)).toBe(q.distanceKm);
+    const due = await checkoutPaymentOf(placed.checkoutId);
+    expect(due.amount).toBe(10 * tomatoes.price + q.fee);
+    await pay(placed.checkoutId);
+    await confirmOrder(db, farmerId, o.id, {});
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+    expect(Number(m.distanceKm)).toBe(q.distanceKm);
+    expect(m.payout).toBe(missionPayout(q.distanceKm, 10));
+
+    // Correction par producteur (piste absente de la carte) : +5 km.
+    await db.update(farmers).set({ distanceAdjustKm: 5 }).where(eq(farmers.userId, farmerId));
+    expect((await quoteFor()).deliveries[0].distanceKm).toBe(q.distanceKm + 5);
+    await db.update(farmers).set({ distanceAdjustKm: 0 }).where(eq(farmers.userId, farmerId));
+
+    // Barème réglé par l'admin : appliqué au devis suivant.
+    await db.insert(settings).values({
+      key: "delivery_pricing",
+      value: { ...DEFAULT_DELIVERY_PRICING, brackets: [{ upToKm: 200, fee: 20_000 }] },
+    });
+    expect((await quoteFor()).total).toBe(20_000);
+    await db.delete(settings).where(eq(settings.key, "delivery_pricing"));
+
+    // Producteur sans lieu de collecte reconnu : bloqué, l'équipe prévenue
+    // une seule fois, rien n'est réservé.
+    const [f] = await db.select().from(farmers).where(eq(farmers.userId, farmerId));
+    await db
+      .update(farmers)
+      .set({ pickupAddress: "Lieu-dit sans nom", zoneId: null, lat: null, lng: null })
+      .where(eq(farmers.userId, farmerId));
+    await expect(quoteFor()).rejects.toThrow(/lieu de collecte .* pas encore localisé/);
+    await expect(quoteFor()).rejects.toThrow(/pas encore localisé/);
+    const stock = await stockOf(tomatoes.id);
+    await expect(placeOrder(db, restaurantId, order({ lines }))).rejects.toThrow(
+      /pas encore localisé/,
+    );
+    expect(await stockOf(tomatoes.id)).toBe(stock);
+    const alerts = await db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.userId, adminId), eq(notifications.title, "Lieu à localiser")));
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].link).toBe("/admin/delivery-pricing");
+    // Position exacte réglée par l'admin : la commande repart.
+    await db
+      .update(farmers)
+      .set({ lat: 14.7886, lng: -16.9246 })
+      .where(eq(farmers.userId, farmerId));
+    expect((await quoteFor()).deliveries[0].origin).toBe("Position du producteur");
+    await db
+      .update(farmers)
+      .set({ pickupAddress: f.pickupAddress, zoneId: f.zoneId, lat: f.lat, lng: f.lng })
+      .where(eq(farmers.userId, farmerId));
+
+    // Nouveau quartier sans position : jamais placé au centre de sa ville.
+    const [dakar] = await db.select().from(cities).where(eq(cities.name, "Dakar"));
+    const [nz] = await db
+      .insert(zones)
+      .values({ cityId: dakar.id, name: "Quartier Nouveau" })
+      .returning();
+    await expect(quoteFor("Chez Awa, Quartier Nouveau, Dakar")).rejects.toThrow(
+      /Le quartier Quartier Nouveau n'est pas encore localisé/,
+    );
+    await db.update(zones).set({ lat: 14.75, lng: -17.4 }).where(eq(zones.id, nz.id));
+    expect((await quoteFor("Chez Awa, Quartier Nouveau, Dakar")).zone).toBe("Quartier Nouveau");
+    await db.update(zones).set({ active: false }).where(eq(zones.id, nz.id));
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeDailyOps, lossMakingDeliveries } from "./daily-ops";
+import {
+  computeDailyOps,
+  deliveryMargins,
+  lossMakingDeliveries,
+  marginByBracket,
+} from "./daily-ops";
+import { DEFAULT_DELIVERY_PRICING } from "./delivery-pricing";
 import type { Mission, RestaurantOrder, Transaction } from "@/data/mocks";
 
 const day = new Date(2026, 8, 30, 12);
@@ -106,5 +112,26 @@ describe("livraisons à perte", () => {
       ],
     });
     expect(losses.map((l) => [l.mission.reference, l.margin])).toEqual([["MIS-1", -1700]]);
+  });
+
+  it("regroupe la marge par tranche de distance", () => {
+    const margins = deliveryMargins({
+      day,
+      restaurantOrders: [ro("CMD-1", 1500), ro("CMD-2", 2000), ro("CMD-3", 10_100)],
+      missions: [
+        mission("1", "CMD-1", 1500, { distanceKm: 3 }),
+        mission("2", "CMD-2", 2000, { distanceKm: 8 }),
+        mission("3", "CMD-3", 9900, { distanceKm: 74 }),
+      ],
+    });
+    const rows = marginByBracket(margins, DEFAULT_DELIVERY_PRICING);
+    expect(rows.map((r) => [r.label, r.count, r.margin])).toEqual([
+      // 1 500 − (1 500 − 300)
+      ["0 à 5 km", 1, 300],
+      // 2 000 − (2 000 − 400)
+      ["5 à 10 km", 1, 400],
+      // 10 100 − (9 900 − 1 980)
+      ["Plus de 40 km", 1, 2180],
+    ]);
   });
 });

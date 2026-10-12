@@ -71,6 +71,13 @@
       "when": 1791838737913,
       "tag": "20261012211050_invoices_double_check",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791840906312,
+      "tag": "20261012221201_delivery_distance",
+      "breakpoints": true
     }
   ]
 }

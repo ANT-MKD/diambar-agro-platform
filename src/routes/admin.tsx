@@ -27,6 +27,7 @@ import {
   UserCog,
   PackageMinus,
   Banknote,
+  MapPinned,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -210,6 +211,13 @@ function AdminLayout() {
           icon: Truck,
           badge: 0,
           permission: "deliveries.view",
+        },
+        {
+          to: "/admin/delivery-pricing",
+          label: "Tarifs de livraison",
+          icon: MapPinned,
+          badge: 0,
+          permission: "deliveries.reassign",
         },
         {
           to: "/admin/documents",

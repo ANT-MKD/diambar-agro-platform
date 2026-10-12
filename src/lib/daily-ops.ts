@@ -1,5 +1,6 @@
 import type { Mission, RestaurantOrder, Transaction } from "@/data/mocks";
 import { DRIVER_COMMISSION_RATE } from "@/lib/commission";
+import { bracketLabel, type DeliveryPricing } from "@/lib/delivery-pricing";
 import { orderAmounts } from "@/lib/pricing";
 
 // Indicateurs quotidiens d'exploitation (modèle Uber Eats / Twiga) : ce qui
@@ -166,10 +167,9 @@ export type DeliveryMargin = {
   margin: number;
 };
 
-/** Courses du jour (prévues ou livrées) où les frais facturés au restaurant
- * ne couvrent pas ce que la plateforme paie au livreur, de la pire à la
- * moins mauvaise. */
-export function lossMakingDeliveries(input: {
+/** Courses du jour (prévues ou livrées) : frais facturés au restaurant face
+ * à ce que la plateforme paie au livreur. */
+export function deliveryMargins(input: {
   day: Date;
   restaurantOrders: RestaurantOrder[];
   missions: Mission[];
@@ -187,8 +187,48 @@ export function lossMakingDeliveries(input: {
     if (!order) continue;
     const fee = orderAmounts(order).deliveryFee;
     const cost = m.payout - Math.round(m.payout * (DRIVER_COMMISSION_RATE / 100));
-    const margin = fee - cost;
-    if (margin < 0) out.push({ mission: m, fee, cost, margin });
+    out.push({ mission: m, fee, cost, margin: fee - cost });
   }
-  return out.sort((a, b) => a.margin - b.margin);
+  return out;
+}
+
+/** Courses du jour où les frais facturés au restaurant ne couvrent pas ce
+ * que la plateforme paie au livreur, de la pire à la moins mauvaise. */
+export function lossMakingDeliveries(input: {
+  day: Date;
+  restaurantOrders: RestaurantOrder[];
+  missions: Mission[];
+}): DeliveryMargin[] {
+  return deliveryMargins(input)
+    .filter((d) => d.margin < 0)
+    .sort((a, b) => a.margin - b.margin);
+}
+
+export type BracketMargin = {
+  label: string;
+  count: number;
+  fees: number;
+  costs: number;
+  margin: number;
+};
+
+/** Marge des courses par tranche de distance du barème, dans l'ordre des
+ * tranches (les tranches sans course sont omises). */
+export function marginByBracket(margins: DeliveryMargin[], p: DeliveryPricing): BracketMargin[] {
+  const labels = [
+    ...p.brackets.map((b) => bracketLabel(b.upToKm, p)),
+    bracketLabel(Number.POSITIVE_INFINITY, p),
+  ];
+  const rows = new Map<string, BracketMargin>(
+    labels.map((label) => [label, { label, count: 0, fees: 0, costs: 0, margin: 0 }]),
+  );
+  for (const d of margins) {
+    const row = rows.get(bracketLabel(d.mission.distanceKm, p));
+    if (!row) continue;
+    row.count++;
+    row.fees += d.fee;
+    row.costs += d.cost;
+    row.margin += d.margin;
+  }
+  return [...rows.values()].filter((r) => r.count > 0);
 }

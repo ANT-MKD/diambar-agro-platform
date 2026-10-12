@@ -32,6 +32,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminDeliveryPricingRouteImport } from './routes/admin.delivery-pricing'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
@@ -301,6 +302,11 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDeliveryPricingRoute = AdminDeliveryPricingRouteImport.update({
+  id: '/delivery-pricing',
+  path: '/delivery-pricing',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
@@ -1143,6 +1149,7 @@ export interface FileRoutesByFullPath {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
@@ -1323,6 +1330,7 @@ export interface FileRoutesByTo {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
@@ -1494,6 +1502,7 @@ export interface FileRoutesById {
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
@@ -1676,6 +1685,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
@@ -1856,6 +1866,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
@@ -2026,6 +2037,7 @@ export interface FileRouteTypes {
     | '/restaurant'
     | '/admin/analytics'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
@@ -2373,6 +2385,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/delivery-pricing': {
+      id: '/admin/delivery-pricing'
+      path: '/delivery-pricing'
+      fullPath: '/admin/delivery-pricing'
+      preLoaderRoute: typeof AdminDeliveryPricingRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/documents': {
@@ -3466,6 +3485,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDeliveryPricingRoute: typeof AdminDeliveryPricingRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminLogsRoute: typeof AdminLogsRoute
@@ -3505,6 +3525,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDeliveryPricingRoute: AdminDeliveryPricingRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminLogsRoute: AdminLogsRoute,

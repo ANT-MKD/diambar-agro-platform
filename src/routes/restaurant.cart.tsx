@@ -17,6 +17,9 @@ import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { useMyId } from "@/data/market-mode";
+import { market } from "@/data/market-remote";
+import { useDeliveryQuote } from "@/data/delivery-quote";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/restaurant/cart")({
   head: () => ({ meta: [{ title: "Panier · Restaurant" }] }),
@@ -41,6 +44,13 @@ function CartPage() {
 
   const profile = useRestaurantProfile();
   const zones = useDeliveryZones();
+  // Avec la base : frais selon la distance de chaque producteur (serveur).
+  const remoteMode = market.isRemote();
+  const quoteLines = useMemo(
+    () => cart.map((l) => ({ productId: l.productId, qty: l.qty })),
+    [cart],
+  );
+  const deliveryQuote = useDeliveryQuote(remoteMode, profile.deliveryAddress, quoteLines);
   if (lines.length === 0) {
     return (
       <div className="space-y-6">
@@ -70,7 +80,13 @@ function CartPage() {
   const producerCount = new Set(
     cart.map((l) => products.find((p) => p.id === l.productId)?.farmerId).filter(Boolean),
   ).size;
-  const delivery = zone ? deliveryFeeForZone(zone) * producerCount : 0;
+  const quoteFor = (farmerId: string) =>
+    deliveryQuote.quote?.deliveries.find((d) => d.farmerId === farmerId);
+  const delivery = remoteMode
+    ? (deliveryQuote.quote?.total ?? 0)
+    : zone
+      ? deliveryFeeForZone(zone) * producerCount
+      : 0;
   const total = subtotal + delivery;
   const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
 
@@ -105,7 +121,11 @@ function CartPage() {
                   <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
                   <div className="flex-1">
                     <div className="font-semibold text-sm">{farmer.farm}</div>
-                    <div className="text-[11px] text-muted-foreground">{farmer.city}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {farmer.city}
+                      {quoteFor(farmer.id) &&
+                        ` · livraison environ ${quoteFor(farmer.id)!.distanceKm} km : ${formatFCFA(quoteFor(farmer.id)!.fee)}`}
+                    </div>
                   </div>
                   <span className="text-xs font-semibold text-primary">
                     {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}

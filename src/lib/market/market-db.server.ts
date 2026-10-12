@@ -43,9 +43,11 @@ import {
   MarketError,
   nextNumber,
   notifyFinanceStaff,
+  notifyOpsStaffOnce,
   notifyUser,
   type Q,
   type Tx,
+  UnlocatedPlaceError,
 } from "./market-common.server";
 import {
   cashCommitted,
@@ -59,6 +61,8 @@ import {
   syncPayments,
 } from "./payments-db.server";
 import { readCashHeld, recordDelivery, recordReceptionRefusal } from "./ledger-db.server";
+import { farmerOrigin, quoteDelivery, readDeliveryPricing, readPlaces } from "./delivery-db.server";
+import type { DeliveryQuote } from "@/lib/delivery-pricing";
 import { PAYMENT_REMINDER_BEFORE_MS, paymentDeadline } from "@/lib/payment-deadline";
 
 // Opérations de la place de marché sur la base. Chaque règle est vérifiée
@@ -300,6 +304,130 @@ export type PlacedOrder = {
 
 const DAY_MS = 24 * 3600_000;
 
+type FarmerPlace = {
+  id: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  zoneId: string | null;
+  pickupAddress: string;
+  adjustKm: number;
+};
+
+/** Frais de chaque livraison d'un panier (un producteur = une course). */
+async function quoteGroups(
+  q: Q,
+  zone: { id: string; name: string },
+  groups: Map<string, { productId: string; qty: number }[]>,
+  farmerById: Map<string, FarmerPlace>,
+) {
+  const pricing = await readDeliveryPricing(q);
+  const places = await readPlaces(q);
+  const destination = places.byId.get(zone.id);
+  if (!destination) {
+    throw new UnlocatedPlaceError(
+      `Le quartier ${zone.name} n'est pas encore localisé : Diambar doit préciser sa position avant de livrer.`,
+      `le quartier ${zone.name}`,
+    );
+  }
+  const quotes = new Map<string, DeliveryQuote & { origin: string; farmName: string }>();
+  for (const [farmerId, lines] of groups) {
+    const f = farmerById.get(farmerId)!;
+    const origin = farmerOrigin(f, places);
+    if (!origin) {
+      throw new UnlocatedPlaceError(
+        `Le lieu de collecte de ${f.name} n'est pas encore localisé : Diambar doit le préciser avant de livrer.`,
+        `le lieu de collecte de ${f.name}`,
+      );
+    }
+    const weight = lines.reduce((sum, l) => sum + l.qty, 0);
+    quotes.set(farmerId, {
+      ...quoteDelivery(origin, destination, weight, pricing, f.adjustKm),
+      origin: origin.name,
+      farmName: f.name,
+    });
+  }
+  return quotes;
+}
+
+export type DeliveryQuoteLine = {
+  farmerId: string;
+  farmName: string;
+  origin: string;
+  distanceKm: number;
+  fee: number;
+  bracket: string;
+};
+
+/** Devis des frais de livraison d'un panier, avant de commander : même
+ * calcul que la commande elle-même. */
+export async function quoteCheckoutDelivery(
+  db: Db,
+  restaurantId: string,
+  input: { deliveryAddress: string; lines: { productId: string; qty: number }[] },
+): Promise<{ zone: string; deliveries: DeliveryQuoteLine[]; total: number }> {
+  const [resto] = await db.select().from(restaurants).where(eq(restaurants.userId, restaurantId));
+  if (!resto) fail("Votre établissement n'est pas encore enregistré : contactez le support.");
+  const zoneList = await readZones(db);
+  const restoCity = await cityFor(db, resto.zoneId, resto.address);
+  const zone = zoneForAddress(zoneList, restoCity, input.deliveryAddress);
+  if (!zone) fail("Cette adresse n'est dans aucune zone desservie par Diambar Agro.");
+  if (!zone.active) fail(`La zone ${zone.name} n'est pas encore desservie.`);
+  const ids = [...new Set(input.lines.map((l) => l.productId))];
+  const rows = ids.length
+    ? await db
+        .select({ id: products.id, farmerId: products.farmerId })
+        .from(products)
+        .where(inArray(products.id, ids))
+    : [];
+  const groups = new Map<string, { productId: string; qty: number }[]>();
+  for (const l of input.lines) {
+    const p = rows.find((r) => r.id === l.productId);
+    if (!p || l.qty <= 0) continue;
+    groups.set(p.farmerId, [...(groups.get(p.farmerId) ?? []), l]);
+  }
+  const farmerRows = groups.size
+    ? await db
+        .select({
+          id: farmers.userId,
+          name: farmers.farmName,
+          lat: farmers.lat,
+          lng: farmers.lng,
+          zoneId: farmers.zoneId,
+          pickupAddress: farmers.pickupAddress,
+          adjustKm: farmers.distanceAdjustKm,
+        })
+        .from(farmers)
+        .where(inArray(farmers.userId, [...groups.keys()]))
+    : [];
+  const quotes = await quoteGroups(
+    db,
+    zone,
+    groups,
+    new Map(farmerRows.map((f) => [f.id, f])),
+  ).catch(async (err) => {
+    // Le restaurant voit le blocage dès le panier : l'équipe est prévenue.
+    if (err instanceof UnlocatedPlaceError) {
+      await notifyOpsStaffOnce(db, {
+        type: "system",
+        title: "Lieu à localiser",
+        body: `Commande bloquée : ${err.place} n'a pas de position. Réglez-la dans Tarifs de livraison.`,
+        link: "/admin/delivery-pricing",
+      });
+    }
+    throw err;
+  });
+  const deliveries = [...quotes.entries()].map(([farmerId, q]) => ({
+    farmerId,
+    farmName: q.farmName,
+    origin: q.origin,
+    distanceKm: q.distanceKm,
+    fee: q.fee,
+    bracket: q.bracket,
+  }));
+  return { zone: zone.name, deliveries, total: deliveries.reduce((s, d) => s + d.fee, 0) };
+}
+
 export async function placeOrder(
   db: Db,
   restaurantId: string,
@@ -360,7 +488,16 @@ export async function placeOrder(
       .for("update");
     const farmerStatus = rows.length
       ? await tx
-          .select({ id: users.id, status: users.status, name: farmers.farmName })
+          .select({
+            id: users.id,
+            status: users.status,
+            name: farmers.farmName,
+            lat: farmers.lat,
+            lng: farmers.lng,
+            zoneId: farmers.zoneId,
+            pickupAddress: farmers.pickupAddress,
+            adjustKm: farmers.distanceAdjustKm,
+          })
           .from(users)
           .innerJoin(farmers, eq(farmers.userId, users.id))
           .where(
@@ -412,9 +549,11 @@ export async function placeOrder(
       subtotals.set(farmerId, sub);
     }
 
-    const fee = zone.baseFee;
+    // Frais de chaque livraison selon la distance producteur → restaurant
+    // (et le poids) ; la même distance servira à la paie du livreur.
+    const quotes = await quoteGroups(tx, zone, groups, farmerById);
     const subtotal = [...subtotals.values()].reduce((s, v) => s + v, 0);
-    const deliveryFee = fee * groups.size;
+    const deliveryFee = [...quotes.values()].reduce((s, q) => s + q.fee, 0);
     const total = subtotal + deliveryFee;
     const realZone = await tx.select({ id: zones.id }).from(zones).where(eq(zones.id, zone.id));
     const [checkout] = await tx
@@ -451,7 +590,8 @@ export async function placeOrder(
           deliveryCode: fourDigitCode(),
           trackingToken: newTrackingToken(),
           subtotal: sub,
-          deliveryFee: fee,
+          deliveryFee: quotes.get(farmerId)!.fee,
+          distanceKm: quotes.get(farmerId)!.distanceKm,
         })
         .returning();
       for (const l of lines) {
@@ -494,7 +634,7 @@ export async function placeOrder(
           checkoutId: checkout.id,
           orderId: o.id,
           method: "cash",
-          amount: o.subtotal + fee,
+          amount: o.subtotal + quotes.get(o.farmerId)!.fee,
           status: "pending",
         });
       }
@@ -585,7 +725,10 @@ async function openMission(tx: Tx, o: OrderRow) {
   const [f] = await tx.select().from(farmers).where(eq(farmers.userId, o.farmerId));
   const pickupCity = f ? await cityFor(tx, f.zoneId, f.pickupAddress) : "Dakar";
   const dropoffCity = lastAddressSegment(c.deliveryAddress);
-  const { distanceKm } = routeEstimate(pickupCity, dropoffCity);
+  // La distance de la commande (celle facturée au restaurant) fait foi ;
+  // les commandes antérieures retombent sur l'ancienne estimation.
+  const distanceKm =
+    o.distanceKm != null ? Number(o.distanceKm) : routeEstimate(pickupCity, dropoffCity).distanceKm;
   const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id));
   const weightKg = qty3(lines.reduce((s, l) => s + Number(l.qtyConfirmed ?? l.qtyOrdered), 0));
   const values = {

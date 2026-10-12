@@ -32,6 +32,7 @@ const LABELS: Record<string, string> = {
   marketplace: "Marché",
   cart: "Panier",
   checkout: "Commande",
+  "delivery-pricing": "Tarifs de livraison",
   recurring: "Récurrentes",
   favorites: "Favoris",
   farmers: "Agriculteurs",

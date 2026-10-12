@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Clock,
@@ -22,7 +22,10 @@ import {
 import { useAllDisputes } from "@/data/disputes";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
-import { computeDailyOps, lossMakingDeliveries } from "@/lib/daily-ops";
+import { market } from "@/data/market-remote";
+import { useMarketMode } from "@/data/market-mode";
+import { computeDailyOps, deliveryMargins, marginByBracket } from "@/lib/daily-ops";
+import { DEFAULT_DELIVERY_PRICING, type DeliveryPricing } from "@/lib/delivery-pricing";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/operations")({
@@ -34,6 +37,23 @@ export const Route = createFileRoute("/admin/operations")({
   }),
   component: OperationsPage,
 });
+
+/** Barème en vigueur (base) ou barème par défaut (démonstration). */
+function useDeliveryPricing(): DeliveryPricing {
+  const { remote } = useMarketMode();
+  const [pricing, setPricing] = useState(DEFAULT_DELIVERY_PRICING);
+  useEffect(() => {
+    if (!remote) return;
+    let alive = true;
+    void market.deliverySettings().then((res) => {
+      if (alive && res.ok) setPricing(res.pricing);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [remote]);
+  return pricing;
+}
 
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
@@ -57,10 +77,16 @@ function OperationsPage() {
     () => computeDailyOps({ day, restaurantOrders, missions, transactions, disputes, refunds }),
     [day, restaurantOrders, missions, transactions, disputes, refunds],
   );
-  const losses = useMemo(
-    () => lossMakingDeliveries({ day, restaurantOrders, missions }),
+  const pricing = useDeliveryPricing();
+  const margins = useMemo(
+    () => deliveryMargins({ day, restaurantOrders, missions }),
     [day, restaurantOrders, missions],
   );
+  const losses = useMemo(
+    () => margins.filter((d) => d.margin < 0).sort((a, b) => a.margin - b.margin),
+    [margins],
+  );
+  const brackets = useMemo(() => marginByBracket(margins, pricing), [margins, pricing]);
 
   // Ce qui doit être traité tout de suite, quel que soit le jour affiché.
   const now = Date.now();
@@ -193,6 +219,45 @@ function OperationsPage() {
         />
       </div>
 
+      <div className="glass rounded-2xl p-5" data-testid="bracket-margins">
+        <h3 className="font-semibold flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          Marge des livraisons par distance
+        </h3>
+        {brackets.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">Aucune course ce jour-là.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-2 pr-3">Tranche</th>
+                  <th className="py-2 pr-3 text-right">Courses</th>
+                  <th className="py-2 pr-3 text-right">Frais payés</th>
+                  <th className="py-2 pr-3 text-right">Coût des courses</th>
+                  <th className="py-2 text-right">Marge</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {brackets.map((b) => (
+                  <tr key={b.label}>
+                    <td className="py-2 pr-3">{b.label}</td>
+                    <td className="py-2 pr-3 text-right">{b.count}</td>
+                    <td className="py-2 pr-3 text-right">{formatFCFA(b.fees)}</td>
+                    <td className="py-2 pr-3 text-right">{formatFCFA(b.costs)}</td>
+                    <td
+                      className={`py-2 text-right font-semibold ${b.margin < 0 ? "text-rose-600" : "text-emerald-600"}`}
+                    >
+                      {formatFCFA(b.margin)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div
         className={`glass rounded-2xl p-5 ${losses.length ? "border border-rose-500/30" : ""}`}
         data-testid="loss-deliveries"
@@ -216,8 +281,11 @@ function OperationsPage() {
               </span>{" "}
               <span className="text-muted-foreground">
                 : la course payée au livreur (commission déduite) dépasse les frais facturés au
-                restaurant. Relevez les frais de la zone (Paramètres → Zones) ou regroupez les
-                commandes d'un même trajet.
+                restaurant. Vérifiez le barème et la position des lieux (
+                <Link to="/admin/delivery-pricing" className="underline">
+                  Tarifs de livraison
+                </Link>
+                ) ou regroupez les commandes d'un même trajet.
               </span>
             </p>
             <div className="mt-3 overflow-x-auto">

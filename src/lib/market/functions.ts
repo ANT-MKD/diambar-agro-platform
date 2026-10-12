@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createDb, type Db } from "@/db/client.server";
-import { users } from "@/db/schema";
+import { auditLogs, cities, farmers as farmerTable, settings, users, zones } from "@/db/schema";
 import { isDemoMode } from "@/lib/auth/config.server";
 import { sessionAccount } from "@/lib/auth/guard.server";
 import { AttemptLimiter } from "@/lib/auth/helpers";
@@ -23,6 +23,7 @@ import {
   missionStep,
   moveStock,
   placeOrder,
+  quoteCheckoutDelivery,
   reassignMission,
   removeProduct,
   reportReception,
@@ -41,6 +42,8 @@ import {
   requestPayout,
 } from "./payouts-db.server";
 import { issueDueInvoices, readStatement } from "./documents-db.server";
+import { checkSenegal, readDeliverySettings } from "./delivery-db.server";
+import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
 import {
@@ -683,4 +686,178 @@ export const getStatementFn = createServerFn({ method: "GET" })
         ok: true as const,
         statement: await readStatement(db, me.id, data.month),
       })),
+  );
+
+// --- Devis de livraison ----------------------------------------------------------------
+
+const quoteSchema = z.object({
+  deliveryAddress: z.string().trim().min(3).max(300),
+  lines: z
+    .array(z.object({ productId: id, qty: z.number().positive().max(100_000) }))
+    .min(1)
+    .max(100),
+});
+
+export type DeliveryQuoteResult =
+  | {
+      ok: true;
+      zone: string;
+      deliveries: {
+        farmerId: string;
+        farmName: string;
+        origin: string;
+        distanceKm: number;
+        fee: number;
+        bracket: string;
+      }[];
+      total: number;
+    }
+  | { ok: false; message: string };
+
+/** Restaurant : frais de livraison du panier, par producteur, avant de payer. */
+export const quoteDeliveryFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof quoteSchema>) => parse(quoteSchema, input))
+  .handler(async ({ data }): Promise<DeliveryQuoteResult> =>
+    withMarket(["restaurant"], async (db, me) => ({
+      ok: true as const,
+      ...(await quoteCheckoutDelivery(db, me.id, data)),
+    })),
+  );
+
+// --- Tarifs de livraison (admin) -----------------------------------------------------
+
+/** Rôles qui règlent les tarifs et les positions. */
+const PRICING_STAFF: StaffRole[] = ["super_admin", "operations"];
+
+export const getDeliverySettingsFn = createServerFn({ method: "GET" }).handler(async () =>
+  withMarket(["admin"], async (db) => ({
+    ok: true as const,
+    ...(await readDeliverySettings(db)),
+  })),
+);
+
+const pricingSchema = z.object({
+  brackets: z
+    .array(
+      z.object({
+        upToKm: z.number().positive("Distance de tranche invalide").max(1000),
+        fee: z.number().int().min(0).max(1_000_000),
+      }),
+    )
+    .min(1, "Au moins une tranche")
+    .max(12),
+  beyondPerKm: z.number().int().min(0).max(10_000),
+  perKgOver: z.number().int().min(0).max(10_000),
+  freeKg: z.number().min(0).max(10_000),
+  roadFactor: z.number().min(1, "Coefficient d'au moins 1").max(2.5),
+  floorToCost: z.boolean(),
+});
+
+export const saveDeliveryPricingFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof pricingSchema>) => parse(pricingSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        const ups = data.brackets.map((b) => b.upToKm);
+        if (ups.some((u, i) => i > 0 && u <= ups[i - 1])) {
+          return { ok: false as const, message: "Les tranches doivent aller en croissant." };
+        }
+        const value = normalizePricing(data);
+        await db
+          .insert(settings)
+          .values({ key: "delivery_pricing", value, updatedBy: me.id })
+          .onConflictDoUpdate({
+            target: settings.key,
+            set: { value, updatedBy: me.id, updatedAt: new Date() },
+          });
+        await db.insert(auditLogs).values({
+          actorId: me.id,
+          module: "settings",
+          action: "Tarifs de livraison modifiés",
+          targetType: "settings",
+          targetId: "delivery_pricing",
+          after: value,
+        });
+        return { ok: true as const };
+      },
+      PRICING_STAFF,
+    ),
+  );
+
+const placeSchema = z.object({
+  kind: z.enum(["city", "zone"]),
+  id,
+  /** Vide : revenir à la position de référence. */
+  lat: z.number().nullable(),
+  lng: z.number().nullable(),
+});
+
+export const savePlaceCoordsFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof placeSchema>) => parse(placeSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        if ((data.lat == null) !== (data.lng == null)) {
+          return { ok: false as const, message: "Indiquez la latitude et la longitude." };
+        }
+        if (data.lat != null && data.lng != null && !checkSenegal(data.lat, data.lng)) {
+          return {
+            ok: false as const,
+            message:
+              "Position hors du Sénégal : vérifiez la latitude (≈ 14,7) et la longitude (≈ −17,4).",
+          };
+        }
+        const table = data.kind === "city" ? cities : zones;
+        await db.update(table).set({ lat: data.lat, lng: data.lng }).where(eq(table.id, data.id));
+        await db.insert(auditLogs).values({
+          actorId: me.id,
+          module: "settings",
+          action: "Position d'un lieu modifiée",
+          targetType: data.kind,
+          targetId: data.id,
+          after: { lat: data.lat, lng: data.lng },
+        });
+        return { ok: true as const };
+      },
+      PRICING_STAFF,
+    ),
+  );
+
+const farmerPlaceSchema = z.object({
+  farmerId: id,
+  adjustKm: z.number().int().min(-30).max(100),
+  lat: z.number().nullable(),
+  lng: z.number().nullable(),
+});
+
+export const saveFarmerDeliveryFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof farmerPlaceSchema>) => parse(farmerPlaceSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        if ((data.lat == null) !== (data.lng == null)) {
+          return { ok: false as const, message: "Indiquez la latitude et la longitude." };
+        }
+        if (data.lat != null && data.lng != null && !checkSenegal(data.lat, data.lng)) {
+          return { ok: false as const, message: "Position hors du Sénégal." };
+        }
+        await db
+          .update(farmerTable)
+          .set({ distanceAdjustKm: data.adjustKm, lat: data.lat, lng: data.lng })
+          .where(eq(farmerTable.userId, data.farmerId));
+        await db.insert(auditLogs).values({
+          actorId: me.id,
+          module: "settings",
+          action: "Lieu de collecte d'un producteur modifié",
+          targetType: "farmer",
+          targetId: data.farmerId,
+          after: data,
+        });
+        return { ok: true as const };
+      },
+      PRICING_STAFF,
+    ),
   );

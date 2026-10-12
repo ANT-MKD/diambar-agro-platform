@@ -28,6 +28,7 @@ import {
 } from "@/data/store";
 import { useDeliveryZones } from "@/data/platform-settings";
 import { market } from "@/data/market-remote";
+import { useDeliveryQuote } from "@/data/delivery-quote";
 import {
   allocate,
   deliveryFeeForZone,
@@ -80,13 +81,23 @@ function Checkout() {
   // producteur du panier (chaque producteur a sa propre course).
   const zone = zoneForAddress(zones, profile.city, address);
   const producerCount = new Set(lines.map((l) => l.product.farmerId)).size;
+  // Avec la base : frais selon la distance de chaque producteur, calculés
+  // par le serveur (même calcul qu'à la commande).
+  const remoteMode = market.isRemote();
+  const quoteLines = useMemo(
+    () => cart.map((l) => ({ productId: l.productId, qty: l.qty })),
+    [cart],
+  );
+  const deliveryQuote = useDeliveryQuote(remoteMode, address, quoteLines);
   const feePerDelivery = zone ? deliveryFeeForZone(zone) : 0;
-  const delivery = feePerDelivery * producerCount;
-  const zoneProblem = !zone
-    ? "Cette adresse n'est dans aucune zone desservie par Diambar Agro."
-    : !zone.active
-      ? `La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`
-      : null;
+  const delivery = remoteMode ? (deliveryQuote.quote?.total ?? 0) : feePerDelivery * producerCount;
+  const zoneProblem = remoteMode
+    ? deliveryQuote.error
+    : !zone
+      ? "Cette adresse n'est dans aucune zone desservie par Diambar Agro."
+      : !zone.active
+        ? `La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`
+        : null;
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
@@ -127,7 +138,6 @@ function Checkout() {
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const remoteMode = market.isRemote();
   const [placing, setPlacing] = useState(false);
 
   // Avec la base : paiement du panier qui vient d'être passé (étape 3).
@@ -207,13 +217,14 @@ function Checkout() {
       return;
     }
     setOrderIds(res.orders.map((o) => o.id));
+    // Les montants qui font foi sont ceux du serveur.
     setConfirmedSummary({
       count: res.orders.length,
       subtotal,
-      delivery,
+      delivery: res.total - subtotal,
       discount: 0,
       creditApplied: 0,
-      total: subtotal + delivery,
+      total: res.total,
     });
     cartActions.clear();
     restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
@@ -571,17 +582,41 @@ function Checkout() {
               <span className="text-muted-foreground">Sous-total</span>
               <span>{formatFCFA(confirmedSummary?.subtotal ?? subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                Livraison
-                {!confirmedSummary && zone && producerCount > 1
-                  ? ` (${producerCount} × ${formatFCFA(feePerDelivery)})`
-                  : zone && !confirmedSummary
-                    ? ` · zone ${zone.name}`
-                    : ""}
-              </span>
-              <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
-            </div>
+            {remoteMode && !confirmedSummary ? (
+              <div className="space-y-1" data-testid="delivery-quote">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Livraison</span>
+                  <span>
+                    {deliveryQuote.loading && !deliveryQuote.quote
+                      ? "Calcul…"
+                      : formatFCFA(delivery)}
+                  </span>
+                </div>
+                {deliveryQuote.quote?.deliveries.map((d) => (
+                  <div
+                    key={d.farmerId}
+                    className="flex justify-between gap-2 pl-3 text-xs text-muted-foreground"
+                  >
+                    <span>
+                      Depuis {d.origin} ({d.farmName}) · environ {d.distanceKm} km
+                    </span>
+                    <span>{formatFCFA(d.fee)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Livraison
+                  {!confirmedSummary && zone && producerCount > 1
+                    ? ` (${producerCount} × ${formatFCFA(feePerDelivery)})`
+                    : zone && !confirmedSummary
+                      ? ` · zone ${zone.name}`
+                      : ""}
+                </span>
+                <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
+              </div>
+            )}
             {(confirmedSummary?.discount ?? promoDiscount) > 0 && (
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                 <span>Remise{!confirmedSummary && promoCode ? ` (${promoCode})` : ""}</span>
