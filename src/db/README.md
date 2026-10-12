@@ -50,6 +50,9 @@ Ne jamais modifier une migration déjà appliquée : en écrire une nouvelle.
 | `SESSION_SECRET` | 32 caractères minimum, obligatoire hors mode démo.                                                      |
 | `SETUP_CODE`     | 16 caractères minimum : code demandé par `/installation` pour créer le premier super administrateur.    |
 | `DEMO_MODE`      | `false` avant d'accueillir de vrais utilisateurs (codes et comptes de démo masqués).                    |
+| `RESEND_API_KEY` | Clé d'API Resend (emails : codes, liens, décisions, invitations).                                       |
+| `EMAIL_FROM`     | Expéditeur, ex. `Diambar Agro <bonjour@diambar.sn>` (domaine vérifié chez Resend).                      |
+| `APP_URL`        | Adresse publique du site pour les liens des emails (facultatif).                                        |
 
 Ne jamais écrire ces valeurs dans le code ni dans une conversation : uniquement
 dans les secrets du déploiement.

@@ -195,8 +195,8 @@ function SecurityStep({ snapshot, save, saving }: StepProps) {
           </label>
           <p className="text-xs text-muted-foreground mt-0.5">
             {snapshot.codeDeliveryAvailable
-              ? "Un code à 6 chiffres est demandé après le mot de passe."
-              : "Activable dès que l'envoi des codes par SMS ou email sera branché (lot 1.2) : sans cela, vous ne pourriez plus vous connecter."}
+              ? "Un code à 6 chiffres, envoyé par email, est demandé après le mot de passe."
+              : "Activable dès que l'envoi des emails sera configuré (RESEND_API_KEY et EMAIL_FROM) : sans lui, vous ne pourriez plus vous connecter."}
           </p>
         </div>
       </div>
@@ -719,7 +719,7 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
     email: "",
     staffRole: "operations" as "operations" | "finance" | "support",
   });
-  const [link, setLink] = useState<{ url: string; name: string } | null>(null);
+  const [link, setLink] = useState<{ url: string; name: string; emailed: boolean } | null>(null);
   const [inviting, setInviting] = useState(false);
   const set = (k: "firstName" | "lastName" | "email") => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -732,7 +732,11 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
         toast.error(res.message);
         return;
       }
-      setLink({ url: `${window.location.origin}${res.path}`, name: form.firstName });
+      setLink({
+        url: `${window.location.origin}${res.path}`,
+        name: form.firstName,
+        emailed: res.emailed,
+      });
       setForm({ firstName: "", lastName: "", email: "", staffRole: form.staffRole });
     } catch (err) {
       toast.error(err instanceof Error && err.message ? err.message : "Invitation impossible.");
@@ -800,8 +804,9 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
         {link && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900 space-y-2">
             <p>
-              Lien personnel pour {link.name}, valable 72 heures et utilisable une seule fois.
-              Envoyez-le-lui directement :
+              {link.emailed
+                ? `Invitation envoyée par email à ${link.name}. Le lien ci-dessous est le même (valable 72 heures, une seule fois) si vous préférez l'envoyer par WhatsApp :`
+                : `Lien personnel pour ${link.name}, valable 72 heures et utilisable une seule fois. Envoyez-le-lui directement :`}
             </p>
             <input
               readOnly
@@ -1086,6 +1091,12 @@ function FinishPanel({
           </dd>
         </div>
       </dl>
+      {!snapshot.codeDeliveryAvailable && !snapshot.registrationsOpen && (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          L'envoi des emails n'est pas configuré sur le serveur (RESEND_API_KEY et EMAIL_FROM) :
+          personne ne pourrait recevoir son code d'inscription. Configurez-le avant d'ouvrir.
+        </p>
+      )}
       {snapshot.registrationsOpen ? (
         <Button
           variant="outline"

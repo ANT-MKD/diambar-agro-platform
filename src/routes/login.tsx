@@ -171,6 +171,9 @@ function LoginPage() {
         logLocked(targetEmail, "Trop d'échecs de connexion (blocage serveur)");
         lockedToast(result.minutes);
         return;
+      case "unavailable":
+        toast.error(result.message);
+        return;
       case "blocked":
         auditActions.log({
           action: "Connexion refusée (compte non actif)",
@@ -295,7 +298,8 @@ function LoginPage() {
           </div>
           <h1 className="display-xl mt-4 text-center text-4xl">Vérification en deux étapes</h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
-            Saisissez le code à 6 chiffres envoyé pour {twoFa.email}. Il est valable 5 minutes.
+            Saisissez le code à 6 chiffres envoyé par email à {twoFa.email}. Il est valable 5
+            minutes.
           </p>
           <div className="mt-8">
             <OtpInput value={code} onChange={setCode} />

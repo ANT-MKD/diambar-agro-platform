@@ -264,13 +264,10 @@ function RegisterPage() {
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Retour
             </button>
-            <h1 className="display-xl text-4xl">Vérifiez votre numéro</h1>
+            <h1 className="display-xl text-4xl">Vérifiez votre email</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Code envoyé au{" "}
-              <span className="font-medium text-foreground">
-                +221 {phoneDigits ? formatSenegalPhone(phoneDigits) : form.phone}
-              </span>
-              . Il est valable 10 minutes.
+              Code envoyé à <span className="font-medium text-foreground">{form.email.trim()}</span>
+              . Il est valable 10 minutes. Pas reçu ? Regardez dans les courriers indésirables.
             </p>
             <div className="mt-8">
               <OtpInput value={otp} onChange={setOtp} />
@@ -454,7 +451,7 @@ function Step2({
           />
         </div>
         <p id={`${phoneId}-hint`} className="mt-1 text-[11px] text-muted-foreground">
-          9 chiffres, sans l'indicatif. Le code de vérification sera envoyé à ce numéro.
+          9 chiffres, sans l'indicatif. L'équipe pourra vous appeler pour vérifier votre dossier.
         </p>
       </div>
       <div className="mt-3">
@@ -747,7 +744,7 @@ function PendingReview({ firstName, role }: { firstName: string; role: Role }) {
           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
             1
           </span>
-          <span>Numéro de téléphone vérifié.</span>
+          <span>Adresse email vérifiée.</span>
         </li>
         <li className="flex gap-3">
           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500 text-white text-xs font-bold">

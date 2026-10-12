@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DEFAULT_SETTINGS } from "@/db/seed";
-import { codeDeliveryAvailable, isDemoMode } from "@/lib/auth/config.server";
+import { isDemoMode } from "@/lib/auth/config.server";
+import { appUrl, codeDeliveryAvailable, notify } from "@/lib/notify/notify.server";
+import { staffInviteEmail } from "@/lib/notify/templates";
 import { requireStaff } from "@/lib/auth/guard.server";
 import { normalizeEmail, normalizeSenegalPhone } from "@/lib/auth/helpers";
-import { withAccountStore, type AccountStore } from "@/lib/auth/store.server";
+import { STAFF_ROLE_LABEL, withAccountStore, type AccountStore } from "@/lib/auth/store.server";
 import { createSignedToken } from "@/lib/auth/tokens.server";
 import {
   SETUP_STEPS,
@@ -211,7 +213,7 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
             return {
               ok: false,
               message:
-                "La double authentification sera activable dès que l'envoi des codes par SMS ou email sera branché (lot 1.2).",
+                "La double authentification sera activable quand l'envoi des emails sera configuré (RESEND_API_KEY et EMAIL_FROM).",
             };
           }
           if (wanted !== me.twoFaEnabled) await store.setTwoFa(me.id, wanted);
@@ -310,27 +312,40 @@ const inviteSchema = z.object({
 
 export const createStaffInviteFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof inviteSchema>) => parse(inviteSchema, input))
-  .handler(async ({ data }): Promise<{ ok: true; path: string } | { ok: false; message: string }> =>
-    withAccountStore(async (store) => {
-      const me = await requireStaff(store, ["super_admin"]);
-      const email = normalizeEmail(data.email);
-      if (await store.emailTaken(email)) {
-        return { ok: false, message: "Un compte existe déjà avec cet email." };
-      }
-      const token = await createSignedToken<StaffInvite>(
-        { kind: "staff_invite", ...data, email },
-        INVITE_TTL_MS,
-      );
-      await store.audit({
-        actorId: me.id,
-        module: "security",
-        action: "Invitation d'un membre de l'équipe",
-        targetType: "email",
-        targetId: email,
-        after: { role: data.staffRole },
-      });
-      return { ok: true, path: `/invitation?token=${token}` };
-    }),
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; path: string; emailed: boolean } | { ok: false; message: string }> =>
+      withAccountStore(async (store) => {
+        const me = await requireStaff(store, ["super_admin"]);
+        const email = normalizeEmail(data.email);
+        if (await store.emailTaken(email)) {
+          return { ok: false, message: "Un compte existe déjà avec cet email." };
+        }
+        const token = await createSignedToken<StaffInvite>(
+          { kind: "staff_invite", ...data, email },
+          INVITE_TTL_MS,
+        );
+        await store.audit({
+          actorId: me.id,
+          module: "security",
+          action: "Invitation d'un membre de l'équipe",
+          targetType: "email",
+          targetId: email,
+          after: { role: data.staffRole },
+        });
+        const path = `/invitation?token=${token}`;
+        const emailed = await notify(
+          email,
+          staffInviteEmail({
+            firstName: data.firstName,
+            roleLabel: STAFF_ROLE_LABEL[data.staffRole],
+            inviterName: `${me.firstName} ${me.lastName}`.trim(),
+            url: appUrl(path),
+          }),
+        );
+        return { ok: true, path, emailed };
+      }),
   );
 
 // --- Ouverture des inscriptions ------------------------------------------------
@@ -342,6 +357,13 @@ export const setRegistrationsOpenFn = createServerFn({ method: "POST" })
       const me = await requireStaff(store, ["super_admin"]);
       const setup = await readSetup(store);
       const { done, total } = setupProgress(setup);
+      if (data.open && !codeDeliveryAvailable()) {
+        return {
+          ok: false,
+          message:
+            "Configurez d'abord l'envoi des emails (RESEND_API_KEY et EMAIL_FROM) : sans lui, personne ne peut recevoir son code d'inscription.",
+        };
+      }
       if (data.open && done < total) {
         return {
           ok: false,

@@ -1,11 +1,10 @@
 /**
  * Mode démonstration.
  *
- * Tant qu'aucun fournisseur de SMS ni d'email n'est branché, le seul moyen de
- * montrer l'inscription, la double authentification et le mot de passe oublié
- * est d'afficher le code ou le lien à l'écran, et de proposer des comptes de
- * démonstration en un clic. C'est acceptable pour une démo, pas pour de vrais
- * utilisateurs : n'importe qui pourrait prendre n'importe quel compte.
+ * Les codes et liens de vérification sont aussi affichés à l'écran (en plus de
+ * l'email, s'il est configuré) et des comptes de démonstration sont proposés
+ * en un clic. Acceptable pour une démo, pas pour de vrais utilisateurs :
+ * n'importe qui pourrait prendre n'importe quel compte.
  *
  * Réglage : variable d'environnement DEMO_MODE ("true" ou "false").
  * Sans réglage, le mode démo est actif en développement et coupé en
@@ -21,28 +20,6 @@ export function isDemoMode(): boolean {
   return !import.meta.env.PROD;
 }
 
-type CodePurpose = "inscription" | "double authentification";
-
-/**
- * Envoi d'un code de vérification. Aucun fournisseur SMS/email n'est encore
- * branché (étape 1) : en mode démo le code est renvoyé pour être affiché ; hors
- * démo il n'est jamais renvoyé au navigateur, seulement écrit dans le journal
- * du serveur pour l'équipe technique.
- */
-export function deliverCode(purpose: CodePurpose, destination: string, code: string) {
-  if (isDemoMode()) return { devCode: code };
-  console.info(`[auth] code de ${purpose} pour ${destination} : envoi à brancher (étape 1)`);
-  return { devCode: undefined };
-}
-
-export function deliverResetLink(email: string, link: string) {
-  if (isDemoMode()) return { devResetLink: link };
-  console.info(
-    `[auth] lien de réinitialisation demandé pour ${email} : envoi à brancher (étape 1)`,
-  );
-  return { devResetLink: undefined };
-}
-
 /** Longueur minimale du code d'installation (SETUP_CODE). */
 export const MIN_SETUP_CODE_LENGTH = 16;
 
@@ -55,14 +32,4 @@ export const MIN_SETUP_CODE_LENGTH = 16;
 export function setupCode(): string | null {
   const code = process.env.SETUP_CODE?.trim();
   return code && code.length >= MIN_SETUP_CODE_LENGTH ? code : null;
-}
-
-/**
- * Un code de vérification peut-il réellement parvenir à la personne ? En mode
- * démo il s'affiche à l'écran ; hors démo il faut un fournisseur SMS/email
- * (lot 1.2). Sans cela, activer la double authentification bloquerait le
- * compte.
- */
-export function codeDeliveryAvailable(): boolean {
-  return isDemoMode();
 }

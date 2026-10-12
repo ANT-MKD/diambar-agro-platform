@@ -29,6 +29,13 @@
       "when": 1791759093482,
       "tag": "20261011233218_validation_submitted",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791764268615,
+      "tag": "20261012004318_email_verified",
+      "breakpoints": true
     }
   ]
 }

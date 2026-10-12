@@ -1,4 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { appUrl, notify } from "@/lib/notify/notify.server";
+import {
+  accountApprovedEmail,
+  applicationRejectedEmail,
+  correctionRequestedEmail,
+} from "@/lib/notify/templates";
 import { isDemoMode } from "./config.server";
 import { requireStaff } from "./guard.server";
 import { withAccountStore } from "./store.server";
@@ -47,7 +53,7 @@ export const getApplicationFn = createServerFn({ method: "GET" })
   );
 
 export type DecideApplicationResult =
-  { ok: true; application: Application } | { ok: false; message: string };
+  { ok: true; application: Application; emailed: boolean } | { ok: false; message: string };
 
 export const decideApplicationFn = createServerFn({ method: "POST" })
   .validator((input: { id: string; decision: ApplicationDecision; note?: string }) => {
@@ -79,6 +85,24 @@ export const decideApplicationFn = createServerFn({ method: "POST" })
               : "Ce dossier a déjà été traité par un autre membre de l'équipe.",
         };
       }
-      return { ok: true, application: result.application };
+      // La personne est prévenue par email (un échec d'envoi n'annule pas la décision).
+      const a = result.application;
+      const firstName = a.account.firstName;
+      const content =
+        data.decision === "approve"
+          ? accountApprovedEmail({ firstName, loginUrl: appUrl("/login") })
+          : data.decision === "reject"
+            ? applicationRejectedEmail({
+                firstName,
+                note: data.note,
+                contactUrl: appUrl("/contact"),
+              })
+            : correctionRequestedEmail({
+                firstName,
+                note: data.note,
+                contactUrl: appUrl("/contact"),
+              });
+      const emailed = await notify(a.account.email, content);
+      return { ok: true, application: a, emailed };
     }),
   );

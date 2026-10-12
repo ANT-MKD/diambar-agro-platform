@@ -127,7 +127,11 @@ function ApplicationDetail() {
           reason: decision === "approve" ? undefined : note.trim(),
           actor: user.name,
         });
-        toast.success(copy.done);
+        toast.success(copy.done, {
+          description: res.emailed
+            ? "La personne a été prévenue par email."
+            : "Email non envoyé : prévenez la personne par téléphone.",
+        });
         setNote("");
       }
       await router.invalidate();
@@ -198,9 +202,10 @@ function ApplicationDetail() {
             <h2 className="font-semibold mb-2">Informations déclarées</h2>
             <SubmittedDetails application={a} />
             <p className="mt-3 text-xs text-muted-foreground">
-              Téléphone vérifié par code SMS à l'inscription. Les pièces justificatives (CNI,
-              permis, NINEA…) pourront être déposées quand l'envoi de fichiers sera ouvert ; d'ici
-              là, vérifiez-les par téléphone ou en rendez-vous.
+              Email vérifié par code à l'inscription. Le téléphone n'est pas encore vérifié
+              automatiquement : appelez la personne pour le confirmer. Les pièces justificatives
+              (CNI, permis, NINEA…) pourront être déposées quand l'envoi de fichiers sera ouvert ;
+              d'ici là, vérifiez-les par téléphone ou en rendez-vous.
             </p>
           </section>
 

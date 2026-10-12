@@ -6,7 +6,16 @@ import type { Role } from "@/data/mocks";
 import { authSession } from "./session.server";
 import { dashboardPathForRole } from "./roles";
 import { createSignedToken, verifySignedToken } from "./tokens.server";
-import { deliverCode, deliverResetLink, isDemoMode } from "./config.server";
+import { isDemoMode } from "./config.server";
+import { appUrl, deliverCode, notify } from "@/lib/notify/notify.server";
+import {
+  applicationReceivedEmail,
+  loginCodeEmail,
+  newApplicationAdminEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+  registrationCodeEmail,
+} from "@/lib/notify/templates";
 import { sessionAccount } from "./guard.server";
 import {
   BCRYPT_COST,
@@ -119,7 +128,8 @@ export type LoginResult =
   | { kind: "needs_two_fa"; email: string; devCode?: string; resendInSeconds: number }
   | { kind: "blocked"; reason: "pending" | "suspended" | "rejected"; note?: string }
   | { kind: "invalid"; remaining: number }
-  | { kind: "locked"; minutes: number };
+  | { kind: "locked"; minutes: number }
+  | { kind: "unavailable"; message: string };
 
 /** Ouvre la session (ou démarre la double authentification) pour un compte
  * dont l'identité est déjà prouvée. */
@@ -162,11 +172,19 @@ async function startSession(
         rememberMe,
       },
     });
-    const { devCode } = deliverCode("double authentification", account.email, code);
+    const sent = await deliverCode(
+      account.email,
+      loginCodeEmail({ name: toCurrentUser(account).name, code }),
+      code,
+    );
+    if (!sent.ok) {
+      await session.update({ pendingTwoFa: undefined });
+      return { kind: "unavailable", message: sent.message };
+    }
     return {
       kind: "needs_two_fa",
       email: account.email,
-      devCode,
+      devCode: sent.devCode,
       resendInSeconds: RESEND_COOLDOWN_MS / 1000,
     };
   }
@@ -328,8 +346,14 @@ export const resendTwoFaFn = createServerFn({ method: "POST" }).handler(
         attempts: 0,
       },
     });
-    const { devCode } = deliverCode("double authentification", pending.email, code);
-    return { ok: true, devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
+    const account = await withAccountStore((store) => store.findByEmail(pending.email));
+    const sent = await deliverCode(
+      pending.email,
+      loginCodeEmail({ name: account ? toCurrentUser(account).name : "", code }),
+      code,
+    );
+    if (!sent.ok) return { ok: false, message: sent.message };
+    return { ok: true, devCode: sent.devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
   },
 );
 
@@ -377,7 +401,15 @@ export const requestPasswordResetFn = createServerFn({ method: "POST" })
       },
       RESET_TTL_MS,
     );
-    return deliverResetLink(data.email, `/reset-password?token=${token}`);
+    const path = `/reset-password?token=${token}`;
+    // Email envoyé seulement si le compte existe ; la réponse reste identique.
+    if (account) {
+      await notify(
+        account.email,
+        passwordResetEmail({ name: toCurrentUser(account).name, url: appUrl(path) }),
+      );
+    }
+    return isDemoMode() ? { devResetLink: path } : {};
   });
 
 export type ResetTokenState = { valid: boolean; reason?: "missing" | "expired" | "used" };
@@ -435,6 +467,13 @@ export const resetPasswordFn = createServerFn({ method: "POST" })
           targetType: "user",
           targetId: state.account.id,
         });
+        await notify(
+          state.account.email,
+          passwordChangedEmail({
+            name: toCurrentUser(state.account).name,
+            supportUrl: appUrl("/contact"),
+          }),
+        );
       }
       loginLimiter.reset(state.payload.email);
       return { ok: true };
@@ -530,8 +569,16 @@ export const registerValidateFn = createServerFn({ method: "POST" })
         attempts: 0,
       },
     });
-    const { devCode } = deliverCode("inscription", `+221 ${phone}`, code);
-    return { ok: true, devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
+    const sent = await deliverCode(
+      email,
+      registrationCodeEmail({ firstName: data.firstName, code }),
+      code,
+    );
+    if (!sent.ok) {
+      await session.update({ pendingRegistration: undefined });
+      return { ok: false, message: sent.message };
+    }
+    return { ok: true, devCode: sent.devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
   });
 
 export const resendRegistrationCodeFn = createServerFn({ method: "POST" }).handler(
@@ -553,8 +600,13 @@ export const resendRegistrationCodeFn = createServerFn({ method: "POST" }).handl
         attempts: 0,
       },
     });
-    const { devCode } = deliverCode("inscription", `+221 ${pending.phone}`, code);
-    return { ok: true, devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
+    const sent = await deliverCode(
+      pending.email,
+      registrationCodeEmail({ firstName: pending.firstName, code }),
+      code,
+    );
+    if (!sent.ok) return { ok: false, message: sent.message };
+    return { ok: true, devCode: sent.devCode, resendInSeconds: RESEND_COOLDOWN_MS / 1000 };
   },
 );
 
@@ -615,5 +667,27 @@ export const registerVerifyFn = createServerFn({ method: "POST" })
               : "Un compte existe déjà avec cet email.",
       };
     }
+    // Accusé de réception à la personne, alerte aux membres de l'équipe qui
+    // peuvent valider. Un échec d'envoi n'annule pas l'inscription.
+    await notify(
+      pending.email,
+      applicationReceivedEmail({ firstName: pending.firstName, role: pending.role }),
+    );
+    const team = await withAccountStore((store) => store.listStaff());
+    const alert = newApplicationAdminEmail({
+      applicantName: `${pending.firstName} ${pending.lastName}`,
+      role: pending.role,
+      city: pending.city,
+      reviewUrl: appUrl(`/admin/inscriptions/${result.applicationId}`),
+    });
+    await Promise.all(
+      team
+        .filter(
+          (m) =>
+            m.status === "active" &&
+            (m.staffRole === "super_admin" || m.staffRole === "operations"),
+        )
+        .map((m) => notify(m.email, alert)),
+    );
     return { ok: true, firstName: pending.firstName };
   });

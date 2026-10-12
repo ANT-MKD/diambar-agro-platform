@@ -122,7 +122,9 @@ export class DbAccountStore implements AccountStore {
             firstName: input.firstName,
             lastName: input.lastName,
             status: "pending",
-            phoneVerifiedAt: new Date(),
+            // Email confirmé par le code reçu ; le téléphone sera vérifié par
+            // l'équipe (appel), puis par SMS quand un fournisseur sera branché.
+            emailVerifiedAt: new Date(),
             acceptedTermsAt: input.acceptedTermsAt,
             cityId: city?.id ?? null,
           })

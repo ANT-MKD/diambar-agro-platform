@@ -211,6 +211,8 @@ export const users = pgTable(
     status: userStatus("status").notNull().default("pending"),
     twoFaEnabled: boolean("two_fa_enabled").notNull().default(false),
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+    /** Adresse confirmée par un code reçu par email (inscription). */
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     acceptedTermsAt: timestamp("accepted_terms_at", { withTimezone: true }),
     cityId: uuid("city_id").references(() => cities.id),
     createdAt: createdAt(),

@@ -181,6 +181,7 @@ export async function seedDemo(db: Db) {
           status: p.status,
           twoFaEnabled: !!a.twoFaEnabled,
           phoneVerifiedAt: p.status === "pending" ? null : now,
+          emailVerifiedAt: p.status === "pending" ? null : now,
           acceptedTermsAt: now,
           cityId: cityId(p.city),
         };
