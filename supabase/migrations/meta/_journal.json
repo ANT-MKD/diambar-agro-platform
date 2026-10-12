@@ -43,6 +43,13 @@
       "when": 1791781431011,
       "tag": "20261012050440_order_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791821873858,
+      "tag": "20261012161809_storage_buckets",
+      "breakpoints": true
     }
   ]
 }

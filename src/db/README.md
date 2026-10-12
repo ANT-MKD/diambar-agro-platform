@@ -44,15 +44,17 @@ Ne jamais modifier une migration déjà appliquée : en écrire une nouvelle.
 
 ## Réglages du serveur (secrets du déploiement)
 
-| Variable         | Rôle                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`   | Adresse de la base (Supabase, pooler en mode transaction, port 6543). Sans elle : mode démo en mémoire. |
-| `SESSION_SECRET` | 32 caractères minimum, obligatoire hors mode démo.                                                      |
-| `SETUP_CODE`     | 16 caractères minimum : code demandé par `/installation` pour créer le premier super administrateur.    |
-| `DEMO_MODE`      | `false` avant d'accueillir de vrais utilisateurs (codes et comptes de démo masqués).                    |
-| `RESEND_API_KEY` | Clé d'API Resend (emails : codes, liens, décisions, invitations).                                       |
-| `EMAIL_FROM`     | Expéditeur, ex. `Diambar Agro <bonjour@diambar.sn>` (domaine vérifié chez Resend).                      |
-| `APP_URL`        | Adresse publique du site pour les liens des emails (facultatif).                                        |
+| Variable              | Rôle                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Adresse de la base (Supabase, pooler en mode transaction, port 6543). Sans elle : mode démo en mémoire. |
+| `SESSION_SECRET`      | 32 caractères minimum, obligatoire hors mode démo.                                                      |
+| `SETUP_CODE`          | 16 caractères minimum : code demandé par `/installation` pour créer le premier super administrateur.    |
+| `DEMO_MODE`           | `false` avant d'accueillir de vrais utilisateurs (codes et comptes de démo masqués).                    |
+| `RESEND_API_KEY`      | Clé d'API Resend (emails : codes, liens, décisions, invitations).                                       |
+| `EMAIL_FROM`          | Expéditeur, ex. `Diambar Agro <bonjour@diambar.sn>` (domaine vérifié chez Resend).                      |
+| `APP_URL`             | Adresse publique du site pour les liens des emails (facultatif).                                        |
+| `SUPABASE_URL`        | Adresse du projet Supabase, pour les photos (Storage).                                                  |
+| `SUPABASE_SECRET_KEY` | Clé secrète Supabase (Storage) : jamais dans le code ni envoyée au navigateur.                          |
 
 Ne jamais écrire ces valeurs dans le code ni dans une conversation : uniquement
 dans les secrets du déploiement.
