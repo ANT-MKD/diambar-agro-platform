@@ -17,6 +17,7 @@ import {
   payments,
   productPhotos,
   products,
+  refunds,
   restaurants,
   stockMovements,
   users,
@@ -40,6 +41,7 @@ import {
   fail,
   MarketError,
   nextNumber,
+  notifyFinanceStaff,
   notifyUser,
   type Q,
   type Tx,
@@ -53,6 +55,7 @@ import {
   refundOverpayment,
   syncPayments,
 } from "./payments-db.server";
+import { recordDelivery, recordReceptionRefusal } from "./ledger-db.server";
 
 // Opérations de la place de marché sur la base. Chaque règle est vérifiée
 // ici, côté serveur, dans une transaction : le navigateur ne fait que
@@ -837,11 +840,33 @@ export async function reportReception(
       .set({ receptionAt: new Date(), receptionNote: input.note || null, updatedAt: new Date() })
       .where(eq(orders.id, o.id));
     if (amount > 0) {
+      // Le restaurant est remboursé de ce qu'il a refusé ; le producteur le
+      // rend sur son solde (commission rendue au prorata).
+      const reference = `REM-${await nextNumber(tx, "refund_reference_seq")}`;
+      const [refund] = await tx
+        .insert(refunds)
+        .values({
+          reference,
+          orderId: o.id,
+          source: "reception",
+          amount,
+          bornBy: "farmer",
+          status: "pending",
+          reason: `Refus à la réception sur ${o.reference}`,
+        })
+        .returning({ id: refunds.id });
+      await recordReceptionRefusal(tx, o, amount, refund.id);
       await notifyUser(tx, o.farmerId, {
         type: "order",
         title: "Refus à la réception",
-        body: `${o.reference} : ${formatFCFA(amount)} refusés par le restaurant`,
+        body: `${o.reference} : ${formatFCFA(amount)} refusés par le restaurant, repris sur votre solde`,
         link: `/farmer/orders/${o.id}`,
+      });
+      await notifyFinanceStaff(tx, {
+        type: "payment",
+        title: "Remboursement à faire",
+        body: `${reference} · ${formatFCFA(amount)} refusés à la réception (${o.reference})`,
+        link: "/admin/payments",
       });
     }
     return { refusedAmount: amount };
@@ -971,11 +996,18 @@ export async function missionStep(
         receptionDeadline: new Date(now.getTime() + rules.receptionWindowHours * 3600_000),
         deliveredWithCode: true,
       });
+      // Ce qui revient à chacun est écrit au grand livre.
+      const { farmerCommission } = await recordDelivery(tx, o, {
+        id: m.id,
+        reference: m.reference,
+        driverId,
+        payout: m.payout,
+      });
       await notifyUser(tx, o.farmerId, {
         type: "payment",
         title: "Commande livrée",
-        body: `${o.reference} livrée · ${formatFCFA(o.subtotal)} de marchandise`,
-        link: `/farmer/orders/${o.id}`,
+        body: `${o.reference} livrée · ${formatFCFA(o.subtotal - farmerCommission)} ajoutés à votre solde`,
+        link: "/farmer/revenue",
       });
     }
   });

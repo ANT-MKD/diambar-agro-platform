@@ -19,6 +19,10 @@ import {
   getMarketSnapshotFn,
   markArrivedFn,
   markNotificationsReadFn,
+  payPayoutFn,
+  payRefundFn,
+  rejectPayoutFn,
+  requestPayoutFn,
   missionStepFn,
   moveStockFn,
   placeOrderFn,
@@ -353,6 +357,45 @@ export const market = {
   /** Admin : transaction introuvable, le restaurant déclare à nouveau. */
   async rejectPayment(paymentId: string, reason: string): Promise<Result> {
     return remote(() => rejectPaymentFn({ data: { paymentId, reason } }));
+  },
+
+  /** Producteur ou livreur : demander un retrait (mode base). */
+  async requestPayout(
+    amount: number,
+    method: PaymentMethod,
+    accountNumber?: string,
+  ): Promise<Result> {
+    if (method !== "Wave" && method !== "Orange Money") {
+      return { ok: false, message: "Les retraits se font par Wave ou Orange Money." };
+    }
+    return remote(() =>
+      requestPayoutFn({
+        data: {
+          amount: Math.round(amount),
+          method: method === "Wave" ? "wave" : "orange_money",
+          accountNumber: accountNumber || undefined,
+        },
+      }),
+    );
+  },
+
+  /** Admin : retrait versé, avec la référence de la transaction. */
+  async payPayout(payoutId: string, providerRef: string): Promise<Result> {
+    return remote(() => payPayoutFn({ data: { payoutId, providerRef } }));
+  },
+
+  async rejectPayout(payoutId: string, reason: string): Promise<Result> {
+    return remote(() => rejectPayoutFn({ data: { payoutId, reason } }));
+  },
+
+  /** Admin : remboursement renvoyé au restaurant. */
+  async payRefund(
+    refundId: string,
+    method: "wave" | "orange_money",
+    paidTo: string,
+    providerRef: string,
+  ): Promise<Result> {
+    return remote(() => payRefundFn({ data: { refundId, method, paidTo, providerRef } }));
   },
 
   // --- Notifications ---

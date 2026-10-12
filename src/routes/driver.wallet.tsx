@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   Wallet,
   ArrowUpRight,
@@ -133,11 +134,19 @@ function WalletPage() {
   }, [wallet.transactions]);
   const maxDay = Math.max(1, ...byDay.map((d) => d.amount));
 
-  const submitWithdraw = (e: React.FormEvent) => {
+  const submitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = Number(amount);
     if (!value || value < 1000) return toast.error("Montant minimum : 1 000 FCFA");
     if (value > wallet.balance) return toast.error("Solde insuffisant");
+    if (market.isRemote()) {
+      // Avec la base : la demande part à Diambar, qui verse à la main.
+      const res = await market.requestPayout(value, method);
+      if (!res.ok) return toast.error(res.message);
+      setAmount("");
+      toast.success(`Retrait de ${formatFCFA(value)} demandé · ${method}`);
+      return;
+    }
     driverWalletActions.withdraw(value, method);
     setAmount("");
     toast.success(`Retrait de ${formatFCFA(value)} demandé · ${method}`);
@@ -358,9 +367,11 @@ function WalletPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Wave">Wave · +221 77 888 99 00</SelectItem>
+                  <SelectItem value="Wave">
+                    {market.isRemote() ? "Wave" : "Wave · +221 77 888 99 00"}
+                  </SelectItem>
                   <SelectItem value="Orange Money">Orange Money</SelectItem>
-                  <SelectItem value="Free Money">Free Money</SelectItem>
+                  {!market.isRemote() && <SelectItem value="Free Money">Free Money</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -368,7 +379,9 @@ function WalletPage() {
               Demander le retrait
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Versement sous 24h · minimum 1 000 FCFA · aucun frais.
+              {market.isRemote()
+                ? "Versé par Diambar sur le numéro de votre compte · minimum 1 000 FCFA · aucun frais."
+                : "Versement sous 24h · minimum 1 000 FCFA · aucun frais."}
             </p>
           </form>
 

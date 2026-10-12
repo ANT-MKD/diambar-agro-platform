@@ -46,7 +46,7 @@ import { useAllDisputes } from "@/data/disputes";
 import { useConversations, useDriverConversations } from "@/data/store";
 import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
-import { useAdminPayments } from "@/data/payments-store";
+import { useAdminPayments, useAdminPayouts, useAdminRefunds } from "@/data/payments-store";
 import { useSupportTickets } from "@/data/support";
 import { enterPortal, useMarketPolling } from "@/data/market-remote";
 import { adminShellFn } from "@/lib/platform/setup";
@@ -101,9 +101,10 @@ function AdminLayout() {
   const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
   const pendingDocs = useDocRenewals().filter((r) => r.status === "pending").length;
   // Mode base : paiements déclarés à vérifier et espèces à récupérer.
-  const paymentsToCheck = useAdminPayments().filter(
-    (p) => p.state === "declared" || p.state === "collected",
-  ).length;
+  const paymentsToCheck =
+    useAdminPayments().filter((p) => p.state === "declared" || p.state === "collected").length +
+    useAdminPayouts().filter((p) => p.status === "requested" || p.status === "processing").length +
+    useAdminRefunds().filter((r) => r.status === "pending" || r.status === "approved").length;
   const refundsToHandle = refunds.filter(
     (r) => r.status === "pending" || r.status === "failed",
   ).length;

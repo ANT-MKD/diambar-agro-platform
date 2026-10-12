@@ -104,7 +104,13 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
-import { adminPaymentsStore, merchantStore } from "./payments-store";
+import {
+  adminAccountsStore,
+  adminPaymentsStore,
+  adminPayoutsStore,
+  adminRefundsStore,
+  merchantStore,
+} from "./payments-store";
 import { getRefundsSnapshot, onRefundPaid, refundActions } from "./finance";
 import {
   checkMissionStep,
@@ -2925,6 +2931,16 @@ export function replaceMarketData(s: MarketSnapshot) {
   zonesStore.replace(s.zones);
   merchantStore.replace(s.rules.merchant);
   adminPaymentsStore.replace(s.payments ?? []);
+  adminAccountsStore.replace(s.accounts ?? []);
+  adminPayoutsStore.replace(s.payouts ?? []);
+  adminRefundsStore.replace(s.refunds ?? []);
+  // Comptes tenus par le serveur (grand livre) : revenus et retraits du
+  // producteur, portefeuille du livreur.
+  if (s.wallet) {
+    transactionsStore.replace(s.wallet.transactions);
+    withdrawalsStore.replace(s.wallet.withdrawals);
+  }
+  if (s.driverWallet) driverWalletStore.replace(s.driverWallet);
   const notifs =
     s.me.role === "farmer"
       ? farmerNotifsStore

@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { type PaymentMethod } from "@/data/mocks";
 import {
@@ -42,11 +43,29 @@ function WithdrawPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);
   const [amount, setAmount] = useState(50000);
-  const fee = Math.round(amount * 0.005);
+  // Avec la base, Diambar envoie l'argent depuis son compte marchand : pas de
+  // frais retenus sur le montant.
+  const remoteMode = market.isRemote();
+  const fee = remoteMode ? 0 : Math.round(amount * 0.005);
+  const [sending, setSending] = useState(false);
 
   const STEPS = ["Méthode", "Montant", "Confirmation"];
 
-  const confirm = () => {
+  const confirm = async () => {
+    if (remoteMode) {
+      setSending(true);
+      // Versé sur le numéro du compte (les numéros enregistrés dans le
+      // navigateur peuvent être ceux de la démonstration).
+      const res = await market.requestPayout(amount, method);
+      setSending(false);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(`Retrait de ${formatFCFA(amount)} demandé : Diambar vous le verse.`);
+      navigate({ to: "/farmer/revenue/withdrawals" });
+      return;
+    }
     withdrawalActions.create({ method, amount });
     toast.success(`Retrait de ${formatFCFA(amount)} initié`);
     navigate({ to: "/farmer/revenue/withdrawals" });
@@ -99,25 +118,29 @@ function WithdrawPage() {
           <div className="space-y-4">
             <h3 className="font-semibold">Choisissez le compte de réception</h3>
             <div className="space-y-2">
-              {wallets.map((w) => (
-                <button
-                  key={w.id}
-                  onClick={() => setMethod(w.method)}
-                  className={`w-full text-left rounded-xl border p-4 flex items-center gap-3 transition ${method === w.method ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}
-                >
-                  <span
-                    className="grid h-10 w-10 place-items-center rounded-xl font-bold text-white text-xs"
-                    style={{ background: w.color }}
+              {wallets
+                .filter((w) => !remoteMode || w.method === "Wave" || w.method === "Orange Money")
+                .map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => setMethod(w.method)}
+                    className={`w-full text-left rounded-xl border p-4 flex items-center gap-3 transition ${method === w.method ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}
                   >
-                    {w.method.slice(0, 2)}
-                  </span>
-                  <div className="flex-1">
-                    <div className="font-semibold">{w.method}</div>
-                    <div className="text-xs text-muted-foreground">{w.phone}</div>
-                  </div>
-                  {method === w.method && <Check className="h-5 w-5 text-primary" />}
-                </button>
-              ))}
+                    <span
+                      className="grid h-10 w-10 place-items-center rounded-xl font-bold text-white text-xs"
+                      style={{ background: w.color }}
+                    >
+                      {w.method.slice(0, 2)}
+                    </span>
+                    <div className="flex-1">
+                      <div className="font-semibold">{w.method}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {remoteMode ? "Sur le numéro de votre compte" : w.phone}
+                      </div>
+                    </div>
+                    {method === w.method && <Check className="h-5 w-5 text-primary" />}
+                  </button>
+                ))}
             </div>
             <div className="flex justify-end">
               <Button onClick={() => setStep(2)} className="gap-2">
@@ -157,7 +180,9 @@ function WithdrawPage() {
                 <span className="font-semibold">{formatFCFA(amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Frais (0,5%)</span>
+                <span className="text-muted-foreground">
+                  {remoteMode ? "Frais" : "Frais (0,5%)"}
+                </span>
                 <span>-{formatFCFA(fee)}</span>
               </div>
               <div className="flex justify-between font-bold pt-2 border-t border-border">
@@ -186,7 +211,11 @@ function WithdrawPage() {
             <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
               <Row
                 k="Compte"
-                v={`${method} · ${wallets.find((w) => w.method === method)?.phone}`}
+                v={
+                  remoteMode
+                    ? `${method} · numéro de votre compte Diambar`
+                    : `${method} · ${wallets.find((w) => w.method === method)?.phone}`
+                }
               />
               <Row k="Montant brut" v={formatFCFA(amount)} />
               <Row k="Frais" v={`-${formatFCFA(fee)}`} />
@@ -197,7 +226,9 @@ function WithdrawPage() {
               <Button variant="outline" onClick={() => setStep(2)}>
                 Retour
               </Button>
-              <Button onClick={confirm}>Confirmer le retrait</Button>
+              <Button onClick={confirm} disabled={sending}>
+                {sending ? "Envoi…" : "Confirmer le retrait"}
+              </Button>
             </div>
           </div>
         )}

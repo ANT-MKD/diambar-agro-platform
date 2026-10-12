@@ -31,6 +31,7 @@ import {
   withdrawMission,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
+import { payPayout, payRefund, rejectPayout, requestPayout } from "./payouts-db.server";
 import { readSnapshot } from "./snapshot.server";
 import {
   BUCKETS,
@@ -513,6 +514,82 @@ export const rejectPaymentFn = createServerFn({ method: "POST" })
       ["admin"],
       async (db, me) => {
         await rejectPayment(db, me.id, data.paymentId, data.reason);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+// --- Versements et remboursements (argent qui sort) --------------------------------
+
+const payoutRequestSchema = z.object({
+  amount: z.number().int("Montant en francs entiers").positive().max(50_000_000),
+  method: z.enum(["wave", "orange_money"]),
+  accountNumber: z.string().trim().max(20).optional(),
+});
+
+/** Producteur ou livreur : retirer tout ou partie de son solde. */
+export const requestPayoutFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof payoutRequestSchema>) => parse(payoutRequestSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["farmer", "driver"], async (db, me) => {
+      await requestPayout(db, me.id, data);
+      return { ok: true as const };
+    }),
+  );
+
+const payPayoutSchema = z.object({
+  payoutId: id,
+  providerRef: z.string().trim().min(4, "Référence de la transaction trop courte").max(64),
+});
+
+/** Admin : l'argent est parti depuis le compte marchand. */
+export const payPayoutFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof payPayoutSchema>) => parse(payPayoutSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await payPayout(db, me.id, data.payoutId, data.providerRef);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+const rejectPayoutSchema = z.object({
+  payoutId: id,
+  reason: z.string().trim().min(5, "Indiquez le motif").max(300),
+});
+
+export const rejectPayoutFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof rejectPayoutSchema>) => parse(rejectPayoutSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await rejectPayout(db, me.id, data.payoutId, data.reason);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+const payRefundSchema = z.object({
+  refundId: id,
+  method: z.enum(["wave", "orange_money"]),
+  paidTo: z.string().trim().min(9, "Numéro du restaurant requis").max(20),
+  providerRef: z.string().trim().min(4, "Référence de la transaction trop courte").max(64),
+});
+
+/** Admin : l'argent est renvoyé au restaurant. */
+export const payRefundFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof payRefundSchema>) => parse(payRefundSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await payRefund(db, me.id, data.refundId, data);
         return { ok: true as const };
       },
       MONEY_STAFF,

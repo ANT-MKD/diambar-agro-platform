@@ -106,3 +106,34 @@ export type AdminPayment = OrderPayment & {
 
 /** Numéros marchands où le restaurant paie (réglés par l'admin). */
 export type MerchantNumbers = { wave: string | null; orangeMoney: string | null };
+
+/** Retrait demandé par un producteur ou un livreur, vu par l'admin. */
+export type AdminPayout = {
+  id: string;
+  reference: string;
+  userId: string;
+  name: string;
+  role: "farmer" | "driver";
+  amount: number;
+  method: PaymentMethod;
+  accountNumber: string;
+  status: "requested" | "processing" | "paid" | "failed" | "cancelled";
+  createdAt: string;
+  paidAt?: string;
+  providerRef?: string;
+  note?: string;
+  /** Solde du compte (versements payés déduits). */
+  balance: number;
+};
+
+/** Remboursement à faire au restaurant, vu par l'admin. */
+export type AdminRefund = RefundView & {
+  restaurantId: string;
+  restaurantName: string;
+  /** Numéro proposé par défaut pour renvoyer l'argent. */
+  restaurantPhone: string;
+  checkoutReference: string;
+  method?: PaymentMethod;
+  paidTo?: string;
+  bornBy: "farmer" | "driver" | "platform";
+};

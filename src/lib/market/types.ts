@@ -1,5 +1,8 @@
 import type {
   AppNotification,
+  DriverWallet,
+  Transaction,
+  Withdrawal,
   Mission,
   Order,
   PaymentMethod,
@@ -7,7 +10,7 @@ import type {
   RestaurantOrder,
   Role,
 } from "@/data/mocks";
-import type { AdminPayment, MerchantNumbers } from "./payment-view";
+import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 
 // Données de la place de marché envoyées par le serveur (mode base de
 // données), dans la forme qu'utilisent déjà les écrans : produits, commandes
@@ -76,6 +79,21 @@ export type MarketSnapshot = {
   };
   /** Admin : paiements des commandes chargées (à vérifier, espèces, historique). */
   payments?: AdminPayment[];
+  /** Producteur : ventes créditées, retraits, solde (grand livre). */
+  wallet?: {
+    transactions: Transaction[];
+    withdrawals: Withdrawal[];
+    balance: number;
+    available: number;
+  };
+  /** Livreur : gains et retraits (grand livre). */
+  driverWallet?: DriverWallet;
+  /** Admin : ce que Diambar doit à chaque producteur et livreur. */
+  accounts?: AdminAccount[];
+  /** Admin : retraits demandés et récents. */
+  payouts?: AdminPayout[];
+  /** Admin : remboursements des commandes chargées. */
+  refunds?: AdminRefund[];
   /** Établissement du restaurant connecté (adresse de livraison par défaut). */
   restaurant: { name: string; address: string; city: string } | null;
   notifications: AppNotification[];
@@ -83,3 +101,16 @@ export type MarketSnapshot = {
 };
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
+
+/** Solde d'un producteur ou d'un livreur, vu par l'admin. */
+export type AdminAccount = {
+  userId: string;
+  role: "farmer" | "driver";
+  name: string;
+  phone: string;
+  /** Somme des écritures (versements payés déduits). */
+  balance: number;
+  /** Retraits demandés, pas encore payés. */
+  reserved: number;
+  available: number;
+};

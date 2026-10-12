@@ -1,5 +1,11 @@
 import { useSyncExternalStore } from "react";
-import type { AdminPayment, MerchantNumbers } from "@/lib/market/payment-view";
+import type {
+  AdminPayment,
+  AdminPayout,
+  AdminRefund,
+  MerchantNumbers,
+} from "@/lib/market/payment-view";
+import type { AdminAccount } from "@/lib/market/types";
 import { createStore } from "./persist";
 
 // Paiements du pilote venus du serveur (mode base de données) : numéros
@@ -8,6 +14,10 @@ import { createStore } from "./persist";
 
 export const merchantStore = createStore<MerchantNumbers | null>(null);
 export const adminPaymentsStore = createStore<AdminPayment[]>([]);
+/** Admin : ce que Diambar doit à chaque producteur et livreur. */
+export const adminAccountsStore = createStore<AdminAccount[]>([]);
+export const adminPayoutsStore = createStore<AdminPayout[]>([]);
+export const adminRefundsStore = createStore<AdminRefund[]>([]);
 
 export function useMerchantNumbers(): MerchantNumbers | null {
   return useSyncExternalStore(merchantStore.subscribe, merchantStore.get, merchantStore.get);
@@ -18,5 +28,29 @@ export function useAdminPayments(): AdminPayment[] {
     adminPaymentsStore.subscribe,
     adminPaymentsStore.get,
     adminPaymentsStore.get,
+  );
+}
+
+export function useAdminAccounts(): AdminAccount[] {
+  return useSyncExternalStore(
+    adminAccountsStore.subscribe,
+    adminAccountsStore.get,
+    adminAccountsStore.get,
+  );
+}
+
+export function useAdminPayouts(): AdminPayout[] {
+  return useSyncExternalStore(
+    adminPayoutsStore.subscribe,
+    adminPayoutsStore.get,
+    adminPayoutsStore.get,
+  );
+}
+
+export function useAdminRefunds(): AdminRefund[] {
+  return useSyncExternalStore(
+    adminRefundsStore.subscribe,
+    adminRefundsStore.get,
+    adminRefundsStore.get,
   );
 }

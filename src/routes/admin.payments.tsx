@@ -1,6 +1,17 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Banknote, Check, Clock, Hourglass, Search, Wallet, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Banknote,
+  Check,
+  Clock,
+  Hourglass,
+  RotateCcw,
+  Scale,
+  Search,
+  Wallet,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -20,9 +31,21 @@ import {
 import { useAdminRoleForEmail } from "@/data/admin-store";
 import { market } from "@/data/market-remote";
 import { useMarketMode } from "@/data/market-mode";
-import { useAdminPayments, useMerchantNumbers } from "@/data/payments-store";
+import {
+  useAdminAccounts,
+  useAdminPayments,
+  useAdminPayouts,
+  useAdminRefunds,
+  useMerchantNumbers,
+} from "@/data/payments-store";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import { PAYMENT_STATE_LABEL, type AdminPayment } from "@/lib/market/payment-view";
+import {
+  PAYMENT_STATE_LABEL,
+  REFUND_SOURCE_LABEL,
+  type AdminPayment,
+  type AdminPayout,
+  type AdminRefund,
+} from "@/lib/market/payment-view";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/payments")({
@@ -30,20 +53,28 @@ export const Route = createFileRoute("/admin/payments")({
   component: PaymentsPage,
 });
 
-// Encaissements du pilote, sans paiement intégré : l'admin rapproche ce que
-// les restaurants déclarent avec ce qu'il voit sur le compte marchand Wave /
-// Orange Money, et récupère les espèces encaissées par les livreurs.
+// Argent du pilote, sans paiement intégré : l'admin rapproche ce que les
+// restaurants déclarent avec ce qu'il voit sur le compte marchand Wave /
+// Orange Money, récupère les espèces encaissées par les livreurs, puis
+// envoie à la main les retraits des producteurs et livreurs et les
+// remboursements des restaurants.
 
-type Tab = "check" | "cash" | "unpaid" | "history";
+type PaymentTab = "check" | "cash" | "unpaid" | "history";
+type Tab = PaymentTab | "payouts" | "refunds" | "balances";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "check", label: "À vérifier" },
   { key: "cash", label: "Espèces chez les livreurs" },
+  { key: "payouts", label: "Retraits à verser" },
+  { key: "refunds", label: "Remboursements à faire" },
   { key: "unpaid", label: "Non payés" },
+  { key: "balances", label: "Soldes" },
   { key: "history", label: "Historique" },
 ];
+const PAYMENT_TABS: PaymentTab[] = ["check", "cash", "unpaid", "history"];
+const isPaymentTab = (t: Tab): t is PaymentTab => (PAYMENT_TABS as Tab[]).includes(t);
 
-const inTab = (p: AdminPayment, tab: Tab) =>
+const inTab = (p: AdminPayment, tab: PaymentTab) =>
   tab === "check"
     ? p.state === "declared"
     : tab === "cash"
@@ -68,6 +99,9 @@ function PaymentsPage() {
   const role = useAdminRoleForEmail(user.email);
   const canHandle = role === "Super Administrateur" || role === "Finance";
   const payments = useAdminPayments();
+  const payouts = useAdminPayouts();
+  const refunds = useAdminRefunds();
+  const accounts = useAdminAccounts();
   const merchant = useMerchantNumbers();
   const [tab, setTab] = useState<Tab>("check");
   const [search, setSearch] = useState("");
@@ -75,11 +109,22 @@ function PaymentsPage() {
   const [rejecting, setRejecting] = useState<AdminPayment | null>(null);
 
   const counts = useMemo(
-    () => Object.fromEntries(TABS.map((t) => [t.key, payments.filter((p) => inTab(p, t.key))])),
+    () => Object.fromEntries(PAYMENT_TABS.map((t) => [t, payments.filter((p) => inTab(p, t))])),
     [payments],
-  ) as Record<Tab, AdminPayment[]>;
+  ) as Record<PaymentTab, AdminPayment[]>;
+  const payoutsToPay = payouts.filter((p) => p.status === "requested" || p.status === "processing");
+  const refundsToPay = refunds.filter((r) => r.status === "pending" || r.status === "approved");
+  const tabCount = (t: Tab) =>
+    isPaymentTab(t)
+      ? counts[t].length
+      : t === "payouts"
+        ? payoutsToPay.length
+        : t === "refunds"
+          ? refundsToPay.length
+          : accounts.length;
 
   const list = useMemo(() => {
+    if (!isPaymentTab(tab)) return [];
     const q = search.trim().toLowerCase();
     return counts[tab]
       .filter(
@@ -143,6 +188,24 @@ function PaymentsPage() {
           icon={Wallet}
           hint="Paiements confirmés sur les commandes chargées"
         />
+        <StatCard
+          label="Dû aux producteurs et livreurs"
+          value={formatFCFA(accounts.reduce((s, a) => s + a.balance, 0))}
+          icon={Scale}
+          hint="Soldes après versements : à garder sur le compte marchand"
+        />
+        <StatCard
+          label="Retraits à verser"
+          value={formatFCFA(payoutsToPay.reduce((s, p) => s + p.amount, 0))}
+          icon={ArrowUpRight}
+          hint={`${payoutsToPay.length} demande(s)`}
+        />
+        <StatCard
+          label="Remboursements à faire"
+          value={formatFCFA(refundsToPay.reduce((s, r) => s + r.amount, 0))}
+          icon={RotateCcw}
+          hint={`${refundsToPay.length} remboursement(s) aux restaurants`}
+        />
       </div>
 
       <div className="glass rounded-2xl p-4 text-sm">
@@ -176,7 +239,7 @@ function PaymentsPage() {
                 : "border-border hover:bg-muted",
             )}
           >
-            {t.label} ({counts[t.key].length})
+            {t.label} ({tabCount(t.key)})
           </button>
         ))}
         <div className="relative ml-auto w-full sm:w-64">
@@ -197,7 +260,13 @@ function PaymentsPage() {
         </p>
       )}
 
-      {list.length === 0 ? (
+      {tab === "payouts" ? (
+        <PayoutsTab payouts={payouts} canHandle={canHandle} search={search} />
+      ) : tab === "refunds" ? (
+        <RefundsTab refunds={refunds} canHandle={canHandle} search={search} />
+      ) : tab === "balances" ? (
+        <BalancesTab search={search} />
+      ) : list.length === 0 ? (
         <EmptyState
           icon={Banknote}
           title={
@@ -462,6 +531,443 @@ function RejectDialog({ payment, onClose }: { payment: AdminPayment | null; onCl
           </Button>
           <Button variant="destructive" onClick={submit} disabled={busy}>
             {busy ? "Envoi…" : "Prévenir le restaurant"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Retraits des producteurs et livreurs ------------------------------------------
+
+function PayoutsTab({
+  payouts,
+  canHandle,
+  search,
+}: {
+  payouts: AdminPayout[];
+  canHandle: boolean;
+  search: string;
+}) {
+  const [paying, setPaying] = useState<AdminPayout | null>(null);
+  const [refusing, setRefusing] = useState<AdminPayout | null>(null);
+  const q = search.trim().toLowerCase();
+  const shown = payouts.filter(
+    (p) => !q || `${p.reference} ${p.name} ${p.accountNumber}`.toLowerCase().includes(q),
+  );
+  const open = shown.filter((p) => p.status === "requested" || p.status === "processing");
+  const done = shown.filter((p) => !open.includes(p)).slice(0, 30);
+  if (shown.length === 0) {
+    return (
+      <EmptyState
+        icon={ArrowUpRight}
+        title="Aucun retrait demandé"
+        description="Quand un producteur ou un livreur retire son solde, sa demande apparaît ici."
+      />
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {open.map((p) => (
+        <div key={p.id} className="glass rounded-2xl p-4" data-testid="admin-payout">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{p.reference}</span>
+                <span className="text-sm text-muted-foreground">
+                  · {p.name} ({p.role === "driver" ? "livreur" : "producteur"})
+                </span>
+              </div>
+              <div className="text-sm">
+                À envoyer par <span className="font-semibold">{p.method}</span> au{" "}
+                <span className="font-mono font-semibold">{p.accountNumber}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Demandé {relativeTime(p.createdAt)} · solde du compte {formatFCFA(p.balance)}
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="font-display text-xl font-bold">{formatFCFA(p.amount)}</div>
+              {canHandle && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setRefusing(p)}>
+                    <X className="mr-1 h-4 w-4" /> Refuser
+                  </Button>
+                  <Button size="sm" onClick={() => setPaying(p)}>
+                    <Check className="mr-1 h-4 w-4" /> Versé
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      {done.length > 0 && (
+        <div className="glass rounded-2xl p-4">
+          <h3 className="mb-2 text-sm font-semibold">Derniers retraits traités</h3>
+          <ul className="divide-y divide-border text-sm">
+            {done.map((p) => (
+              <li key={p.id} className="flex flex-wrap justify-between gap-2 py-2">
+                <span>
+                  {p.reference} · {p.name}
+                  {p.providerRef ? ` · réf. ${p.providerRef}` : ""}
+                  {p.note ? ` · ${p.note}` : ""}
+                </span>
+                <span className={p.status === "paid" ? "text-emerald-600" : "text-destructive"}>
+                  {formatFCFA(p.amount)} ·{" "}
+                  {p.status === "paid" ? `versé le ${dateTime(p.paidAt)}` : "refusé"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <ReferenceDialog
+        open={!!paying}
+        title="Retrait versé"
+        description={
+          paying
+            ? `Vous avez envoyé ${formatFCFA(paying.amount)} par ${paying.method} au ${paying.accountNumber} (${paying.name}) ?`
+            : ""
+        }
+        onClose={() => setPaying(null)}
+        onSubmit={(ref) => market.payPayout(paying!.id, ref)}
+        success="Retrait enregistré : le compte est prévenu"
+      />
+      <ReasonDialog
+        open={!!refusing}
+        title="Refuser ce retrait"
+        description={refusing ? `${refusing.reference} · ${formatFCFA(refusing.amount)}` : ""}
+        placeholder="Ex. Numéro Wave invalide, merci de le corriger"
+        onClose={() => setRefusing(null)}
+        onSubmit={(reason) => market.rejectPayout(refusing!.id, reason)}
+        success="Retrait refusé : le montant est de nouveau disponible"
+      />
+    </div>
+  );
+}
+
+// --- Remboursements aux restaurants -------------------------------------------------
+
+function RefundsTab({
+  refunds,
+  canHandle,
+  search,
+}: {
+  refunds: AdminRefund[];
+  canHandle: boolean;
+  search: string;
+}) {
+  const [paying, setPaying] = useState<AdminRefund | null>(null);
+  const q = search.trim().toLowerCase();
+  const shown = refunds.filter(
+    (r) =>
+      !q ||
+      `${r.reference} ${r.orderReference} ${r.restaurantName} ${r.checkoutReference}`
+        .toLowerCase()
+        .includes(q),
+  );
+  const open = shown.filter((r) => r.status === "pending" || r.status === "approved");
+  const done = shown.filter((r) => !open.includes(r)).slice(0, 30);
+  if (shown.length === 0) {
+    return (
+      <EmptyState
+        icon={RotateCcw}
+        title="Aucun remboursement"
+        description="Quantités manquantes après paiement, commandes annulées et refus à la réception apparaissent ici."
+      />
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {open.map((r) => (
+        <div key={r.id} className="glass rounded-2xl p-4" data-testid="admin-refund">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{r.reference}</span>
+                <span className="text-sm text-muted-foreground">
+                  · {r.restaurantName} · {r.orderReference}
+                </span>
+              </div>
+              <div className="text-sm">{REFUND_SOURCE_LABEL[r.source]}</div>
+              <div className="text-xs text-muted-foreground">
+                {r.reason ? `${r.reason} · ` : ""}créé {relativeTime(r.createdAt)}
+                {r.bornBy === "farmer" ? " · repris sur le solde du producteur" : ""}
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="font-display text-xl font-bold">{formatFCFA(r.amount)}</div>
+              {canHandle && (
+                <Button size="sm" onClick={() => setPaying(r)}>
+                  <Check className="mr-1 h-4 w-4" /> Remboursé
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      {done.length > 0 && (
+        <div className="glass rounded-2xl p-4">
+          <h3 className="mb-2 text-sm font-semibold">Derniers remboursements</h3>
+          <ul className="divide-y divide-border text-sm">
+            {done.map((r) => (
+              <li key={r.id} className="flex flex-wrap justify-between gap-2 py-2">
+                <span>
+                  {r.reference} · {r.restaurantName}
+                  {r.providerRef ? ` · réf. ${r.providerRef}` : ""}
+                </span>
+                <span className="text-emerald-600">
+                  {formatFCFA(r.amount)} · remboursé le {dateTime(r.paidAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {paying && <RefundDialog refund={paying} onClose={() => setPaying(null)} />}
+    </div>
+  );
+}
+
+function RefundDialog({ refund, onClose }: { refund: AdminRefund; onClose: () => void }) {
+  const [method, setMethod] = useState<"wave" | "orange_money">(
+    refund.method === "Orange Money" ? "orange_money" : "wave",
+  );
+  const [to, setTo] = useState(refund.restaurantPhone);
+  const [ref, setRef] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    const res = await market.payRefund(refund.id, method, to, ref);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    toast.success("Remboursement enregistré : le restaurant est prévenu");
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Remboursement envoyé</DialogTitle>
+          <DialogDescription>
+            {refund.reference} · {formatFCFA(refund.amount)} à {refund.restaurantName} (
+            {REFUND_SOURCE_LABEL[refund.source].toLowerCase()}).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          {(["wave", "orange_money"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMethod(m)}
+              className={cn(
+                "flex-1 rounded-xl border px-3 py-2 text-sm",
+                method === m ? "border-primary bg-primary/10 text-primary" : "border-border",
+              )}
+            >
+              {m === "wave" ? "Wave" : "Orange Money"}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="refund-to">Numéro qui a reçu l'argent</Label>
+          <Input id="refund-to" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="refund-ref">Référence de la transaction</Label>
+          <Input
+            id="refund-ref"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? "Enregistrement…" : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Soldes ---------------------------------------------------------------------------
+
+function BalancesTab({ search }: { search: string }) {
+  const accounts = useAdminAccounts();
+  const q = search.trim().toLowerCase();
+  const shown = accounts.filter((a) => !q || `${a.name} ${a.phone}`.toLowerCase().includes(q));
+  if (shown.length === 0) {
+    return (
+      <EmptyState
+        icon={Scale}
+        title="Aucun solde pour l'instant"
+        description="Chaque livraison crédite le producteur et le livreur : leurs soldes apparaissent ici."
+      />
+    );
+  }
+  return (
+    <div className="glass overflow-x-auto rounded-2xl">
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="p-3">Compte</th>
+            <th className="p-3">Téléphone</th>
+            <th className="p-3 text-right">Solde</th>
+            <th className="p-3 text-right">Retraits en cours</th>
+            <th className="p-3 text-right">Disponible</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {shown.map((a) => (
+            <tr key={a.userId}>
+              <td className="p-3">
+                {a.name}{" "}
+                <span className="text-xs text-muted-foreground">
+                  ({a.role === "driver" ? "livreur" : "producteur"})
+                </span>
+              </td>
+              <td className="p-3">{a.phone}</td>
+              <td className="p-3 text-right font-semibold">{formatFCFA(a.balance)}</td>
+              <td className="p-3 text-right">{formatFCFA(a.reserved)}</td>
+              <td className="p-3 text-right">{formatFCFA(a.available)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --- Boîtes de dialogue communes ------------------------------------------------------
+
+function ReferenceDialog({
+  open,
+  title,
+  description,
+  onClose,
+  onSubmit,
+  success,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  onClose: () => void;
+  onSubmit: (ref: string) => Promise<{ ok: boolean; message?: string }>;
+  success: string;
+}) {
+  const [ref, setRef] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  const submit = async () => {
+    if (ref.trim().length < 4) {
+      toast.error("Indiquez la référence de la transaction.");
+      return;
+    }
+    setBusy(true);
+    const res = await onSubmit(ref);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.message ?? "Action impossible");
+      return;
+    }
+    toast.success(success);
+    setRef("");
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="out-ref">Référence de la transaction</Label>
+          <Input
+            id="out-ref"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? "Enregistrement…" : "Enregistrer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ReasonDialog({
+  open,
+  title,
+  description,
+  placeholder,
+  onClose,
+  onSubmit,
+  success,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  placeholder: string;
+  onClose: () => void;
+  onSubmit: (reason: string) => Promise<{ ok: boolean; message?: string }>;
+  success: string;
+}) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  const submit = async () => {
+    if (reason.trim().length < 5) {
+      toast.error("Indiquez le motif.");
+      return;
+    }
+    setBusy(true);
+    const res = await onSubmit(reason);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.message ?? "Action impossible");
+      return;
+    }
+    toast.success(success);
+    setReason("");
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={placeholder}
+          maxLength={300}
+          aria-label="Motif"
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button variant="destructive" onClick={submit} disabled={busy}>
+            {busy ? "Envoi…" : "Refuser"}
           </Button>
         </DialogFooter>
       </DialogContent>

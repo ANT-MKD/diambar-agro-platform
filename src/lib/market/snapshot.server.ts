@@ -8,6 +8,7 @@ import {
   drivers,
   farmers,
   files,
+  ledgerEntries,
   missionEvents,
   missions,
   notifications,
@@ -15,6 +16,7 @@ import {
   orderItems,
   orders,
   payments,
+  payouts,
   productPhotos,
   products,
   refunds,
@@ -27,6 +29,8 @@ import {
 import {
   products as demoProducts,
   type AppNotification,
+  type DriverTx,
+  type DriverWallet,
   type Mission,
   type MissionStatus,
   type Order,
@@ -34,6 +38,8 @@ import {
   type Product,
   type RestaurantOrder,
   type Role,
+  type Transaction,
+  type Withdrawal,
 } from "@/data/mocks";
 import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { lastAddressSegment, routeEstimate, vehicleForWeight } from "@/lib/mission-pay";
@@ -41,12 +47,16 @@ import { cityCoords } from "@/lib/tracking/geo";
 import {
   paymentState,
   type AdminPayment,
+  type AdminPayout,
+  type AdminRefund,
   type OrderPayment,
   type RefundView,
 } from "./payment-view";
 import { orderDue, readMerchantAccounts } from "./payments-db.server";
+import { readBalances } from "./ledger-db.server";
 import { isStored, publicUrl, signedUrl } from "./storage.server";
 import type {
+  AdminAccount,
   DirectoryDriver,
   DirectoryFarmer,
   DirectoryRestaurant,
@@ -748,6 +758,244 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     };
   });
 
+  // --- Comptes : revenus du producteur, portefeuille du livreur ----------------------
+  let farmerWallet: MarketSnapshot["wallet"];
+  let driverWallet: DriverWallet | undefined;
+  const PAYOUT_LABEL: Record<string, PaymentMethod> = {
+    wave: "Wave",
+    orange_money: "Orange Money",
+    free_money: "Free Money",
+    cash: "Espèces",
+    transfer: "Wave",
+  };
+  if (me.role === "farmer" || me.role === "driver") {
+    const entries = await db
+      .select({
+        id: ledgerEntries.id,
+        kind: ledgerEntries.kind,
+        amount: ledgerEntries.amount,
+        orderId: ledgerEntries.orderId,
+        refundId: ledgerEntries.refundId,
+        note: ledgerEntries.note,
+        createdAt: ledgerEntries.createdAt,
+        orderRef: orders.reference,
+        restaurantId: orders.restaurantId,
+        checkoutId: orders.checkoutId,
+        missionRef: missions.reference,
+      })
+      .from(ledgerEntries)
+      .leftJoin(orders, eq(orders.id, ledgerEntries.orderId))
+      .leftJoin(missions, eq(missions.id, ledgerEntries.missionId))
+      .where(eq(ledgerEntries.userId, me.id))
+      .orderBy(desc(ledgerEntries.createdAt))
+      .limit(2000);
+    const myPayouts = await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.userId, me.id))
+      .orderBy(desc(payouts.createdAt));
+    const balances = await readBalances(db, [me.id]);
+    const bal = balances.get(me.id)!;
+    const methodOfCheckout = new Map(
+      checkoutRows.map((c) => [
+        c.id,
+        PAYMENT_METHOD_LABEL[
+          paymentByCheckout.get(c.id)?.method ?? (c.paymentMode === "cash" ? "cash" : "wave")
+        ] ?? "Wave",
+      ]),
+    );
+    if (me.role === "farmer") {
+      // Une ligne par commande livrée (vente − commission) et une par refus
+      // à la réception (montants repris, négatifs).
+      const groups = new Map<string, Transaction>();
+      for (const e of [...entries].reverse()) {
+        if (
+          !e.orderId ||
+          (e.kind !== "sale" && e.kind !== "commission" && e.kind !== "refund_adjustment")
+        )
+          continue;
+        const key = e.refundId ? `rf_${e.refundId}` : `tx_${e.orderId}`;
+        const t =
+          groups.get(key) ??
+          ({
+            id: key,
+            date: iso(e.createdAt)!.slice(0, 10),
+            orderRef: e.orderRef ?? "",
+            restaurantId: e.restaurantId ?? "",
+            farmerId: me.id,
+            gross: 0,
+            commission: 0,
+            net: 0,
+            method: (e.checkoutId && methodOfCheckout.get(e.checkoutId)) || "Wave",
+            status: "Payé",
+            kind: e.refundId ? "refund_adjustment" : "delivery",
+          } satisfies Transaction);
+        if (e.kind === "commission") t.commission += -e.amount;
+        else t.gross += e.amount;
+        t.net = t.gross - t.commission;
+        groups.set(key, t);
+      }
+      farmerWallet = {
+        transactions: [...groups.values()].reverse(),
+        withdrawals: myPayouts.map((w): Withdrawal => ({
+          id: w.id,
+          farmerId: me.id,
+          date: iso(w.createdAt)!.slice(0, 10),
+          method: PAYOUT_LABEL[w.method] ?? "Wave",
+          amount: w.amount,
+          fee: w.fee,
+          status:
+            w.status === "paid"
+              ? "Effectué"
+              : w.status === "requested" || w.status === "processing"
+                ? "En cours"
+                : "Échec",
+          reference: w.reference ?? w.id.slice(0, 8),
+        })),
+        balance: bal.balance,
+        available: bal.available,
+      };
+    } else {
+      const txs: DriverTx[] = entries
+        .filter(
+          (e) => e.kind === "driver_payout" || e.kind === "commission" || e.kind === "adjustment",
+        )
+        .map((e) => ({
+          id: e.id,
+          at: iso(e.createdAt)!,
+          label:
+            e.kind === "driver_payout"
+              ? `Mission ${e.missionRef ?? ""}`.trim()
+              : e.kind === "commission"
+                ? "Commission plateforme (20 %)"
+                : (e.note ?? "Ajustement"),
+          ref: e.missionRef ?? e.orderRef ?? undefined,
+          kind:
+            e.kind === "driver_payout"
+              ? "mission"
+              : e.kind === "commission"
+                ? "commission"
+                : "adjustment",
+          amount: e.amount,
+          status: "Complété",
+        }));
+      for (const w of myPayouts) {
+        txs.push({
+          id: w.id,
+          at: iso(w.createdAt)!,
+          label: `Retrait ${PAYOUT_LABEL[w.method] ?? "Wave"}`,
+          ref: w.reference ?? undefined,
+          kind: "withdrawal",
+          amount: -w.amount,
+          method: PAYOUT_LABEL[w.method] ?? "Wave",
+          status:
+            w.status === "paid"
+              ? "Complété"
+              : w.status === "requested" || w.status === "processing"
+                ? "En attente"
+                : "Échec",
+        });
+      }
+      txs.sort((a, b) => b.at.localeCompare(a.at));
+      driverWallet = {
+        balance: bal.available,
+        pending: bal.reserved,
+        withdrawn: myPayouts
+          .filter((w) => w.status === "paid")
+          .reduce((sum, w) => sum + w.amount, 0),
+        transactions: txs,
+      };
+    }
+  }
+
+  // --- Comptes à verser (admin) ----------------------------------------------------
+  let accounts: AdminAccount[] | undefined;
+  if (me.role === "admin") {
+    const holders = await db
+      .selectDistinct({ userId: ledgerEntries.userId })
+      .from(ledgerEntries)
+      .where(sql`${ledgerEntries.userId} is not null`);
+    const ids = holders.flatMap((h) => (h.userId ? [h.userId] : []));
+    const balances = await readBalances(db, ids);
+    const people = ids.length
+      ? await db
+          .select({
+            id: users.id,
+            role: users.role,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            phone: users.phone,
+          })
+          .from(users)
+          .where(inArray(users.id, ids))
+      : [];
+    accounts = people
+      .filter((u) => u.role === "farmer" || u.role === "driver")
+      .map((u) => ({
+        userId: u.id,
+        role: u.role as "farmer" | "driver",
+        name: `${u.firstName} ${u.lastName}`.trim(),
+        phone: phoneLabel(u.phone),
+        ...balances.get(u.id)!,
+      }))
+      .sort((a, b) => b.balance - a.balance);
+  }
+
+  // --- Versements et remboursements (admin) --------------------------------------------
+  let adminPayouts: AdminPayout[] | undefined;
+  let adminRefunds: AdminRefund[] | undefined;
+  if (me.role === "admin") {
+    const payoutRows = await db
+      .select({
+        p: payouts,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+      })
+      .from(payouts)
+      .innerJoin(users, eq(users.id, payouts.userId))
+      .orderBy(desc(payouts.createdAt))
+      .limit(300);
+    const owners = [...new Set(payoutRows.map((r) => r.p.userId))];
+    const ownerBalances = await readBalances(db, owners);
+    adminPayouts = payoutRows.map(({ p, firstName, lastName, role }) => ({
+      id: p.id,
+      reference: p.reference ?? p.id.slice(0, 8),
+      userId: p.userId,
+      name: `${firstName} ${lastName}`.trim(),
+      role: role === "driver" ? "driver" : "farmer",
+      amount: p.amount,
+      method: PAYMENT_METHOD_LABEL[p.method] ?? "Wave",
+      accountNumber: phoneLabel(p.accountNumber),
+      status: p.status,
+      createdAt: iso(p.createdAt)!,
+      paidAt: iso(p.paidAt),
+      providerRef: p.providerRef ?? undefined,
+      note: p.note ?? undefined,
+      balance: ownerBalances.get(p.userId)?.balance ?? 0,
+    }));
+    adminRefunds = refundRows.flatMap((r) => {
+      const o = orderRows.find((x) => x.id === r.orderId);
+      if (!o) return [];
+      const c = checkoutById.get(o.checkoutId);
+      const resto = restaurantRows.find((x) => x.id === o.restaurantId);
+      const view = refundsByOrder.get(o.id)?.find((x) => x.id === r.id);
+      if (!view) return [];
+      return [
+        {
+          ...view,
+          restaurantId: o.restaurantId,
+          restaurantName: resto?.name ?? "Restaurant",
+          restaurantPhone: phoneLabel(resto?.phone),
+          checkoutReference: c?.reference ?? "",
+          method: r.method ? (PAYMENT_METHOD_LABEL[r.method] ?? undefined) : undefined,
+          paidTo: r.paidTo ? phoneLabel(r.paidTo) : undefined,
+          bornBy: r.bornBy,
+        },
+      ];
+    });
+  }
+
   // --- Paiements (admin) ------------------------------------------------------------
   let adminPayments: AdminPayment[] | undefined;
   if (me.role === "admin") {
@@ -839,6 +1087,11 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       merchant: merchant ? { wave: merchant.wave, orangeMoney: merchant.orangeMoney } : null,
     },
     payments: adminPayments,
+    wallet: farmerWallet,
+    driverWallet,
+    accounts,
+    payouts: adminPayouts,
+    refunds: adminRefunds,
     restaurant: myRestaurant
       ? {
           name: myRestaurant.name,

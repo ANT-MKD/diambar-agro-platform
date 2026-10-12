@@ -1,16 +1,18 @@
 // Place de marché sur une vraie base PostgreSQL (comme les autres tests
 // « .db ») : ne tourne que si TEST_DATABASE_URL est défini.
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb, type Db } from "@/db/client.server";
 import {
   drivers,
+  ledgerEntries,
   missions,
   notifications,
   orders,
   payments,
+  payouts,
   products,
   refunds,
   settings,
@@ -33,6 +35,8 @@ import {
   type PlaceOrderInput,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
+import { payPayout, payRefund, rejectPayout, requestPayout } from "./payouts-db.server";
+import { readBalances } from "./ledger-db.server";
 import { readSnapshot } from "./snapshot.server";
 
 const adminUrl = process.env.TEST_DATABASE_URL;
@@ -517,6 +521,168 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const [paid] = await db.select().from(payments).where(eq(payments.id, cash.id));
     expect(paid.status).toBe("confirmed");
     expect(paid.confirmedBy).toBe(adminId);
+  });
+
+  it("grand livre à la livraison, refus à la réception, retraits et remboursements", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const before = (await readBalances(db, [farmerId, driverId]))!;
+    const farmerBefore = before.get(farmerId)!.balance;
+    const driverBefore = before.get(driverId)!.balance;
+    const placed = await placeOrder(
+      db,
+      restaurantId,
+      order({ lines: [{ productId: tomatoes.id, qty: 20 }] }),
+    );
+    const o = placed.orders[0];
+    await confirmOrder(db, farmerId, o.id, {});
+    await pay(placed.checkoutId);
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+    await acceptMission(db, driverId, m.id);
+    const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+    await missionStep(db, driverId, m.id, "loaded", row.pickupCode);
+    await addDeliveryProof(db, driverId, {
+      missionId: m.id,
+      stage: "dropoff",
+      storageKey: "non-conserve/livre.jpg",
+      mime: "image/jpeg",
+      size: 1000,
+    });
+    await missionStep(db, driverId, m.id, "delivered", row.deliveryCode);
+
+    // Ce que le restaurant a payé est exactement réparti entre les trois comptes.
+    const entries = await db.select().from(ledgerEntries).where(eq(ledgerEntries.orderId, o.id));
+    const sum = (f: (e: (typeof entries)[number]) => boolean) =>
+      entries.filter(f).reduce((acc, e) => acc + e.amount, 0);
+    const subtotal = 20 * tomatoes.price;
+    const farmerCommission = Math.round(subtotal * 0.15);
+    expect(sum((e) => e.account === "farmer" && e.kind === "sale")).toBe(subtotal);
+    expect(sum((e) => e.account === "farmer" && e.kind === "commission")).toBe(-farmerCommission);
+    expect(sum((e) => e.account === "driver" && e.kind === "driver_payout")).toBe(m.payout);
+    expect(sum((e) => e.account === "driver" && e.kind === "commission")).toBe(
+      -Math.round(m.payout * 0.2),
+    );
+    expect(sum(() => true)).toBe(row.subtotal + row.deliveryFee);
+    const after = await readBalances(db, [farmerId, driverId]);
+    expect(after.get(farmerId)!.balance - farmerBefore).toBe(subtotal - farmerCommission);
+    expect(after.get(driverId)!.balance - driverBefore).toBe(m.payout - Math.round(m.payout * 0.2));
+
+    // Livrer une deuxième fois n'écrit rien de plus.
+    await expect(missionStep(db, driverId, m.id, "delivered", row.deliveryCode)).rejects.toThrow();
+    expect(
+      await db.select().from(ledgerEntries).where(eq(ledgerEntries.orderId, o.id)),
+    ).toHaveLength(entries.length);
+
+    // Refus à la réception : remboursement au restaurant, repris sur le producteur.
+    await reportReception(db, restaurantId, o.id, {
+      lines: [{ productId: tomatoes.id, refusedQty: 4, reason: "Abîmées" }],
+    });
+    const [refund] = await db
+      .select()
+      .from(refunds)
+      .where(and(eq(refunds.orderId, o.id), eq(refunds.source, "reception")));
+    expect(refund.amount).toBe(4 * tomatoes.price);
+    expect(refund.bornBy).toBe("farmer");
+    const back = Math.round((farmerCommission * 4 * tomatoes.price) / subtotal);
+    const afterRefusal = (await readBalances(db, [farmerId])).get(farmerId)!;
+    expect(afterRefusal.balance).toBe(after.get(farmerId)!.balance - 4 * tomatoes.price + back);
+    const farmerSnap = await readSnapshot(db, { id: farmerId, role: "farmer" });
+    const credited = farmerSnap.wallet!.transactions.filter((t) => t.orderRef === o.reference);
+    expect(credited.map((t) => t.kind).sort()).toEqual(["delivery", "refund_adjustment"]);
+    expect(credited.find((t) => t.kind === "delivery")!.net).toBe(subtotal - farmerCommission);
+
+    // L'admin rembourse le restaurant.
+    await expect(
+      payRefund(db, adminId, refund.id, { method: "wave", paidTo: "771234567", providerRef: "x" }),
+    ).rejects.toThrow(/Référence invalide/);
+    await payRefund(db, adminId, refund.id, {
+      method: "wave",
+      paidTo: "77 123 45 67",
+      providerRef: newRef(),
+    });
+    await expect(
+      payRefund(db, adminId, refund.id, {
+        method: "wave",
+        paidTo: "771234567",
+        providerRef: newRef(),
+      }),
+    ).rejects.toThrow(/déjà fait/);
+    const restoSnap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    expect(
+      restoSnap.restaurantOrders
+        .find((x) => x.id === o.id)
+        ?.refunds?.find((r) => r.id === refund.id)?.status,
+    ).toBe("paid");
+
+    // Retraits du producteur : jamais plus que le disponible, même en parallèle.
+    const available = afterRefusal.available;
+    await expect(
+      requestPayout(db, farmerId, { amount: available + 1, method: "wave" }),
+    ).rejects.toThrow(/insuffisant/);
+    await expect(requestPayout(db, farmerId, { amount: 500, method: "wave" })).rejects.toThrow(
+      /minimum/,
+    );
+    const half = Math.floor(available / 2);
+    const a = createDb(url);
+    const b = createDb(url);
+    try {
+      const results = await Promise.allSettled([
+        requestPayout(a.db, farmerId, { amount: available - 1000, method: "wave" }),
+        requestPayout(b.db, farmerId, { amount: available - 1000, method: "wave" }),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    } finally {
+      await a.close();
+      await b.close();
+    }
+    const [first] = await db
+      .select()
+      .from(payouts)
+      .where(and(eq(payouts.userId, farmerId), eq(payouts.status, "requested")));
+    expect(first.reference).toMatch(/^VER-\d+$/);
+    expect(first.accountNumber).toMatch(/^7\d{8}$/);
+    expect((await readBalances(db, [farmerId])).get(farmerId)!.available).toBe(1000);
+    await rejectPayout(db, adminId, first.id, "Numéro à vérifier avec vous");
+    expect((await readBalances(db, [farmerId])).get(farmerId)!.available).toBe(available);
+    await requestPayout(db, farmerId, {
+      amount: half,
+      method: "orange_money",
+      accountNumber: "78 111 22 33",
+    });
+    const [second] = await db
+      .select()
+      .from(payouts)
+      .where(and(eq(payouts.userId, farmerId), eq(payouts.status, "requested")));
+    await payPayout(db, adminId, second.id, newRef());
+    await expect(payPayout(db, adminId, second.id, newRef())).rejects.toThrow(/plus à verser/);
+    const finalBalance = (await readBalances(db, [farmerId])).get(farmerId)!;
+    expect(finalBalance.balance).toBe(afterRefusal.balance - half);
+    expect(finalBalance.available).toBe(available - half);
+    const farmerAfter = await readSnapshot(db, { id: farmerId, role: "farmer" });
+    expect(farmerAfter.wallet!.withdrawals.map((w) => w.status).sort()).toEqual(
+      expect.arrayContaining(["Effectué", "Échec"]),
+    );
+
+    // Le livreur voit ses gains et retire.
+    const driverSnap = await readSnapshot(db, { id: driverId, role: "driver" });
+    expect(driverSnap.driverWallet!.balance).toBe(
+      (await readBalances(db, [driverId])).get(driverId)!.available,
+    );
+    expect(driverSnap.driverWallet!.transactions.some((t) => t.ref === m.reference)).toBe(true);
+    await requestPayout(db, driverId, { amount: 1000, method: "wave" });
+    const adminSnap = await readSnapshot(db, { id: adminId, role: "admin" });
+    expect(adminSnap.payouts?.some((p) => p.userId === driverId && p.status === "requested")).toBe(
+      true,
+    );
+    expect(adminSnap.accounts?.find((x) => x.userId === farmerId)?.balance).toBe(
+      finalBalance.balance,
+    );
+    expect(adminSnap.refunds?.some((r) => r.id === refund.id && r.status === "paid")).toBe(true);
+    // Le grand livre reste équilibré : sommes jamais modifiées, seulement ajoutées.
+    const [{ n }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.kind, "payout"));
+    expect(n).toBe(1);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {
