@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emailConfigured, sendEmail } from "./email.server";
+import { emailConfigured, emailTestSenderOnly, sendEmail } from "./email.server";
 import {
   accountApprovedEmail,
   correctionRequestedEmail,
@@ -60,6 +60,16 @@ describe("envoi par Resend", () => {
   });
 
   const message = { to: "a@exemple.sn", subject: "S", html: "<p>h</p>", text: "t", tag: "test" };
+
+  it("reconnaît l'adresse d'expédition de test de Resend", () => {
+    expect(emailTestSenderOnly()).toBe(true);
+    process.env.EMAIL_FROM = "onboarding@RESEND.dev";
+    expect(emailTestSenderOnly()).toBe(true);
+    process.env.EMAIL_FROM = "Diambar Agro <bonjour@diambar.sn>";
+    expect(emailTestSenderOnly()).toBe(false);
+    process.env.EMAIL_FROM = "Diambar <no-reply@resend.dev.diambar.sn>";
+    expect(emailTestSenderOnly()).toBe(false);
+  });
 
   it("refuse d'envoyer sans clé ni expéditeur", async () => {
     delete process.env.RESEND_API_KEY;

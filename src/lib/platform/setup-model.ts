@@ -77,6 +77,11 @@ export type SetupSnapshot = {
   demoMode: boolean;
   /** Les codes de vérification peuvent-ils être reçus (SMS/email branché, ou démo) ? */
   codeDeliveryAvailable: boolean;
+  /** missing : pas d'envoi ; test_sender : adresse de test de Resend (n'envoie
+   * qu'au propriétaire du compte) ; ready : domaine vérifié. */
+  emailStatus: "missing" | "test_sender" | "ready";
+  /** Inscriptions publiques possibles : démo, ou emails vers n'importe qui. */
+  registrationsCanOpen: boolean;
   setup: PlatformSetup;
   registrationsOpen: boolean;
   me: { email: string; twoFaEnabled: boolean };

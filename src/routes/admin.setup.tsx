@@ -23,6 +23,7 @@ import {
   createStaffInviteFn,
   getSetupFn,
   saveSetupStepFn,
+  sendTwoFaSetupCodeFn,
   setRegistrationsOpenFn,
   type SaveStepInput,
 } from "@/lib/platform/setup";
@@ -169,12 +170,48 @@ function SaveButton({
 
 function SecurityStep({ snapshot, save, saving }: StepProps) {
   const [twoFa, setTwoFa] = useState(snapshot.me.twoFaEnabled);
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState<{ to: string; devCode?: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const codeId = useId();
+  // Activer demande de saisir un code reçu par email : preuve qu'il arrive.
+  const enabling = twoFa && !snapshot.me.twoFaEnabled;
+
+  const sendCode = async () => {
+    setSending(true);
+    try {
+      const res = await sendTwoFaSetupCodeFn();
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setSent({ to: res.sentTo, devCode: res.devCode });
+      setCode("");
+      toast.success(`Code envoyé à ${res.sentTo}.`);
+    } catch {
+      toast.error("Envoi impossible pour le moment. Réessayez.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <form
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        void save({ step: "security", data: { twoFaEnabled: twoFa } });
+        if (enabling && !/^\d{6}$/.test(code.trim())) {
+          toast.error(
+            sent
+              ? "Saisissez le code à 6 chiffres reçu par email."
+              : "Envoyez-vous d'abord un code de vérification.",
+          );
+          return;
+        }
+        void save({
+          step: "security",
+          data: { twoFaEnabled: twoFa, ...(enabling ? { code: code.trim() } : {}) },
+        });
       }}
     >
       <p className="text-sm text-muted-foreground">
@@ -186,7 +223,7 @@ function SecurityStep({ snapshot, save, saving }: StepProps) {
         <Switch
           id="two-fa"
           checked={twoFa}
-          disabled={!snapshot.codeDeliveryAvailable}
+          disabled={!snapshot.codeDeliveryAvailable && !twoFa}
           onCheckedChange={setTwoFa}
         />
         <div>
@@ -200,6 +237,52 @@ function SecurityStep({ snapshot, save, saving }: StepProps) {
           </p>
         </div>
       </div>
+      {enabling && (
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="text-sm">
+            Vérifions d'abord que les emails vous parviennent : un code est envoyé à{" "}
+            <strong>{snapshot.me.email}</strong>. Sans cette vérification, vous risqueriez de ne
+            plus pouvoir vous connecter.
+          </p>
+          {snapshot.emailStatus === "test_sender" && !snapshot.demoMode && (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
+              Adresse d'expédition de test de Resend : le code n'arrivera que si {snapshot.me.email}{" "}
+              est l'adresse de votre compte Resend.
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={sending}
+            onClick={() => void sendCode()}
+            className="gap-2"
+          >
+            {sending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            {sent ? "Renvoyer un code" : "M'envoyer un code"}
+          </Button>
+          {sent && (
+            <div>
+              <label htmlFor={codeId} className="text-sm font-medium">
+                Code reçu par email
+              </label>
+              <input
+                id={codeId}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="6 chiffres"
+                className={`${fieldClass} max-w-40 tracking-widest`}
+              />
+              {sent.devCode && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mode démo : votre code est <strong>{sent.devCode}</strong>.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <SaveButton saving={saving} />
     </form>
   );
@@ -1091,12 +1174,21 @@ function FinishPanel({
           </dd>
         </div>
       </dl>
-      {!snapshot.codeDeliveryAvailable && !snapshot.registrationsOpen && (
+      {!snapshot.registrationsCanOpen && !snapshot.registrationsOpen && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          L'envoi des emails n'est pas configuré sur le serveur (RESEND_API_KEY et EMAIL_FROM) :
-          personne ne pourrait recevoir son code d'inscription. Configurez-le avant d'ouvrir.
+          {snapshot.emailStatus === "test_sender"
+            ? "Les emails partent de l'adresse de test de Resend (…@resend.dev) : seule l'adresse de votre compte Resend les reçoit, les autres personnes n'auraient jamais leur code d'inscription. Vérifiez votre domaine chez Resend et changez EMAIL_FROM avant d'ouvrir."
+            : "L'envoi des emails n'est pas configuré sur le serveur (RESEND_API_KEY et EMAIL_FROM) : personne ne pourrait recevoir son code d'inscription. Configurez-le avant d'ouvrir."}
         </p>
       )}
+      {snapshot.registrationsOpen &&
+        snapshot.emailStatus === "test_sender" &&
+        !snapshot.demoMode && (
+          <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            Attention : les emails partent de l'adresse de test de Resend. Les nouvelles personnes
+            ne reçoivent pas leur code d'inscription tant que le domaine n'est pas vérifié.
+          </p>
+        )}
       {snapshot.registrationsOpen ? (
         <Button
           variant="outline"
@@ -1107,7 +1199,11 @@ function FinishPanel({
           <Lock className="h-4 w-4" aria-hidden /> Fermer les inscriptions
         </Button>
       ) : (
-        <Button disabled={saving || !ready} onClick={() => setOpen(true)} className="gap-2">
+        <Button
+          disabled={saving || !ready || !snapshot.registrationsCanOpen}
+          onClick={() => setOpen(true)}
+          className="gap-2"
+        >
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           ) : (

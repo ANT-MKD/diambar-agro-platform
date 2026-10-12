@@ -2,10 +2,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { DEFAULT_SETTINGS } from "@/db/seed";
 import { isDemoMode } from "@/lib/auth/config.server";
-import { appUrl, codeDeliveryAvailable, notify } from "@/lib/notify/notify.server";
-import { staffInviteEmail } from "@/lib/notify/templates";
+import {
+  appUrl,
+  codeDeliveryAvailable,
+  deliverCode,
+  emailStatus,
+  notify,
+  publicCodeDeliveryAvailable,
+} from "@/lib/notify/notify.server";
+import { staffInviteEmail, twoFaSetupEmail } from "@/lib/notify/templates";
 import { requireStaff } from "@/lib/auth/guard.server";
-import { normalizeEmail, normalizeSenegalPhone } from "@/lib/auth/helpers";
+import {
+  generateSixDigitCode,
+  normalizeEmail,
+  normalizeSenegalPhone,
+  safeEqual,
+} from "@/lib/auth/helpers";
+import { authSession } from "@/lib/auth/session.server";
 import { STAFF_ROLE_LABEL, withAccountStore, type AccountStore } from "@/lib/auth/store.server";
 import { createSignedToken } from "@/lib/auth/tokens.server";
 import {
@@ -53,6 +66,8 @@ export const getSetupFn = createServerFn({ method: "GET" }).handler(
       return {
         demoMode: isDemoMode(),
         codeDeliveryAvailable: codeDeliveryAvailable(),
+        emailStatus: emailStatus(),
+        registrationsCanOpen: publicCodeDeliveryAvailable(),
         setup: (s.platform_setup as PlatformSetup | undefined) ?? { steps: {} },
         registrationsOpen: s.registrations_open === true,
         me: { email: me.email, twoFaEnabled: me.twoFaEnabled },
@@ -168,7 +183,7 @@ const catalogSchema = z.object({
 });
 
 export type SaveStepInput =
-  | { step: "security"; data: { twoFaEnabled: boolean } }
+  | { step: "security"; data: { twoFaEnabled: boolean; code?: string } }
   | { step: "company"; data: z.input<typeof companySchema> }
   | { step: "zone"; data: z.input<typeof zoneSchema> }
   | { step: "orders"; data: z.input<typeof ordersSchema> }
@@ -209,14 +224,28 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
       switch (input.step) {
         case "security": {
           const wanted = input.data.twoFaEnabled === true;
-          if (wanted && !codeDeliveryAvailable()) {
-            return {
-              ok: false,
-              message:
-                "La double authentification sera activable quand l'envoi des emails sera configuré (RESEND_API_KEY et EMAIL_FROM).",
-            };
+          if (wanted && !me.twoFaEnabled) {
+            // Activation seulement avec le code reçu : preuve que l'email arrive.
+            const check = await checkTwoFaSetupCode(me.id, String(input.data.code ?? ""));
+            if (!check.ok) return check;
+            await store.setTwoFa(me.id, true);
+            await store.audit({
+              actorId: me.id,
+              module: "security",
+              action: "Double authentification activée",
+              targetType: "user",
+              targetId: me.id,
+            });
+          } else if (!wanted && me.twoFaEnabled) {
+            await store.setTwoFa(me.id, false);
+            await store.audit({
+              actorId: me.id,
+              module: "security",
+              action: "Double authentification désactivée",
+              targetType: "user",
+              targetId: me.id,
+            });
           }
-          if (wanted !== me.twoFaEnabled) await store.setTwoFa(me.id, wanted);
           break;
         }
         case "company": {
@@ -291,6 +320,92 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
     }),
   );
 
+// --- Double authentification : activation confirmée par un code ---------------
+
+const TWO_FA_SETUP_TTL_MS = 10 * 60_000;
+const TWO_FA_SETUP_COOLDOWN_MS = 30_000;
+const TWO_FA_SETUP_MAX_ATTEMPTS = 5;
+
+export const sendTwoFaSetupCodeFn = createServerFn({ method: "POST" }).handler(
+  async (): Promise<
+    | { ok: true; sentTo: string; devCode?: string }
+    | { ok: false; message: string; waitSeconds?: number }
+  > =>
+    withAccountStore(async (store) => {
+      const me = await requireStaff(store, ["super_admin"]);
+      if (!codeDeliveryAvailable()) {
+        return {
+          ok: false,
+          message:
+            "La double authentification sera activable quand l'envoi des emails sera configuré (RESEND_API_KEY et EMAIL_FROM).",
+        };
+      }
+      const session = await authSession();
+      const previous = session.data.pendingTwoFaSetup;
+      const now = Date.now();
+      if (previous?.userId === me.id && now < previous.sentAt + TWO_FA_SETUP_COOLDOWN_MS) {
+        const wait = Math.ceil((previous.sentAt + TWO_FA_SETUP_COOLDOWN_MS - now) / 1000);
+        return {
+          ok: false,
+          waitSeconds: wait,
+          message: `Patientez ${wait} s avant un nouvel envoi.`,
+        };
+      }
+      const code = generateSixDigitCode();
+      await session.update({
+        pendingTwoFaSetup: {
+          userId: me.id,
+          code,
+          expiresAt: now + TWO_FA_SETUP_TTL_MS,
+          sentAt: now,
+          attempts: 0,
+        },
+      });
+      const sent = await deliverCode(me.email, twoFaSetupEmail({ name: me.firstName, code }), code);
+      if (!sent.ok) {
+        await session.update({ pendingTwoFaSetup: undefined });
+        return {
+          ok: false,
+          message:
+            emailStatus() === "test_sender"
+              ? `L'email n'a pas pu partir vers ${me.email}. Avec l'adresse d'expédition de test de Resend, seuls les emails vers l'adresse de votre compte Resend partent : la double authentification attendra votre domaine.`
+              : sent.message,
+        };
+      }
+      return { ok: true, sentTo: me.email, ...(sent.devCode ? { devCode: sent.devCode } : {}) };
+    }),
+);
+
+async function checkTwoFaSetupCode(
+  userId: string,
+  code: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await authSession();
+  const pending = session.data.pendingTwoFaSetup;
+  if (!pending || pending.userId !== userId) {
+    return { ok: false, message: "Envoyez-vous d'abord un code de vérification." };
+  }
+  if (Date.now() > pending.expiresAt || pending.attempts >= TWO_FA_SETUP_MAX_ATTEMPTS) {
+    await session.update({ pendingTwoFaSetup: undefined });
+    return { ok: false, message: "Code expiré ou trop d'essais : envoyez-vous un nouveau code." };
+  }
+  if (!safeEqual(code.trim(), pending.code)) {
+    const attempts = pending.attempts + 1;
+    const left = TWO_FA_SETUP_MAX_ATTEMPTS - attempts;
+    if (left <= 0) {
+      await session.update({ pendingTwoFaSetup: undefined });
+      return { ok: false, message: "Trop d'essais : envoyez-vous un nouveau code." };
+    }
+    await session.update({ pendingTwoFaSetup: { ...pending, attempts } });
+    return {
+      ok: false,
+      message: `Code incorrect. ${left} essai${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""}.`,
+    };
+  }
+  await session.update({ pendingTwoFaSetup: undefined });
+  return { ok: true };
+}
+
 // --- Équipe : invitation par lien signé ----------------------------------------
 
 export type StaffInvite = {
@@ -357,11 +472,13 @@ export const setRegistrationsOpenFn = createServerFn({ method: "POST" })
       const me = await requireStaff(store, ["super_admin"]);
       const setup = await readSetup(store);
       const { done, total } = setupProgress(setup);
-      if (data.open && !codeDeliveryAvailable()) {
+      if (data.open && !publicCodeDeliveryAvailable()) {
         return {
           ok: false,
           message:
-            "Configurez d'abord l'envoi des emails (RESEND_API_KEY et EMAIL_FROM) : sans lui, personne ne peut recevoir son code d'inscription.",
+            emailStatus() === "test_sender"
+              ? "L'adresse d'expédition est encore celle de test de Resend (…@resend.dev) : elle n'envoie qu'à l'adresse de votre compte Resend, les autres personnes ne recevraient pas leur code. Vérifiez votre domaine chez Resend et changez EMAIL_FROM avant d'ouvrir."
+              : "Configurez d'abord l'envoi des emails (RESEND_API_KEY et EMAIL_FROM) : sans lui, personne ne peut recevoir son code d'inscription.",
         };
       }
       if (data.open && done < total) {

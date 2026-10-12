@@ -28,6 +28,14 @@ export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY?.trim() && !!process.env.EMAIL_FROM?.trim();
 }
 
+/** Expéditeur de test de Resend (…@resend.dev) : sans domaine vérifié, Resend
+ * n'envoie qu'à l'adresse du propriétaire du compte. */
+export function emailTestSenderOnly(): boolean {
+  const from = process.env.EMAIL_FROM?.trim() ?? "";
+  const address = (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase();
+  return address.endsWith("@resend.dev");
+}
+
 export async function sendEmail(message: EmailMessage): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();

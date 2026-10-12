@@ -126,6 +126,25 @@ export function loginCodeEmail(p: { name: string; code: string }): EmailContent 
   );
 }
 
+export function twoFaSetupEmail(p: { name: string; code: string }): EmailContent {
+  return email(
+    "double-auth-activation",
+    `${p.code} : activer la double authentification`,
+    "Activer la double authentification",
+    [
+      {
+        kind: "p",
+        text: `Bonjour ${p.name}, saisissez ce code pour activer la double authentification sur votre compte :`,
+      },
+      { kind: "code", code: p.code },
+      {
+        kind: "small",
+        text: "Il est valable 10 minutes. Si ce n'est pas vous, changez votre mot de passe tout de suite.",
+      },
+    ],
+  );
+}
+
 export function passwordResetEmail(p: { name: string; url: string }): EmailContent {
   return email(
     "mot-de-passe-lien",

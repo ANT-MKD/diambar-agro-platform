@@ -14,6 +14,17 @@ export type PendingTwoFa = {
   rememberMe: boolean;
 };
 
+/** Activation de la double authentification : un code est envoyé à
+ * l'adresse du compte et doit être saisi, preuve que l'email arrive bien
+ * (sinon la personne ne pourrait plus se connecter). */
+export type PendingTwoFaSetup = {
+  userId: string;
+  code: string;
+  expiresAt: number;
+  sentAt: number;
+  attempts: number;
+};
+
 /** Informations spécifiques au métier (étape 3 de l'inscription) — tous les
  * champs sont optionnels côté type puisqu'ils dépendent du rôle choisi. */
 export type RegisterDetails = {
@@ -56,6 +67,7 @@ export type AuthSessionData = {
   pv?: string;
   pendingTwoFa?: PendingTwoFa;
   pendingRegistration?: PendingRegistration;
+  pendingTwoFaSetup?: PendingTwoFaSetup;
 };
 
 const MIN_SECRET_LENGTH = 32;

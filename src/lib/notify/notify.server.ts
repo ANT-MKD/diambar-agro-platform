@@ -1,10 +1,19 @@
 import { getRequestUrl } from "@tanstack/react-start/server";
 import { isDemoMode } from "@/lib/auth/config.server";
-import { emailConfigured, sendEmail } from "./email.server";
+import { emailConfigured, emailTestSenderOnly, sendEmail } from "./email.server";
 import type { EmailContent } from "./templates";
 
 // Point d'entrée des messages envoyés aux personnes. Pour l'instant : emails
 // par Resend. (Les SMS s'ajouteront ici, derrière les mêmes fonctions.)
+
+/** missing : rien n'est configuré ; test_sender : expéditeur de test de
+ * Resend, qui n'envoie qu'au propriétaire du compte ; ready : tout le monde. */
+export type EmailStatus = "missing" | "test_sender" | "ready";
+
+export function emailStatus(): EmailStatus {
+  if (!emailConfigured()) return "missing";
+  return emailTestSenderOnly() ? "test_sender" : "ready";
+}
 
 /**
  * Un code de vérification peut-il réellement parvenir à la personne ? En mode
@@ -13,6 +22,12 @@ import type { EmailContent } from "./templates";
  */
 export function codeDeliveryAvailable(): boolean {
   return isDemoMode() || emailConfigured();
+}
+
+/** Les inscriptions publiques peuvent-elles ouvrir ? Il faut que n'importe
+ * qui reçoive son code : démo (code à l'écran) ou domaine vérifié. */
+export function publicCodeDeliveryAvailable(): boolean {
+  return isDemoMode() || emailStatus() === "ready";
 }
 
 /** Adresse publique de l'application (liens dans les emails) : APP_URL si
