@@ -59,6 +59,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RenewDocButton } from "@/components/driver/renew-doc";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/vehicle")({
   head: () => ({ meta: [{ title: "Mon véhicule · Livreur" }] }),
@@ -103,6 +104,7 @@ const ISSUE_TYPES = Object.keys(VEHICLE_ISSUE_TYPE_LABEL) as VehicleIssueType[];
 const CHANGE_REASONS = Object.keys(VEHICLE_CHANGE_REASON_LABEL) as VehicleChangeReason[];
 
 function DriverVehiclePage() {
+  const myDriverId = useMyId("driver");
   const v = useDriverVehicle();
   const issues = useVehicleIssues();
   const maintenance = useMaintenanceHistory();
@@ -130,7 +132,7 @@ function DriverVehiclePage() {
   const mechanicalPct = Math.round((goodCount / conditionEntries.length) * 100);
 
   const activeMission = missions.find(
-    (m) => m.driverId === "d1" && ["pickup", "loaded"].includes(m.status),
+    (m) => m.driverId === myDriverId && ["pickup", "loaded"].includes(m.status),
   );
 
   const { status: globalStatus } = vehicleCompliance(v, issues);
@@ -158,7 +160,7 @@ function DriverVehiclePage() {
 
   const { today } = useMemo(() => referenceDay(missions), [missions]);
   const monthPrefix = today.slice(0, 7);
-  const myDelivered = missions.filter((m) => m.driverId === "d1" && m.status === "delivered");
+  const myDelivered = missions.filter((m) => m.driverId === myDriverId && m.status === "delivered");
   const myMonthMissions = myDelivered.filter((m) => dayKey(m.scheduledFor).startsWith(monthPrefix));
   const distanceThisMonth = myMonthMissions.reduce((s, m) => s + m.distanceKm, 0);
   const weightTotalTons = myDelivered.reduce((s, m) => s + m.weightKg, 0) / 1000;

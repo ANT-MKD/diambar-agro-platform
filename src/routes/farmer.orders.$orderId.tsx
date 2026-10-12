@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
 import { useOrder, orderActions, useProducts } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useState } from "react";
 import {
   Dialog,
@@ -40,8 +41,8 @@ function OrderDetailPage() {
   const steps: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", "delivered"];
   const idx = steps.indexOf(order.status);
 
-  const next = (s: OrderStatus) => {
-    const result = orderActions.setStatus(order.id, s);
+  const next = async (s: OrderStatus) => {
+    const result = await market.setOrderStatus(order.id, s, "farmer");
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -240,8 +241,8 @@ function AdjustQuantities({ orderId }: { orderId: string }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
   if (!order) return null;
-  const submit = () => {
-    const result = orderActions.confirmPartial(order.id, qty);
+  const submit = async () => {
+    const result = await market.confirmOrder(order.id, qty);
     if (!result.ok) return toast.error(result.message);
     toast.success("Commande acceptée avec les quantités disponibles");
     setOpen(false);

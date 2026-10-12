@@ -84,7 +84,15 @@ import {
   driverCommissionForPayout,
   DRIVER_COMMISSION_RATE,
 } from "@/lib/commission";
-import { getCommissionTiers, getDeliveryZones, useDeliveryZones } from "./platform-settings";
+import {
+  getCommissionTiers,
+  getDeliveryZones,
+  useDeliveryZones,
+  zonesStore,
+} from "./platform-settings";
+import type { MarketSnapshot } from "@/lib/market/types";
+import { markNotificationsReadFn } from "@/lib/market/functions";
+import { isMarketRemote } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
   currentLoadKg,
@@ -806,10 +814,19 @@ function makeNotifActions(
   // notification mène directement à l'élément concerné.
   linkFor?: (text: string) => string | undefined,
 ) {
+  // Avec la base, la lecture est aussi enregistrée côté serveur.
+  const persistRead = (ids: string[] | "all") => {
+    if (isMarketRemote()) void markNotificationsReadFn({ data: { ids } }).catch(() => undefined);
+  };
   return {
-    markRead: (id: string) =>
-      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n))),
-    markAllRead: () => store.set((arr) => arr.map((n) => ({ ...n, read: true }))),
+    markRead: (id: string) => {
+      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      persistRead([id]);
+    },
+    markAllRead: () => {
+      store.set((arr) => arr.map((n) => ({ ...n, read: true })));
+      persistRead("all");
+    },
     markUnread: (id: string) =>
       store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: false } : n))),
     toggleRead: (id: string) =>
@@ -2889,3 +2906,67 @@ export const docRenewalActions = {
     }
   },
 };
+
+// --- Données venues du serveur (mode base de données) ------------------------
+
+let profileLoadedFor: string | null = null;
+
+/** Remplace produits, commandes, missions, annuaire, zones et notifications
+ * par ceux du compte connecté, lus dans la base (voir market-remote). */
+export function replaceMarketData(s: MarketSnapshot) {
+  productsStore.replace(s.products);
+  ordersStore.replace(s.orders);
+  restaurantOrdersStore.replace(s.restaurantOrders);
+  missionsStore.replace(s.missions);
+  farmers.splice(0, farmers.length, ...s.directory.farmers);
+  restaurants.splice(0, restaurants.length, ...s.directory.restaurants);
+  driverPool.splice(0, driverPool.length, ...s.directory.drivers);
+  zonesStore.replace(s.zones);
+  const notifs =
+    s.me.role === "farmer"
+      ? farmerNotifsStore
+      : s.me.role === "restaurant"
+        ? restoNotifsStore
+        : s.me.role === "driver"
+          ? driverNotifsStore
+          : null;
+  notifs?.replace(s.notifications);
+  if (s.restaurant) {
+    const profile = restaurantProfileStore.get();
+    const methods = s.rules.paymentMethods;
+    // Adresse de l'établissement au premier chargement ; ensuite, celle que
+    // le restaurant a utilisée à sa dernière commande.
+    const first = profileLoadedFor !== s.me.id;
+    profileLoadedFor = s.me.id;
+    restaurantProfileStore.replace({
+      ...profile,
+      displayName: s.restaurant.name,
+      city: s.restaurant.city,
+      deliveryAddress: first ? s.restaurant.address : profile.deliveryAddress,
+      enabledPaymentMethods: methods,
+      paymentMethod: methods.includes(profile.paymentMethod) ? profile.paymentMethod : methods[0],
+    });
+  }
+  // Panier : on retire ce qui n'existe plus au catalogue.
+  const ids = new Set(s.products.map((p) => p.id));
+  const cart = cartStore.get();
+  if (cart.some((l) => !ids.has(l.productId))) {
+    cartStore.set(cart.filter((l) => ids.has(l.productId)));
+  }
+}
+
+/** Premier chargement en mode serveur : les données de démonstration qui
+ * n'ont pas encore d'équivalent en base ne sont plus montrées. */
+export function clearDemoCollections() {
+  movementsStore.replace([]);
+  withdrawalsStore.replace([]);
+  transactionsStore.replace([]);
+  suppliersStore.replace([]);
+  conversationsStore.replace([]);
+  driverConvosStore.replace([]);
+  recurringStore.replace([]);
+  productReviewsStore.replace([]);
+  farmerNotifsStore.replace([]);
+  restoNotifsStore.replace([]);
+  driverNotifsStore.replace([]);
+}

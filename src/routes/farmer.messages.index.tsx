@@ -10,6 +10,7 @@ import { useConversations, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
@@ -21,11 +22,11 @@ export const Route = createFileRoute("/farmer/messages/")({
 // Un seul producteur peut se connecter dans cette démo (Mamadou Diallo,
 // f1) : on ne montre donc que les conversations qui lui sont adressées,
 // pas celles ouvertes par des restaurants avec d'autres fournisseurs.
-const MY_FARMER_ID = "f1";
 
 function MessagesPage() {
+  const myFarmerId = useMyId("farmer");
   const allConvs = useConversations();
-  const convs = allConvs.filter((c) => c.farmerId === MY_FARMER_ID);
+  const convs = allConvs.filter((c) => c.farmerId === myFarmerId);
   const [activeId, setActiveId] = useState<string | null>(convs[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");

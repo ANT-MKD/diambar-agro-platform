@@ -228,3 +228,9 @@ export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {
   technical: "Technique et bugs",
   other: "Autres",
 };
+
+/** Mode base de données : les données de démonstration de ce module ne
+ * sont pas montrées (le module passera en base dans un prochain lot). */
+export function clearSupportDemoData() {
+  ticketsStore.replace([]);
+}

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { farmers, restaurants } from "@/data/mocks";
 import { useConversations, useSuppliers, conversationActions } from "@/data/store";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/messages/$conversationId")({
   head: () => ({
@@ -26,9 +27,10 @@ export const Route = createFileRoute("/restaurant/messages/$conversationId")({
 });
 
 function RestaurantConversation() {
+  const myRestaurantId = useMyId("restaurant");
   const { conversationId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const convs = useConversations();
   const suppliers = useSuppliers();
   const navigate = useNavigate();

@@ -16,6 +16,7 @@ import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/cart")({
   head: () => ({ meta: [{ title: "Panier · Restaurant" }] }),
@@ -23,8 +24,9 @@ export const Route = createFileRoute("/restaurant/cart")({
 });
 
 function CartPage() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const suspendedFarmerIds = new Set(
     suppliers

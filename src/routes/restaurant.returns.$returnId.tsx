@@ -17,6 +17,7 @@ import {
 import { restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/returns/$returnId")({
   head: () => ({ meta: [{ title: "Retour · Restaurant" }] }),
@@ -31,9 +32,10 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 function ReturnDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { returnId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const r = useReturn(returnId);
   const [tab, setTab] = useState("details");
   const [draft, setDraft] = useState("");

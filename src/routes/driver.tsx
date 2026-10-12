@@ -17,7 +17,7 @@ import {
   Navigation,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -37,14 +37,16 @@ import {
 import { driverProfile } from "@/data/mocks";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, market, useMarketPolling } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver")({
-  beforeLoad: () => requireRole("driver"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("driver"),
   component: DriverLayout,
 });
-
-const MY_DRIVER_ID = "d1";
 
 const bottomNav = [
   { to: "/driver/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -56,6 +58,8 @@ const bottomNav = [
 
 function DriverLayout() {
   const { user } = Route.useRouteContext();
+  useMarketPolling();
+  const MY_DRIVER_ID = useMyId("driver");
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
@@ -72,15 +76,24 @@ function DriverLayout() {
 
   // Acceptation automatique réelle : dès qu'une mission "disponible" respecte
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
+  // Avec la base, c'est le serveur qui attribue : une course déjà tentée
+  // n'est pas redemandée à chaque rafraîchissement.
+  const attempted = useRef(new Set<string>());
   useEffect(() => {
     if (!online) return;
-    const matches = autoAcceptableMissions(missions, settings, fleet);
-    for (const m of matches) {
-      if (!missionActions.accept(m.id).ok) continue;
-      toast.success(
-        `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
-      );
-    }
+    const matches = autoAcceptableMissions(missions, settings, fleet).filter(
+      (m) => !attempted.current.has(m.id),
+    );
+    if (!matches.length) return;
+    void (async () => {
+      for (const m of matches) {
+        attempted.current.add(m.id);
+        if (!(await market.acceptMission(m.id)).ok) continue;
+        toast.success(
+          `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
+        );
+      }
+    })();
   }, [missions, settings, online, fleet]);
 
   const toggleOnline = () => {

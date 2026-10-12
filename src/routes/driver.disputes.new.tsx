@@ -9,6 +9,7 @@ import { DisputeForm } from "@/components/disputes/dispute-form";
 import { useMissions } from "@/data/store";
 import { farmers, restaurants, driverProfile } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/disputes/new")({
   head: () => ({
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/driver/disputes/new")({
 });
 
 function NewDriverDispute() {
+  const myDriverId = useMyId("driver");
   const navigate = useNavigate();
   const missions = useMissions();
   const [missionId, setMissionId] = useState<string | null>(null);
@@ -33,9 +35,9 @@ function NewDriverDispute() {
   const myMissions = useMemo(
     () =>
       missions
-        .filter((m) => m.driverId === "d1")
+        .filter((m) => m.driverId === myDriverId)
         .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor)),
-    [missions],
+    [missions, myDriverId],
   );
   const filteredMissions = myMissions.filter(
     (m) =>

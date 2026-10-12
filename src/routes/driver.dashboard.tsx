@@ -35,6 +35,7 @@ import {
   useMyMissionEligibility,
   missionActions,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { missionEligibility } from "@/lib/mission-eligibility";
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
 import { useSecurity } from "@/data/security";
@@ -52,6 +53,7 @@ import {
 } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Livreur Diambar" }] }),
@@ -85,6 +87,7 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 function DriverDashboard() {
+  const myDriverId = useMyId("driver");
   const missions = useDriverMissions();
   const online = useDriverOnline();
   const wallet = useDriverWallet();
@@ -111,11 +114,11 @@ function DriverDashboard() {
   const available = missions.filter((m) => m.status === "available");
   const active = missions.filter(
     (m) =>
-      m.driverId === "d1" &&
+      m.driverId === myDriverId &&
       (m.status === "accepted" || m.status === "pickup" || m.status === "loaded"),
   );
   const nextMission = active[0] ?? null;
-  const delivered = missions.filter((m) => m.driverId === "d1" && m.status === "delivered");
+  const delivered = missions.filter((m) => m.driverId === myDriverId && m.status === "delivered");
   const totalDistance = delivered.reduce((s, m) => s + m.distanceKm, 0);
 
   // Les missions de démo sont figées dans le passé : on ancre "aujourd'hui"
@@ -123,10 +126,10 @@ function DriverDashboard() {
   const { today, yesterday } = useMemo(() => referenceDay(missions), [missions]);
 
   const todaysMissions = missions.filter(
-    (m) => m.driverId === "d1" && dayKey(m.scheduledFor) === today,
+    (m) => m.driverId === myDriverId && dayKey(m.scheduledFor) === today,
   );
   const yesterdaysMissions = missions.filter(
-    (m) => m.driverId === "d1" && dayKey(m.scheduledFor) === yesterday,
+    (m) => m.driverId === myDriverId && dayKey(m.scheduledFor) === yesterday,
   );
   const deliveredToday = todaysMissions.filter((m) => m.status === "delivered");
   const remainingToday = todaysMissions.filter(
@@ -173,10 +176,10 @@ function DriverDashboard() {
           (m) =>
             m.status !== "cancelled" &&
             dayKey(m.scheduledFor) === today &&
-            (m.driverId === "d1" || m.status === "available"),
+            (m.driverId === myDriverId || m.status === "available"),
         )
         .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor)),
-    [missions, today],
+    [missions, today, myDriverId],
   );
 
   const openIncidents = incidents.filter((i) => i.status !== "resolved").slice(0, 2);
@@ -238,8 +241,8 @@ function DriverDashboard() {
       ? { label: "Livraison", ...m.dropoff }
       : { label: "Collecte", ...m.pickup };
 
-  const acceptMission = (id: string, ref: string) => {
-    const result = missionActions.accept(id);
+  const acceptMission = async (id: string, ref: string) => {
+    const result = await market.acceptMission(id);
     if (!result.ok) {
       toast.error(result.message);
       return;

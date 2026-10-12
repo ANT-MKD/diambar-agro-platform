@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { useMission, useOrders, missionActions, useReassignCandidates } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useAllDisputes } from "@/data/disputes";
 import {
   useIncidents,
@@ -115,7 +116,7 @@ function AdminDeliveryDetail() {
 
   const history = [...(mission.statusHistory ?? [])].sort((a, b) => (a.at < b.at ? -1 : 1));
 
-  const confirmReassign = () => {
+  const confirmReassign = async () => {
     if (!newDriverId) {
       toast.error("Choisissez un livreur");
       return;
@@ -126,7 +127,7 @@ function AdminDeliveryDetail() {
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
-    const result = missionActions.reassign(mission.id, newDriverId);
+    const result = await market.reassignMission(mission.id, newDriverId);
     if (!result.ok) {
       toast.error(result.message);
       return;

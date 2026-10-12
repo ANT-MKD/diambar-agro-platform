@@ -43,6 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/revenue/")({
   head: () => ({ meta: [{ title: "Revenus · Diambar Agro" }] }),
@@ -67,15 +68,14 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-const MY_FARMER_ID = "f1";
-
 function RevenuePage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
   const paymentPrefs = usePaymentPrefs();
-  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
+  const transactions = useTransactions().filter((t) => t.farmerId === myFarmerId);
 
   // Le graphique agrège les vraies transactions par jour réel, filtrées aux
   // N derniers jours disponibles (les dates de démo étant fixes, un filtre

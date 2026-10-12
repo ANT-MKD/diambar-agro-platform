@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -42,6 +42,8 @@ import {
   useMyMissionEligibility,
   useDriverSettings,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
@@ -85,6 +87,7 @@ const FLOW: Array<{ status: "accepted" | "pickup" | "loaded" | "delivered"; labe
 ];
 
 function MissionDetail() {
+  const myDriverId = useMyId("driver");
   const navigate = useNavigate();
   const { missionId } = Route.useParams();
   const mission = useMission(missionId);
@@ -100,6 +103,7 @@ function MissionDetail() {
   const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
+  const sentProofs = useRef(new Set<string>());
   const [deliveryCode, setDeliveryCode] = useState("");
   const [pickupOpen, setPickupOpen] = useState(false);
   const [pickupCode, setPickupCode] = useState("");
@@ -140,51 +144,61 @@ function MissionDetail() {
 
   const eligibility = eligibilityFor(mission);
   // Une mission prise par un autre livreur reste consultable, jamais pilotable.
-  const isMine = mission.driverId === "d1";
-  const accept = () => {
-    const result = missionActions.accept(mission.id);
+  const isMine = mission.driverId === myDriverId;
+  const accept = async () => {
+    const result = await market.acceptMission(mission.id);
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
     toast.success("Mission acceptée");
   };
-  const startPickup = () => {
-    const result = missionActions.setStatus(mission.id, "pickup");
+  const startPickup = async () => {
+    const result = await market.missionStep(mission.id, "pickup");
     if (!result.ok) return toast.error(result.message);
     toast.success("Trajet vers le producteur démarré");
   };
-  const markLoaded = () => {
-    const result = missionActions.setStatus(mission.id, "loaded", "d1", { code: pickupCode });
+  const markLoaded = async () => {
+    const result = await market.missionStep(mission.id, "loaded", pickupCode);
     if (!result.ok) return toast.error(result.message);
     setPickupOpen(false);
     setPickupCode("");
     toast.success("Marchandise chargée · direction restaurant");
   };
-  const markDelivered = () => {
+  const markDelivered = async () => {
     if (proofPhotos.length === 0) {
       toast.error("Ajoutez au moins une photo de la marchandise livrée.");
       return;
     }
-    missionActions.attachProof(mission.id, proofPhotos);
-    const result = missionActions.setStatus(mission.id, "delivered", "d1", {
-      code: deliveryCode,
-    });
+    // Avec la base, chaque photo n'est envoyée qu'une fois (même si le code
+    // saisi était faux au premier essai).
+    const toSend = market.isRemote()
+      ? proofPhotos.filter((ph) => !sentProofs.current.has(ph.id))
+      : proofPhotos;
+    const sent = await market.attachProof(mission.id, toSend, "dropoff");
+    if (!sent.ok) {
+      toast.error(sent.message);
+      return;
+    }
+    toSend.forEach((ph) => sentProofs.current.add(ph.id));
+    const result = await market.missionStep(mission.id, "delivered", deliveryCode);
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
-    toast.success("Livraison confirmée · paiement crédité");
+    toast.success(
+      market.isRemote() ? "Livraison confirmée" : "Livraison confirmée · paiement crédité",
+    );
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
   };
-  const withdraw = () => {
+  const withdraw = async () => {
     const reason = withdrawReason.trim();
     if (reason.length < 5) {
       toast.error("Indiquez la raison du désistement");
       return;
     }
-    const result = missionActions.withdraw(mission.id, reason);
+    const result = await market.withdrawMission(mission.id, reason);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -486,8 +500,9 @@ function MissionDetail() {
                     <Button
                       variant="outline"
                       className="w-full h-12 gap-2"
-                      onClick={() => {
-                        missionActions.markArrived(mission.id, stage);
+                      onClick={async () => {
+                        const res = await market.markArrived(mission.id, stage);
+                        if (!res.ok) return toast.error(res.message);
                         toast.success("Arrivée enregistrée · l'attente est chronométrée");
                       }}
                     >
@@ -675,9 +690,10 @@ function MissionDetail() {
             <DialogTitle>Preuve de livraison</DialogTitle>
             <DialogDescription>
               Demandez au restaurant son code de remise à 4 chiffres et prenez une photo de la
-              marchandise livrée. Vous recevrez immédiatement{" "}
-              {formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre
-              portefeuille (commission plateforme déjà déduite).
+              marchandise livrée.{" "}
+              {market.isRemote()
+                ? `Gain de la course : ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} (commission plateforme déduite).`
+                : `Vous recevrez immédiatement ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre portefeuille (commission plateforme déjà déduite).`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1">

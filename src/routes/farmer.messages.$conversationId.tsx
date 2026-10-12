@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { restaurants, type ChatAttachment } from "@/data/mocks";
 import { useConversation, conversationActions } from "@/data/store";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
@@ -29,12 +30,12 @@ export const Route = createFileRoute("/farmer/messages/$conversationId")({
 });
 
 // Un seul producteur peut se connecter dans cette démo (Mamadou Diallo, f1).
-const MY_FARMER_ID = "f1";
 
 function FarmerConversation() {
+  const myFarmerId = useMyId("farmer");
   const { conversationId } = Route.useParams();
   const found = useConversation(conversationId);
-  const conv = found && found.farmerId === MY_FARMER_ID ? found : null;
+  const conv = found && found.farmerId === myFarmerId ? found : null;
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);

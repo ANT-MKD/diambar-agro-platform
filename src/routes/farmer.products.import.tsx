@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { productActions } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { myId } from "@/data/market-mode";
 import { downloadCsv } from "@/lib/export";
 import { CATEGORIES, SAMPLE_IMAGES } from "@/components/farmer/product-form";
 import type { Product } from "@/data/mocks";
@@ -106,11 +108,12 @@ function ImportPage() {
 
   const validCount = rows.filter((r) => r.errors.length === 0).length;
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     const valid = rows.filter((r) => r.errors.length === 0);
-    valid.forEach((r, i) => {
+    let done = 0;
+    for (const [i, r] of valid.entries()) {
       const stock = Number(r.stock);
-      productActions.create({
+      const res = await market.saveProduct(null, {
         name: r.name,
         category: r.category as Product["category"],
         pricePerKg: Number(r.price),
@@ -120,13 +123,17 @@ function ImportPage() {
         sku: r.sku || `SKU-IMP-${Date.now()}-${i}`,
         image: SAMPLE_IMAGES[i % SAMPLE_IMAGES.length],
         status: "active",
-        ordersThisMonth: 0,
-        farmerId: "f1",
+        farmerId: myId("farmer"),
       });
-    });
-    setImported(valid.length);
+      if (!res.ok) {
+        toast.error(`${r.name} : ${res.message}`);
+        continue;
+      }
+      done++;
+    }
+    setImported(done);
     setStep(3);
-    toast.success(`${valid.length} produit(s) importé(s)`);
+    toast.success(`${done} produit(s) importé(s)`);
   };
 
   const downloadTemplate = () => {

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
 import { useDisputeById, disputeActions } from "@/data/disputes";
 import { restaurants } from "@/data/mocks";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/disputes/$disputeId")({
   head: () => ({
@@ -25,9 +26,10 @@ export const Route = createFileRoute("/restaurant/disputes/$disputeId")({
 });
 
 function RestaurantDisputeDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { disputeId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const d = useDisputeById(disputeId);
   if (!d)
     return (

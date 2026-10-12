@@ -18,6 +18,7 @@ import {
   RETURN_REASON_LABEL,
   type ReturnReason,
 } from "@/data/business";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/returns/new")({
   head: () => ({ meta: [{ title: "Déclarer un problème · Restaurant" }] }),
@@ -28,9 +29,10 @@ const STEPS = ["Commande", "Produit", "Détails", "Confirmation"];
 const REASONS = Object.keys(RETURN_REASON_LABEL) as ReturnReason[];
 
 function NewReturn() {
+  const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const orders = useRestaurantOrders();
 
   const [step, setStep] = useState(0);

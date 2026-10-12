@@ -45,6 +45,7 @@ import {
   type IncidentSeverity,
 } from "@/data/business";
 import { useMissions, useOrders, missionActions, useReassignCandidates } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useAllDisputes } from "@/data/disputes";
 import { refundActions, type RefundMethod } from "@/data/finance";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
@@ -176,7 +177,7 @@ function AdminIncidentDetail() {
     cancelDeciding();
   };
 
-  const confirmReassign = () => {
+  const confirmReassign = async () => {
     if (!mission || !newDriverId) {
       toast.error("Choisissez un livreur");
       return;
@@ -186,7 +187,7 @@ function AdminIncidentDetail() {
       return;
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
-    const result = missionActions.reassign(mission.id, newDriverId);
+    const result = await market.reassignMission(mission.id, newDriverId);
     if (!result.ok) {
       toast.error(result.message);
       return;

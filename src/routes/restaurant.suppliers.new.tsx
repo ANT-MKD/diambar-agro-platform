@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { SupplierForm } from "@/components/restaurant/supplier-form";
 import { supplierActions } from "@/data/store";
 import { restaurants } from "@/data/mocks";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/suppliers/new")({
   head: () => ({ meta: [{ title: "Nouveau fournisseur · Restaurant" }] }),
@@ -13,9 +14,10 @@ export const Route = createFileRoute("/restaurant/suppliers/new")({
 });
 
 function NewSupplier() {
+  const myRestaurantId = useMyId("restaurant");
   const nav = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   return (
     <div className="space-y-6 max-w-3xl">
       <PageHeader

@@ -13,12 +13,14 @@ import {
 } from "@/data/store";
 import { useReviews as useBusinessReviews } from "@/data/business";
 import { farmerReviewStats } from "@/lib/farmer-stats";
+import { useMyId } from "@/data/market-mode";
 
 export function RestaurantProductCard({ product }: { product: Product }) {
+  const myRestaurantId = useMyId("restaurant");
   const farmer = farmers.find((f) => f.id === product.farmerId);
   const out = product.stock === 0;
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const allProducts = useProducts();
   const productReviews = useAllProductReviews();

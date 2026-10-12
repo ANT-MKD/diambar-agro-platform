@@ -38,6 +38,7 @@ import {
   useFarmerFarm,
   usePaymentPrefs,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useSecurity } from "@/data/security";
 import { farmerCompletionItems } from "@/lib/profile-completion";
 import { useSupplierScores } from "@/data/business";
@@ -58,6 +59,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Diambar Agro" }] }),
@@ -65,8 +67,9 @@ export const Route = createFileRoute("/farmer/dashboard")({
 });
 
 function Dashboard() {
+  const myFarmerId = useMyId("farmer");
   const products = useProducts();
-  const orders = useOrders().filter((o) => o.farmerId === "f1");
+  const orders = useOrders().filter((o) => o.farmerId === myFarmerId);
   const farmerProfile = useFarmerProfile();
   const farmerFarm = useFarmerFarm();
   const paymentPrefs = usePaymentPrefs();
@@ -75,7 +78,7 @@ function Dashboard() {
   const delivered = orders.filter((o) => o.status === "delivered");
   const active = products.filter((p) => p.status === "active").length;
   const [period, setPeriod] = useState<"7" | "30" | "12">("30");
-  const score = useSupplierScores().find((s) => s.id === "f1");
+  const score = useSupplierScores().find((s) => s.id === myFarmerId);
   const notifications = useFarmerNotifications();
   const navigate = useNavigate();
 
@@ -352,8 +355,8 @@ function Dashboard() {
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
-                      onClick={() => {
-                        const result = orderActions.setStatus(o.id, "confirmed");
+                      onClick={async () => {
+                        const result = await market.setOrderStatus(o.id, "confirmed", "farmer");
                         if (result.ok) toast.success(`${o.reference} acceptée`);
                         else toast.error(result.message);
                       }}

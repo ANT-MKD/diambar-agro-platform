@@ -26,14 +26,16 @@ import { LogoutButton } from "@/components/common/logout-button";
 import { useFarmerNotifications, useOrders, useConversations } from "@/data/store";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, useMarketPolling } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer")({
-  beforeLoad: () => requireRole("farmer"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("farmer"),
   component: FarmerLayout,
 });
-
-const MY_FARMER_ID = "f1";
 
 const bottomNav = [
   { to: "/farmer/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -44,6 +46,8 @@ const bottomNav = [
 
 function FarmerLayout() {
   const { user } = Route.useRouteContext();
+  useMarketPolling();
+  const MY_FARMER_ID = useMyId("farmer");
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);

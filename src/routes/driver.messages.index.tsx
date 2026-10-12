@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/messages/")({
   head: () => ({
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/driver/messages/")({
 });
 
 function DriverMessagesList() {
+  const myDriverId = useMyId("driver");
   const convs = useDriverConversations();
   const missions = useMissions();
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ function DriverMessagesList() {
   // les restaurants de la plateforme.
   const conversedRestaurantIds = new Set(convs.map((c) => c.restaurantId));
   const deliveredRestaurantIds = new Set(
-    missions.filter((m) => m.driverId === "d1").map((m) => m.restaurantId),
+    missions.filter((m) => m.driverId === myDriverId).map((m) => m.restaurantId),
   );
   const startableRestaurants = restaurants.filter(
     (r) => deliveredRestaurantIds.has(r.id) && !conversedRestaurantIds.has(r.id),

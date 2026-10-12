@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/stock/")({
   head: () => ({ meta: [{ title: "Stock · Diambar Agro" }] }),
@@ -54,8 +55,9 @@ const MOVEMENT_LABEL: Record<string, string> = {
 };
 
 function StockPage() {
+  const myFarmerId = useMyId("farmer");
   const all = useProducts();
-  const items = all.filter((p) => p.farmerId === "f1");
+  const items = all.filter((p) => p.farmerId === myFarmerId);
   const movements = useMovements();
   const [filter, setFilter] = useState<"all" | "low" | "out">("all");
   const [cat, setCat] = useState("all");

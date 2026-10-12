@@ -23,6 +23,7 @@ import { StockStatusBadge } from "@/components/farmer/status-badge";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { QuickActions, type QuickAction } from "@/components/farmer/quick-actions";
 import { useProducts, productActions } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
@@ -54,6 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/products/")({
   head: () => ({ meta: [{ title: "Mes produits · Diambar Agro" }] }),
@@ -78,17 +80,19 @@ const quickActions: QuickAction[] = [
 ];
 
 function ProductsPage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const all = useProducts();
-  const items = all.filter((p) => p.farmerId === "f1");
+  const items = all.filter((p) => p.farmerId === myFarmerId);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
   const [tab, setTab] = useState<"all" | "active" | "low" | "out" | "draft">("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [toDelete, setToDelete] = useState<Product | null>(null);
   // « Hors saison » : retiré du catalogue restaurant sans rien supprimer.
-  const togglePause = (p: Product) => {
-    productActions.update(p.id, { paused: !p.paused });
+  const togglePause = async (p: Product) => {
+    const res = await market.updateProduct(p, { paused: !p.paused });
+    if (!res.ok) return toast.error(res.message);
     toast.success(p.paused ? `${p.name} est de nouveau en vente` : `${p.name} est hors saison`);
   };
 
@@ -511,10 +515,16 @@ function ProductsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
+              onClick={async () => {
                 if (toDelete) {
-                  productActions.remove(toDelete.id);
-                  toast.success("Supprimé");
+                  const res = await market.removeProduct(toDelete.id);
+                  if (!res.ok) toast.error(res.message);
+                  else
+                    toast.success(
+                      res.removed
+                        ? "Supprimé"
+                        : "Déjà commandé : retiré du catalogue (gardé pour l'historique)",
+                    );
                   setToDelete(null);
                 }
               }}

@@ -25,6 +25,7 @@ import {
 import { useCreditNotesForRestaurant, isCreditExpired } from "@/data/disputes";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/returns/")({
   validateSearch: z.object({ tab: z.string().optional() }),
@@ -53,9 +54,10 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 function RestaurantReturnsPage() {
+  const myRestaurantId = useMyId("restaurant");
   const { tab: initialTab } = Route.useSearch();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const returns = useReturnsForRestaurant(myRestaurant?.id ?? "");
   const credits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
 

@@ -7,6 +7,7 @@ import { useAllDisputes, STATUS_LABEL } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
 import { downloadDiambarInvoice } from "@/lib/invoice-pdf";
 import { buildInvoiceData, invoiceNumberFor } from "@/lib/invoice-data";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/invoices/$invoiceId")({
   head: () => ({ meta: [{ title: "Facture · Restaurant" }] }),
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/restaurant/invoices/$invoiceId")({
 });
 
 function InvoiceDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { invoiceId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
   const order = useRestaurantOrder(invoiceId);
@@ -24,7 +26,7 @@ function InvoiceDetail() {
   if (!order)
     return <div className="p-12 text-center text-muted-foreground">Facture introuvable</div>;
 
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const farmer = farmers.find((f) => f.id === order.farmerId);
   const dispute = disputes.find((d) => d.orderId === order.id);
   const originRecurring = recurringOrders.find((ro) => ro.generatedOrderIds.includes(order.id));

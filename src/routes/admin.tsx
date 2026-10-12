@@ -46,12 +46,15 @@ import { useConversations, useDriverConversations } from "@/data/store";
 import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, useMarketPolling } from "@/data/market-remote";
 import { adminShellFn } from "@/lib/platform/setup";
 import { useDocRenewals } from "@/data/store";
 
 export const Route = createFileRoute("/admin")({
-  beforeLoad: () => requireRole("admin"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("admin"),
   loader: async ({ location }) => {
     const shell = await adminShellFn();
     // Première connexion du super administrateur : tant que la plateforme
@@ -70,6 +73,7 @@ export const Route = createFileRoute("/admin")({
 
 function AdminLayout() {
   const { user } = Route.useRouteContext();
+  useMarketPolling();
   const fallbackRole = useAdminRoleForEmail(user.email);
   // Rôle d'équipe lu par le serveur (base) : il décide des menus et actions.
   const adminRole = user.adminRole ?? fallbackRole;

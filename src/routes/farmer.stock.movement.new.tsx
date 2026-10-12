@@ -5,6 +5,7 @@ import { Plus, Minus, ClipboardEdit, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useProducts, movementActions, useFarmerProfile } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMyId } from "@/data/market-mode";
 
 const searchSchema = z.object({
   productId: z.string().optional(),
@@ -50,9 +52,10 @@ const TYPES = [
 ] as const;
 
 function NewMovementPage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const products = useProducts().filter((p) => p.farmerId === "f1");
+  const products = useProducts().filter((p) => p.farmerId === myFarmerId);
   const profile = useFarmerProfile();
 
   const [productId, setProductId] = useState(search.productId || products[0]?.id || "");
@@ -69,18 +72,22 @@ function NewMovementPage() {
         ? Math.max(0, product.stock - qty)
         : qty;
 
-  const submit = () => {
+  const submit = async () => {
     if (!product || qty <= 0) {
       toast.error("Choisissez un produit et une quantité > 0");
       return;
     }
-    movementActions.create({
+    const res = await market.moveStock({
       productId: product.id,
       type,
       qty,
       reason: reason || "—",
       operator: profile.firstName,
     });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(`Mouvement enregistré · ${product.name} maintenant à ${next} ${product.unit}`);
     navigate({ to: "/farmer/stock" });
   };

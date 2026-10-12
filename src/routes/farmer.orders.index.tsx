@@ -22,6 +22,7 @@ import { restaurants, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMyId } from "@/data/market-mode";
 
 const searchSchema = z.object({ q: z.string().optional() });
 
@@ -42,9 +43,13 @@ const TABS: { v: "all" | OrderStatus; label: string }[] = [
 ];
 
 function OrdersPage() {
+  const myFarmerId = useMyId("farmer");
   const { q: initialQ } = Route.useSearch();
   const allOrders = useOrders();
-  const items = useMemo(() => allOrders.filter((o) => o.farmerId === "f1"), [allOrders]);
+  const items = useMemo(
+    () => allOrders.filter((o) => o.farmerId === myFarmerId),
+    [allOrders, myFarmerId],
+  );
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
   const [q, setQ] = useState(initialQ ?? "");
   const [view, setView] = useState<"kanban" | "list">("kanban");

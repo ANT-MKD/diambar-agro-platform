@@ -50,6 +50,7 @@ import { useMissions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import type { DisputeAttachment } from "@/data/disputes";
 import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/incidents/")({
   validateSearch: z.object({ missionRef: z.string().optional() }),
@@ -84,6 +85,7 @@ const STATUS_CLASS: Record<IncidentStatus, string> = {
 const PAGE_SIZE = 6;
 
 function IncidentsPage() {
+  const myDriverId = useMyId("driver");
   const { missionRef: prefillMissionRef } = Route.useSearch();
   const incidents = useIncidents();
   const missions = useMissions();
@@ -91,10 +93,10 @@ function IncidentsPage() {
   const recentMissions = useMemo(
     () =>
       missions
-        .filter((m) => m.driverId === "d1")
+        .filter((m) => m.driverId === myDriverId)
         .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor))
         .slice(0, 15),
-    [missions],
+    [missions, myDriverId],
   );
 
   const [showOther, setShowOther] = useState(false);

@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/messages/")({
   head: () => ({ meta: [{ title: "Messages · Restaurant" }] }),
@@ -29,8 +30,9 @@ export const Route = createFileRoute("/restaurant/messages/")({
 });
 
 function Messages() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const convs = useConversations();
   // Une conversation réelle par fournisseur du carnet — plus un unique

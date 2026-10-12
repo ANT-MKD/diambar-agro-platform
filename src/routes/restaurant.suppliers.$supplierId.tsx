@@ -35,6 +35,7 @@ import { farmers, products, restaurants } from "@/data/mocks";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId")({
   head: () => ({ meta: [{ title: "Fournisseur · Restaurant" }] }),
@@ -49,9 +50,10 @@ function SupplierLayout() {
 }
 
 function SupplierDetail({ supplierId }: { supplierId: string }) {
+  const myRestaurantId = useMyId("restaurant");
   const nav = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const s = useSupplier(supplierId);
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();

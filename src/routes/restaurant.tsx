@@ -36,10 +36,14 @@ import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, useMarketPolling } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant")({
-  beforeLoad: () => requireRole("restaurant"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("restaurant"),
   component: RestaurantLayout,
 });
 
@@ -52,7 +56,9 @@ const bottomNav = [
 ];
 
 function RestaurantLayout() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = Route.useRouteContext();
+  useMarketPolling();
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const cart = useCart();
@@ -60,7 +66,7 @@ function RestaurantLayout() {
   const [open, setOpen] = useState(false);
   const notifs = useRestaurantNotifications();
   const unread = notifs.filter((n) => !n.read).length;
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const pendingOrders = useRestaurantOrders().filter((o) => o.status === "pending").length;
   const unreadMessages = useConversations()
     .filter((c) => c.restaurantId === myRestaurant?.id)

@@ -27,6 +27,7 @@ import {
   useProducts,
   useAllProductReviews,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useReviews as useBusinessReviews } from "@/data/business";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, products, drivers, restaurants } from "@/data/mocks";
@@ -54,6 +55,7 @@ import { useState } from "react";
 import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
 import { whatsappLink } from "@/lib/contact";
 import { publicTrackingId } from "@/lib/tracking-id";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -61,10 +63,11 @@ export const Route = createFileRoute("/restaurant/orders/$orderId")({
 });
 
 function OrderDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { orderId } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const order = useRestaurantOrder(orderId);
   const missions = useMissions();
   const allProducts = useProducts();
@@ -476,13 +479,13 @@ function OrderDetail() {
 function CancelOrderCard({ orderId, reference }: { orderId: string; reference: string }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const submit = () => {
+  const submit = async () => {
     const text = reason.trim();
     if (text.length < 5) {
       toast.error("Indiquez le motif de l'annulation");
       return;
     }
-    const result = restaurantOrderActions.cancel(orderId, text);
+    const result = await market.setOrderStatus(orderId, "cancelled", "restaurant", text);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -572,7 +575,7 @@ function ReceptionCard({ orderId }: { orderId: string }) {
   const deadline = new Date(new Date(deliveredAt).getTime() + RECEPTION_WINDOW_MS);
   const amount = order.items.reduce((s, i) => s + (refused[i.productId] ?? 0) * i.price, 0);
 
-  const submit = (allGood: boolean) => {
+  const submit = async (allGood: boolean) => {
     const lines = allGood
       ? []
       : order.items.map((i) => ({
@@ -580,7 +583,7 @@ function ReceptionCard({ orderId }: { orderId: string }) {
           refusedQty: refused[i.productId] ?? 0,
           reason: reasons[i.productId] ?? RECEPTION_REASONS[0],
         }));
-    const result = restaurantOrderActions.reportReception(order.id, lines);
+    const result = await market.reportReception(order.id, lines);
     if (!result.ok) return toast.error(result.message);
     toast.success(
       allGood || amount === 0

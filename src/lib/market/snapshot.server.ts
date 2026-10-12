@@ -37,7 +37,7 @@ import {
 import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { lastAddressSegment, routeEstimate, vehicleForWeight } from "@/lib/mission-pay";
 import { cityCoords } from "@/lib/tracking/geo";
-import { publicUrl, signedUrl } from "./storage.server";
+import { isStored, publicUrl, signedUrl } from "./storage.server";
 import type {
   DirectoryDriver,
   DirectoryFarmer,
@@ -569,7 +569,9 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     const proof = await Promise.all(
       proofs.map(async (p) => ({
         id: p.id,
-        name: `preuve-${p.stage === "pickup" ? "enlevement" : "livraison"}`,
+        name: isStored(p.storageKey)
+          ? `preuve-${p.stage === "pickup" ? "enlevement" : "livraison"}`
+          : "Photo non conservée (démonstration sans stockage)",
         size: p.size,
         mime: p.mime,
         dataUrl: await cachedSignedUrl(p.storageKey),

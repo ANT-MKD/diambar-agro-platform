@@ -1102,3 +1102,11 @@ export const incidentActions = {
 // Le modèle Refund (remboursements) vit désormais dans @/data/finance —
 // litiges et incidents doivent aussi pouvoir créer un vrai remboursement
 // sans provoquer d'import circulaire avec business.ts/disputes.ts.
+
+/** Mode base de données : les données de démonstration de ce module ne
+ * sont pas montrées (le module passera en base dans un prochain lot). */
+export function clearBusinessDemoData() {
+  returnsStore.replace([]);
+  reviewsStore.replace([]);
+  incidentsStore.replace([]);
+}

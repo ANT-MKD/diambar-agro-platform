@@ -26,6 +26,7 @@ import {
   useRestaurantOrders,
 } from "@/data/store";
 import { useDeliveryZones } from "@/data/platform-settings";
+import { market } from "@/data/market-remote";
 import {
   allocate,
   deliveryFeeForZone,
@@ -39,6 +40,7 @@ import { cutoffHint, deliverySlots } from "@/lib/reception-slots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/checkout")({
   head: () => ({ meta: [{ title: "Commander · Restaurant" }] }),
@@ -51,9 +53,10 @@ const step1Schema = z.object({
 });
 
 function Checkout() {
+  const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const cart = useCart();
   const products = useProducts();
@@ -123,6 +126,8 @@ function Checkout() {
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const remoteMode = market.isRemote();
+  const [placing, setPlacing] = useState(false);
 
   const farmerGroups = useMemo(
     () => farmers.filter((f) => lines.some((l) => l.product.farmerId === f.id)),
@@ -173,6 +178,43 @@ function Checkout() {
     setStep(2);
   };
 
+  // Avec la base : le serveur revérifie tout (prix, stock, créneau, zone) et
+  // crée les commandes ; l'écran ne fait qu'afficher le résultat.
+  const placeOnServer = async () => {
+    if (!chosenSlot) {
+      toast.error("Choisissez un créneau de livraison");
+      return;
+    }
+    setPlacing(true);
+    const res = await market.placeOrder({
+      lines: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+      deliveryAddress: address,
+      slotStart: chosenSlot.start,
+      slotLabel: slot,
+      paymentMethod: method,
+      shortagePreference,
+      instructions: instructions.trim() || undefined,
+    });
+    setPlacing(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    setOrderIds(res.orders.map((o) => o.id));
+    setConfirmedSummary({
+      count: res.orders.length,
+      subtotal,
+      delivery,
+      discount: 0,
+      creditApplied: 0,
+      total: subtotal + delivery,
+    });
+    cartActions.clear();
+    restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
+    toast.success("Commande passée avec succès");
+    setStep(3);
+  };
+
   const confirm = () => {
     if (hasSuspendedSupplier) {
       toast.error("Retirez du panier les produits d'un fournisseur suspendu avant de commander");
@@ -180,6 +222,10 @@ function Checkout() {
     }
     if (zoneProblem || minimumProblem) {
       toast.error(zoneProblem ?? minimumProblem);
+      return;
+    }
+    if (remoteMode) {
+      void placeOnServer();
       return;
     }
     // Le stock a pu baisser depuis l'ajout au panier (autre restaurant,
@@ -451,7 +497,7 @@ function Checkout() {
               </div>
             ))}
           </div>
-          {step !== 3 && (
+          {step !== 3 && !remoteMode && (
             <PromoCodeField
               isFirstOrder={isFirstOrder}
               subtotal={subtotal}
@@ -466,7 +512,7 @@ function Checkout() {
             />
           )}
 
-          {step !== 3 && availableCredits.length > 0 && (
+          {step !== 3 && !remoteMode && availableCredits.length > 0 && (
             <div className="border-t border-border pt-3 space-y-2">
               <div className="text-xs font-medium text-muted-foreground">
                 Avoirs disponibles ({formatFCFA(availableCredits.reduce((s, c) => s + c.amount, 0))}
@@ -553,8 +599,12 @@ function Checkout() {
                 </Button>
               )}
               {step === 2 && (
-                <Button onClick={confirm} disabled={hasSuspendedSupplier} className="flex-1 gap-1">
-                  Confirmer <Check className="h-4 w-4" />
+                <Button
+                  onClick={confirm}
+                  disabled={hasSuspendedSupplier || placing}
+                  className="flex-1 gap-1"
+                >
+                  {placing ? "Envoi…" : "Confirmer"} <Check className="h-4 w-4" />
                 </Button>
               )}
             </div>

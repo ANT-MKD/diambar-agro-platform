@@ -25,6 +25,7 @@ import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/analytics")({
   head: () => ({ meta: [{ title: "Analytics · Diambar Agro" }] }),
@@ -41,7 +42,8 @@ const COLORS = [
 ];
 
 function AnalyticsPage() {
-  const orders = useOrders().filter((o) => o.farmerId === "f1");
+  const myFarmerId = useMyId("farmer");
+  const orders = useOrders().filter((o) => o.farmerId === myFarmerId);
 
   // Ventes par produit calculées depuis les vraies lignes de commande
   // (remplace l'ancien champ statique product.ordersThisMonth, jamais mis à jour).

@@ -15,8 +15,7 @@ import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const MY_FARMER_ID = "f1";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/revenue/withdraw")({
   head: () => ({ meta: [{ title: "Retirer · Diambar Agro" }] }),
@@ -24,11 +23,12 @@ export const Route = createFileRoute("/farmer/revenue/withdraw")({
 });
 
 function WithdrawPage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
   const paymentPrefs = usePaymentPrefs();
-  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
+  const transactions = useTransactions().filter((t) => t.farmerId === myFarmerId);
   // Un retrait "En cours" réserve déjà les fonds : seul un retrait en échec
   // les rend disponibles à nouveau.
   const available =

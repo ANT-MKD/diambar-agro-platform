@@ -33,6 +33,7 @@ import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useMyId } from "@/data/market-mode";
 
 function qualityScore(
   totalOrders: number,
@@ -71,8 +72,9 @@ export const Route = createFileRoute("/restaurant/suppliers/")({
 type Tab = "all" | "favorites" | "discover" | "compare";
 
 function SuppliersList() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const allSuppliers = useSuppliers();
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();

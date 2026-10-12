@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { farmers, restaurants } from "@/data/mocks";
 import { useProducts, cartActions, useSuppliers } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/compare")({
   validateSearch: z.object({ ids: z.string().optional() }),
@@ -31,10 +32,11 @@ export const Route = createFileRoute("/restaurant/compare")({
 });
 
 function ComparePage() {
+  const myRestaurantId = useMyId("restaurant");
   const { ids } = Route.useSearch();
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const suspendedFarmerIds = new Set(
     suppliers

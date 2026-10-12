@@ -40,6 +40,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { isListed, minOrderOf, productOrderability } from "@/lib/product-availability";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
   head: () => ({ meta: [{ title: "Produit · Marketplace" }] }),
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
 });
 
 function ProductDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { productId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
   const navigate = useNavigate();
@@ -73,7 +75,7 @@ function ProductDetail() {
     ? farmerReviewStats(farmer.id, all, allProductReviews, farmer.rating, businessReviews).avgRating
     : null;
   const out = product.stock === 0;
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const supplierRecord = suppliers.find(
     (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId,
   );

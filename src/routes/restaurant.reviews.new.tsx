@@ -19,6 +19,7 @@ import {
   REVIEW_TAGS,
   type ReviewCriterion,
 } from "@/data/business";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/reviews/new")({
   validateSearch: z.object({ orderId: z.string().optional() }),
@@ -69,10 +70,11 @@ function StaticStars({ value }: { value: number }) {
 }
 
 function NewReview() {
+  const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { orderId: initialOrderId } = Route.useSearch();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const orders = useRestaurantOrders();
   const suppliers = useSuppliers();
   const missions = useMissions();

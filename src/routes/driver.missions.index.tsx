@@ -26,6 +26,7 @@ import {
   useMyDriverFleet,
   useMyMissionEligibility,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { restaurants, farmers, type Mission } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { missionEligibility } from "@/lib/mission-eligibility";
@@ -41,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
+import { myId, useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/missions/")({
   head: () => ({ meta: [{ title: "Missions · Livreur Diambar" }] }),
@@ -60,12 +62,13 @@ function matchesTab(m: Mission, tab: Tab) {
   if (tab === "all") return true;
   if (tab === "available") return m.status === "available";
   if (tab === "active")
-    return m.driverId === "d1" && ["accepted", "pickup", "loaded"].includes(m.status);
-  if (tab === "delivered") return m.driverId === "d1" && m.status === "delivered";
+    return m.driverId === myId("driver") && ["accepted", "pickup", "loaded"].includes(m.status);
+  if (tab === "delivered") return m.driverId === myId("driver") && m.status === "delivered";
   return m.status === "cancelled";
 }
 
 function MissionsPage() {
+  const myDriverId = useMyId("driver");
   const all = useDriverMissions();
   const wallet = useDriverWallet();
   const online = useDriverOnline();
@@ -81,10 +84,11 @@ function MissionsPage() {
   const available = all.filter((m) => m.status === "available");
   const availableToday = available.filter((m) => dayKey(m.createdAt) === today).length;
   const active = all.filter(
-    (m) => m.driverId === "d1" && ["accepted", "pickup", "loaded"].includes(m.status),
+    (m) => m.driverId === myDriverId && ["accepted", "pickup", "loaded"].includes(m.status),
   );
   const deliveredToday = all.filter(
-    (m) => m.driverId === "d1" && m.status === "delivered" && dayKey(m.scheduledFor) === today,
+    (m) =>
+      m.driverId === myDriverId && m.status === "delivered" && dayKey(m.scheduledFor) === today,
   );
   const gainsToday = gainsForDay(wallet.transactions, today);
   const gainsYesterday = gainsForDay(wallet.transactions, yesterday);
@@ -117,8 +121,8 @@ function MissionsPage() {
 
   const cities = Array.from(new Set(all.flatMap((m) => [m.pickup.city, m.dropoff.city])));
 
-  const accept = (id: string, ref: string) => {
-    const result = missionActions.accept(id);
+  const accept = async (id: string, ref: string) => {
+    const result = await market.acceptMission(id);
     if (!result.ok) {
       toast.error(result.message);
       return;

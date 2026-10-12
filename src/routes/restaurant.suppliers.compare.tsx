@@ -9,6 +9,7 @@ import { farmers, restaurants } from "@/data/mocks";
 import { useProducts, useAllProductReviews, useRestaurantOrders, useSuppliers } from "@/data/store";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/suppliers/compare")({
   validateSearch: z.object({ ids: z.string().optional() }),
@@ -26,10 +27,11 @@ export const Route = createFileRoute("/restaurant/suppliers/compare")({
 });
 
 function SuppliersComparePage() {
+  const myRestaurantId = useMyId("restaurant");
   const { ids } = Route.useSearch();
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const products = useProducts();
   const reviews = useAllProductReviews();
   const businessReviews = useBusinessReviews();
