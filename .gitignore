@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+# Secrets locaux (DATABASE_URL, SESSION_SECRET, SETUP_CODE…) : jamais dans Git
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
