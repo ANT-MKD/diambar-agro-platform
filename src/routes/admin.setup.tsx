@@ -656,6 +656,7 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
   });
   const [cash, setCash] = useState(p?.cashOnDelivery.enabled ?? true);
   const [cashLimit, setCashLimit] = useState(p?.cashOnDelivery.driverLimit ?? 50_000);
+  const [threshold, setThreshold] = useState(p?.approvalThreshold ?? 100_000);
   const row = (
     id: string,
     label: string,
@@ -696,6 +697,7 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
             wave,
             orangeMoney: om,
             cashOnDelivery: { enabled: cash, driverLimit: cashLimit },
+            approvalThreshold: threshold,
           },
         });
       }}
@@ -723,6 +725,13 @@ function PaymentsStep({ snapshot, save, saving }: StepProps) {
           />
         )}
       </div>
+      <NumberField
+        label="Double validation à partir de (F CFA)"
+        value={threshold}
+        onChange={setThreshold}
+        min={0}
+        hint="Retraits et remboursements de ce montant ou plus : un administrateur valide, un autre envoie l'argent. 0 = désactivé."
+      />
       <SaveButton saving={saving} />
     </form>
   );

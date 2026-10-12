@@ -62,6 +62,8 @@ export type PaymentMethodsSetting = {
   /** driverLimit : espèces non remises au-delà desquelles un livreur
    * n'accepte plus de course payée en espèces. */
   cashOnDelivery: { enabled: boolean; driverLimit?: number };
+  /** Retraits et remboursements à partir de ce montant : deux admins. */
+  approvalThreshold?: number;
 };
 
 export type PilotZone = {

@@ -10,6 +10,8 @@ import { useAllDisputes } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { invoiceNumberFor, isInvoiceOverdue } from "@/lib/invoice-data";
+import { RemoteInvoices } from "@/components/restaurant/remote-invoices";
+import { useMarketMode } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/invoices")({
   head: () => ({
@@ -24,7 +26,14 @@ export const Route = createFileRoute("/restaurant/invoices")({
   component: InvoicesLayout,
 });
 
+// Avec la base : les vraies factures (une par panier). Sans base : les
+// factures de démonstration calculées à partir des commandes.
 function InvoicesLayout() {
+  const { remote } = useMarketMode();
+  return remote ? <RemoteInvoices /> : <DemoInvoicesLayout />;
+}
+
+function DemoInvoicesLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const allOrders = useRestaurantOrders();
   // Une commande annulée n'est pas facturée : elle sort des factures et des totaux.

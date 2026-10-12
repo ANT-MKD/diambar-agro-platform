@@ -153,3 +153,42 @@ export function computeDailyOps(input: {
     unassigned,
   };
 }
+
+// --- Livraisons à perte -----------------------------------------------------------
+
+export type DeliveryMargin = {
+  mission: Mission;
+  /** Frais de livraison payés par le restaurant pour cette commande. */
+  fee: number;
+  /** Ce que la course coûte à la plateforme : prix payé au livreur, moins
+   * la commission livreur qu'elle reprend. */
+  cost: number;
+  margin: number;
+};
+
+/** Courses du jour (prévues ou livrées) où les frais facturés au restaurant
+ * ne couvrent pas ce que la plateforme paie au livreur, de la pire à la
+ * moins mauvaise. */
+export function lossMakingDeliveries(input: {
+  day: Date;
+  restaurantOrders: RestaurantOrder[];
+  missions: Mission[];
+}): DeliveryMargin[] {
+  const out: DeliveryMargin[] = [];
+  for (const m of input.missions) {
+    if (m.status === "cancelled") continue;
+    const deliveredOn = m.statusHistory?.find((h) => h.status === "delivered")?.at;
+    const ofTheDay =
+      m.status === "delivered"
+        ? sameDay(deliveredOn, input.day)
+        : sameDay(m.scheduledFor, input.day);
+    if (!ofTheDay) continue;
+    const order = input.restaurantOrders.find((o) => o.reference === m.orderRef);
+    if (!order) continue;
+    const fee = orderAmounts(order).deliveryFee;
+    const cost = m.payout - Math.round(m.payout * (DRIVER_COMMISSION_RATE / 100));
+    const margin = fee - cost;
+    if (margin < 0) out.push({ mission: m, fee, cost, margin });
+  }
+  return out.sort((a, b) => a.margin - b.margin);
+}

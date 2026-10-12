@@ -127,6 +127,10 @@ export type AdminPayout = {
   note?: string;
   /** Solde du compte (versements payés déduits). */
   balance: number;
+  /** Double validation : montant au-dessus du seuil, et qui a validé. */
+  needsTwoAdmins: boolean;
+  approvedById?: string;
+  approvedByName?: string;
 };
 
 /** Remboursement à faire au restaurant, vu par l'admin. */
@@ -139,4 +143,7 @@ export type AdminRefund = RefundView & {
   method?: PaymentMethod;
   paidTo?: string;
   bornBy: "farmer" | "driver" | "platform";
+  needsTwoAdmins: boolean;
+  approvedById?: string;
+  approvedByName?: string;
 };

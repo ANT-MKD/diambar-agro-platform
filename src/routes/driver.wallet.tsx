@@ -179,10 +179,17 @@ function WalletPage() {
         title="Mon portefeuille"
         subtitle="Solde, transactions et commissions"
         actions={
-          <Button variant="outline" className="gap-2" onClick={exportCsv}>
-            <Download className="h-4 w-4" />
-            Exporter
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {market.isRemote() && (
+              <Button asChild variant="outline">
+                <Link to="/driver/statement">Relevé mensuel</Link>
+              </Button>
+            )}
+            <Button variant="outline" className="gap-2" onClick={exportCsv}>
+              <Download className="h-4 w-4" />
+              Exporter
+            </Button>
+          </div>
         }
       />
 

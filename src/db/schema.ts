@@ -803,6 +803,9 @@ export const invoices = pgTable(
     tvaAmount: integer("tva_amount").notNull().default(0),
     totalTtc: integer("total_ttc").notNull(),
     fileId: uuid("file_id").references(() => files.id),
+    /** Contenu figé à l'émission (vendeur, client, lignes, totaux) : une
+     * facture émise ne change plus, même si un réglage change ensuite. */
+    content: jsonb("content"),
   },
   (t) => [
     uniqueIndex("invoices_number_key").on(t.number),
@@ -832,6 +835,10 @@ export const payouts = pgTable(
     providerRef: text("provider_ref"),
     status: payoutStatus("status").notNull().default("requested"),
     processedBy: uuid("processed_by").references(() => users.id),
+    /** Au-dessus du seuil de double validation : l'admin qui a validé ;
+     * un autre admin verse. */
+    approvedBy: uuid("approved_by").references(() => users.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
     /** Motif d'un refus ou d'un échec. */
     note: text("note"),
     createdAt: createdAt(),
@@ -842,6 +849,7 @@ export const payouts = pgTable(
     index("payouts_user_idx").on(t.userId, t.createdAt),
     index("payouts_status_idx").on(t.status),
     index("payouts_processed_by_idx").on(t.processedBy),
+    index("payouts_approved_by_idx").on(t.approvedBy),
     check("payouts_amount_positive", sql`${t.amount} > 0 and ${t.fee} >= 0`),
   ],
 );
@@ -863,6 +871,9 @@ export const refunds = pgTable(
     createdBy: uuid("created_by").references(() => users.id),
     approvedBy: uuid("approved_by").references(() => users.id),
     /** Numéro qui a reçu le remboursement et référence de la transaction. */
+    /** Admin qui a envoyé l'argent (au-dessus du seuil, différent de celui
+     * qui a validé). */
+    paidBy: uuid("paid_by").references(() => users.id),
     paidTo: text("paid_to"),
     providerRef: text("provider_ref"),
     createdAt: createdAt(),
@@ -874,6 +885,7 @@ export const refunds = pgTable(
     index("refunds_status_idx").on(t.status),
     index("refunds_created_by_idx").on(t.createdBy),
     index("refunds_approved_by_idx").on(t.approvedBy),
+    index("refunds_paid_by_idx").on(t.paidBy),
     check("refunds_amount_positive", sql`${t.amount} > 0`),
     // Un même admin ne crée et n'approuve pas le même remboursement.
     check(

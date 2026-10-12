@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeDailyOps } from "./daily-ops";
+import { computeDailyOps, lossMakingDeliveries } from "./daily-ops";
 import type { Mission, RestaurantOrder, Transaction } from "@/data/mocks";
 
 const day = new Date(2026, 8, 30, 12);
@@ -58,5 +58,53 @@ describe("opérations du jour", () => {
     // 3000 commissions + 2000 livraison + 1200 commissions livreur − 6000 courses
     expect(ops.margin.total).toBe(200);
     expect(ops.marginPerOrder).toBe(100);
+  });
+});
+
+describe("livraisons à perte", () => {
+  const day = new Date("2026-10-12T12:00:00Z");
+  const mission = (id: string, orderRef: string, payout: number, over: Partial<Mission> = {}) =>
+    ({
+      id,
+      reference: `MIS-${id}`,
+      orderRef,
+      status: "available",
+      payout,
+      scheduledFor: "2026-10-12T07:00:00Z",
+      distanceKm: 30,
+      weightKg: 40,
+      pickup: { city: "Thiès" },
+      dropoff: { city: "Dakar" },
+      ...over,
+    }) as unknown as Mission;
+  const ro = (reference: string, deliveryFee: number) =>
+    ({
+      id: reference,
+      reference,
+      items: [],
+      total: 10_000 + deliveryFee,
+      subtotal: 10_000,
+      deliveryFee,
+      status: "confirmed",
+      statusHistory: [],
+      createdAt: "2026-10-11T10:00:00Z",
+    }) as unknown as RestaurantOrder;
+
+  it("liste les courses dont le coût net dépasse les frais payés", () => {
+    const losses = lossMakingDeliveries({
+      day,
+      restaurantOrders: [ro("CMD-1", 1500), ro("CMD-2", 3000), ro("CMD-3", 1000)],
+      missions: [
+        // 4 000 − 20 % = 3 200 de coût pour 1 500 payés : −1 700.
+        mission("1", "CMD-1", 4000),
+        // 3 000 − 20 % = 2 400 pour 3 000 payés : rentable.
+        mission("2", "CMD-2", 3000),
+        // Annulée : ignorée.
+        mission("3", "CMD-3", 5000, { status: "cancelled" }),
+        // Autre jour : ignorée.
+        mission("4", "CMD-3", 5000, { scheduledFor: "2026-10-14T07:00:00Z" }),
+      ],
+    });
+    expect(losses.map((l) => [l.mission.reference, l.margin])).toEqual([["MIS-1", -1700]]);
   });
 });

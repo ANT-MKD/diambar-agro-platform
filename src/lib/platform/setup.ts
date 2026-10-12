@@ -169,6 +169,7 @@ const paymentsSchema = z
       enabled: z.boolean(),
       driverLimit: z.number().int().min(0).max(5_000_000).optional(),
     }),
+    approvalThreshold: z.number().int().min(0).max(100_000_000).optional(),
   })
   .superRefine((p, ctx) => {
     if (!p.wave.enabled && !p.orangeMoney.enabled && !p.cashOnDelivery.enabled) {
@@ -302,6 +303,7 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
                   enabled: p.cashOnDelivery.enabled,
                   driverLimit: p.cashOnDelivery.driverLimit ?? 50_000,
                 },
+                approvalThreshold: p.approvalThreshold ?? 100_000,
               } satisfies PaymentMethodsSetting,
             },
             me.id,

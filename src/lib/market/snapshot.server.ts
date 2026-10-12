@@ -8,6 +8,7 @@ import {
   drivers,
   farmers,
   files,
+  invoices,
   ledgerEntries,
   missionEvents,
   missions,
@@ -54,6 +55,7 @@ import {
 } from "./payment-view";
 import { orderDue, readMerchantAccounts } from "./payments-db.server";
 import { readBalances } from "./ledger-db.server";
+import type { InvoiceContent, InvoiceView } from "./documents-view";
 import { paymentDeadline } from "@/lib/payment-deadline";
 import { isStored, publicUrl, signedUrl } from "./storage.server";
 import type {
@@ -968,6 +970,24 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       .limit(300);
     const owners = [...new Set(payoutRows.map((r) => r.p.userId))];
     const ownerBalances = await readBalances(db, owners);
+    const { approvalThreshold } = await readMerchantAccounts(db);
+    const twoAdmins = (amount: number) => approvalThreshold > 0 && amount >= approvalThreshold;
+    const approverIds = [
+      ...new Set([
+        ...payoutRows.flatMap((r) => (r.p.approvedBy ? [r.p.approvedBy] : [])),
+        ...refundRows.flatMap((r) => (r.approvedBy ? [r.approvedBy] : [])),
+      ]),
+    ];
+    const approvers = approverIds.length
+      ? await db
+          .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(inArray(users.id, approverIds))
+      : [];
+    const approverName = (id: string | null) => {
+      const a = approvers.find((x) => x.id === id);
+      return a ? `${a.firstName} ${a.lastName}`.trim() : undefined;
+    };
     adminPayouts = payoutRows.map(({ p, firstName, lastName, role }) => ({
       id: p.id,
       reference: p.reference ?? p.id.slice(0, 8),
@@ -983,6 +1003,9 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       providerRef: p.providerRef ?? undefined,
       note: p.note ?? undefined,
       balance: ownerBalances.get(p.userId)?.balance ?? 0,
+      needsTwoAdmins: twoAdmins(p.amount),
+      approvedById: p.approvedBy ?? undefined,
+      approvedByName: approverName(p.approvedBy),
     }));
     adminRefunds = refundRows.flatMap((r) => {
       const o = orderRows.find((x) => x.id === r.orderId);
@@ -1001,6 +1024,9 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
           method: r.method ? (PAYMENT_METHOD_LABEL[r.method] ?? undefined) : undefined,
           paidTo: r.paidTo ? phoneLabel(r.paidTo) : undefined,
           bornBy: r.bornBy,
+          needsTwoAdmins: twoAdmins(r.amount),
+          approvedById: r.approvedBy ?? undefined,
+          approvedByName: approverName(r.approvedBy),
         },
       ];
     });
@@ -1055,6 +1081,32 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
   const merchant =
     me.role === "restaurant" || me.role === "admin" ? await readMerchantAccounts(db) : null;
 
+  // --- Factures (restaurant, admin) --------------------------------------------------
+  const invoiceList: InvoiceView[] | undefined =
+    (me.role === "restaurant" || me.role === "admin") && checkoutIds.length
+      ? (
+          await db
+            .select()
+            .from(invoices)
+            .where(inArray(invoices.checkoutId, checkoutIds))
+            .orderBy(desc(invoices.issuedAt))
+        ).flatMap((i) =>
+          i.content
+            ? [
+                {
+                  id: i.id,
+                  number: i.number,
+                  issuedAt: iso(i.issuedAt)!,
+                  checkoutId: i.checkoutId,
+                  checkoutReference: checkoutById.get(i.checkoutId)?.reference ?? "",
+                  totalTtc: i.totalTtc,
+                  content: i.content as InvoiceContent,
+                },
+              ]
+            : [],
+        )
+      : undefined;
+
   // --- Établissement du restaurant connecté ----------------------------------------
   const myRestaurant =
     me.role === "restaurant" ? (restaurantRows.find((r) => r.id === me.id) ?? null) : null;
@@ -1097,6 +1149,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       merchant: merchant ? { wave: merchant.wave, orangeMoney: merchant.orangeMoney } : null,
     },
     payments: adminPayments,
+    invoices: invoiceList,
     wallet: farmerWallet,
     driverWallet,
     accounts,

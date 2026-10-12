@@ -33,9 +33,13 @@ export type MerchantAccounts = {
   /** Espèces non remises au-delà desquelles un livreur n'accepte plus de
    * course payée en espèces. */
   driverCashLimit: number;
+  /** Retraits et remboursements à partir de ce montant : un admin valide,
+   * un autre envoie l'argent (0 = pas de double validation). */
+  approvalThreshold: number;
 };
 
 export const DEFAULT_DRIVER_CASH_LIMIT = 50_000;
+export const DEFAULT_APPROVAL_THRESHOLD = 100_000;
 
 /** Numéros marchands ouverts par l'admin (Paramètres → Paiements). */
 export async function readMerchantAccounts(q: Q): Promise<MerchantAccounts> {
@@ -48,6 +52,7 @@ export async function readMerchantAccounts(q: Q): Promise<MerchantAccounts> {
         wave?: { enabled?: boolean; number?: string };
         orangeMoney?: { enabled?: boolean; number?: string };
         cashOnDelivery?: { enabled?: boolean; driverLimit?: number };
+        approvalThreshold?: number;
       }
     | undefined;
   const limit = v?.cashOnDelivery?.driverLimit;
@@ -61,6 +66,10 @@ export async function readMerchantAccounts(q: Q): Promise<MerchantAccounts> {
       typeof limit === "number" && Number.isFinite(limit) && limit >= 0
         ? limit
         : DEFAULT_DRIVER_CASH_LIMIT,
+    approvalThreshold:
+      typeof v?.approvalThreshold === "number" && v.approvalThreshold >= 0
+        ? v.approvalThreshold
+        : DEFAULT_APPROVAL_THRESHOLD,
   };
 }
 

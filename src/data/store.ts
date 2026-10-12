@@ -109,6 +109,7 @@ import {
   adminPaymentsStore,
   adminPayoutsStore,
   adminRefundsStore,
+  invoicesStore,
   merchantStore,
 } from "./payments-store";
 import { getRefundsSnapshot, onRefundPaid, refundActions } from "./finance";
@@ -2934,6 +2935,7 @@ export function replaceMarketData(s: MarketSnapshot) {
   adminAccountsStore.replace(s.accounts ?? []);
   adminPayoutsStore.replace(s.payouts ?? []);
   adminRefundsStore.replace(s.refunds ?? []);
+  invoicesStore.replace(s.invoices ?? []);
   // Comptes tenus par le serveur (grand livre) : revenus et retraits du
   // producteur, portefeuille du livreur.
   if (s.wallet) {

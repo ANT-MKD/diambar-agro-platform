@@ -32,7 +32,16 @@ import {
   withdrawMission,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
-import { payPayout, payRefund, rejectPayout, requestPayout } from "./payouts-db.server";
+import {
+  approvePayout,
+  approveRefund,
+  payPayout,
+  payRefund,
+  rejectPayout,
+  requestPayout,
+} from "./payouts-db.server";
+import { issueDueInvoices, readStatement } from "./documents-db.server";
+import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
 import {
   BUCKETS,
@@ -101,6 +110,12 @@ async function sweepUnpaid(db: Db) {
     await sweepUnpaidCheckouts(db);
   } catch (err) {
     console.error("[paiements] annulation des commandes non payées", err);
+  }
+  try {
+    // Factures des paniers terminés (livrés, contrôle de réception fait ou expiré).
+    await issueDueInvoices(db);
+  } catch (err) {
+    console.error("[factures] émission", err);
   }
 }
 
@@ -616,4 +631,56 @@ export const payRefundFn = createServerFn({ method: "POST" })
       },
       MONEY_STAFF,
     ),
+  );
+
+// --- Double validation ----------------------------------------------------------------
+
+const approvePayoutSchema = z.object({ payoutId: id });
+
+/** Admin : premier temps de la double validation d'un retrait important. */
+export const approvePayoutFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof approvePayoutSchema>) => parse(approvePayoutSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await approvePayout(db, me.id, data.payoutId);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+const approveRefundSchema = z.object({ refundId: id });
+
+export const approveRefundFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof approveRefundSchema>) => parse(approveRefundSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await approveRefund(db, me.id, data.refundId);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+// --- Relevé mensuel ---------------------------------------------------------------------
+
+const statementSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Mois invalide"),
+});
+
+/** Producteur ou livreur : relevé de son compte pour un mois. */
+export const getStatementFn = createServerFn({ method: "GET" })
+  .validator((input: z.input<typeof statementSchema>) => parse(statementSchema, input))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; statement: StatementView } | { ok: false; message: string }> =>
+      withMarket(["farmer", "driver"], async (db, me) => ({
+        ok: true as const,
+        statement: await readStatement(db, me.id, data.month),
+      })),
   );

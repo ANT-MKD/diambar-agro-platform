@@ -569,6 +569,65 @@ function RejectDialog({ payment, onClose }: { payment: AdminPayment | null; onCl
   );
 }
 
+// --- Double validation ----------------------------------------------------------------
+
+/** Au-dessus du seuil : « Valider (1/2) » par un premier admin, puis l'envoi
+ * par un autre. En dessous : envoi direct. */
+function TwoStepAction({
+  needsTwoAdmins,
+  approvedById,
+  approvedByName,
+  sendLabel,
+  onApprove,
+  onSend,
+}: {
+  needsTwoAdmins: boolean;
+  approvedById?: string;
+  approvedByName?: string;
+  sendLabel: string;
+  onApprove: () => void;
+  onSend: () => void;
+}) {
+  const { me } = useMarketMode();
+  if (!needsTwoAdmins) {
+    return (
+      <Button size="sm" onClick={onSend}>
+        <Check className="mr-1 h-4 w-4" /> {sendLabel}
+      </Button>
+    );
+  }
+  if (!approvedById) {
+    return (
+      <Button size="sm" variant="outline" onClick={onApprove}>
+        <Check className="mr-1 h-4 w-4" /> Valider (1/2)
+      </Button>
+    );
+  }
+  if (approvedById === me?.id) {
+    return (
+      <span className="text-xs text-muted-foreground" data-testid="awaiting-second-admin">
+        Validé par vous · un autre administrateur doit l'envoyer
+      </span>
+    );
+  }
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-xs text-muted-foreground">
+        Validé par {approvedByName ?? "un admin"}
+      </span>
+      <Button size="sm" onClick={onSend}>
+        <Check className="mr-1 h-4 w-4" /> {sendLabel} (2/2)
+      </Button>
+    </div>
+  );
+}
+
+const approve = async (call: () => Promise<{ ok: boolean; message?: string }>) => {
+  const res = await call();
+  if (!res.ok) toast.error(res.message ?? "Action impossible");
+  else toast.success("Validé : un autre administrateur peut maintenant envoyer l'argent");
+};
+
 // --- Retraits des producteurs et livreurs ------------------------------------------
 
 function PayoutsTab({
@@ -624,9 +683,14 @@ function PayoutsTab({
                   <Button size="sm" variant="outline" onClick={() => setRefusing(p)}>
                     <X className="mr-1 h-4 w-4" /> Refuser
                   </Button>
-                  <Button size="sm" onClick={() => setPaying(p)}>
-                    <Check className="mr-1 h-4 w-4" /> Versé
-                  </Button>
+                  <TwoStepAction
+                    needsTwoAdmins={p.needsTwoAdmins}
+                    approvedById={p.approvedById}
+                    approvedByName={p.approvedByName}
+                    sendLabel="Versé"
+                    onApprove={() => void approve(() => market.approvePayout(p.id))}
+                    onSend={() => setPaying(p)}
+                  />
                 </div>
               )}
             </div>
@@ -730,9 +794,14 @@ function RefundsTab({
             <div className="flex flex-col items-end gap-2">
               <div className="font-display text-xl font-bold">{formatFCFA(r.amount)}</div>
               {canHandle && (
-                <Button size="sm" onClick={() => setPaying(r)}>
-                  <Check className="mr-1 h-4 w-4" /> Remboursé
-                </Button>
+                <TwoStepAction
+                  needsTwoAdmins={r.needsTwoAdmins}
+                  approvedById={r.status === "approved" ? r.approvedById : undefined}
+                  approvedByName={r.approvedByName}
+                  sendLabel="Remboursé"
+                  onApprove={() => void approve(() => market.approveRefund(r.id))}
+                  onSend={() => setPaying(r)}
+                />
               )}
             </div>
           </div>

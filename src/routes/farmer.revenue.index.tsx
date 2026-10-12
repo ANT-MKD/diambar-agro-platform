@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { market } from "@/data/market-remote";
 import { useMemo, useState } from "react";
 import {
   TrendingUp,
@@ -174,6 +175,11 @@ function RevenuePage() {
               <Download className="h-4 w-4" />
               Exporter CSV
             </Button>
+            {market.isRemote() && (
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/farmer/revenue/statement">Relevé mensuel</Link>
+              </Button>
+            )}
             <Button asChild className="gap-2">
               <Link to="/farmer/revenue/withdraw">
                 <Plus className="h-4 w-4" />

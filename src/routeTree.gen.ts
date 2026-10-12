@@ -49,6 +49,7 @@ import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
 import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
+import { Route as DriverStatementRouteImport } from './routes/driver.statement'
 import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
@@ -134,6 +135,7 @@ import { Route as FarmerReturnsIndexRouteImport } from './routes/farmer.returns.
 import { Route as FarmerReturnsReturnIdRouteImport } from './routes/farmer.returns.$returnId'
 import { Route as FarmerRevenueIndexRouteImport } from './routes/farmer.revenue.index'
 import { Route as FarmerRevenueTxIdRouteImport } from './routes/farmer.revenue.$txId'
+import { Route as FarmerRevenueStatementRouteImport } from './routes/farmer.revenue.statement'
 import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
 import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
 import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.settings.index'
@@ -384,6 +386,11 @@ const DriverNotificationsRoute = DriverNotificationsRouteImport.update({
 const DriverSettingsRoute = DriverSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => DriverRoute,
+} as any)
+const DriverStatementRoute = DriverStatementRouteImport.update({
+  id: '/statement',
+  path: '/statement',
   getParentRoute: () => DriverRoute,
 } as any)
 const DriverVehicleRoute = DriverVehicleRouteImport.update({
@@ -824,6 +831,11 @@ const FarmerRevenueTxIdRoute = FarmerRevenueTxIdRouteImport.update({
   path: '/revenue/$txId',
   getParentRoute: () => FarmerRoute,
 } as any)
+const FarmerRevenueStatementRoute = FarmerRevenueStatementRouteImport.update({
+  id: '/revenue/statement',
+  path: '/revenue/statement',
+  getParentRoute: () => FarmerRoute,
+} as any)
 const FarmerRevenueWithdrawRoute = FarmerRevenueWithdrawRouteImport.update({
   id: '/revenue/withdraw',
   path: '/revenue/withdraw',
@@ -1147,6 +1159,7 @@ export interface FileRoutesByFullPath {
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRouteWithChildren
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -1210,6 +1223,7 @@ export interface FileRoutesByFullPath {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1322,6 +1336,7 @@ export interface FileRoutesByTo {
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -1378,6 +1393,7 @@ export interface FileRoutesByTo {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1494,6 +1510,7 @@ export interface FileRoutesById {
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRouteWithChildren
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
@@ -1557,6 +1574,7 @@ export interface FileRoutesById {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1674,6 +1692,7 @@ export interface FileRouteTypes {
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
@@ -1737,6 +1756,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -1849,6 +1869,7 @@ export interface FileRouteTypes {
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
@@ -1905,6 +1926,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -2020,6 +2042,7 @@ export interface FileRouteTypes {
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
@@ -2083,6 +2106,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -2468,6 +2492,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/driver/settings'
       preLoaderRoute: typeof DriverSettingsRouteImport
+      parentRoute: typeof DriverRoute
+    }
+    '/driver/statement': {
+      id: '/driver/statement'
+      path: '/statement'
+      fullPath: '/driver/statement'
+      preLoaderRoute: typeof DriverStatementRouteImport
       parentRoute: typeof DriverRoute
     }
     '/driver/vehicle': {
@@ -3065,6 +3096,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerRevenueTxIdRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/farmer/revenue/statement': {
+      id: '/farmer/revenue/statement'
+      path: '/revenue/statement'
+      fullPath: '/farmer/revenue/statement'
+      preLoaderRoute: typeof FarmerRevenueStatementRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/farmer/revenue/withdraw': {
       id: '/farmer/revenue/withdraw'
       path: '/revenue/withdraw'
@@ -3580,6 +3618,7 @@ interface DriverRouteChildren {
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
   DriverNotificationsRoute: typeof DriverNotificationsRouteWithChildren
   DriverSettingsRoute: typeof DriverSettingsRouteWithChildren
+  DriverStatementRoute: typeof DriverStatementRoute
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
   DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
@@ -3600,6 +3639,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverMessagesRoute: DriverMessagesRouteWithChildren,
   DriverNotificationsRoute: DriverNotificationsRouteWithChildren,
   DriverSettingsRoute: DriverSettingsRouteWithChildren,
+  DriverStatementRoute: DriverStatementRoute,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
   DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
@@ -3682,6 +3722,7 @@ interface FarmerRouteChildren {
   FarmerProductsNewRoute: typeof FarmerProductsNewRoute
   FarmerReturnsReturnIdRoute: typeof FarmerReturnsReturnIdRoute
   FarmerRevenueTxIdRoute: typeof FarmerRevenueTxIdRoute
+  FarmerRevenueStatementRoute: typeof FarmerRevenueStatementRoute
   FarmerRevenueWithdrawRoute: typeof FarmerRevenueWithdrawRoute
   FarmerRevenueWithdrawalsRoute: typeof FarmerRevenueWithdrawalsRoute
   FarmerStockInventoryRoute: typeof FarmerStockInventoryRoute
@@ -3713,6 +3754,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerProductsNewRoute: FarmerProductsNewRoute,
   FarmerReturnsReturnIdRoute: FarmerReturnsReturnIdRoute,
   FarmerRevenueTxIdRoute: FarmerRevenueTxIdRoute,
+  FarmerRevenueStatementRoute: FarmerRevenueStatementRoute,
   FarmerRevenueWithdrawRoute: FarmerRevenueWithdrawRoute,
   FarmerRevenueWithdrawalsRoute: FarmerRevenueWithdrawalsRoute,
   FarmerStockInventoryRoute: FarmerStockInventoryRoute,

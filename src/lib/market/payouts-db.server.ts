@@ -4,7 +4,77 @@ import { checkouts, ledgerEntries, orders, payouts, refunds, users } from "@/db/
 import { formatFCFA } from "@/lib/format";
 import { readBalances } from "./ledger-db.server";
 import { audit, fail, nextNumber, notifyFinanceStaff, notifyUser } from "./market-common.server";
-import { normalizeProviderRef } from "./payments-db.server";
+import { normalizeProviderRef, readMerchantAccounts } from "./payments-db.server";
+import type { Tx } from "./market-common.server";
+
+/** Montant soumis à double validation (un admin valide, un autre paie). */
+async function needsTwoAdmins(tx: Tx, amount: number): Promise<number | null> {
+  const { approvalThreshold } = await readMerchantAccounts(tx);
+  return approvalThreshold > 0 && amount >= approvalThreshold ? approvalThreshold : null;
+}
+
+/** Premier temps de la double validation d'un retrait. */
+export async function approvePayout(db: Db, adminId: string, payoutId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [p] = await tx.select().from(payouts).where(eq(payouts.id, payoutId)).for("update");
+    if (!p) fail("Retrait introuvable.");
+    if (p.status !== "requested") fail("Ce retrait n'est plus à valider.");
+    if (!(await needsTwoAdmins(tx, p.amount))) {
+      fail("Ce montant n'a pas besoin de double validation : versez-le directement.");
+    }
+    await tx
+      .update(payouts)
+      .set({ status: "processing", approvedBy: adminId, approvedAt: new Date() })
+      .where(eq(payouts.id, p.id));
+    await notifyFinanceStaff(tx, {
+      type: "payment",
+      title: "Retrait validé, à verser",
+      body: `${p.reference ?? "Retrait"} · ${formatFCFA(p.amount)} : un autre administrateur doit l'envoyer`,
+      link: "/admin/payments",
+    });
+    await audit(tx, {
+      actorId: adminId,
+      action: "Retrait validé (1/2)",
+      targetType: "payout",
+      targetId: p.reference ?? p.id,
+      before: { status: p.status },
+      after: { status: "processing", amount: p.amount },
+    });
+  });
+}
+
+/** Premier temps de la double validation d'un remboursement. */
+export async function approveRefund(db: Db, adminId: string, refundId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [r] = await tx.select().from(refunds).where(eq(refunds.id, refundId)).for("update");
+    if (!r) fail("Remboursement introuvable.");
+    if (r.status !== "pending") fail("Ce remboursement n'est plus à valider.");
+    if (r.createdBy === adminId) {
+      fail("Vous avez créé ce remboursement : un autre administrateur doit le valider.");
+    }
+    if (!(await needsTwoAdmins(tx, r.amount))) {
+      fail("Ce montant n'a pas besoin de double validation : remboursez directement.");
+    }
+    await tx
+      .update(refunds)
+      .set({ status: "approved", approvedBy: adminId })
+      .where(eq(refunds.id, r.id));
+    await notifyFinanceStaff(tx, {
+      type: "payment",
+      title: "Remboursement validé, à envoyer",
+      body: `${r.reference} · ${formatFCFA(r.amount)} : un autre administrateur doit l'envoyer`,
+      link: "/admin/payments",
+    });
+    await audit(tx, {
+      actorId: adminId,
+      action: "Remboursement validé (1/2)",
+      targetType: "refund",
+      targetId: r.reference,
+      before: { status: r.status },
+      after: { status: "approved", amount: r.amount },
+    });
+  });
+}
 
 // Argent qui sort, pendant le pilote : l'admin l'envoie à la main depuis le
 // compte marchand Wave / Orange Money, puis saisit la référence de la
@@ -87,6 +157,15 @@ export async function payPayout(
     if (!p) fail("Retrait introuvable.");
     if (p.status !== "requested" && p.status !== "processing") {
       fail("Ce retrait n'est plus à verser.");
+    }
+    const threshold = await needsTwoAdmins(tx, p.amount);
+    if (threshold && !p.approvedBy) {
+      fail(
+        `À partir de ${formatFCFA(threshold)}, un premier administrateur valide le retrait, puis un autre l'envoie.`,
+      );
+    }
+    if (threshold && p.approvedBy === adminId) {
+      fail("Vous avez validé ce retrait : un autre administrateur doit l'envoyer.");
     }
     const ref = normalizeProviderRef(providerRef);
     const [owner] = await tx.select().from(users).where(eq(users.id, p.userId));
@@ -172,6 +251,15 @@ export async function payRefund(
     if (r.createdBy === adminId) {
       fail("Un autre administrateur doit valider ce remboursement que vous avez créé.");
     }
+    const threshold = await needsTwoAdmins(tx, r.amount);
+    if (threshold && r.status !== "approved") {
+      fail(
+        `À partir de ${formatFCFA(threshold)}, un premier administrateur valide le remboursement, puis un autre l'envoie.`,
+      );
+    }
+    if (threshold && r.approvedBy === adminId) {
+      fail("Vous avez validé ce remboursement : un autre administrateur doit l'envoyer.");
+    }
     const ref = normalizeProviderRef(input.providerRef);
     const to = normalizeWalletNumber(input.paidTo);
     const now = new Date();
@@ -182,7 +270,9 @@ export async function payRefund(
         method: input.method,
         paidTo: to,
         providerRef: ref,
-        approvedBy: adminId,
+        // Sans double validation, celui qui paie est aussi celui qui valide.
+        approvedBy: r.approvedBy ?? adminId,
+        paidBy: adminId,
         paidAt: now,
       })
       .where(eq(refunds.id, r.id));

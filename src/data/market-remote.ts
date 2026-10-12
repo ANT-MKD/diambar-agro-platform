@@ -19,6 +19,9 @@ import {
   getMarketSnapshotFn,
   markArrivedFn,
   markNotificationsReadFn,
+  approvePayoutFn,
+  approveRefundFn,
+  getStatementFn,
   payPayoutFn,
   payRefundFn,
   rejectPayoutFn,
@@ -38,6 +41,7 @@ import {
 } from "@/lib/market/functions";
 import type { Product, StockMovement } from "./mocks";
 import type { OrderActor } from "@/lib/order-lifecycle";
+import type { StatementView } from "@/lib/market/documents-view";
 import { requireRole } from "@/lib/auth/functions";
 import { clearBusinessDemoData } from "./business";
 import { clearDisputesDemoData } from "./disputes";
@@ -381,6 +385,27 @@ export const market = {
         },
       }),
     );
+  },
+
+  /** Admin : premier temps de la double validation. */
+  async approvePayout(payoutId: string): Promise<Result> {
+    return remote(() => approvePayoutFn({ data: { payoutId } }));
+  },
+
+  async approveRefund(refundId: string): Promise<Result> {
+    return remote(() => approveRefundFn({ data: { refundId } }));
+  },
+
+  /** Producteur ou livreur : relevé mensuel (mode base). */
+  async statement(month: string): Promise<Result<{ statement: StatementView }>> {
+    try {
+      return await getStatementFn({ data: { month } });
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error && err.message ? err.message : UNREACHABLE,
+      };
+    }
   },
 
   /** Admin : retrait versé, avec la référence de la transaction. */

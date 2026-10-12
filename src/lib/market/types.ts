@@ -10,6 +10,7 @@ import type {
   RestaurantOrder,
   Role,
 } from "@/data/mocks";
+import type { InvoiceView } from "./documents-view";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 
 // Données de la place de marché envoyées par le serveur (mode base de
@@ -94,6 +95,8 @@ export type MarketSnapshot = {
   payouts?: AdminPayout[];
   /** Admin : remboursements des commandes chargées. */
   refunds?: AdminRefund[];
+  /** Restaurant (et admin) : factures émises. */
+  invoices?: InvoiceView[];
   /** Établissement du restaurant connecté (adresse de livraison par défaut). */
   restaurant: { name: string; address: string; city: string } | null;
   notifications: AppNotification[];

@@ -36,10 +36,18 @@ import {
   type PlaceOrderInput,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
-import { payPayout, payRefund, rejectPayout, requestPayout } from "./payouts-db.server";
+import {
+  approvePayout,
+  approveRefund,
+  payPayout,
+  payRefund,
+  rejectPayout,
+  requestPayout,
+} from "./payouts-db.server";
+import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { readBalances } from "./ledger-db.server";
 import { paymentDeadline } from "@/lib/payment-deadline";
-import { checkouts } from "@/db/schema";
+import { checkouts, invoices } from "@/db/schema";
 import { readSnapshot } from "./snapshot.server";
 
 const adminUrl = process.env.TEST_DATABASE_URL;
@@ -823,6 +831,163 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     await acceptMission(db, driverId, m2.id);
     expect((await readBalances(db, [driverId])).get(driverId)!.cashHeld).toBe(0);
     await setLimit(50_000);
+  });
+
+  /** Commande Wave payée, confirmée, livrée par le livreur de démo. */
+  const deliveredOrder = async (qty: number) => {
+    const placed = await placeOrder(
+      db,
+      restaurantId,
+      order({ lines: [{ productId: tomatoes.id, qty }] }),
+    );
+    const o = placed.orders[0];
+    await confirmOrder(db, farmerId, o.id, {});
+    await pay(placed.checkoutId);
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+    await acceptMission(db, driverId, m.id);
+    const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+    await missionStep(db, driverId, m.id, "loaded", row.pickupCode);
+    await addDeliveryProof(db, driverId, {
+      missionId: m.id,
+      stage: "dropoff",
+      storageKey: `non-conserve/facture-${o.id}.jpg`,
+      mime: "image/jpeg",
+      size: 1000,
+    });
+    await missionStep(db, driverId, m.id, "delivered", row.deliveryCode);
+    return { placed, o: (await db.select().from(orders).where(eq(orders.id, o.id)))[0] };
+  };
+
+  it("factures : émises après la réception, quantités acceptées, numéros sans trou", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 200 });
+    // Factures des paniers des tests précédents, pour partir d'un état connu.
+    await issueDueInvoices(db, new Date(Date.now() + 72 * 3600_000));
+    const a = await deliveredOrder(12);
+    const b = await deliveredOrder(8);
+    // Livrées mais contrôle de réception pas fait : pas encore de facture.
+    await issueDueInvoices(db);
+    expect(
+      await db.select().from(invoices).where(eq(invoices.checkoutId, a.placed.checkoutId)),
+    ).toHaveLength(0);
+    // Le restaurant refuse 2 kg sur A : la facture porte 10 kg.
+    await reportReception(db, restaurantId, a.o.id, {
+      lines: [{ productId: tomatoes.id, refusedQty: 2, reason: "Abîmées" }],
+    });
+    expect(await issueDueInvoices(db)).toBe(1);
+    expect(await issueDueInvoices(db)).toBe(0);
+    const [fa] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.checkoutId, a.placed.checkoutId));
+    expect(fa.number).toMatch(/^FAC-\d{4}-\d{5}$/);
+    expect(fa.totalTtc).toBe(10 * tomatoes.price + a.o.deliveryFee);
+    expect(fa.totalHt + fa.tvaAmount).toBe(fa.totalTtc);
+    const content = fa.content as { lines: { qty: number }[]; payment: { refunded: number } };
+    expect(content.lines.map((l) => l.qty)).toEqual([10]);
+    expect(content.payment.refunded).toBe(2 * tomatoes.price);
+    // B : délai de réclamation passé sans contrôle → facturée, numéro suivant.
+    expect(await issueDueInvoices(db, new Date(Date.now() + 49 * 3600_000))).toBe(1);
+    const [fb] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.checkoutId, b.placed.checkoutId));
+    expect(Number(fb.number.slice(-5))).toBe(Number(fa.number.slice(-5)) + 1);
+    const snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    expect(snap.invoices?.map((i) => i.number)).toEqual(
+      expect.arrayContaining([fa.number, fb.number]),
+    );
+  });
+
+  it("relevé mensuel : solde d'ouverture, mouvements, solde de clôture = solde du compte", async () => {
+    const now = new Date();
+    const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const st = await readStatement(db, farmerId, month);
+    const balance = (await readBalances(db, [farmerId])).get(farmerId)!.balance;
+    expect(st.opening).toBe(0);
+    expect(st.closing).toBe(balance);
+    expect(st.credits + st.debits).toBe(balance);
+    expect(st.lines.some((l) => l.label.startsWith("Vente"))).toBe(true);
+    expect(st.lines.some((l) => l.label.startsWith("Retrait versé"))).toBe(true);
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const later = await readStatement(
+      db,
+      farmerId,
+      `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`,
+    );
+    expect(later.opening).toBe(balance);
+    expect(later.lines).toHaveLength(0);
+    await expect(readStatement(db, restaurantId, month)).rejects.toThrow(/introuvable/);
+  });
+
+  it("double validation au-dessus du seuil : un admin valide, un autre envoie", async () => {
+    const financeId = await idOf("finance@diambar.sn");
+    await db
+      .update(settings)
+      .set({
+        value: {
+          wave: { enabled: true, number: "770000000" },
+          orangeMoney: { enabled: false, number: "" },
+          cashOnDelivery: { enabled: true, driverLimit: 50_000 },
+          approvalThreshold: 2000,
+        },
+      })
+      .where(eq(settings.key, "payment_methods"));
+
+    // Retrait de 2 000 : deux administrateurs.
+    await requestPayout(db, farmerId, { amount: 2000, method: "wave" });
+    const [big] = await db
+      .select()
+      .from(payouts)
+      .where(and(eq(payouts.userId, farmerId), eq(payouts.status, "requested")));
+    await expect(payPayout(db, adminId, big.id, newRef())).rejects.toThrow(
+      /premier administrateur/,
+    );
+    await approvePayout(db, adminId, big.id);
+    await expect(payPayout(db, adminId, big.id, newRef())).rejects.toThrow(/Vous avez validé/);
+    await payPayout(db, financeId, big.id, newRef());
+    const [done] = await db.select().from(payouts).where(eq(payouts.id, big.id));
+    expect(done.status).toBe("paid");
+    expect(done.approvedBy).toBe(adminId);
+    expect(done.processedBy).toBe(financeId);
+    // Retrait sous le seuil : un seul administrateur suffit.
+    await requestPayout(db, farmerId, { amount: 1000, method: "wave" });
+    const [small] = await db
+      .select()
+      .from(payouts)
+      .where(and(eq(payouts.userId, farmerId), eq(payouts.status, "requested")));
+    await expect(approvePayout(db, adminId, small.id)).rejects.toThrow(/pas besoin/);
+    await payPayout(db, adminId, small.id, newRef());
+
+    // Remboursement (annulation après paiement) : même règle.
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const placed = await placeOrder(db, restaurantId, order());
+    await pay(placed.checkoutId);
+    await setOrderStatus(
+      db,
+      { id: restaurantId, actor: "restaurant" },
+      placed.orders[0].id,
+      "cancelled",
+      "Erreur de commande",
+    );
+    const [r] = await db.select().from(refunds).where(eq(refunds.orderId, placed.orders[0].id));
+    const refundInput = () => ({
+      method: "wave" as const,
+      paidTo: "771234567",
+      providerRef: newRef(),
+    });
+    await expect(payRefund(db, adminId, r.id, refundInput())).rejects.toThrow(
+      /premier administrateur/,
+    );
+    await approveRefund(db, adminId, r.id);
+    await expect(payRefund(db, adminId, r.id, refundInput())).rejects.toThrow(/Vous avez validé/);
+    await payRefund(db, financeId, r.id, refundInput());
+    const [paidRefund] = await db.select().from(refunds).where(eq(refunds.id, r.id));
+    expect(paidRefund.status).toBe("paid");
+    expect(paidRefund.approvedBy).toBe(adminId);
+    expect(paidRefund.paidBy).toBe(financeId);
+    const adminSnap = await readSnapshot(db, { id: adminId, role: "admin" });
+    expect(adminSnap.payouts?.find((x) => x.id === big.id)?.approvedByName).toBeTruthy();
+    expect(adminSnap.payouts?.find((x) => x.id === big.id)?.needsTwoAdmins).toBe(true);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

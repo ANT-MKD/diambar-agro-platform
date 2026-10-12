@@ -6,6 +6,7 @@ import type {
   MerchantNumbers,
 } from "@/lib/market/payment-view";
 import type { AdminAccount } from "@/lib/market/types";
+import type { InvoiceView } from "@/lib/market/documents-view";
 import { createStore } from "./persist";
 
 // Paiements du pilote venus du serveur (mode base de données) : numéros
@@ -18,6 +19,8 @@ export const adminPaymentsStore = createStore<AdminPayment[]>([]);
 export const adminAccountsStore = createStore<AdminAccount[]>([]);
 export const adminPayoutsStore = createStore<AdminPayout[]>([]);
 export const adminRefundsStore = createStore<AdminRefund[]>([]);
+/** Restaurant (et admin) : factures émises en base. */
+export const invoicesStore = createStore<InvoiceView[]>([]);
 
 export function useMerchantNumbers(): MerchantNumbers | null {
   return useSyncExternalStore(merchantStore.subscribe, merchantStore.get, merchantStore.get);
@@ -53,4 +56,8 @@ export function useAdminRefunds(): AdminRefund[] {
     adminRefundsStore.get,
     adminRefundsStore.get,
   );
+}
+
+export function useInvoices(): InvoiceView[] {
+  return useSyncExternalStore(invoicesStore.subscribe, invoicesStore.get, invoicesStore.get);
 }

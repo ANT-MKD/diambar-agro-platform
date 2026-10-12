@@ -22,7 +22,7 @@ import {
 import { useAllDisputes } from "@/data/disputes";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
-import { computeDailyOps } from "@/lib/daily-ops";
+import { computeDailyOps, lossMakingDeliveries } from "@/lib/daily-ops";
 import { formatFCFA, relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/operations")({
@@ -56,6 +56,10 @@ function OperationsPage() {
   const ops = useMemo(
     () => computeDailyOps({ day, restaurantOrders, missions, transactions, disputes, refunds }),
     [day, restaurantOrders, missions, transactions, disputes, refunds],
+  );
+  const losses = useMemo(
+    () => lossMakingDeliveries({ day, restaurantOrders, missions }),
+    [day, restaurantOrders, missions],
   );
 
   // Ce qui doit être traité tout de suite, quel que soit le jour affiché.
@@ -187,6 +191,78 @@ function OperationsPage() {
               : undefined
           }
         />
+      </div>
+
+      <div
+        className={`glass rounded-2xl p-5 ${losses.length ? "border border-rose-500/30" : ""}`}
+        data-testid="loss-deliveries"
+      >
+        <h3 className="font-semibold flex items-center gap-2">
+          <AlertTriangle
+            className={`h-4 w-4 ${losses.length ? "text-rose-600" : "text-muted-foreground"}`}
+          />
+          Livraisons à perte
+        </h3>
+        {losses.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Aucune course de ce jour ne coûte plus que les frais de livraison payés par le
+            restaurant.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm">
+              <span className="font-semibold text-rose-600">
+                {losses.length} course(s) · {formatFCFA(losses.reduce((s, l) => s + l.margin, 0))}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                : la course payée au livreur (commission déduite) dépasse les frais facturés au
+                restaurant. Relevez les frais de la zone (Paramètres → Zones) ou regroupez les
+                commandes d'un même trajet.
+              </span>
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-2 pr-3">Course</th>
+                    <th className="py-2 pr-3">Trajet</th>
+                    <th className="py-2 pr-3 text-right">Distance · poids</th>
+                    <th className="py-2 pr-3 text-right">Frais payés</th>
+                    <th className="py-2 pr-3 text-right">Coût de la course</th>
+                    <th className="py-2 text-right">Écart</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {losses.map((l) => (
+                    <tr key={l.mission.id}>
+                      <td className="py-2 pr-3">
+                        <Link
+                          to="/admin/deliveries/$missionId"
+                          params={{ missionId: l.mission.id }}
+                          className="font-medium hover:underline"
+                        >
+                          {l.mission.reference}
+                        </Link>
+                        <div className="text-xs text-muted-foreground">{l.mission.orderRef}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        {l.mission.pickup.city} → {l.mission.dropoff.city}
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        {l.mission.distanceKm} km · {l.mission.weightKg} kg
+                      </td>
+                      <td className="py-2 pr-3 text-right">{formatFCFA(l.fee)}</td>
+                      <td className="py-2 pr-3 text-right">{formatFCFA(l.cost)}</td>
+                      <td className="py-2 text-right font-semibold text-rose-600">
+                        {formatFCFA(l.margin)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5">
