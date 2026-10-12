@@ -8,7 +8,7 @@ import { productActions } from "@/data/store";
 import { market } from "@/data/market-remote";
 import { myId } from "@/data/market-mode";
 import { downloadCsv } from "@/lib/export";
-import { CATEGORIES, SAMPLE_IMAGES } from "@/components/farmer/product-form";
+import { CATEGORIES, SAMPLE_IMAGES } from "@/components/farmer/product-catalog";
 import type { Product } from "@/data/mocks";
 
 export const Route = createFileRoute("/farmer/products/import")({

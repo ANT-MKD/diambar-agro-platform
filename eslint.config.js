@@ -36,5 +36,12 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // Composants d'interface de base (shadcn/ui) : ils exportent aussi leurs
+    // variantes de style (buttonVariants, badgeVariants…) ou leur hook, comme
+    // le prévoit shadcn. On les garde tels quels pour pouvoir les mettre à jour.
+    files: ["src/components/ui/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
   eslintPluginPrettier,
 );

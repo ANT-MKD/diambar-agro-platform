@@ -40,7 +40,7 @@ import {
   type HolidayRuleAction,
   type RecurringFrequency,
 } from "@/data/mocks";
-import { CATEGORIES } from "@/components/farmer/product-form";
+import { CATEGORIES } from "@/components/farmer/product-catalog";
 import { formatFCFA } from "@/lib/format";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";

@@ -2,12 +2,6 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Bell,
-  Package,
-  CreditCard,
-  Warehouse,
-  Info,
-  MessageSquare,
-  Truck,
   CheckCheck,
   Search,
   Trash2,
@@ -22,23 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/farmer/page-header";
 import { relativeTime } from "@/lib/format";
 import type { AppNotification } from "@/data/mocks";
-
-export const NOTIF_ICONS: Record<string, typeof Bell> = {
-  order: Package,
-  payment: CreditCard,
-  stock: Warehouse,
-  system: Info,
-  message: MessageSquare,
-  mission: Truck,
-};
-export const NOTIF_TONES: Record<string, string> = {
-  order: "bg-blue-500/10 text-blue-500",
-  payment: "bg-emerald-500/10 text-emerald-500",
-  stock: "bg-amber-500/10 text-amber-500",
-  system: "bg-violet-500/10 text-violet-500",
-  message: "bg-rose-500/10 text-rose-500",
-  mission: "bg-sky-500/10 text-sky-500",
-};
+import { NOTIF_ICONS, NOTIF_TONES } from "./notification-styles";
 
 export type NotifActions = {
   markRead: (id: string) => void;

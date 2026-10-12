@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsCard, ToggleRow } from "@/components/common/settings-shell";
-import { ChannelMatrix, TriggerRules, usePersisted } from "@/components/common/notification-rules";
+import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
+import { usePersisted } from "@/hooks/use-persisted";
 
 export const Route = createFileRoute("/farmer/settings/notifications")({
   head: () => ({

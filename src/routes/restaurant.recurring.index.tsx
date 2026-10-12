@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Repeat,
@@ -94,7 +94,10 @@ function RecurringDashboard() {
   const recurring = useRecurringOrders();
   const restaurantOrders = useRestaurantOrders();
   const products = useProducts();
-  const priceOf = (id: string) => products.find((p) => p.id === id)?.pricePerKg ?? 0;
+  const priceOf = useCallback(
+    (id: string) => products.find((p) => p.id === id)?.pricePerKg ?? 0,
+    [products],
+  );
   const [tab, setTab] = useState<Tab>("all");
   const [q, setQ] = useState("");
 

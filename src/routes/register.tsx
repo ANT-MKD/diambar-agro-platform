@@ -15,7 +15,8 @@ import { z } from "zod";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { RoleCard } from "@/components/auth/role-card";
 import { OtpInput } from "@/components/auth/otp-input";
-import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
+import { PasswordStrength } from "@/components/auth/password-strength";
+import { passwordScore } from "@/lib/password-score";
 import { useCities } from "@/data/admin-store";
 import {
   getAuthConfigFn,

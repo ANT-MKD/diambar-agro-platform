@@ -1,47 +1,7 @@
-import { useEffect, useState } from "react";
 import { Bell, Mail, MessageCircle, Smartphone, Zap, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-
-/**
- * Le SSR n'a pas accès à localStorage, donc l'état initial doit rester identique
- * entre serveur et client (sinon React ne corrige pas le mismatch d'hydratation
- * sur les attributs comme aria-pressed/className, et l'UI reste figée sur la
- * valeur par défaut). La valeur persistée est donc appliquée après coup, dans un
- * effet qui ne s'exécute que côté client une fois l'hydratation terminée.
- */
-export function usePersisted<T>(
-  key: string | undefined,
-  initial: T | (() => T),
-): [T, (v: T) => void] {
-  const [state, setState] = useState<T>(() =>
-    typeof initial === "function" ? (initial as () => T)() : initial,
-  );
-
-  useEffect(() => {
-    if (!key) return;
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (raw) {
-        setState((prev) => ({ ...(prev as object), ...(JSON.parse(raw) as object) }) as T);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [key]);
-
-  const update = (v: T) => {
-    setState(v);
-    if (!key || typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(key, JSON.stringify(v));
-    } catch {
-      /* ignore */
-    }
-  };
-
-  return [state, update];
-}
+import { usePersisted } from "@/hooks/use-persisted";
 
 export const CHANNEL_DEFS = [
   { key: "inapp", label: "In-app", icon: Bell },
@@ -65,7 +25,7 @@ export type TriggerRule = {
 
 type Matrix = Record<string, Record<ChannelKey, boolean>>;
 
-export function buildMatrix(
+function buildMatrix(
   events: readonly EventDef[],
   defaults: Partial<Record<ChannelKey, boolean>> = {},
 ): Matrix {
