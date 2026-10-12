@@ -171,6 +171,18 @@ function OrderDetailPage() {
         </div>
       )}
 
+      {order.awaitingPayment && (
+        <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p>
+            <span className="font-semibold">Paiement du restaurant en attente.</span>{" "}
+            {order.status === "pending"
+              ? "Vous pouvez déjà confirmer ce que vous avez, mais ne préparez rien avant la confirmation du paiement : vous serez prévenu."
+              : "Ne préparez rien avant la confirmation du paiement par Diambar : vous serez prévenu, puis un livreur viendra récupérer la commande."}
+          </p>
+        </div>
+      )}
+
       {order.pickupCode && (order.status === "confirmed" || order.status === "preparing") && (
         <HandoverCode
           code={order.pickupCode}
@@ -188,7 +200,12 @@ function OrderDetailPage() {
         )}
         {order.status === "pending" && <AdjustQuantities orderId={order.id} />}
         {order.status === "confirmed" && (
-          <Button onClick={() => next("preparing")} className="gap-1">
+          <Button
+            onClick={() => next("preparing")}
+            className="gap-1"
+            disabled={order.awaitingPayment}
+            title={order.awaitingPayment ? "En attente du paiement du restaurant" : undefined}
+          >
             <Package2 className="h-4 w-4" />
             Commencer la préparation
           </Button>

@@ -17,6 +17,7 @@ import {
   payments,
   productPhotos,
   products,
+  refunds,
   restaurants,
   settings,
   users,
@@ -37,6 +38,13 @@ import {
 import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { lastAddressSegment, routeEstimate, vehicleForWeight } from "@/lib/mission-pay";
 import { cityCoords } from "@/lib/tracking/geo";
+import {
+  paymentState,
+  type AdminPayment,
+  type OrderPayment,
+  type RefundView,
+} from "./payment-view";
+import { orderDue, readMerchantAccounts } from "./payments-db.server";
 import { isStored, publicUrl, signedUrl } from "./storage.server";
 import type {
   DirectoryDriver,
@@ -107,7 +115,9 @@ async function cachedSignedUrl(storageKeyValue: string): Promise<string | undefi
   return url;
 }
 
-export type MarketRules = MarketSnapshot["rules"] & { receptionWindowHours: number };
+export type MarketRules = Omit<MarketSnapshot["rules"], "merchant"> & {
+  receptionWindowHours: number;
+};
 
 export async function readRules(db: Db): Promise<MarketRules> {
   const rows = await db
@@ -136,7 +146,8 @@ export async function readRules(db: Db): Promise<MarketRules> {
         ...(pm.orangeMoney?.enabled ? (["Orange Money"] as const) : []),
         ...(pm.cashOnDelivery?.enabled ? (["Espèces"] as const) : []),
       ]
-    : ["Wave", "Orange Money", "Free Money", "Espèces"];
+    : // Pas encore réglé par l'admin : Free Money n'a pas de compte marchand.
+      ["Wave", "Orange Money", "Espèces"];
   return {
     cutoffHour: num(v.cutoff_hour, 18),
     minOrderPerProducer: num(v.min_order_per_producer, 5000),
@@ -223,6 +234,14 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       : [],
     orderIds.length ? db.select().from(missions).where(inArray(missions.orderId, orderIds)) : [],
   ]);
+  const refundRows =
+    orderIds.length && (me.role === "restaurant" || me.role === "admin")
+      ? await db
+          .select()
+          .from(refunds)
+          .where(inArray(refunds.orderId, orderIds))
+          .orderBy(desc(refunds.createdAt))
+      : [];
   const missionIds = missionRows.map((m) => m.id);
   const [missionEventRows, proofRows] = await Promise.all([
     missionIds.length
@@ -436,9 +455,66 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
 
   // --- Commandes : formes producteur et restaurant ------------------------------
   const checkoutById = new Map(checkoutRows.map((c) => [c.id, c]));
+  // Paiements triés du plus récent au plus ancien : on garde le dernier du
+  // panier (Wave / OM) et celui de chaque commande (espèces).
   const paymentByCheckout = new Map<string, (typeof paymentRows)[number]>();
-  for (const p of paymentRows)
-    if (!paymentByCheckout.has(p.checkoutId)) paymentByCheckout.set(p.checkoutId, p);
+  const cashPaymentByOrder = new Map<string, (typeof paymentRows)[number]>();
+  for (const p of paymentRows) {
+    if (p.orderId) {
+      if (!cashPaymentByOrder.has(p.orderId)) cashPaymentByOrder.set(p.orderId, p);
+    } else if (!paymentByCheckout.has(p.checkoutId)) paymentByCheckout.set(p.checkoutId, p);
+  }
+  const ordersByCheckout = new Map<string, (typeof orderRows)[number][]>();
+  for (const o of orderRows) {
+    ordersByCheckout.set(o.checkoutId, [...(ordersByCheckout.get(o.checkoutId) ?? []), o]);
+  }
+  const paymentFor = (o: (typeof orderRows)[number]) =>
+    checkoutById.get(o.checkoutId)?.paymentMode === "prepaid"
+      ? paymentByCheckout.get(o.checkoutId)
+      : cashPaymentByOrder.get(o.id);
+  const paymentView = (
+    p: (typeof paymentRows)[number],
+    c: (typeof checkoutRows)[number],
+  ): OrderPayment => {
+    const covered = (ordersByCheckout.get(c.id) ?? []).filter((x) =>
+      p.orderId ? x.id === p.orderId : x.status !== "cancelled",
+    );
+    return {
+      id: p.id,
+      checkoutId: c.id,
+      checkoutReference: c.reference,
+      mode: p.orderId ? "cash" : "prepaid",
+      state: paymentState(p),
+      method: PAYMENT_METHOD_LABEL[p.method] ?? "Wave",
+      amount: p.amount,
+      orderReferences: covered.map((x) => x.reference),
+      providerRef: p.providerRef ?? undefined,
+      note: p.note ?? undefined,
+      declaredAt: iso(p.declaredAt),
+      collectedAt: iso(p.collectedAt),
+      paidAt: iso(p.paidAt),
+    };
+  };
+  const refundsByOrder = new Map<string, RefundView[]>();
+  for (const r of refundRows) {
+    const o = orderRows.find((x) => x.id === r.orderId);
+    refundsByOrder.set(r.orderId, [
+      ...(refundsByOrder.get(r.orderId) ?? []),
+      {
+        id: r.id,
+        reference: r.reference,
+        orderId: r.orderId,
+        orderReference: o?.reference ?? "",
+        source: r.source,
+        amount: r.amount,
+        status: r.status,
+        reason: r.reason ?? undefined,
+        createdAt: iso(r.createdAt)!,
+        paidAt: iso(r.paidAt),
+        providerRef: r.providerRef ?? undefined,
+      },
+    ]);
+  }
   const missionByOrder = new Map(
     missionRows
       .filter((m) => m.status !== "cancelled")
@@ -480,10 +556,15 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
         stockReserved: true,
         deliveredAt: iso(o.deliveredAt),
         pickupCode: seeCodes(o, "farmer") ? o.pickupCode : undefined,
+        awaitingPayment:
+          c?.paymentMode === "prepaid" &&
+          paymentByCheckout.get(c.id)?.status !== "confirmed" &&
+          (o.status === "pending" || o.status === "confirmed"),
       });
     }
     if (me.role === "restaurant" || me.role === "admin") {
-      const pay = c ? paymentByCheckout.get(c.id) : undefined;
+      const pay = paymentFor(o);
+      const payment = pay && c ? paymentView(pay, c) : undefined;
       const refused = lines.filter((i) => Number(i.qtyRefused) > 0);
       restaurantOrderList.push({
         id: o.id,
@@ -497,8 +578,10 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
         deliveryAddress: c?.deliveryAddress ?? "",
         paymentMethod: PAYMENT_METHOD_LABEL[pay?.method ?? "wave"] ?? "Wave",
         statusHistory: events.map((e) => ({ status: e.status, at: iso(e.at)! })),
-        paid: pay?.status === "confirmed",
-        paidAt: iso(pay?.paidAt),
+        paid: payment?.state === "paid" || payment?.state === "collected",
+        paidAt: payment?.paidAt ?? payment?.collectedAt,
+        payment,
+        refunds: refundsByOrder.get(o.id),
         subtotal: o.subtotal,
         deliveryFee: o.deliveryFee,
         promoDiscount: o.discount || undefined,
@@ -612,6 +695,10 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       statusHistory: history,
       waits: waits.length ? waits : undefined,
       instructions: c?.instructions ?? undefined,
+      cashToCollect: (() => {
+        const cash = c?.paymentMode === "prepaid" ? undefined : cashPaymentByOrder.get(o.id);
+        return cash && cash.status === "pending" && !cash.collectedAt ? orderDue(o) : undefined;
+      })(),
     });
   }
 
@@ -661,6 +748,55 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     };
   });
 
+  // --- Paiements (admin) ------------------------------------------------------------
+  let adminPayments: AdminPayment[] | undefined;
+  if (me.role === "admin") {
+    const confirmerIds = [
+      ...new Set(paymentRows.flatMap((p) => (p.confirmedBy ? [p.confirmedBy] : []))),
+    ];
+    const confirmers = confirmerIds.length
+      ? await db
+          .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+          .from(users)
+          .where(inArray(users.id, confirmerIds))
+      : [];
+    const personName = (x?: { firstName: string; lastName: string }) =>
+      x ? `${x.firstName} ${x.lastName}`.trim() : "";
+    adminPayments = [...paymentByCheckout.values(), ...cashPaymentByOrder.values()].flatMap((p) => {
+      const c = checkoutById.get(p.checkoutId);
+      if (!c) return [];
+      const covered = (ordersByCheckout.get(c.id) ?? []).filter(
+        (o) => !p.orderId || o.id === p.orderId,
+      );
+      const r = restaurantRows.find((x) => x.id === c.restaurantId);
+      const collector = p.collectedBy ? driverRows.find((d) => d.id === p.collectedBy) : null;
+      return [
+        {
+          ...paymentView(p, c),
+          restaurantId: c.restaurantId,
+          restaurantName: r?.name ?? "Restaurant",
+          restaurantPhone: phoneLabel(r?.phone),
+          dueNow: covered.reduce((sum, o) => sum + orderDue(o), 0),
+          orders: covered.map((o) => {
+            const f = farmerById.get(o.farmerId);
+            return {
+              id: o.id,
+              reference: o.reference,
+              farmerName: f ? `${f.firstName} ${f.lastName}`.trim() : "Producteur",
+              status: o.status,
+              due: orderDue(o),
+            };
+          }),
+          collectedBy: collector ? { id: collector.id, name: personName(collector) } : undefined,
+          confirmedByName: personName(confirmers.find((x) => x.id === p.confirmedBy)) || undefined,
+          createdAt: iso(p.createdAt)!,
+        },
+      ];
+    });
+  }
+  const merchant =
+    me.role === "restaurant" || me.role === "admin" ? await readMerchantAccounts(db) : null;
+
   // --- Établissement du restaurant connecté ----------------------------------------
   const myRestaurant =
     me.role === "restaurant" ? (restaurantRows.find((r) => r.id === me.id) ?? null) : null;
@@ -700,7 +836,9 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       cutoffHour: rules.cutoffHour,
       minOrderPerProducer: rules.minOrderPerProducer,
       paymentMethods: rules.paymentMethods,
+      merchant: merchant ? { wave: merchant.wave, orangeMoney: merchant.orangeMoney } : null,
     },
+    payments: adminPayments,
     restaurant: myRestaurant
       ? {
           name: myRestaurant.name,

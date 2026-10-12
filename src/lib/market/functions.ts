@@ -16,6 +16,7 @@ import {
   addDeliveryProof,
   addProductPhoto,
   confirmOrder,
+  confirmPayment,
   markArrived,
   markNotificationsRead,
   MarketError,
@@ -29,6 +30,7 @@ import {
   setOrderStatus,
   withdrawMission,
 } from "./market-db.server";
+import { declarePayment, rejectPayment } from "./payments-db.server";
 import { readSnapshot } from "./snapshot.server";
 import {
   BUCKETS,
@@ -244,7 +246,13 @@ const orderSchema = z.object({
 });
 
 export type PlaceOrderResult =
-  | { ok: true; checkoutReference: string; orders: { id: string; reference: string }[] }
+  | {
+      ok: true;
+      checkoutId: string;
+      checkoutReference: string;
+      total: number;
+      orders: { id: string; reference: string }[];
+    }
   | { ok: false; message: string };
 
 export const placeOrderFn = createServerFn({ method: "POST" })
@@ -280,7 +288,9 @@ export const placeOrderFn = createServerFn({ method: "POST" })
       );
       return {
         ok: true as const,
+        checkoutId: placed.checkoutId,
         checkoutReference: placed.checkoutReference,
+        total: placed.total,
         orders: placed.orders.map(({ id: orderId, reference }) => ({ id: orderId, reference })),
       };
     }),
@@ -371,6 +381,8 @@ const stepSchema = z.object({
   missionId: id,
   status: z.enum(["pickup", "loaded", "delivered"]),
   code: z.string().trim().max(10).optional(),
+  /** Espèces : le livreur confirme avoir encaissé le montant affiché. */
+  cashCollected: z.boolean().optional(),
 });
 
 export const missionStepFn = createServerFn({ method: "POST" })
@@ -386,7 +398,7 @@ export const missionStepFn = createServerFn({ method: "POST" })
         };
       }
       try {
-        await missionStep(db, me.id, data.missionId, data.status, data.code);
+        await missionStep(db, me.id, data.missionId, data.status, data.code, data.cashCollected);
       } catch (err) {
         if (err instanceof MarketError && needsCode && /^Code .*incorrect/.test(err.message)) {
           codeLimiter.fail(key);
@@ -446,4 +458,63 @@ export const markNotificationsReadFn = createServerFn({ method: "POST" })
       await markNotificationsRead(db, me.id, data.ids);
       return { ok: true as const };
     }),
+  );
+
+// --- Paiements du pilote ----------------------------------------------------------
+
+/** Rôles admin qui ont la main sur l'argent. */
+const MONEY_STAFF: StaffRole[] = ["super_admin", "finance"];
+
+const declareSchema = z.object({
+  checkoutId: id,
+  method: z.enum(["wave", "orange_money"]),
+  providerRef: z.string().trim().min(4, "Référence de la transaction trop courte").max(64),
+});
+
+/** Restaurant : « j'ai payé », avec la référence de la transaction. */
+export const declarePaymentFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof declareSchema>) => parse(declareSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await declarePayment(db, me.id, data);
+      return { ok: true as const };
+    }),
+  );
+
+const confirmPaymentSchema = z.object({
+  paymentId: id,
+  providerRef: z.string().trim().max(64).optional(),
+});
+
+/** Admin : l'argent est bien arrivé (compte marchand ou espèces remises). */
+export const confirmPaymentFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof confirmPaymentSchema>) => parse(confirmPaymentSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await confirmPayment(db, me.id, data.paymentId, data.providerRef);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
+  );
+
+const rejectPaymentSchema = z.object({
+  paymentId: id,
+  reason: z.string().trim().min(5, "Indiquez le motif au restaurant").max(300),
+});
+
+/** Admin : transaction introuvable ou montant différent. */
+export const rejectPaymentFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof rejectPaymentSchema>) => parse(rejectPaymentSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await rejectPayment(db, me.id, data.paymentId, data.reason);
+        return { ok: true as const };
+      },
+      MONEY_STAFF,
+    ),
   );

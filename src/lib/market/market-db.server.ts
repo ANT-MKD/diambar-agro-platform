@@ -35,40 +35,36 @@ import { checkMissionStep, checkOrderTransition, type OrderActor } from "@/lib/o
 import { zoneForAddress } from "@/lib/pricing";
 import { newTrackingToken } from "@/lib/tracking-id";
 import { PAYMENT_METHOD_DB, readRules, readZones } from "./snapshot.server";
+import {
+  audit,
+  fail,
+  MarketError,
+  nextNumber,
+  notifyUser,
+  type Q,
+  type Tx,
+} from "./market-common.server";
+import {
+  cashToCollect,
+  normalizeProviderRef,
+  orderDue,
+  paymentAllowsDelivery,
+  recordCashCollected,
+  refundOverpayment,
+  syncPayments,
+} from "./payments-db.server";
 
 // Opérations de la place de marché sur la base. Chaque règle est vérifiée
 // ici, côté serveur, dans une transaction : le navigateur ne fait que
 // demander. Une règle non respectée lève une MarketError, dont le message
 // est montré tel quel à la personne (et la transaction est annulée).
 
-export class MarketError extends Error {}
-
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-type Q = Db | Tx;
-
-function fail(message: string): never {
-  throw new MarketError(message);
-}
+export { MarketError };
 
 function fourDigitCode(): string {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);
   return String(1000 + (buf[0] % 9000));
-}
-
-async function nextNumber(q: Q, sequence: string): Promise<number> {
-  const rows = (await q.execute(
-    sql`select nextval(${sequence}::regclass)::int as v`,
-  )) as unknown as { v: number }[];
-  return rows[0].v;
-}
-
-async function notifyUser(
-  q: Q,
-  userId: string,
-  n: { type: "order" | "payment" | "stock" | "system"; title: string; body: string; link?: string },
-) {
-  await q.insert(notifications).values({ userId, ...n });
 }
 
 /** Ville d'un quartier (ou dernier morceau de l'adresse). */
@@ -289,7 +285,9 @@ export type PlaceOrderInput = {
 };
 
 export type PlacedOrder = {
+  checkoutId: string;
   checkoutReference: string;
+  total: number;
   orders: { id: string; reference: string; farmerId: string; subtotal: number }[];
 };
 
@@ -482,13 +480,31 @@ export async function placeOrder(
       });
       created.push({ id: order.id, reference: order.reference, farmerId, subtotal: sub });
     }
-    await tx.insert(payments).values({
+    if (checkout.paymentMode === "cash") {
+      // Espèces : chaque commande est réglée à son livreur.
+      for (const o of created) {
+        await tx.insert(payments).values({
+          checkoutId: checkout.id,
+          orderId: o.id,
+          method: "cash",
+          amount: o.subtotal + fee,
+          status: "pending",
+        });
+      }
+    } else {
+      await tx.insert(payments).values({
+        checkoutId: checkout.id,
+        method: PAYMENT_METHOD_DB[input.paymentMethod],
+        amount: total,
+        status: "pending",
+      });
+    }
+    return {
       checkoutId: checkout.id,
-      method: PAYMENT_METHOD_DB[input.paymentMethod],
-      amount: total,
-      status: "pending",
-    });
-    return { checkoutReference: checkout.reference, orders: created };
+      checkoutReference: checkout.reference,
+      total,
+      orders: created,
+    };
   });
 }
 
@@ -541,8 +557,18 @@ async function applyStatus(
   }
 }
 
-/** Ouvre la course de livraison d'une commande confirmée (une seule fois). */
+/** Ouvre la course de livraison d'une commande confirmée (une seule fois),
+ * si elle est payée (Wave / Orange Money confirmé) ou payable à la livraison. */
 async function openMission(tx: Tx, o: OrderRow) {
+  if (!(await paymentAllowsDelivery(tx, o))) {
+    await notifyUser(tx, o.farmerId, {
+      type: "payment",
+      title: "En attente du paiement",
+      body: `${o.reference} : attendez le paiement du restaurant avant de préparer. Vous serez prévenu.`,
+      link: `/farmer/orders/${o.id}`,
+    });
+    return;
+  }
   const [existing] = await tx
     .select({ id: missions.id, status: missions.status })
     .from(missions)
@@ -606,7 +632,7 @@ async function openMission(tx: Tx, o: OrderRow) {
 }
 
 /** Effets d'une annulation : stock remis en vente, course annulée, parties
- * prévenues. (Le remboursement d'un paiement déjà reçu arrive au lot 1.4.) */
+ * prévenues. Le paiement est recalculé ensuite (`syncPayments`). */
 async function cancelCascade(
   tx: Tx,
   o: OrderRow,
@@ -678,6 +704,11 @@ export async function setOrderStatus(
     if (me.actor === "driver") fail("Le livreur fait avancer la commande depuis sa mission.");
     const check = checkOrderTransition(o.status, status, me.actor);
     if (!check.ok) fail(check.message);
+    if (status === "preparing" && !(await paymentAllowsDelivery(tx, o))) {
+      fail(
+        "Le restaurant n'a pas encore payé : attendez la confirmation du paiement pour préparer.",
+      );
+    }
     if (status === "confirmed") {
       await tx
         .update(orderItems)
@@ -686,7 +717,10 @@ export async function setOrderStatus(
     }
     await applyStatus(tx, o, status, me.actor, me.id, note);
     if (status === "confirmed") await openMission(tx, o);
-    if (status === "cancelled") await cancelCascade(tx, o, me.actor, me.id, note);
+    if (status === "cancelled") {
+      await cancelCascade(tx, o, me.actor, me.id, note);
+      await syncPayments(tx, o.checkoutId);
+    }
   });
 }
 
@@ -727,6 +761,7 @@ export async function confirmOrder(
       const note = "Quantités indisponibles chez le producteur";
       await applyStatus(tx, o, "cancelled", "farmer", farmerId, note);
       await cancelCascade(tx, o, "farmer", farmerId, note);
+      await syncPayments(tx, o.checkoutId);
       return { outcome: "cancelled" as const };
     }
     for (const k of kept) {
@@ -762,6 +797,7 @@ export async function confirmOrder(
       "quantités ajustées par le producteur",
       { subtotal: newSubtotal },
     );
+    await syncPayments(tx, o.checkoutId);
     await openMission(tx, o);
     return { outcome: "adjusted" as const };
   });
@@ -885,6 +921,7 @@ export async function missionStep(
   missionId: string,
   status: MissionStatus,
   code?: string,
+  cashCollected?: boolean,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const m = await lockMission(tx, missionId);
@@ -905,6 +942,13 @@ export async function missionStep(
         .where(and(eq(deliveryProofs.missionId, m.id), eq(deliveryProofs.stage, "dropoff")))
         .limit(1);
       if (!proof) fail("Ajoutez au moins une photo de la marchandise livrée.");
+      const cash = await cashToCollect(tx, o);
+      if (cash > 0 && !cashCollected) {
+        fail(
+          `Paiement en espèces : confirmez avoir encaissé ${formatFCFA(cash)} auprès du restaurant.`,
+        );
+      }
+      if (cash > 0) await recordCashCollected(tx, o, driverId);
     }
     await tx.update(missions).set({ status, updatedAt: new Date() }).where(eq(missions.id, m.id));
     await tx.insert(missionEvents).values({ missionId: m.id, status, actorId: driverId });
@@ -1084,4 +1128,123 @@ export async function markNotificationsRead(
         ? and(eq(notifications.userId, userId), sql`${notifications.readAt} is null`)
         : and(eq(notifications.userId, userId), inArray(notifications.id, ids.length ? ids : [""])),
     );
+}
+
+// --- Paiements (admin) ---------------------------------------------------------------
+
+/** L'admin a vu l'argent arriver : sur le compte marchand (Wave / Orange
+ * Money, panier entier) ou des mains du livreur (espèces, une commande). */
+export async function confirmPayment(
+  db: Db,
+  adminId: string,
+  paymentId: string,
+  providerRef?: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for("update");
+    if (!p) fail("Paiement introuvable.");
+    if (p.status === "confirmed") fail("Ce paiement est déjà confirmé.");
+    const [c] = await tx.select().from(checkouts).where(eq(checkouts.id, p.checkoutId));
+    const now = new Date();
+
+    if (p.orderId) {
+      // Espèces remises par le livreur.
+      if (p.status !== "pending" || !p.collectedAt || !p.collectedBy) {
+        fail("Le livreur n'a pas encore encaissé cette commande.");
+      }
+      await tx
+        .update(payments)
+        .set({ status: "confirmed", confirmedBy: adminId, paidAt: now, updatedAt: now })
+        .where(eq(payments.id, p.id));
+      const [o] = await tx.select().from(orders).where(eq(orders.id, p.orderId));
+      await notifyUser(tx, p.collectedBy, {
+        type: "payment",
+        title: "Espèces remises",
+        body: `${o.reference} : ${formatFCFA(p.amount)} bien reçus par Diambar, merci`,
+        link: "/driver/wallet",
+      });
+      await audit(tx, {
+        actorId: adminId,
+        action: "Espèces reçues du livreur",
+        targetType: "payment",
+        targetId: o.reference,
+        before: { status: "pending", collectedAt: p.collectedAt },
+        after: { status: "confirmed", amount: p.amount },
+      });
+      return;
+    }
+
+    if (p.status === "cancelled" || p.status === "refunded") {
+      fail("Plus rien à payer sur ce panier : les commandes ont été annulées.");
+    }
+    // Sans déclaration du restaurant, l'admin saisit lui-même la référence.
+    const ref = providerRef?.trim() ? normalizeProviderRef(providerRef) : p.providerRef;
+    if (!ref) fail("Indiquez la référence de la transaction vue sur le compte marchand.");
+    const list = await tx.select().from(orders).where(eq(orders.checkoutId, c.id));
+    const declared = p.status === "pending" && !!p.declaredAt;
+    if (!declared) {
+      // Payé sans déclaration (ou après un refus) : le montant reçu est le dû actuel.
+      const due = list.reduce((sum, o) => sum + orderDue(o), 0);
+      if (due <= 0) fail("Plus rien à payer sur ce panier.");
+      for (const o of list) {
+        await tx
+          .update(orders)
+          .set({ paymentShare: orderDue(o) })
+          .where(eq(orders.id, o.id));
+      }
+      await tx.update(payments).set({ amount: due }).where(eq(payments.id, p.id));
+    }
+    const [taken] = await tx
+      .select({ id: payments.id })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.method, p.method),
+          eq(payments.providerRef, ref),
+          sql`${payments.id} <> ${p.id}`,
+        ),
+      );
+    if (taken) fail("Cette référence est déjà utilisée par un autre paiement.");
+    await tx
+      .update(payments)
+      .set({
+        status: "confirmed",
+        providerRef: ref,
+        confirmedBy: adminId,
+        paidAt: now,
+        note: null,
+        updatedAt: now,
+      })
+      .where(eq(payments.id, p.id));
+    const [paid] = await tx.select().from(payments).where(eq(payments.id, p.id));
+
+    const first = list[0];
+    await notifyUser(tx, c.restaurantId, {
+      type: "payment",
+      title: "Paiement reçu",
+      body: `${c.reference} : ${formatFCFA(paid.amount)} bien reçus, merci`,
+      link: first ? `/restaurant/orders/${first.id}` : "/restaurant/orders",
+    });
+    for (const o of list) {
+      if (o.status === "confirmed" || o.status === "preparing") {
+        await notifyUser(tx, o.farmerId, {
+          type: "payment",
+          title: "Paiement reçu",
+          body: `${o.reference} est payée : vous pouvez la préparer`,
+          link: `/farmer/orders/${o.id}`,
+        });
+        await openMission(tx, o);
+      }
+    }
+    // Panier diminué entre la déclaration et la confirmation.
+    await refundOverpayment(tx, c.id, paid);
+    await audit(tx, {
+      actorId: adminId,
+      action: "Paiement confirmé",
+      targetType: "payment",
+      targetId: c.reference,
+      before: { status: p.status, providerRef: p.providerRef },
+      after: { status: "confirmed", providerRef: ref, amount: paid.amount },
+    });
+  });
 }

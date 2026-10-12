@@ -1,6 +1,6 @@
 // Place de marché sur une vraie base PostgreSQL (comme les autres tests
 // « .db ») : ne tourne que si TEST_DATABASE_URL est défini.
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -10,7 +10,10 @@ import {
   missions,
   notifications,
   orders,
+  payments,
   products,
+  refunds,
+  settings,
   stockMovements,
   users,
   vehicles,
@@ -20,6 +23,7 @@ import {
   acceptMission,
   addDeliveryProof,
   confirmOrder,
+  confirmPayment,
   missionStep,
   moveStock,
   placeOrder,
@@ -28,6 +32,7 @@ import {
   setOrderStatus,
   type PlaceOrderInput,
 } from "./market-db.server";
+import { declarePayment, rejectPayment } from "./payments-db.server";
 import { readSnapshot } from "./snapshot.server";
 
 const adminUrl = process.env.TEST_DATABASE_URL;
@@ -42,6 +47,7 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
   let restaurant2Id: string;
   let driverId: string;
   let driver2Id: string;
+  let adminId: string;
   let tomatoes: { id: string; price: number };
   let onions: { id: string; price: number };
 
@@ -65,6 +71,21 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     Number((await db.select().from(products).where(eq(products.id, id)))[0].stockQty);
   const idOf = async (email: string) =>
     (await db.select().from(users).where(eq(users.email, email)))[0].id;
+  // Paiement Wave du panier (orderId vide) ; espèces : un par commande.
+  const checkoutPaymentOf = async (checkoutId: string) =>
+    (
+      await db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.checkoutId, checkoutId), isNull(payments.orderId)))
+    )[0];
+  let refCounter = 0;
+  const newRef = () => `T_TEST${Date.now().toString(36).toUpperCase()}${++refCounter}`;
+  /** Le restaurant paie par Wave et l'admin confirme. */
+  const pay = async (checkoutId: string) => {
+    await declarePayment(db, restaurantId, { checkoutId, method: "wave", providerRef: newRef() });
+    await confirmPayment(db, adminId, (await checkoutPaymentOf(checkoutId)).id);
+  };
 
   beforeAll(async () => {
     const admin = postgres(adminUrl!, { max: 1 });
@@ -82,6 +103,28 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     restaurantId = await idOf("restaurant@diambar.sn");
     restaurant2Id = await idOf("keurmassar.dib@gmail.com");
     driverId = await idOf("livreur@diambar.sn");
+    adminId = await idOf("admin@diambar.sn");
+    // Numéro marchand de test (base locale uniquement) et espèces ouvertes.
+    await db
+      .insert(settings)
+      .values({
+        key: "payment_methods",
+        value: {
+          wave: { enabled: true, number: "770000000" },
+          orangeMoney: { enabled: false, number: "" },
+          cashOnDelivery: { enabled: true },
+        },
+      })
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: {
+          value: {
+            wave: { enabled: true, number: "770000000" },
+            orangeMoney: { enabled: false, number: "" },
+            cashOnDelivery: { enabled: true },
+          },
+        },
+      });
     // Un deuxième livreur actif, pour la course disputée.
     const [d2] = await db
       .insert(users)
@@ -180,6 +223,12 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const o = placed.orders[0];
     expect(o.reference).toMatch(/^CMD-\d+$/);
     expect(await stockOf(onions.id)).toBe(30);
+    // Le restaurant paie tout de suite le panier entier.
+    await declarePayment(db, restaurantId, {
+      checkoutId: placed.checkoutId,
+      method: "wave",
+      providerRef: newRef(),
+    });
     // Un autre producteur ne peut pas toucher à cette commande.
     await expect(confirmOrder(db, restaurantId, o.id, {})).rejects.toThrow(/introuvable/);
 
@@ -189,6 +238,21 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
     expect(row.status).toBe("confirmed");
     expect(row.subtotal).toBe(10 * tomatoes.price + 15 * onions.price);
+    // Pas de course tant que le paiement n'est pas confirmé, ni de préparation.
+    expect(await db.select().from(missions).where(eq(missions.orderId, o.id))).toHaveLength(0);
+    await expect(
+      setOrderStatus(db, { id: farmerId, actor: "farmer" }, o.id, "preparing"),
+    ).rejects.toThrow(/pas encore payé/);
+    const farmerWaiting = await readSnapshot(db, { id: farmerId, role: "farmer" });
+    expect(farmerWaiting.orders.find((x) => x.id === o.id)?.awaitingPayment).toBe(true);
+    // L'admin confirme : la course s'ouvre et les 5 oignons manquants
+    // deviennent un remboursement.
+    await confirmPayment(db, adminId, (await checkoutPaymentOf(placed.checkoutId)).id);
+    const owed = await db.select().from(refunds).where(eq(refunds.orderId, o.id));
+    expect(owed).toHaveLength(1);
+    expect(owed[0].source).toBe("shortage");
+    expect(owed[0].amount).toBe(5 * onions.price);
+    expect(owed[0].reference).toMatch(/^REM-\d+$/);
     const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
     expect(m.status).toBe("available");
     expect(m.payout).toBeGreaterThan(0);
@@ -208,6 +272,10 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const ro = restoSnap.restaurantOrders.find((x) => x.id === o.id)!;
     expect(ro.deliveryCode).toMatch(/^\d{4}$/);
     expect(restoSnap.orders).toHaveLength(0);
+    expect(ro.payment?.state).toBe("paid");
+    expect(ro.paid).toBe(true);
+    expect(ro.refunds?.map((r) => r.amount)).toEqual([5 * onions.price]);
+    expect(restoSnap.rules.merchant?.wave).toBe("770000000");
     const driverSnap = await readSnapshot(db, { id: driverId, role: "driver" });
     const seen = driverSnap.missions.find((x) => x.id === m.id);
     expect(seen?.status).toBe("available");
@@ -218,6 +286,7 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     const placed = await placeOrder(db, restaurantId, order());
     const o = placed.orders[0];
     await confirmOrder(db, farmerId, o.id, {});
+    await pay(placed.checkoutId);
     const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
     const a = createDb(url);
     const b = createDb(url);
@@ -307,6 +376,147 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     await expect(
       setOrderStatus(db, { id: farmerId, actor: "farmer" }, o.id, "confirmed"),
     ).rejects.toThrow(/ne peut plus changer/);
+  });
+
+  it("paiement Wave : référence refusée, déclarée à nouveau, jamais réutilisable", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const first = await placeOrder(db, restaurantId, order());
+    const second = await placeOrder(db, restaurantId, order());
+    const wrongRef = newRef();
+    await declarePayment(db, restaurantId, {
+      checkoutId: first.checkoutId,
+      method: "wave",
+      providerRef: wrongRef,
+    });
+    // Un autre restaurant ne peut pas déclarer pour ce panier.
+    await expect(
+      declarePayment(db, restaurant2Id, {
+        checkoutId: first.checkoutId,
+        method: "wave",
+        providerRef: newRef(),
+      }),
+    ).rejects.toThrow(/introuvable/);
+    // Orange Money n'est pas ouvert dans les réglages de test.
+    await expect(
+      declarePayment(db, restaurantId, {
+        checkoutId: second.checkoutId,
+        method: "orange_money",
+        providerRef: newRef(),
+      }),
+    ).rejects.toThrow(/pas proposé/);
+    // La même référence ne paie pas deux paniers.
+    await expect(
+      declarePayment(db, restaurantId, {
+        checkoutId: second.checkoutId,
+        method: "wave",
+        providerRef: wrongRef.toLowerCase(),
+      }),
+    ).rejects.toThrow(/déjà été déclarée/);
+
+    const p = await checkoutPaymentOf(first.checkoutId);
+    expect(p.status).toBe("pending");
+    expect(p.amount).toBe(first.total);
+    await rejectPayment(db, adminId, p.id, "Aucune transaction avec cette référence");
+    let snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    let ro = snap.restaurantOrders.find((x) => x.id === first.orders[0].id)!;
+    expect(ro.payment?.state).toBe("refused");
+    expect(ro.payment?.note).toMatch(/Aucune transaction/);
+
+    // Le restaurant corrige ; l'admin voit le paiement à vérifier et confirme.
+    await declarePayment(db, restaurantId, {
+      checkoutId: first.checkoutId,
+      method: "wave",
+      providerRef: newRef(),
+    });
+    const adminSnap = await readSnapshot(db, { id: adminId, role: "admin" });
+    const seen = adminSnap.payments?.find((x) => x.id === p.id);
+    expect(seen?.state).toBe("declared");
+    expect(seen?.restaurantName).toBe("Le Baobab");
+    await confirmPayment(db, adminId, p.id);
+    await expect(confirmPayment(db, adminId, p.id)).rejects.toThrow(/déjà confirmé/);
+    snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    ro = snap.restaurantOrders.find((x) => x.id === first.orders[0].id)!;
+    expect(ro.payment?.state).toBe("paid");
+
+    // Payé avant la confirmation du producteur : la course s'ouvre dès qu'il confirme.
+    await confirmOrder(db, farmerId, first.orders[0].id, {});
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, first.orders[0].id));
+    expect(m.status).toBe("available");
+
+    // Annulée après paiement : tout le panier est à rembourser.
+    await setOrderStatus(
+      db,
+      { id: farmerId, actor: "farmer" },
+      first.orders[0].id,
+      "cancelled",
+      "Récolte perdue",
+    );
+    const back = await db.select().from(refunds).where(eq(refunds.orderId, first.orders[0].id));
+    expect(back).toHaveLength(1);
+    expect(back[0].source).toBe("cancellation");
+    expect(back[0].amount).toBe(first.total);
+
+    // Annulé avant tout paiement : plus rien à payer, aucun remboursement.
+    await setOrderStatus(
+      db,
+      { id: restaurantId, actor: "restaurant" },
+      second.orders[0].id,
+      "cancelled",
+      "Erreur",
+    );
+    expect((await checkoutPaymentOf(second.checkoutId)).status).toBe("cancelled");
+    expect(
+      await db.select().from(refunds).where(eq(refunds.orderId, second.orders[0].id)),
+    ).toHaveLength(0);
+  });
+
+  it("espèces : la course part sans attendre, le livreur encaisse, l'admin récupère", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    const placed = await placeOrder(db, restaurantId, order({ paymentMethod: "Espèces" }));
+    const o = placed.orders[0];
+    const [cash] = await db.select().from(payments).where(eq(payments.orderId, o.id));
+    expect(cash.method).toBe("cash");
+    expect(cash.amount).toBe(placed.total);
+    await expect(
+      declarePayment(db, restaurantId, {
+        checkoutId: placed.checkoutId,
+        method: "wave",
+        providerRef: newRef(),
+      }),
+    ).rejects.toThrow(/espèces/);
+
+    await confirmOrder(db, farmerId, o.id, {});
+    const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+    expect(m.status).toBe("available");
+    await acceptMission(db, driverId, m.id);
+    const driverSnap = await readSnapshot(db, { id: driverId, role: "driver" });
+    expect(driverSnap.missions.find((x) => x.id === m.id)?.cashToCollect).toBe(placed.total);
+    const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+    await missionStep(db, driverId, m.id, "loaded", row.pickupCode);
+    await addDeliveryProof(db, driverId, {
+      missionId: m.id,
+      stage: "dropoff",
+      storageKey: "non-conserve/especes.jpg",
+      mime: "image/jpeg",
+      size: 1000,
+    });
+    // Le livreur doit confirmer avoir encaissé.
+    await expect(missionStep(db, driverId, m.id, "delivered", row.deliveryCode)).rejects.toThrow(
+      /encaissé/,
+    );
+    // L'admin ne peut pas confirmer des espèces pas encore encaissées.
+    await expect(confirmPayment(db, adminId, cash.id)).rejects.toThrow(/pas encore encaissé/);
+    await missionStep(db, driverId, m.id, "delivered", row.deliveryCode, true);
+    const [collected] = await db.select().from(payments).where(eq(payments.id, cash.id));
+    expect(collected.collectedBy).toBe(driverId);
+    const adminSnap = await readSnapshot(db, { id: adminId, role: "admin" });
+    const seen = adminSnap.payments?.find((x) => x.id === cash.id);
+    expect(seen?.state).toBe("collected");
+    expect(seen?.collectedBy?.id).toBe(driverId);
+    await confirmPayment(db, adminId, cash.id);
+    const [paid] = await db.select().from(payments).where(eq(payments.id, cash.id));
+    expect(paid.status).toBe("confirmed");
+    expect(paid.confirmedBy).toBe(adminId);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

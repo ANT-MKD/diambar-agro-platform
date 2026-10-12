@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
+import { PaymentPanel } from "@/components/restaurant/payment-panel";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
 import {
@@ -210,6 +211,7 @@ function OrderDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <OrderTracker status={order.status} eta={order.eta} />
+          {order.payment && <PaymentPanel payment={order.payment} refunds={order.refunds} />}
           {order.deliveryCode &&
             ["confirmed", "preparing", "delivering"].includes(order.status) && (
               <HandoverCode

@@ -219,8 +219,13 @@ function OrdersPage() {
                     </div>
                     <div className="truncate max-w-[160px]">{preview}</div>
                   </div>
-                  <div className="min-w-[90px]">
+                  <div className="min-w-[90px] space-y-1">
                     <OrderStatusBadge status={o.status} />
+                    {(o.payment?.state === "to_pay" || o.payment?.state === "refused") && (
+                      <span className="block w-fit rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+                        À payer
+                      </span>
+                    )}
                   </div>
                   <div className="font-semibold text-primary min-w-[100px]">
                     {formatFCFA(o.total)}

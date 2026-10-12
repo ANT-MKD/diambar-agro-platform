@@ -105,6 +105,7 @@ function MissionDetail() {
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
   const sentProofs = useRef(new Set<string>());
   const [deliveryCode, setDeliveryCode] = useState("");
+  const [cashCollected, setCashCollected] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
   const [pickupCode, setPickupCode] = useState("");
 
@@ -181,7 +182,16 @@ function MissionDetail() {
       return;
     }
     toSend.forEach((ph) => sentProofs.current.add(ph.id));
-    const result = await market.missionStep(mission.id, "delivered", deliveryCode);
+    if (mission.cashToCollect && !cashCollected) {
+      toast.error(`Confirmez avoir encaissé ${formatFCFA(mission.cashToCollect)} en espèces.`);
+      return;
+    }
+    const result = await market.missionStep(
+      mission.id,
+      "delivered",
+      deliveryCode,
+      mission.cashToCollect ? cashCollected : undefined,
+    );
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -362,6 +372,14 @@ function MissionDetail() {
                 {mission.instructions}
               </div>
             )}
+            {mission.cashToCollect ? (
+              <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+                <span className="font-semibold">
+                  Espèces à encaisser : {formatFCFA(mission.cashToCollect)}
+                </span>{" "}
+                — le restaurant paie à la livraison. Remettez ensuite cet argent à Diambar.
+              </div>
+            ) : null}
           </div>
 
           {/* Live GPS */}
@@ -710,6 +728,21 @@ function MissionDetail() {
               className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
             />
           </div>
+          {mission.cashToCollect ? (
+            <label className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-5 w-5 accent-primary"
+                checked={cashCollected}
+                onChange={(e) => setCashCollected(e.target.checked)}
+              />
+              <span>
+                J'ai encaissé{" "}
+                <span className="font-semibold">{formatFCFA(mission.cashToCollect)}</span> en
+                espèces auprès du restaurant.
+              </span>
+            </label>
+          ) : null}
           <FileDrop
             value={proofPhotos}
             onChange={setProofPhotos}

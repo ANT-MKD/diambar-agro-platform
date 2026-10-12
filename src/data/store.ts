@@ -104,6 +104,7 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
+import { adminPaymentsStore, merchantStore } from "./payments-store";
 import { getRefundsSnapshot, onRefundPaid, refundActions } from "./finance";
 import {
   checkMissionStep,
@@ -2922,6 +2923,8 @@ export function replaceMarketData(s: MarketSnapshot) {
   restaurants.splice(0, restaurants.length, ...s.directory.restaurants);
   driverPool.splice(0, driverPool.length, ...s.directory.drivers);
   zonesStore.replace(s.zones);
+  merchantStore.replace(s.rules.merchant);
+  adminPaymentsStore.replace(s.payments ?? []);
   const notifs =
     s.me.role === "farmer"
       ? farmerNotifsStore

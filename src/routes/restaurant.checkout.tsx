@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
+import { PaymentPanel } from "@/components/restaurant/payment-panel";
 import { PromoCodeField } from "@/components/restaurant/promo-code-field";
 import {
   useCart,
@@ -128,6 +129,11 @@ function Checkout() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const remoteMode = market.isRemote();
   const [placing, setPlacing] = useState(false);
+
+  // Avec la base : paiement du panier qui vient d'être passé (étape 3).
+  const placedPayment = remoteMode
+    ? pastOrders.find((o) => o.id === orderIds[0])?.payment
+    : undefined;
 
   const farmerGroups = useMemo(
     () => farmers.filter((f) => lines.some((l) => l.product.farmerId === f.id)),
@@ -456,11 +462,26 @@ function Checkout() {
               <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center mx-auto">
                 <Check className="h-8 w-8" />
               </div>
-              <h3 className="font-display text-2xl font-bold">Commande confirmée 🎉</h3>
+              <h3 className="font-display text-2xl font-bold">
+                {placedPayment?.state === "to_pay"
+                  ? "Commande enregistrée"
+                  : "Commande confirmée 🎉"}
+              </h3>
               <p className="text-sm text-muted-foreground">
                 {confirmedSummary?.count ?? farmerGroups.length} commande(s) envoyée(s) à vos
                 producteurs. Vous recevrez une notification de confirmation.
               </p>
+              {placedPayment && (
+                <div className="mx-auto max-w-lg text-left">
+                  {placedPayment.state === "to_pay" && (
+                    <p className="mb-3 text-center text-sm font-medium">
+                      Dernière étape : payez maintenant pour que vos producteurs préparent la
+                      commande.
+                    </p>
+                  )}
+                  <PaymentPanel payment={placedPayment} />
+                </div>
+              )}
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {orderIds[0] && (
                   <Button

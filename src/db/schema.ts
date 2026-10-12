@@ -108,6 +108,7 @@ export const paymentStatus = pgEnum("payment_status", [
   "confirmed",
   "failed",
   "refunded",
+  "cancelled",
 ]);
 export const ledgerAccount = pgEnum("ledger_account", ["farmer", "driver", "platform"]);
 export const ledgerKind = pgEnum("ledger_kind", [
@@ -132,6 +133,10 @@ export const refundSource = pgEnum("refund_source", [
   "return",
   "incident",
   "manual",
+  /** Payé, mais le producteur n'avait pas tout (confirmation partielle). */
+  "shortage",
+  /** Payé, puis commande annulée. */
+  "cancellation",
 ]);
 export const liableParty = pgEnum("liable_party", ["farmer", "driver", "platform"]);
 export const refundStatus = pgEnum("refund_status", [
@@ -477,6 +482,8 @@ export const productPhotos = pgTable(
 export const orderReferenceSeq = pgSequence("order_reference_seq", { startWith: 3101 });
 export const missionReferenceSeq = pgSequence("mission_reference_seq", { startWith: 4301 });
 export const checkoutReferenceSeq = pgSequence("checkout_reference_seq", { startWith: 1001 });
+export const refundReferenceSeq = pgSequence("refund_reference_seq", { startWith: 501 });
+export const payoutReferenceSeq = pgSequence("payout_reference_seq", { startWith: 201 });
 
 /** Le panier validé par le restaurant : paiement et facture Diambar. */
 export const checkouts = pgTable(
@@ -555,6 +562,9 @@ export const orders = pgTable(
     /** Contrôle à la réception par le restaurant (lignes : order_items). */
     receptionAt: timestamp("reception_at", { withTimezone: true }),
     receptionNote: text("reception_note"),
+    /** Montant de cette commande couvert par le paiement déclaré du panier
+     * (Wave, Orange Money) : base des remboursements si elle diminue ensuite. */
+    paymentShare: integer("payment_share"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -725,6 +735,13 @@ export const deliveryProofs = pgTable(
 
 // --- Argent ----------------------------------------------------------------------------------
 
+/** Pendant le pilote, sans paiement intégré :
+ * - Wave / Orange Money : un paiement par panier. Le restaurant paie sur le
+ *   numéro marchand, déclare la référence de la transaction, et l'admin la
+ *   confirme après l'avoir vue sur le compte marchand ;
+ * - espèces : un paiement par commande (chaque course a son livreur). Le
+ *   livreur encaisse à la livraison, l'admin confirme quand il a remis
+ *   l'argent. */
 export const payments = pgTable(
   "payments",
   {
@@ -732,18 +749,33 @@ export const payments = pgTable(
     checkoutId: uuid("checkout_id")
       .notNull()
       .references(() => checkouts.id),
+    /** Espèces : la commande payée à son livreur. Vide pour Wave / OM. */
+    orderId: uuid("order_id").references(() => orders.id),
     method: paymentMethod("method").notNull(),
     /** Référence de la transaction chez Wave, Orange Money… */
     providerRef: text("provider_ref"),
     amount: integer("amount").notNull(),
     status: paymentStatus("status").notNull().default("pending"),
+    /** Le restaurant indique avoir payé (référence de la transaction). */
+    declaredAt: timestamp("declared_at", { withTimezone: true }),
+    declaredBy: uuid("declared_by").references(() => users.id),
+    /** Espèces : le livreur qui a encaissé, et quand. */
+    collectedBy: uuid("collected_by").references(() => users.id),
+    collectedAt: timestamp("collected_at", { withTimezone: true }),
     /** Pendant le pilote : l'admin qui a constaté le paiement. */
     confirmedBy: uuid("confirmed_by").references(() => users.id),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** Motif d'un refus par l'admin (référence introuvable, montant…). */
+    note: text("note"),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [
     index("payments_checkout_idx").on(t.checkoutId),
+    index("payments_order_idx").on(t.orderId),
+    index("payments_status_idx").on(t.status),
+    index("payments_declared_by_idx").on(t.declaredBy),
+    index("payments_collected_by_idx").on(t.collectedBy),
     index("payments_confirmed_by_idx").on(t.confirmedBy),
     uniqueIndex("payments_provider_ref_key").on(t.method, t.providerRef),
     check("payments_amount_positive", sql`${t.amount} > 0`),
@@ -779,23 +811,32 @@ export const invoices = pgTable(
   ],
 );
 
+/** Retrait demandé par un producteur ou un livreur. Pendant le pilote,
+ * l'admin envoie l'argent depuis le compte marchand puis saisit la référence. */
 export const payouts = pgTable(
   "payouts",
   {
     id: id(),
+    /** VER-201, VER-202… (vide sur les lignes antérieures au pilote). */
+    reference: text("reference"),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id),
     amount: integer("amount").notNull(),
     fee: integer("fee").notNull().default(0),
     method: paymentMethod("method").notNull(),
+    /** Numéro Wave / Orange Money qui reçoit l'argent. */
+    accountNumber: text("account_number"),
     providerRef: text("provider_ref"),
     status: payoutStatus("status").notNull().default("requested"),
     processedBy: uuid("processed_by").references(() => users.id),
+    /** Motif d'un refus ou d'un échec. */
+    note: text("note"),
     createdAt: createdAt(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
   },
   (t) => [
+    uniqueIndex("payouts_reference_key").on(t.reference),
     index("payouts_user_idx").on(t.userId, t.createdAt),
     index("payouts_status_idx").on(t.status),
     index("payouts_processed_by_idx").on(t.processedBy),
@@ -819,6 +860,9 @@ export const refunds = pgTable(
     reason: text("reason"),
     createdBy: uuid("created_by").references(() => users.id),
     approvedBy: uuid("approved_by").references(() => users.id),
+    /** Numéro qui a reçu le remboursement et référence de la transaction. */
+    paidTo: text("paid_to"),
+    providerRef: text("provider_ref"),
     createdAt: createdAt(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
   },

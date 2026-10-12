@@ -14,6 +14,8 @@ import {
 import {
   acceptMissionFn,
   confirmOrderFn,
+  confirmPaymentFn,
+  declarePaymentFn,
   getMarketSnapshotFn,
   markArrivedFn,
   markNotificationsReadFn,
@@ -21,6 +23,7 @@ import {
   moveStockFn,
   placeOrderFn,
   reassignMissionFn,
+  rejectPaymentFn,
   removeProductFn,
   reportReceptionFn,
   saveProductFn,
@@ -227,9 +230,14 @@ export const market = {
   },
 
   // --- Commandes ---
-  async placeOrder(
-    req: PlaceOrderRequest,
-  ): Promise<Result<{ orders: { id: string; reference: string }[] }>> {
+  async placeOrder(req: PlaceOrderRequest): Promise<
+    Result<{
+      checkoutId: string;
+      checkoutReference: string;
+      total: number;
+      orders: { id: string; reference: string }[];
+    }>
+  > {
     return remote(() => placeOrderFn({ data: req }));
   },
 
@@ -273,12 +281,17 @@ export const market = {
     return missionActions.accept(missionId);
   },
 
-  async missionStep(missionId: string, status: MissionStatus, code?: string): Promise<Result> {
+  async missionStep(
+    missionId: string,
+    status: MissionStatus,
+    code?: string,
+    cashCollected?: boolean,
+  ): Promise<Result> {
     if (isMarketRemote()) {
       if (status !== "pickup" && status !== "loaded" && status !== "delivered") {
         return { ok: false, message: "Étape inconnue." };
       }
-      return remote(() => missionStepFn({ data: { missionId, status, code } }));
+      return remote(() => missionStepFn({ data: { missionId, status, code, cashCollected } }));
     }
     return missionActions.setStatus(missionId, status, undefined, { code });
   },
@@ -320,6 +333,26 @@ export const market = {
       return res.ok ? { ok: true } : { ok: false, reason: "taken", message: res.message };
     }
     return missionActions.reassign(missionId, driverId);
+  },
+
+  // --- Paiements du pilote (mode base uniquement) ---
+  /** Restaurant : « j'ai payé » avec la référence de la transaction. */
+  async declarePayment(
+    checkoutId: string,
+    method: "wave" | "orange_money",
+    providerRef: string,
+  ): Promise<Result> {
+    return remote(() => declarePaymentFn({ data: { checkoutId, method, providerRef } }));
+  },
+
+  /** Admin : argent reçu (compte marchand ou espèces remises). */
+  async confirmPayment(paymentId: string, providerRef?: string): Promise<Result> {
+    return remote(() => confirmPaymentFn({ data: { paymentId, providerRef } }));
+  },
+
+  /** Admin : transaction introuvable, le restaurant déclare à nouveau. */
+  async rejectPayment(paymentId: string, reason: string): Promise<Result> {
+    return remote(() => rejectPaymentFn({ data: { paymentId, reason } }));
   },
 
   // --- Notifications ---

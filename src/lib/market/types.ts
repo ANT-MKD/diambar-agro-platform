@@ -7,6 +7,7 @@ import type {
   RestaurantOrder,
   Role,
 } from "@/data/mocks";
+import type { AdminPayment, MerchantNumbers } from "./payment-view";
 
 // Données de la place de marché envoyées par le serveur (mode base de
 // données), dans la forme qu'utilisent déjà les écrans : produits, commandes
@@ -70,7 +71,11 @@ export type MarketSnapshot = {
     minOrderPerProducer: number;
     /** Moyens de paiement ouverts par l'admin. */
     paymentMethods: PaymentMethod[];
+    /** Numéros marchands où payer (restaurant et admin seulement). */
+    merchant: MerchantNumbers | null;
   };
+  /** Admin : paiements des commandes chargées (à vérifier, espèces, historique). */
+  payments?: AdminPayment[];
   /** Établissement du restaurant connecté (adresse de livraison par défaut). */
   restaurant: { name: string; address: string; city: string } | null;
   notifications: AppNotification[];

@@ -1,4 +1,5 @@
 // Mock data centralisée pour DIAMBAR AGRO — sera remplacée par Supabase
+import type { OrderPayment, RefundView } from "@/lib/market/payment-view";
 
 export type Role = "farmer" | "restaurant" | "driver" | "admin";
 
@@ -271,6 +272,9 @@ export type Order = {
   // Code à 4 chiffres que le producteur donne au livreur à l'enlèvement :
   // prouve que la marchandise a bien été remise à ce livreur.
   pickupCode?: string;
+  // Avec la base : le restaurant n'a pas encore payé (Wave / Orange Money),
+  // le producteur attend avant de préparer.
+  awaitingPayment?: boolean;
 };
 
 export const orders: Order[] = [
@@ -1403,6 +1407,10 @@ export type RestaurantOrder = {
     refundedAmount: number;
     note?: string;
   };
+  // Avec la base : paiement du pilote (numéro marchand ou espèces) et
+  // remboursements liés à cette commande.
+  payment?: OrderPayment;
+  refunds?: RefundView[];
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -1617,6 +1625,8 @@ export type Mission = {
   waits?: { stage: "pickup" | "dropoff"; arrivedAt: string; endedAt?: string }[];
   // Consignes de livraison laissées par le restaurant.
   instructions?: string;
+  // Avec la base : espèces à encaisser auprès du restaurant à la remise.
+  cashToCollect?: number;
 };
 
 export type MissionProofPhoto = {
