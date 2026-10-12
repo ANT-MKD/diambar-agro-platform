@@ -163,6 +163,8 @@ describe.skipIf(!adminUrl)("schéma de la base", () => {
         restaurantId: restaurant.userId,
         farmerId: farmer.userId,
         trackingToken: "jeton-test-0001",
+        pickupCode: "1234",
+        deliveryCode: "5678",
         subtotal: 17_000,
       })
       .returning();

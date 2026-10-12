@@ -78,7 +78,6 @@ import {
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
-import { haversineKm } from "@/lib/tracking/geo-math";
 import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
 import {
   tierRateForVolume,
@@ -106,6 +105,14 @@ import {
 } from "@/lib/order-lifecycle";
 import { minOrderOf, productOrderability } from "@/lib/product-availability";
 import { newTrackingToken } from "@/lib/tracking-id";
+import {
+  lastAddressSegment,
+  MISSION_PAY,
+  missionPayout,
+  routeEstimate,
+  urgencyForSlot,
+  vehicleForWeight,
+} from "@/lib/mission-pay";
 import { budgetActions, useBudget } from "./budget";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
@@ -1272,31 +1279,7 @@ export const supplierActions = {
   },
 };
 
-function vehicleForWeight(kg: number): Mission["vehicleType"] {
-  if (kg > 80) return "Camion";
-  if (kg > 30) return "Camionnette";
-  return "Moto";
-}
-
-// Rémunération d'une course : une prise en charge fixe, la distance et le
-// poids transporté. Avant, seule la distance comptait (120 FCFA/km) : une
-// course dans la même ville était payée 100 FCFA.
-export const MISSION_PAY = { base: 1000, perKm: 120, perKgOver20: 10, minimum: 1500 };
-
-export function missionPayout(distanceKm: number, weightKg: number): number {
-  const raw =
-    MISSION_PAY.base +
-    distanceKm * MISSION_PAY.perKm +
-    Math.max(0, weightKg - 20) * MISSION_PAY.perKgOver20;
-  return Math.max(MISSION_PAY.minimum, Math.round(raw / 50) * 50);
-}
-
-/** "Le Baobab, Dakar Plateau" -> "Dakar Plateau" (même règle que la
- * résolution de suivi en direct, pour rester cohérent avec elle). */
-function lastAddressSegment(address: string): string {
-  const parts = address.split(",");
-  return parts[parts.length - 1]?.trim() || address;
-}
+export { MISSION_PAY, missionPayout };
 
 /** Frais d'une livraison vers une adresse du restaurant, selon la zone réglée
  * par l'admin (0 si hors zone). */
@@ -1792,8 +1775,7 @@ function openMissionForOrder(reference: string) {
   const pickupCoords = cityCoords(farmer.city);
   const dropoffCity = lastAddressSegment(deliveryAddress);
   const dropoffCoords = cityCoords(dropoffCity);
-  const distanceKm = Math.max(1, Math.round(haversineKm(pickupCoords, dropoffCoords)));
-  const estimatedMinutes = Math.max(10, Math.round((distanceKm / 42) * 60));
+  const { distanceKm, estimatedMinutes } = routeEstimate(farmer.city, dropoffCity);
   const weightKg = source.items.reduce((s, i) => s + i.qty, 0);
   missionsStore.set((arr) => [
     {
@@ -1827,12 +1809,7 @@ function openMissionForOrder(reference: string) {
       scheduledFor: restoOrder?.slotStart ?? now,
       createdAt: now,
       vehicleType: vehicleForWeight(weightKg),
-      urgency:
-        restoOrder?.missionUrgency ??
-        (restoOrder?.slotStart &&
-        new Date(restoOrder.slotStart).getTime() - Date.now() < 36 * 3600_000
-          ? "priority"
-          : "standard"),
+      urgency: restoOrder?.missionUrgency ?? urgencyForSlot(restoOrder?.slotStart),
       statusHistory: [{ status: "available", at: now }],
       instructions: restoOrder?.instructions,
     },

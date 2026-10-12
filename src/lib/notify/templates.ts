@@ -299,3 +299,30 @@ export function staffInviteEmail(p: {
     ],
   );
 }
+
+// --- Commandes ----------------------------------------------------------------------
+
+export function newOrderFarmerEmail(p: {
+  firstName: string;
+  reference: string;
+  amount: string;
+  slot: string;
+  url: string;
+}): EmailContent {
+  return email(
+    "commande-nouvelle",
+    `Nouvelle commande ${p.reference} à confirmer`,
+    `${p.firstName}, vous avez une nouvelle commande`,
+    [
+      {
+        kind: "p",
+        text: `La commande ${p.reference} (${p.amount} de marchandise) attend votre confirmation. Livraison prévue : ${p.slot}.`,
+      },
+      { kind: "button", label: "Voir et confirmer la commande", url: p.url },
+      {
+        kind: "small",
+        text: "Confirmez rapidement : le livreur n'est cherché qu'après votre confirmation. S'il vous manque une partie des produits, indiquez les quantités disponibles.",
+      },
+    ],
+  );
+}

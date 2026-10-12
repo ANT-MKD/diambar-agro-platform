@@ -22,6 +22,7 @@ import {
   jsonb,
   numeric,
   pgEnum,
+  pgSequence,
   pgTable,
   primaryKey,
   text,
@@ -471,6 +472,12 @@ export const productPhotos = pgTable(
 
 // --- Commandes ----------------------------------------------------------------------------
 
+/** Numéros lisibles et sans doublon, même quand deux commandes arrivent en
+ * même temps : CMD-3101, MIS-4301, PAN-1001… */
+export const orderReferenceSeq = pgSequence("order_reference_seq", { startWith: 3101 });
+export const missionReferenceSeq = pgSequence("mission_reference_seq", { startWith: 4301 });
+export const checkoutReferenceSeq = pgSequence("checkout_reference_seq", { startWith: 1001 });
+
 /** Le panier validé par le restaurant : paiement et facture Diambar. */
 export const checkouts = pgTable(
   "checkouts",
@@ -481,7 +488,11 @@ export const checkouts = pgTable(
       .notNull()
       .references(() => restaurants.userId),
     slotStart: timestamp("slot_start", { withTimezone: true }).notNull(),
+    /** Créneau tel qu'affiché au restaurant (« Mardi 30 sept. · 07:00 – 11:00 »). */
+    slotLabel: text("slot_label"),
     deliveryAddress: text("delivery_address").notNull(),
+    /** Consignes pour le livreur (quai, contact, code d'accès…). */
+    instructions: text("instructions"),
     zoneId: uuid("zone_id").references(() => zones.id),
     paymentMode: paymentMode("payment_mode").notNull(),
     subtotal: integer("subtotal").notNull(),
@@ -522,15 +533,28 @@ export const orders = pgTable(
       .references(() => farmers.userId),
     status: orderStatus("status").notNull().default("pending"),
     shortagePreference: shortagePreference("shortage_preference").notNull().default("partial"),
-    /** Codes à 4 chiffres, enregistrés brouillés. */
+    /** Codes à 4 chiffres : le producteur donne le code d'enlèvement au
+     * livreur, le restaurant donne le code de remise. Seul le serveur les lit
+     * et ne les montre qu'au producteur ou au restaurant concerné. */
+    pickupCode: text("pickup_code").notNull(),
+    /** Anciennes colonnes (codes brouillés), inutilisées : conservées car
+     * Supabase bloque la suppression de colonnes ; à retirer plus tard. */
     pickupCodeHash: text("pickup_code_hash"),
     deliveryCodeHash: text("delivery_code_hash"),
+    deliveryCode: text("delivery_code").notNull(),
+    deliveredWithCode: boolean("delivered_with_code").notNull().default(false),
     trackingToken: text("tracking_token").notNull(),
     subtotal: integer("subtotal").notNull(),
+    /** Part de la commande dans le panier : frais de sa course, remise. */
+    deliveryFee: integer("delivery_fee").notNull().default(0),
+    discount: integer("discount").notNull().default(0),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     /** Fin du délai de vérification (livraison + 48 h). */
     receptionDeadline: timestamp("reception_deadline", { withTimezone: true }),
     cancelReason: text("cancel_reason"),
+    /** Contrôle à la réception par le restaurant (lignes : order_items). */
+    receptionAt: timestamp("reception_at", { withTimezone: true }),
+    receptionNote: text("reception_note"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -542,6 +566,7 @@ export const orders = pgTable(
     index("orders_farmer_idx").on(t.farmerId, t.createdAt),
     index("orders_status_idx").on(t.status),
     check("orders_subtotal_positive", sql`${t.subtotal} >= 0`),
+    check("orders_fees_positive", sql`${t.deliveryFee} >= 0 and ${t.discount} >= 0`),
   ],
 );
 
