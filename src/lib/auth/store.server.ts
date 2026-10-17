@@ -1,6 +1,7 @@
 import type { Role } from "@/data/mocks";
 import type { AdminRoleName } from "@/data/admin-mocks";
 import { createDb } from "@/db/client.server";
+import { explainDbError } from "@/db/errors.server";
 import { isDemoMode } from "./config.server";
 import type { PilotZone, StaffSummary } from "@/lib/platform/setup-model";
 import type { RegisterDetails } from "./session.server";
@@ -177,8 +178,17 @@ export async function withAccountStore<T>(fn: (store: AccountStore) => Promise<T
     const { db, close } = createDb(url);
     try {
       return await fn(new DbAccountStore(db));
+    } catch (err) {
+      // Base injoignable, mot de passe refusé, tables absentes… : la cause
+      // en clair plutôt que la requête qui a échoué.
+      const explained = explainDbError(err);
+      if (explained) {
+        console.error("[base]", err);
+        throw new Error(explained);
+      }
+      throw err;
     } finally {
-      await close();
+      await close().catch(() => undefined);
     }
   }
   if (isDemoMode()) return fn(memoryAccountStore);

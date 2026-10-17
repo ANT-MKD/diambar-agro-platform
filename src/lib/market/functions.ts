@@ -43,6 +43,7 @@ import {
 } from "./payouts-db.server";
 import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { checkSenegal, readDeliverySettings } from "./delivery-db.server";
+import { explainDbError } from "@/db/errors.server";
 import { readAdminDirectory, type AdminDirectory } from "./admin-directory.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
@@ -87,9 +88,12 @@ async function withMarket<T>(
   } catch (err) {
     if (err instanceof MarketError) return { ok: false, message: err.message };
     console.error("[marché]", err);
-    return { ok: false, message: "Action impossible pour le moment. Réessayez." };
+    return {
+      ok: false,
+      message: explainDbError(err) ?? "Action impossible pour le moment. Réessayez.",
+    };
   } finally {
-    await close();
+    await close().catch(() => undefined);
   }
 }
 
