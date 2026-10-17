@@ -85,21 +85,36 @@ function attemptsLeftMessage(left: number): string {
 export type AuthConfig = {
   demoMode: boolean;
   demoAccounts: PublicDemoAccount[];
+  /** L'application est reliée à sa base de données (sinon : démo en mémoire). */
+  database: boolean;
+  /** Base reliée mais aucun super administrateur : l'installation reste à faire. */
+  installationPending: boolean;
 };
 
 export const getAuthConfigFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthConfig> => {
     const demoMode = isDemoMode();
-    if (!demoMode) return { demoMode, demoAccounts: [] };
-    // Seuls les comptes de démonstration présents dans l'annuaire sont proposés
-    // (une base de production n'en contient aucun).
-    const present = await withAccountStore((store) =>
-      Promise.all(demoAccounts.map((a) => store.findByEmail(normalizeEmail(a.email)))),
-    );
-    return {
-      demoMode,
-      demoAccounts: demoAccounts.filter((_, i) => present[i]).map(publicDemoAccount),
-    };
+    // Hors démo sans base, l'annuaire est indisponible : la page s'affiche
+    // quand même (la connexion expliquera le problème).
+    if (!demoMode && !process.env.DATABASE_URL?.trim()) {
+      return { demoMode, demoAccounts: [], database: false, installationPending: false };
+    }
+    return withAccountStore(async (store) => {
+      const database = store.kind === "database";
+      const installationPending = database && !(await store.superAdminExists());
+      if (!demoMode) return { demoMode, demoAccounts: [], database, installationPending };
+      // Seuls les comptes de démonstration présents dans l'annuaire sont
+      // proposés (une base de production n'en contient aucun).
+      const present = await Promise.all(
+        demoAccounts.map((a) => store.findByEmail(normalizeEmail(a.email))),
+      );
+      return {
+        demoMode,
+        demoAccounts: demoAccounts.filter((_, i) => present[i]).map(publicDemoAccount),
+        database,
+        installationPending,
+      };
+    });
   },
 );
 

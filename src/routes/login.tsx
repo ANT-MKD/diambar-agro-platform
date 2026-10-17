@@ -453,6 +453,32 @@ function LoginPage() {
           </button>
         </form>
 
+        {config.installationPending && (
+          <Link
+            to="/installation"
+            data-testid="installation-pending"
+            className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-600/30 bg-emerald-50 p-4 text-sm text-emerald-900 hover:bg-emerald-100"
+          >
+            <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden />
+            <span>
+              <span className="block font-semibold">Première utilisation de la plateforme</span>
+              Aucun compte administrateur n'existe encore : créez-le ici.
+            </span>
+          </Link>
+        )}
+
+        {!config.database && (
+          <p
+            role="note"
+            data-testid="no-database"
+            className="mt-6 rounded-xl border border-border bg-muted/50 p-3 text-xs text-muted-foreground"
+          >
+            Aucune base de données reliée : l'application tourne en démonstration, avec des comptes
+            fictifs gardés en mémoire. Pour utiliser votre base, renseignez DATABASE_URL dans le
+            fichier .env, puis redémarrez le serveur.
+          </p>
+        )}
+
         {config.demoMode && config.demoAccounts.length > 0 && (
           <DemoAccountsPanel accounts={config.demoAccounts} onPick={loginAs} />
         )}
