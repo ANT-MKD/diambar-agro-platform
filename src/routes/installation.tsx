@@ -65,7 +65,7 @@ function Closed({ state }: { state: "installed" | "not_configured" | "no_databas
     },
     no_database: {
       icon: ServerCog,
-      title: "Mode démonstration",
+      title: "Base de données non reliée",
       body: "Aucune base de données n'est branchée : les comptes de démonstration sont utilisés. L'installation se fait sur la plateforme reliée à la base.",
     },
   }[state];

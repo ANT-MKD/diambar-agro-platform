@@ -276,7 +276,7 @@ function SecurityStep({ snapshot, save, saving }: StepProps) {
               />
               {sent.devCode && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Mode démo : votre code est <strong>{sent.devCode}</strong>.
+                  Votre code : <strong>{sent.devCode}</strong>.
                 </p>
               )}
             </div>
@@ -1101,9 +1101,9 @@ function SetupWizard() {
           />
         </div>
         {snapshot.demoMode && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Mode démo : les réglages sont enregistrés{" "}
-            {snapshot.setup.demo ? "dans la base de démonstration" : "dans la base"}.
+          <p className="mt-2 text-xs text-muted-foreground" data-testid="test-mode-reminder">
+            Mode test actif (DEMO_MODE) : les codes de vérification et les liens s'affichent aussi à
+            l'écran. Passez-le à false avant d'accueillir de vrais utilisateurs.
           </p>
         )}
       </div>

@@ -30,7 +30,6 @@ import {
   normalizeSenegalPhone,
   registerDetailsProblem,
 } from "@/lib/auth/helpers";
-import { DemoNotice } from "@/components/auth/demo-notice";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
@@ -160,7 +159,7 @@ function RegisterPage() {
       setOtp("");
       setResendIn(res.resendInSeconds);
       toast.info("Code de vérification envoyé", {
-        description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+        description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
       });
       next();
     } catch (err) {
@@ -177,7 +176,7 @@ function RegisterPage() {
         setOtp("");
         setResendIn(res.resendInSeconds);
         toast.info("Nouveau code envoyé", {
-          description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+          description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
         });
       } else if (res.waitSeconds) {
         setResendIn(res.waitSeconds);
@@ -232,7 +231,6 @@ function RegisterPage() {
   return (
     <AuthSplitLayout>
       <div>
-        {config.demoMode && <DemoNotice />}
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
         {step === 2 && (

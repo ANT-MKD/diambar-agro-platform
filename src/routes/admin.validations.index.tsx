@@ -117,7 +117,7 @@ function AdminValidations() {
         </div>
       </section>
 
-      {demoMode && (
+      {demoMode && demoRows.length > 0 && (
         <section aria-labelledby="demo-applications" className="space-y-3">
           <h2 id="demo-applications" className="font-display text-lg font-semibold">
             Dossiers de démonstration

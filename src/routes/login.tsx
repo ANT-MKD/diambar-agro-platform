@@ -15,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { OtpInput } from "@/components/auth/otp-input";
-import { DemoNotice } from "@/components/auth/demo-notice";
 import { auditActions, useAuditLogs, useLoginSecurity } from "@/data/admin-store";
 import {
   demoLoginFn,
@@ -148,7 +147,7 @@ function LoginPage() {
         setCode("");
         setResendIn(result.resendInSeconds);
         toast.info("Code de vérification envoyé", {
-          description: result.devCode ? `Code démo : ${result.devCode}` : undefined,
+          description: result.devCode ? `Votre code : ${result.devCode}` : undefined,
         });
         return;
       case "invalid":
@@ -275,7 +274,7 @@ function LoginPage() {
         setCode("");
         setResendIn(res.resendInSeconds);
         toast.info("Nouveau code envoyé", {
-          description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+          description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
         });
       } else if (res.waitSeconds) {
         setResendIn(res.waitSeconds);
@@ -292,7 +291,6 @@ function LoginPage() {
     return (
       <AuthSplitLayout>
         <form onSubmit={submitTwoFa}>
-          {config.demoMode && <DemoNotice />}
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
             <ShieldCheck className="h-7 w-7" aria-hidden />
           </div>
@@ -378,7 +376,6 @@ function LoginPage() {
   return (
     <AuthSplitLayout>
       <div>
-        {config.demoMode && <DemoNotice />}
         <h1 className="display-xl text-5xl">Bon retour.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Connectez-vous à votre espace Diambar Agro

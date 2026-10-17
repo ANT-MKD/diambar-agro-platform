@@ -50,7 +50,7 @@ export function SecurityPanel({
     setStep("verify");
     toast.info(
       `Code de vérification envoyé (${channel === "sms" ? "SMS" : channel === "email" ? "e-mail" : "application"})`,
-      { description: `Code démo : ${generated}` },
+      { description: `Votre code : ${generated}` },
     );
   };
 
