@@ -45,6 +45,7 @@ import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { checkSenegal, readDeliverySettings } from "./delivery-db.server";
 import { explainDbError } from "@/db/errors.server";
 import { readAdminDirectory, type AdminDirectory } from "./admin-directory.server";
+import { approveCategory, mergeCategory, renameCategory } from "./catalog-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -727,6 +728,54 @@ export const quoteDeliveryFn = createServerFn({ method: "POST" })
       ok: true as const,
       ...(await quoteCheckoutDelivery(db, me.id, data)),
     })),
+  );
+
+// --- Catégories de produits (admin) ---------------------------------------------------
+
+/** Rôles qui tiennent la liste des catégories. */
+const CATALOG_STAFF: StaffRole[] = ["super_admin", "operations"];
+
+export const approveCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => parse(z.object({ id }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await approveCategory(db, me.id, data.id);
+        return { ok: true as const };
+      },
+      CATALOG_STAFF,
+    ),
+  );
+
+export const renameCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; name: string }) =>
+    parse(z.object({ id, name: z.string().max(60) }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await renameCategory(db, me.id, data.id, data.name);
+        return { ok: true as const };
+      },
+      CATALOG_STAFF,
+    ),
+  );
+
+export const mergeCategoryFn = createServerFn({ method: "POST" })
+  .validator((input: { fromId: string; intoId: string }) =>
+    parse(z.object({ fromId: id, intoId: id }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { moved?: number }> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => ({
+        ok: true as const,
+        moved: await mergeCategory(db, me.id, data.fromId, data.intoId),
+      }),
+      CATALOG_STAFF,
+    ),
   );
 
 // --- Annuaire de l'administration ----------------------------------------------------

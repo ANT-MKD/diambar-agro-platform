@@ -111,6 +111,7 @@ import {
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
 import { resetBudget } from "./budget";
+import { replaceCategories } from "./catalog";
 import { resetSecurityForAccount } from "./security";
 import { payouts as demoPayoutList } from "./admin-mocks";
 import {
@@ -2978,6 +2979,7 @@ export function replaceMarketData(s: MarketSnapshot) {
     });
   }
   applyAccount(s);
+  replaceCategories(s.categories);
   // Panier : on retire ce qui n'existe plus au catalogue.
   const ids = new Set(s.products.map((p) => p.id));
   const cart = cartStore.get();

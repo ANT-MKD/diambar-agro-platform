@@ -40,7 +40,7 @@ import {
   type HolidayRuleAction,
   type RecurringFrequency,
 } from "@/data/mocks";
-import { CATEGORIES } from "@/components/farmer/product-catalog";
+import { useCategoryNames } from "@/data/catalog";
 import { formatFCFA } from "@/lib/format";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
@@ -76,6 +76,7 @@ function NewRecurringOrder() {
   const [items, setItems] = useState<{ productId: string; qty: number }[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [category, setCategory] = useState<string>("Toutes");
+  const categoryNames = useCategoryNames();
 
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("weekly");
@@ -335,7 +336,7 @@ function NewRecurringOrder() {
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {["Toutes", ...CATEGORIES].map((c) => (
+                {["Toutes", ...categoryNames].map((c) => (
                   <button
                     key={c}
                     onClick={() => setCategory(c)}

@@ -109,7 +109,8 @@ export const driverFleetSeed: Record<
 export type Product = {
   id: string;
   name: string;
-  category: "Légumes" | "Fruits" | "Viande" | "Volaille" | "Céréales" | "Tubercules" | "Épices";
+  /** Nom de la catégorie (liste de l'équipe ou proposée par un producteur). */
+  category: string;
   pricePerKg: number;
   unit: string;
   stock: number;

@@ -33,6 +33,7 @@ const LABELS: Record<string, string> = {
   cart: "Panier",
   checkout: "Commande",
   "delivery-pricing": "Tarifs de livraison",
+  categories: "Catégories",
   recurring: "Récurrentes",
   favorites: "Favoris",
   farmers: "Agriculteurs",

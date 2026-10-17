@@ -18,7 +18,10 @@ import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { StockStatusBadge } from "./status-badge";
 import { resizeImage } from "@/lib/image-resize";
-import { CATEGORIES, SAMPLE_IMAGES } from "./product-catalog";
+import { SAMPLE_IMAGES } from "./product-catalog";
+import { CategoryPicker } from "./category-picker";
+import { categoryNameProblem, sameCategory } from "@/lib/category-name";
+import { getCategories } from "@/data/catalog";
 
 export type ProductDraft = Omit<Product, "id" | "ordersThisMonth"> & {
   description?: string;
@@ -95,6 +98,13 @@ export function ProductForm({
       toast.error("Le stock et les prix ne peuvent pas être négatifs");
       return;
     }
+    if (!sameCategory(form.category, getCategories())) {
+      const problem = categoryNameProblem(form.category);
+      if (problem) {
+        toast.error(form.category.trim() ? problem : "Choisissez une catégorie");
+        return;
+      }
+    }
     // Le SKU n'est plus obligatoire : généré s'il est vide.
     if (!form.sku)
       form.sku = `SKU-${form.name.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
@@ -135,21 +145,7 @@ export function ProductForm({
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="Catégorie *">
-              <Select
-                value={form.category}
-                onValueChange={(v) => set("category", v as Product["category"])}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CategoryPicker value={form.category} onChange={(v) => set("category", v)} />
             </Field>
             <Field label="Code-barres">
               <Input

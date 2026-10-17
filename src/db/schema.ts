@@ -69,6 +69,7 @@ export const vehicleType = pgEnum("vehicle_type", [
 ]);
 export const vehicleStatus = pgEnum("vehicle_status", ["active", "blocked"]);
 export const productStatus = pgEnum("product_status", ["draft", "active", "paused", "out"]);
+export const categoryStatus = pgEnum("category_status", ["approved", "proposed"]);
 export const stockReason = pgEnum("stock_reason", [
   "manual",
   "order_reserved",
@@ -201,6 +202,11 @@ export const categories = pgTable(
     id: id(),
     name: text("name").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** « proposed » : créée par un producteur, à garder, renommer ou fusionner
+     * par l'équipe ; utilisable tout de suite. */
+    status: categoryStatus("status").notNull().default("approved"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [uniqueIndex("categories_name_key").on(t.name)],
 );

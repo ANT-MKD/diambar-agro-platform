@@ -6,6 +6,8 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb, type Db } from "@/db/client.server";
 import {
+  auditLogs,
+  categories,
   cities,
   drivers,
   farmers,
@@ -40,6 +42,7 @@ import {
   type PlaceOrderInput,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
+import { approveCategory, mergeCategory, renameCategory } from "./catalog-db.server";
 import {
   approvePayout,
   approveRefund,
@@ -1083,6 +1086,100 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     await db.update(zones).set({ lat: 14.75, lng: -17.4 }).where(eq(zones.id, nz.id));
     expect((await quoteFor("Chez Awa, Quartier Nouveau, Dakar")).zone).toBe("Quartier Nouveau");
     await db.update(zones).set({ active: false }).where(eq(zones.id, nz.id));
+  });
+
+  it("catégories : proposée par un producteur, reprise si elle existe, renommée, fusionnée", async () => {
+    const product = (name: string, category: string) =>
+      saveProduct(db, farmerId, {
+        name,
+        category,
+        price: 2000,
+        unit: "kg",
+        stock: 5,
+        minStock: 1,
+        organic: false,
+        paused: false,
+        draft: false,
+      });
+    const catOf = async (productId: string) =>
+      (
+        await db
+          .select({
+            name: categories.name,
+            status: categories.status,
+            createdBy: categories.createdBy,
+          })
+          .from(products)
+          .innerJoin(categories, eq(categories.id, products.categoryId))
+          .where(eq(products.id, productId))
+      )[0];
+
+    // Écrite autrement : la catégorie existante est reprise, rien n'est créé.
+    const before = (await db.select().from(categories)).length;
+    const carrots = await product("Carottes nouvelles", "  legume ");
+    expect((await catOf(carrots)).name).toBe("Légumes");
+    expect((await db.select().from(categories)).length).toBe(before);
+
+    // Nouvelle : créée tout de suite, proposée, l'équipe prévenue.
+    const mushrooms = await product("Pleurotes", "champignons");
+    const proposed = await catOf(mushrooms);
+    expect(proposed).toMatchObject({
+      name: "Champignons",
+      status: "proposed",
+      createdBy: farmerId,
+    });
+    const alerts = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, adminId),
+          eq(notifications.title, "Nouvelle catégorie proposée"),
+        ),
+      );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].body).toContain("Champignons");
+    // Un deuxième produit dans la même catégorie (au pluriel près) la reprend.
+    const shiitake = await product("Shiitakés", "Champignon");
+    expect((await catOf(shiitake)).name).toBe("Champignons");
+    // Nom refusé.
+    await expect(product("Bizarre", "<b>")).rejects.toThrow(/lettres/);
+
+    // Le marché voit la catégorie et ses produits.
+    const snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    const listed = snap.categories.find((c) => c.name === "Champignons");
+    expect(listed).toMatchObject({ status: "proposed", productCount: 2 });
+    expect(listed?.proposedBy).toBe("Ferme Diallo");
+
+    // Renommer : pas vers un nom qui double une autre catégorie.
+    const [cat] = await db.select().from(categories).where(eq(categories.name, "Champignons"));
+    await expect(renameCategory(db, adminId, cat.id, "légumes")).rejects.toThrow(/existe déjà/);
+    await renameCategory(db, adminId, cat.id, "champignons frais");
+    expect((await catOf(mushrooms)).name).toBe("Champignons frais");
+    await approveCategory(db, adminId, cat.id);
+    expect((await catOf(mushrooms)).status).toBe("approved");
+
+    // Fusionner : les produits passent dans l'autre catégorie, le producteur est prévenu.
+    const [vegetables] = await db.select().from(categories).where(eq(categories.name, "Légumes"));
+    expect(await mergeCategory(db, adminId, cat.id, vegetables.id)).toBe(2);
+    expect((await catOf(mushrooms)).name).toBe("Légumes");
+    expect(await db.select().from(categories).where(eq(categories.id, cat.id))).toHaveLength(0);
+    const told = await db
+      .select()
+      .from(notifications)
+      .where(
+        and(eq(notifications.userId, farmerId), eq(notifications.title, "Catégorie regroupée")),
+      );
+    expect(told).toHaveLength(1);
+    const audits = await db
+      .select({ action: auditLogs.action })
+      .from(auditLogs)
+      .where(eq(auditLogs.targetType, "category"));
+    expect(audits.map((a) => a.action).sort()).toEqual([
+      "Catégorie gardée",
+      "Catégorie renommée",
+      "Catégories fusionnées",
+    ]);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

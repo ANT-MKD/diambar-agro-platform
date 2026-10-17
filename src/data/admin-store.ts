@@ -30,7 +30,7 @@ import {
   driverNotifActions,
   productActions,
 } from "./store";
-import { products, farmers } from "./mocks";
+import { products, farmers, type AppNotification } from "./mocks";
 import { createStore } from "./persist";
 import { tiersStore, zonesStore, useCommissionTiers, useDeliveryZones } from "./platform-settings";
 
@@ -779,7 +779,8 @@ export type AdminNotificationPriority = "info" | "attention" | "important" | "ur
 
 export type AdminNotification = {
   id: string;
-  kind: "validation" | "dispute" | "moderation" | "incident" | "return";
+  /** « system » : notification envoyée par le serveur (lien dans refId). */
+  kind: "validation" | "dispute" | "moderation" | "incident" | "return" | "system";
   refId: string;
   title: string;
   body: string;
@@ -807,6 +808,13 @@ const INCIDENT_SEVERITY_TO_NOTIF: Record<string, AdminNotificationPriority> = {
 // and would make the client's first paint disagree with the SSR markup).
 // The localStorage value is loaded after mount instead, in a useEffect below.
 const notifsReadStore = createStore<string[]>([]);
+/** Mode base : notifications envoyées par le serveur au compte admin
+ * (catégorie proposée, lieu à localiser, paiement déclaré…). */
+const serverNotifsStore = createStore<AppNotification[]>([]);
+
+export function replaceAdminServerNotifications(list: AppNotification[]) {
+  serverNotifsStore.replace(list);
+}
 const NOTIFS_READ_KEY = "diambar:admin-notifs-read";
 
 function loadPersistedReadIds(): string[] {
@@ -844,6 +852,11 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
     notifsReadStore.get,
     notifsReadStore.get,
   );
+  const serverNotifs = useSyncExternalStore(
+    serverNotifsStore.subscribe,
+    serverNotifsStore.get,
+    serverNotifsStore.get,
+  );
 
   useEffect(() => {
     const persisted = loadPersistedReadIds();
@@ -851,6 +864,15 @@ export function useAdminNotifications(): (AdminNotification & { read: boolean })
   }, []);
 
   const items: AdminNotification[] = [
+    ...serverNotifs.map((n) => ({
+      id: `server-${n.id}`,
+      kind: "system" as const,
+      refId: n.link ?? "/admin/notifications",
+      title: n.title,
+      body: n.body,
+      at: n.at,
+      priority: "attention" as const,
+    })),
     ...validations
       .filter((v) => v.status === "pending")
       .map((v) => ({

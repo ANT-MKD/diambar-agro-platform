@@ -17,6 +17,7 @@ import { farmers } from "@/data/mocks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isListed } from "@/lib/product-availability";
+import { useCategoryNames } from "@/data/catalog";
 
 export const Route = createFileRoute("/restaurant/marketplace")({
   validateSearch: z.object({ supplier: z.string().optional() }),
@@ -24,15 +25,6 @@ export const Route = createFileRoute("/restaurant/marketplace")({
   component: Marketplace,
 });
 
-const CATEGORIES = [
-  "Légumes",
-  "Fruits",
-  "Viande",
-  "Volaille",
-  "Céréales",
-  "Tubercules",
-  "Épices",
-] as const;
 const SORTS = ["Pertinence", "Meilleures ventes", "Prix ↑", "Prix ↓", "Stock"] as const;
 const AVAILABILITY = [
   { key: "active" as const, label: "En stock" },
@@ -63,6 +55,7 @@ function Marketplace() {
   const [showFilters, setShowFilters] = useState(!!supplierParam);
 
   const catalog = useMemo(() => products.filter(isListed), [products]);
+  const categoryNames = useCategoryNames(catalog.map((p) => p.category));
   const regions = useMemo(() => ["Toutes", ...new Set(farmers.map((f) => f.city))], []);
   const priceBounds = useMemo(() => {
     if (catalog.length === 0) return { min: 0, max: 0 };
@@ -247,20 +240,22 @@ function Marketplace() {
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Catégorie
             </div>
-            {CATEGORIES.filter((c) => categoryCounts[c]).map((c) => (
-              <label key={c} className="flex items-center justify-between text-sm cursor-pointer">
-                <span className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={cats.has(c)}
-                    onChange={() => toggleCat(c)}
-                    className="rounded"
-                  />
-                  {c}
-                </span>
-                <span className="text-xs text-muted-foreground">{categoryCounts[c]}</span>
-              </label>
-            ))}
+            {categoryNames
+              .filter((c) => categoryCounts[c])
+              .map((c) => (
+                <label key={c} className="flex items-center justify-between text-sm cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={cats.has(c)}
+                      onChange={() => toggleCat(c)}
+                      className="rounded"
+                    />
+                    {c}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{categoryCounts[c]}</span>
+                </label>
+              ))}
           </div>
 
           <div className="space-y-2">

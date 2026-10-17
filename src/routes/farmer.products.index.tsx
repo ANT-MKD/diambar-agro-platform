@@ -56,21 +56,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMyId } from "@/data/market-mode";
+import { useCategoryNames } from "@/data/catalog";
 
 export const Route = createFileRoute("/farmer/products/")({
   head: () => ({ meta: [{ title: "Mes produits · Diambar Agro" }] }),
   component: ProductsPage,
 });
-
-const CATEGORIES: Product["category"][] = [
-  "Légumes",
-  "Fruits",
-  "Viande",
-  "Volaille",
-  "Céréales",
-  "Tubercules",
-  "Épices",
-];
 
 const quickActions: QuickAction[] = [
   { icon: Plus, label: "Ajouter un produit", to: "/farmer/products/new", tone: "emerald" },
@@ -84,6 +75,7 @@ function ProductsPage() {
   const navigate = useNavigate();
   const all = useProducts();
   const items = all.filter((p) => p.farmerId === myFarmerId);
+  const categoryNames = useCategoryNames(items.map((p) => p.category));
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
   const [tab, setTab] = useState<"all" | "active" | "low" | "out" | "draft">("all");
@@ -186,7 +178,7 @@ function ProductsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes catégories</SelectItem>
-                {CATEGORIES.map((c) => (
+                {categoryNames.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>

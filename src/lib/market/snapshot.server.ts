@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
+import { readCategories } from "./catalog-db.server";
 import {
   categories,
   checkouts,
@@ -1181,6 +1182,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
   return {
     me,
     account,
+    categories: await readCategories(db),
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

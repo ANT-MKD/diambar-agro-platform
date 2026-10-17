@@ -43,6 +43,7 @@ const ICON = {
   moderation: PackageSearch,
   incident: TriangleAlert,
   return: PackageMinus,
+  system: Bell,
 } as const;
 
 const KIND_LABEL: Record<AdminNotification["kind"], string> = {
@@ -51,6 +52,7 @@ const KIND_LABEL: Record<AdminNotification["kind"], string> = {
   moderation: "Modération",
   incident: "Incidents",
   return: "Retours",
+  system: "Plateforme",
 };
 
 const LINK: Record<string, (refId: string) => { to: string; params?: Record<string, string> }> = {
@@ -62,6 +64,7 @@ const LINK: Record<string, (refId: string) => { to: string; params?: Record<stri
   moderation: () => ({ to: "/admin/moderation" }),
   incident: () => ({ to: "/admin/incidents" }),
   return: (refId) => ({ to: "/admin/returns/$returnId", params: { returnId: refId } }),
+  system: (refId) => ({ to: refId }),
 };
 
 const PRIORITY_DOT: Record<AdminNotificationPriority, string> = {

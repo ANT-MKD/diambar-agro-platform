@@ -28,6 +28,7 @@ import {
   PackageMinus,
   Banknote,
   MapPinned,
+  Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -52,6 +53,7 @@ import { useSupportTickets } from "@/data/support";
 import { enterPortal, useMarketPolling } from "@/data/market-remote";
 import { adminShellFn } from "@/lib/platform/setup";
 import { useDocRenewals } from "@/data/store";
+import { useCategories } from "@/data/catalog";
 
 export const Route = createFileRoute("/admin")({
   // Portail rendu dans le navigateur : ses données (celles du compte
@@ -101,6 +103,7 @@ function AdminLayout() {
   ).length;
   const escalatedIncidents = incidents.filter((i) => i.status === "escalated").length;
   const pendingDocs = useDocRenewals().filter((r) => r.status === "pending").length;
+  const proposedCategories = useCategories().filter((c) => c.status === "proposed").length;
   // Mode base : paiements déclarés à vérifier et espèces à récupérer.
   const paymentsToCheck =
     useAdminPayments().filter((p) => p.state === "declared" || p.state === "collected").length +
@@ -152,6 +155,13 @@ function AdminLayout() {
           icon: PackageSearch,
           badge: 0,
           permission: "moderation.decide",
+        },
+        {
+          to: "/admin/categories",
+          label: "Catégories",
+          icon: Tags,
+          badge: proposedCategories,
+          permission: "validations.decide",
         },
       ],
     },

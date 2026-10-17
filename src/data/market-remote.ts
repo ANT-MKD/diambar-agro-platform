@@ -22,6 +22,9 @@ import {
   approvePayoutFn,
   approveRefundFn,
   getStatementFn,
+  approveCategoryFn,
+  mergeCategoryFn,
+  renameCategoryFn,
   getAdminDirectoryFn,
   getDeliverySettingsFn,
   saveDeliveryPricingFn,
@@ -53,7 +56,12 @@ import { clearBusinessDemoData } from "./business";
 import { clearDisputesDemoData } from "./disputes";
 import { clearFinanceDemoData } from "./finance";
 import { clearSupportDemoData } from "./support";
-import { applyAdminDirectory, clearAdminDemoData } from "./admin-store";
+import {
+  applyAdminDirectory,
+  clearAdminDemoData,
+  replaceAdminServerNotifications,
+} from "./admin-store";
+import { ensureLocalCategory } from "./catalog";
 
 // Place de marché côté navigateur. Avec une base de données, les données du
 // compte viennent du serveur et chaque action passe par lui ; sans base
@@ -81,6 +89,7 @@ async function load(): Promise<void> {
   }
   replaceMarketData(snap);
   if (snap.me.role === "admin") {
+    replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
     const dir = await getAdminDirectoryFn().catch(() => null);
     if (dir?.ok) applyAdminDirectory(dir);
@@ -190,6 +199,8 @@ export const market = {
         }),
       );
     }
+    // Démonstration : une nouvelle catégorie rejoint la liste locale.
+    p = { ...p, category: ensureLocalCategory(p.category) };
     if (id) {
       productActions.update(id, p);
       return { ok: true, id };
@@ -419,6 +430,20 @@ export const market = {
         message: err instanceof Error && err.message ? err.message : UNREACHABLE,
       };
     }
+  },
+
+  /** Admin : garder une catégorie proposée par un producteur. */
+  async approveCategory(id: string): Promise<Result> {
+    return remote(() => approveCategoryFn({ data: { id } }));
+  },
+
+  async renameCategory(id: string, name: string): Promise<Result> {
+    return remote(() => renameCategoryFn({ data: { id, name } }));
+  },
+
+  /** Admin : déplacer les produits d'une catégorie dans une autre. */
+  async mergeCategory(fromId: string, intoId: string): Promise<Result<{ moved?: number }>> {
+    return remote(() => mergeCategoryFn({ data: { fromId, intoId } }));
   },
 
   /** Admin : barème, positions des lieux et des producteurs (mode base). */

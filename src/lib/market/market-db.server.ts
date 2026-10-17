@@ -37,6 +37,7 @@ import { checkMissionStep, checkOrderTransition, type OrderActor } from "@/lib/o
 import { zoneForAddress } from "@/lib/pricing";
 import { newTrackingToken } from "@/lib/tracking-id";
 import { PAYMENT_METHOD_DB, readRules, readZones } from "./snapshot.server";
+import { resolveCategory } from "./catalog-db.server";
 import {
   audit,
   fail,
@@ -113,14 +114,10 @@ export type ProductInput = {
 
 export async function saveProduct(db: Db, farmerId: string, input: ProductInput): Promise<string> {
   return db.transaction(async (tx) => {
-    const [cat] = await tx
-      .select({ id: categories.id })
-      .from(categories)
-      .where(eq(categories.name, input.category));
-    if (!cat) fail("Catégorie inconnue : choisissez-en une dans la liste.");
+    const categoryId = await resolveCategory(tx, input.category, farmerId);
     const status = input.draft ? "draft" : input.paused ? "paused" : "active";
     const values = {
-      categoryId: cat.id,
+      categoryId,
       name: input.name,
       description: input.description || null,
       unit: input.unit,

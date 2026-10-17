@@ -58,6 +58,21 @@ export async function notifyFinanceStaff(q: Q, n: NotificationInput) {
   for (const s of staff) await notifyUser(q, s.id, n);
 }
 
+/** Prévient les administrateurs des opérations (super admin, opérations). */
+export async function notifyOpsStaff(q: Q, n: NotificationInput) {
+  const staff = await q
+    .select({ id: users.id })
+    .from(adminProfiles)
+    .innerJoin(users, eq(users.id, adminProfiles.userId))
+    .where(
+      and(
+        eq(users.status, "active"),
+        inArray(adminProfiles.adminRole, ["super_admin", "operations"]),
+      ),
+    );
+  for (const s of staff) await notifyUser(q, s.id, n);
+}
+
 /** Prévient les administrateurs des opérations, une seule fois par jour
  * pour le même message. */
 export async function notifyOpsStaffOnce(q: Q, n: NotificationInput) {

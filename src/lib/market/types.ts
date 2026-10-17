@@ -73,9 +73,22 @@ export type MarketAccount = {
   billing?: { ninea: string; email: string };
 };
 
+/** Catégorie de produits : officielle, ou proposée par un producteur. */
+export type MarketCategory = {
+  id: string;
+  name: string;
+  status: "approved" | "proposed";
+  productCount: number;
+  /** Catégorie proposée : exploitation qui l'a créée, et quand. */
+  proposedBy?: string;
+  proposedAt?: string;
+};
+
 export type MarketSnapshot = {
   me: { id: string; role: Role };
   account: MarketAccount;
+  /** Catégories de produits (liste de l'équipe et propositions des producteurs). */
+  categories: MarketCategory[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];
