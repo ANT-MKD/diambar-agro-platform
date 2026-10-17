@@ -107,6 +107,9 @@ export type NewStaffMember = {
   firstName: string;
   lastName: string;
   staffRole: StaffRole;
+  /** Installation : email déjà vérifié par code, double authentification choisie. */
+  emailVerified?: boolean;
+  twoFaEnabled?: boolean;
 };
 
 export type CreateStaffResult =

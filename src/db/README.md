@@ -48,7 +48,8 @@ Ne jamais modifier une migration déjà appliquée : en écrire une nouvelle.
 | --------------------- | ------------------------------------------------------------------------------------------------------- |
 | `DATABASE_URL`        | Adresse de la base (Supabase, pooler en mode transaction, port 6543). Sans elle : mode démo en mémoire. |
 | `SESSION_SECRET`      | 32 caractères minimum, obligatoire hors mode démo.                                                      |
-| `SETUP_CODE`          | 16 caractères minimum : code demandé par `/installation` pour créer le premier super administrateur.    |
+| `ADMIN_EMAIL`         | Adresse du futur super administrateur : seule elle peut faire `/installation` (code reçu par email).    |
+| `SETUP_CODE`          | Secours sans envoi d'emails : code de 16 caractères minimum demandé par `/installation`.                |
 | `DEMO_MODE`           | `false` avant d'accueillir de vrais utilisateurs (codes et comptes de démo masqués).                    |
 | `RESEND_API_KEY`      | Clé d'API Resend (emails : codes, liens, décisions, invitations).                                       |
 | `EMAIL_FROM`          | Expéditeur, ex. `Diambar Agro <bonjour@diambar.sn>` (domaine vérifié chez Resend).                      |
@@ -62,8 +63,9 @@ dans les secrets du déploiement.
 ## Première installation (base de production)
 
 1. `bun run db:migrate` puis `bun run db:seed` (référentiels seuls, jamais `--demo`).
-2. Ouvrir `/installation`, saisir le code `SETUP_CODE` et créer le super administrateur.
-   La page se ferme ensuite définitivement.
+2. Ouvrir `/installation` et suivre les étapes : identité, code reçu à l'adresse
+   `ADMIN_EMAIL` (ou, sans envoi d'emails, le code `SETUP_CODE`), mot de passe et
+   double authentification. La page se ferme ensuite définitivement.
 3. L'assistant `/admin/setup` s'ouvre : 8 étapes (sécurité, entreprise, zone
    pilote, règles de commande, commission et TVA, paiements, catalogue, équipe).
 4. « Ouvrir les inscriptions » : la page d'inscription devient accessible ; chaque

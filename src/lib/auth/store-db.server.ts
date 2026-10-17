@@ -342,6 +342,8 @@ export class DbAccountStore implements AccountStore {
             firstName: input.firstName,
             lastName: input.lastName,
             status: "active",
+            emailVerifiedAt: input.emailVerified ? new Date() : null,
+            twoFaEnabled: !!input.twoFaEnabled,
           })
           .returning({ id: users.id });
         await tx.insert(adminProfiles).values({ userId: user.id, adminRole: "super_admin" });

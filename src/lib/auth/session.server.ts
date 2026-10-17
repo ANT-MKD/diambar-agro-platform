@@ -59,6 +59,23 @@ export type PendingRegistration = {
   attempts: number;
 };
 
+/** Installation en cours : identité saisie, code envoyé par email. */
+export type PendingInstall = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  id: string;
+  /** Vide quand aucune vérification par email n'est possible (code
+   * d'installation seul). */
+  code: string;
+  sentAt: number;
+  expiresAt: number;
+  attempts: number;
+  /** Email vérifié (ou code d'installation accepté) : reste le mot de passe. */
+  verifiedAt?: number;
+};
+
 export type AuthSessionData = {
   email?: string;
   role?: Role;
@@ -68,6 +85,7 @@ export type AuthSessionData = {
   pendingTwoFa?: PendingTwoFa;
   pendingRegistration?: PendingRegistration;
   pendingTwoFaSetup?: PendingTwoFaSetup;
+  pendingInstall?: PendingInstall;
 };
 
 const MIN_SECRET_LENGTH = 32;

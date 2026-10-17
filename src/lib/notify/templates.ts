@@ -126,6 +126,25 @@ export function loginCodeEmail(p: { name: string; code: string }): EmailContent 
   );
 }
 
+export function installationCodeEmail(p: { firstName: string; code: string }): EmailContent {
+  return email(
+    "installation-code",
+    `${p.code} : installation de Diambar Agro`,
+    `Bonjour ${p.firstName}, voici votre code d'installation`,
+    [
+      {
+        kind: "p",
+        text: "Saisissez ce code sur la page d'installation pour créer le compte super administrateur :",
+      },
+      { kind: "code", code: p.code },
+      {
+        kind: "small",
+        text: "Il est valable 10 minutes. Si vous n'êtes pas en train d'installer Diambar Agro, ignorez ce message et prévenez la personne qui gère le serveur.",
+      },
+    ],
+  );
+}
+
 export function twoFaSetupEmail(p: { name: string; code: string }): EmailContent {
   return email(
     "double-auth-activation",

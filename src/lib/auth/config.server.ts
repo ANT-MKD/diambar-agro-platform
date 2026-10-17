@@ -33,3 +33,13 @@ export function setupCode(): string | null {
   const code = process.env.SETUP_CODE?.trim();
   return code && code.length >= MIN_SETUP_CODE_LENGTH ? code : null;
 }
+
+/**
+ * Adresse email du futur super administrateur, déclarée dans les réglages du
+ * déploiement (variable ADMIN_EMAIL, pas un secret). Seule cette adresse peut
+ * faire l'installation, après avoir saisi le code reçu par email.
+ */
+export function adminEmail(): string | null {
+  const v = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+}
