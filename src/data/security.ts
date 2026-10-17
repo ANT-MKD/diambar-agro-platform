@@ -178,3 +178,24 @@ export const securityActions = {
       ],
     })),
 };
+
+/** Mode base de données, nouveau compte : ni sessions ni connexions
+ * fictives ; le mot de passe date de la création du compte. */
+export function resetSecurityForAccount(createdAt: string) {
+  set((prev) => ({
+    ...prev,
+    recoveryCodes: [],
+    passwordUpdatedAt: createdAt,
+    sessions: [
+      {
+        id: "current",
+        device: "Cet appareil",
+        place: "—",
+        at: "Session actuelle",
+        current: true,
+        kind: "desktop",
+      },
+    ],
+    logins: [],
+  }));
+}

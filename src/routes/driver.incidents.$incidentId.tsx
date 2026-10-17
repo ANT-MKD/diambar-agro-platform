@@ -33,7 +33,7 @@ import {
   type IncidentStatus,
 } from "@/data/business";
 import { useMissions, useDriverWallet } from "@/data/store";
-import { restaurants, farmers } from "@/data/mocks";
+import { driverProfile, restaurants, farmers } from "@/data/mocks";
 import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
 
 export const Route = createFileRoute("/driver/incidents/$incidentId")({
@@ -278,7 +278,7 @@ function IncidentDetail() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

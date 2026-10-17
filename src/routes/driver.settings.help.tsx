@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supportTicketActions } from "@/data/support";
 import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings/help")({
   head: () => ({ meta: [{ title: "Aide & support · Paramètres livreur" }] }),
@@ -62,7 +63,7 @@ function HelpSettings() {
   );
 
   const sendUrgent = async () => {
-    const id = await sendSos({ fromName: "Oumar Ba" });
+    const id = await sendSos({ fromName: driverProfile.name });
     toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
       description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
     });
@@ -139,7 +140,7 @@ function HelpSettings() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

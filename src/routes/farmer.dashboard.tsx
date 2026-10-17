@@ -177,7 +177,9 @@ function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold">Bonjour, Mamadou 👋</h1>
+          <h1 className="font-display text-3xl font-bold">
+            Bonjour{farmerProfile.firstName ? `, ${farmerProfile.firstName}` : ""} 👋
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString("fr-FR", {
               weekday: "long",

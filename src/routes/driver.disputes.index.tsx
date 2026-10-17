@@ -12,6 +12,7 @@ import {
 import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { DisputeListView } from "@/components/disputes/dispute-list-view";
 import { useDisputesForRole } from "@/data/disputes";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/disputes/")({
   head: () => ({
@@ -79,7 +80,7 @@ function DriverDisputesIndex() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

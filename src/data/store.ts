@@ -30,6 +30,12 @@ import {
   restaurantProfile as seedRestaurantProfile,
   farmers,
   restaurants,
+  missions as demoMissionList,
+  orders as demoOrderList,
+  products as demoProductList,
+  wallets as demoWalletList,
+  suppliers as demoSupplierList,
+  driverProfile,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
@@ -104,6 +110,9 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
+import { resetBudget } from "./budget";
+import { resetSecurityForAccount } from "./security";
+import { payouts as demoPayoutList } from "./admin-mocks";
 import {
   adminAccountsStore,
   adminPaymentsStore,
@@ -2968,6 +2977,7 @@ export function replaceMarketData(s: MarketSnapshot) {
       paymentMethod: methods.includes(profile.paymentMethod) ? profile.paymentMethod : methods[0],
     });
   }
+  applyAccount(s);
   // Panier : on retire ce qui n'existe plus au catalogue.
   const ids = new Set(s.products.map((p) => p.id));
   const cart = cartStore.get();
@@ -2976,9 +2986,158 @@ export function replaceMarketData(s: MarketSnapshot) {
   }
 }
 
+// --- Compte réel (mode base de données) ------------------------------------------------
+
+const VEHICLE_TYPE: Record<string, DriverVehicle["type"]> = {
+  moto: "Moto",
+  // Pas de vélo dans les fiches véhicule : le deux-roues le plus proche.
+  velo: "Moto",
+  tricycle: "Tricycle",
+  camionnette: "Camionnette",
+  camion: "Camion",
+};
+
+/** Profils remis à zéro une seule fois par compte et par navigateur : ce que
+ * la personne y saisit ensuite est gardé. */
+const DEMO_RESET_KEY = "diambar:demo-reset-for";
+
+function firstVisitOf(accountId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.localStorage.getItem(DEMO_RESET_KEY) === accountId) return false;
+    window.localStorage.setItem(DEMO_RESET_KEY, accountId);
+  } catch {
+    /* stockage indisponible : on remet à zéro à chaque chargement */
+  }
+  return true;
+}
+
+/** Identité du compte connecté à la place des personnes de démonstration, et
+ * listes de démonstration vidées (ou remplacées par les données du serveur). */
+function applyAccount(s: MarketSnapshot) {
+  const a = s.account;
+  const fullName = `${a.firstName} ${a.lastName}`.trim();
+  demoProductList.splice(0, demoProductList.length, ...s.products);
+  demoMissionList.splice(0, demoMissionList.length, ...s.missions);
+  demoOrderList.splice(0, demoOrderList.length, ...s.orders);
+  demoWalletList.splice(0, demoWalletList.length);
+  demoSupplierList.splice(0, demoSupplierList.length);
+  demoPayoutList.splice(0, demoPayoutList.length);
+  Object.assign(driverProfile, {
+    id: s.me.id,
+    name: fullName,
+    avatar: "",
+    phone: a.phone,
+    email: a.email,
+    city: a.city,
+    rating: 0,
+    totalMissions: s.missions.filter((m) => m.status === "delivered").length,
+    totalDistanceKm: 0,
+    memberSince: a.createdAt.slice(0, 10),
+  });
+
+  const reset = firstVisitOf(s.me.id);
+  if (reset) resetSecurityForAccount(a.createdAt);
+  if (s.me.role === "farmer") {
+    farmerProfileStore.set((p) => ({
+      ...(reset ? { ...p, bio: "", avatar: "", lang: "fr" as const } : p),
+      firstName: a.firstName,
+      lastName: a.lastName,
+      email: a.email,
+      phone: a.phone,
+    }));
+    farmerFarmStore.set((f) => ({
+      ...(reset ? { ...f, types: [], certification: "none" as const, size: "" } : f),
+      name: a.farm?.name ?? f.name,
+      city: a.farm?.city ?? a.city,
+      address: a.farm?.address ?? f.address,
+      ...(a.farm?.areaHa != null ? { size: String(a.farm.areaHa) } : {}),
+    }));
+    if (reset) {
+      walletsStore.set([]);
+      teamStore.set([]);
+    }
+  } else if (s.me.role === "restaurant") {
+    restaurantProfileStore.set((p) => ({
+      ...(reset
+        ? {
+            ...p,
+            cuisine: "",
+            bio: "",
+            avatarUrl: "",
+            capacity: 0,
+            newsletter: false,
+            paymentTermsDays: 0,
+          }
+        : p),
+      phone: a.phone,
+      email: a.email,
+      manager: fullName,
+      ninea: a.billing?.ninea ?? p.ninea,
+      billingEmail: a.billing?.email ?? a.email,
+    }));
+    if (reset) {
+      restaurantTeamStore.set([]);
+      resetBudget();
+    }
+  } else if (s.me.role === "driver") {
+    driverSettingsStore.set((d) => ({
+      ...d,
+      profile: {
+        ...d.profile,
+        ...(reset ? { address: "", avatar: "" } : {}),
+        name: fullName,
+        phone: a.phone,
+        email: a.email,
+        city: a.city,
+      },
+      ...(reset ? { paymentMethods: [] } : {}),
+    }));
+    driverVehicleStore.set((v) => ({
+      ...(reset
+        ? {
+            ...v,
+            brand: "",
+            model: "",
+            year: 0,
+            color: "",
+            mileageKm: 0,
+            insuranceExpiry: "",
+            inspectionExpiry: "",
+            photo: "",
+            photos: [],
+            nextMaintenanceAt: undefined,
+            condition: {
+              tires: "good" as const,
+              brakes: "good" as const,
+              battery: "good" as const,
+              oil: "good" as const,
+              lights: "good" as const,
+              body: "good" as const,
+            },
+          }
+        : v),
+      ...(a.vehicle
+        ? {
+            type: VEHICLE_TYPE[a.vehicle.type] ?? v.type,
+            capacityKg: a.vehicle.capacityKg,
+            plate: a.vehicle.plate,
+          }
+        : {}),
+    }));
+    if (reset) {
+      vehicleIssuesStore.set([]);
+      maintenanceHistoryStore.set([]);
+      vehicleChangeRequestsStore.set([]);
+    }
+  }
+}
+
 /** Premier chargement en mode serveur : les données de démonstration qui
  * n'ont pas encore d'équivalent en base ne sont plus montrées. */
 export function clearDemoCollections() {
+  // Le livreur reçoit son vrai portefeuille ; les autres comptes n'en ont pas.
+  driverWalletStore.replace({ balance: 0, pending: 0, withdrawn: 0, transactions: [] });
   movementsStore.replace([]);
   withdrawalsStore.replace([]);
   transactionsStore.replace([]);

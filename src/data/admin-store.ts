@@ -943,3 +943,26 @@ export const adminNotifActions = {
     });
   },
 };
+
+// --- Mode base de données ---------------------------------------------------------------
+
+/** Vrais comptes, rôles de l'équipe et journal d'audit, lus dans la base. */
+export function applyAdminDirectory(dir: {
+  users: PlatformUser[];
+  staffRoles: Record<string, AdminRoleName>;
+  logs: AuditLog[];
+}) {
+  usersStore.replace(dir.users);
+  adminRolesStore.replace(dir.staffRoles);
+  logsStore.replace(dir.logs);
+}
+
+/** Files de démonstration sans équivalent en base : vides. */
+export function clearAdminDemoData() {
+  usersStore.replace([]);
+  logsStore.replace([]);
+  validationsStore.replace([]);
+  moderationStore.replace([]);
+  teamsStore.replace([]);
+  adminScopeStore.replace({});
+}

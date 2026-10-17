@@ -679,7 +679,7 @@ function AdminFinance() {
               {stuckFarmerWithdrawals.map((w) => (
                 <div key={w.id} className="rounded-xl border border-border p-3 space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{w.reference} · Mamadou Diallo</span>
+                    <span className="font-medium">{w.reference} · producteur</span>
                     <span className="text-muted-foreground">{relativeTime(w.date)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -711,7 +711,7 @@ function AdminFinance() {
               {stuckDriverWithdrawals.map((t) => (
                 <div key={t.id} className="rounded-xl border border-border p-3 space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{t.label} · Oumar Ba</span>
+                    <span className="font-medium">{t.label} · livreur</span>
                     <span className="text-muted-foreground">{relativeTime(t.at)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">

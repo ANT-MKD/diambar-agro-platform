@@ -63,6 +63,7 @@ import type {
   DirectoryDriver,
   DirectoryFarmer,
   DirectoryRestaurant,
+  MarketAccount,
   MarketSnapshot,
   MarketZone,
 } from "./types";
@@ -1130,8 +1131,56 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     link: n.link ?? undefined,
   }));
 
+  // --- Compte connecté --------------------------------------------------------------
+  const [meRow] = await db
+    .select({
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+      phone: users.phone,
+      createdAt: users.createdAt,
+      city: cities.name,
+    })
+    .from(users)
+    .leftJoin(cities, eq(cities.id, users.cityId))
+    .where(eq(users.id, me.id));
+  const account: MarketAccount = {
+    firstName: meRow?.firstName ?? "",
+    lastName: meRow?.lastName ?? "",
+    email: meRow?.email ?? "",
+    phone: meRow?.phone ?? "",
+    city: meRow?.city ?? "",
+    createdAt: iso(meRow?.createdAt) ?? new Date().toISOString(),
+  };
+  if (me.role === "farmer") {
+    const [f] = await db.select().from(farmers).where(eq(farmers.userId, me.id));
+    if (f) {
+      account.farm = {
+        name: f.farmName,
+        address: f.pickupAddress,
+        city: cityName(f.zoneId, f.pickupAddress) || account.city,
+        areaHa: f.areaHa == null ? null : Number(f.areaHa),
+      };
+    }
+  } else if (me.role === "driver") {
+    const [v] = await db
+      .select()
+      .from(vehicles)
+      .where(eq(vehicles.driverId, me.id))
+      .orderBy(desc(vehicles.createdAt))
+      .limit(1);
+    if (v) account.vehicle = { type: v.type, capacityKg: v.capacityKg, plate: v.plate ?? "" };
+  } else if (me.role === "restaurant") {
+    const [r] = await db
+      .select({ ninea: restaurants.ninea, billingEmail: restaurants.billingEmail })
+      .from(restaurants)
+      .where(eq(restaurants.userId, me.id));
+    if (r) account.billing = { ninea: r.ninea ?? "", email: r.billingEmail ?? account.email };
+  }
+
   return {
     me,
+    account,
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

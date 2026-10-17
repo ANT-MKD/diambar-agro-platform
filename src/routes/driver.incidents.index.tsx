@@ -51,6 +51,7 @@ import { supportTicketActions } from "@/data/support";
 import type { DisputeAttachment } from "@/data/disputes";
 import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
 import { useMyId } from "@/data/market-mode";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/incidents/")({
   validateSearch: z.object({ missionRef: z.string().optional() }),
@@ -147,7 +148,10 @@ function IncidentsPage() {
   };
 
   const sendUrgentTicket = async () => {
-    const id = await sendSos({ fromName: "Oumar Ba", missionRef: form.missionRef || undefined });
+    const id = await sendSos({
+      fromName: driverProfile.name,
+      missionRef: form.missionRef || undefined,
+    });
     toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
       description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
     });
@@ -332,7 +336,7 @@ function IncidentsPage() {
             <FileDrop
               value={photos}
               onChange={setPhotos}
-              by="Oumar Ba"
+              by={driverProfile.name}
               kind="photo"
               label="Preuves (photos)"
               accept="image/*"
@@ -506,7 +510,7 @@ function IncidentsPage() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

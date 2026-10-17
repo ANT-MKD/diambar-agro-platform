@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings/security")({
   head: () => ({ meta: [{ title: "Sécurité · Paramètres livreur" }] }),
@@ -37,8 +38,8 @@ function SecuritySettings() {
   const requestDeletion = () => {
     const ticket = supportTicketActions.create({
       subject: "Demande de suppression de compte",
-      message: "Le livreur Oumar Ba demande la suppression définitive de son compte Diambar Agro.",
-      fromName: "Oumar Ba",
+      message: `Le livreur ${driverProfile.name} demande la suppression définitive de son compte Diambar Agro.`,
+      fromName: driverProfile.name,
       fromRole: "driver",
       category: "account",
     });

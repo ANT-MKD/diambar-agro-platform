@@ -71,6 +71,16 @@ export const budgetActions = {
   reset: () => set(() => initial),
 };
 
+/** Mode base de données, nouveau compte : aucun budget fixé. */
+export function resetBudget() {
+  set((s) => ({
+    ...s,
+    monthly: 0,
+    categories: s.categories.map((c) => ({ ...c, allocated: 0 })),
+  }));
+  budgetHistory.splice(0, budgetHistory.length);
+}
+
 /** Historique de dépenses mensuelles (mock) */
 export const budgetHistory = [
   { month: "Déc", spent: 980000, budget: 1100000 },

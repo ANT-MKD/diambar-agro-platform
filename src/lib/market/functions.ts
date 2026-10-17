@@ -43,6 +43,7 @@ import {
 } from "./payouts-db.server";
 import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { checkSenegal, readDeliverySettings } from "./delivery-db.server";
+import { readAdminDirectory, type AdminDirectory } from "./admin-directory.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -723,6 +724,16 @@ export const quoteDeliveryFn = createServerFn({ method: "POST" })
       ...(await quoteCheckoutDelivery(db, me.id, data)),
     })),
   );
+
+// --- Annuaire de l'administration ----------------------------------------------------
+
+export type AdminDirectoryResult = ({ ok: true } & AdminDirectory) | { ok: false; message: string };
+
+/** Admin : vrais comptes, rôles de l'équipe et journal d'audit. */
+export const getAdminDirectoryFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<AdminDirectoryResult> =>
+    withMarket(["admin"], async (db) => ({ ok: true as const, ...(await readAdminDirectory(db)) })),
+);
 
 // --- Tarifs de livraison (admin) -----------------------------------------------------
 

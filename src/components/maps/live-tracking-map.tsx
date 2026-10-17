@@ -17,7 +17,7 @@ export interface LiveTrackingMapProps {
 
 export function LiveTrackingMap({
   trackingId,
-  driverName = "Oumar Ba",
+  driverName = "Livreur",
   accent = "emerald",
   minHeight = 420,
   autoStart = true,

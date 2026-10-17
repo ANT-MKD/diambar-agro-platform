@@ -22,6 +22,7 @@ import {
   approvePayoutFn,
   approveRefundFn,
   getStatementFn,
+  getAdminDirectoryFn,
   getDeliverySettingsFn,
   saveDeliveryPricingFn,
   saveFarmerDeliveryFn,
@@ -52,6 +53,7 @@ import { clearBusinessDemoData } from "./business";
 import { clearDisputesDemoData } from "./disputes";
 import { clearFinanceDemoData } from "./finance";
 import { clearSupportDemoData } from "./support";
+import { applyAdminDirectory, clearAdminDemoData } from "./admin-store";
 
 // Place de marché côté navigateur. Avec une base de données, les données du
 // compte viennent du serveur et chaque action passe par lui ; sans base
@@ -75,8 +77,14 @@ async function load(): Promise<void> {
     clearBusinessDemoData();
     clearFinanceDemoData();
     clearSupportDemoData();
+    clearAdminDemoData();
   }
   replaceMarketData(snap);
+  if (snap.me.role === "admin") {
+    // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
+    const dir = await getAdminDirectoryFn().catch(() => null);
+    if (dir?.ok) applyAdminDirectory(dir);
+  }
   setMarketMode({ remote: true, me: snap.me });
 }
 

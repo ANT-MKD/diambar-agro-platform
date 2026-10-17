@@ -57,8 +57,25 @@ export type MarketZone = {
   active: boolean;
 };
 
+/** Compte connecté, tel qu'enregistré : remplace les profils de démonstration. */
+export type MarketAccount = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  city: string;
+  createdAt: string;
+  /** Producteur : exploitation déclarée à l'inscription. */
+  farm?: { name: string; address: string; city: string; areaHa: number | null };
+  /** Livreur : véhicule enregistré. */
+  vehicle?: { type: string; capacityKg: number; plate: string };
+  /** Restaurant : informations de facturation. */
+  billing?: { ninea: string; email: string };
+};
+
 export type MarketSnapshot = {
   me: { id: string; role: Role };
+  account: MarketAccount;
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];
