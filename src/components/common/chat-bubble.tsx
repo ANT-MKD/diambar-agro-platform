@@ -32,7 +32,8 @@ export function ChatBubble({
           <div className="text-[10px] font-semibold text-primary mb-0.5">{label}</div>
         )}
         {message.attachment &&
-          (message.attachment.mime.startsWith("image/") ? (
+          // Sans adresse (fichier indisponible) : seulement le nom.
+          (message.attachment.mime.startsWith("image/") && message.attachment.dataUrl ? (
             <a href={message.attachment.dataUrl} target="_blank" rel="noopener noreferrer">
               <img
                 src={message.attachment.dataUrl}
@@ -42,7 +43,7 @@ export function ChatBubble({
             </a>
           ) : (
             <a
-              href={message.attachment.dataUrl}
+              href={message.attachment.dataUrl || undefined}
               download={message.attachment.name}
               className={`flex items-center gap-2 rounded-lg px-2.5 py-2 mb-1.5 text-xs ${mine ? "bg-primary-foreground/15" : "bg-muted"}`}
             >

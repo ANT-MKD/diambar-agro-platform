@@ -66,6 +66,17 @@ export const restaurants = [
   },
 ];
 
+/** Restaurant d'un fil de messagerie : l'annuaire, sinon le nom envoyé avec
+ * le fil (mode base, restaurant qui n'a pas encore commandé). */
+export function restaurantOf(
+  id: string,
+  fallbackName?: string,
+): (typeof restaurants)[number] | undefined {
+  const r = restaurants.find((x) => x.id === id);
+  if (r || !fallbackName) return r;
+  return { id, name: fallbackName, city: "", type: "Restaurant", phone: "", avatar: "" };
+}
+
 export const drivers = [
   {
     id: "d1",
@@ -551,6 +562,9 @@ export type ChatAttachment = { name: string; dataUrl: string; mime: string };
 export type Conversation = {
   id: string;
   restaurantId: string;
+  /** Mode base : noms des deux parties (l'annuaire ne les a pas toujours). */
+  restaurantName?: string;
+  farmerName?: string;
   // Un restaurant peut avoir une conversation par fournisseur de son
   // carnet, pas seulement avec un unique producteur codé en dur.
   farmerId: string;
@@ -2128,6 +2142,11 @@ export const driverNotifications: AppNotification[] = [
 export type DriverConversation = {
   id: string;
   restaurantId: string;
+  /** Mode base : le livreur du fil et la course concernée. */
+  restaurantName?: string;
+  driverId?: string;
+  driverName?: string;
+  missionId?: string;
   lastMessage: string;
   lastAt: string;
   unread: number;

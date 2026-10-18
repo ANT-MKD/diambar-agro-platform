@@ -1280,3 +1280,164 @@ export const creditNoteUses = pgTable(
     ),
   ],
 );
+
+// --- Messagerie -------------------------------------------------------------------------
+// Fils entre un restaurant et un producteur, ou entre un livreur et un
+// restaurant (autour d'une course). L'équipe lit tout, peut écrire, classer et
+// ajouter des notes internes que les parties ne voient jamais.
+
+export const conversationKind = pgEnum("conversation_kind", [
+  "restaurant_farmer",
+  "driver_restaurant",
+]);
+export const conversationPriority = pgEnum("conversation_priority", [
+  "normal",
+  "important",
+  "urgent",
+]);
+export const messageAuthorRole = pgEnum("message_author_role", [
+  "restaurant",
+  "farmer",
+  "driver",
+  "admin",
+]);
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: id(),
+    kind: conversationKind("kind").notNull(),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => users.id),
+    farmerId: uuid("farmer_id").references(() => users.id),
+    driverId: uuid("driver_id").references(() => users.id),
+    /** Course à l'origine d'un fil livreur ↔ restaurant. */
+    missionId: uuid("mission_id").references(() => missions.id),
+    priority: conversationPriority("priority").notNull().default("normal"),
+    tags: jsonb("tags").notNull().default([]),
+    /** Ticket support ouvert depuis ce fil. */
+    ticketId: uuid("ticket_id").references((): AnyPgColumn => supportTickets.id),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    lastMessagePreview: text("last_message_preview"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("conversations_restaurant_farmer_key")
+      .on(t.restaurantId, t.farmerId)
+      .where(sql`${t.kind} = 'restaurant_farmer'`),
+    uniqueIndex("conversations_driver_restaurant_key")
+      .on(t.driverId, t.restaurantId)
+      .where(sql`${t.kind} = 'driver_restaurant'`),
+    index("conversations_restaurant_idx").on(t.restaurantId),
+    index("conversations_farmer_idx").on(t.farmerId),
+    index("conversations_driver_idx").on(t.driverId),
+    index("conversations_mission_idx").on(t.missionId),
+    index("conversations_ticket_idx").on(t.ticketId),
+    index("conversations_last_idx").on(t.lastMessageAt),
+    check(
+      "conversations_participants",
+      sql`(${t.kind} = 'restaurant_farmer' and ${t.farmerId} is not null) or (${t.kind} = 'driver_restaurant' and ${t.driverId} is not null)`,
+    ),
+  ],
+);
+
+export const conversationMessages = pgTable(
+  "conversation_messages",
+  {
+    id: id(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id),
+    authorRole: messageAuthorRole("author_role").notNull(),
+    text: text("text").notNull().default(""),
+    fileId: uuid("file_id").references(() => files.id),
+    attachmentName: text("attachment_name"),
+    /** Note de l'équipe : jamais montrée aux parties. */
+    internal: boolean("internal").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("conversation_messages_conversation_idx").on(t.conversationId, t.createdAt),
+    index("conversation_messages_author_idx").on(t.authorId),
+    index("conversation_messages_file_idx").on(t.fileId),
+  ],
+);
+
+/** Dernière lecture d'un fil par une personne (messages non lus). */
+export const conversationReads = pgTable(
+  "conversation_reads",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.conversationId, t.userId] }),
+    index("conversation_reads_user_idx").on(t.userId),
+  ],
+);
+
+// --- Support ----------------------------------------------------------------------------
+
+export const ticketStatus = pgEnum("ticket_status", ["open", "answered", "closed"]);
+export const ticketCategory = pgEnum("ticket_category", [
+  "delivery",
+  "products",
+  "payments",
+  "account",
+  "technical",
+  "other",
+]);
+export const ticketPriority = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
+export const ticketReferenceSeq = pgSequence("ticket_reference_seq", { startWith: 1 });
+
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    subject: text("subject").notNull(),
+    category: ticketCategory("category").notNull(),
+    priority: ticketPriority("priority").notNull(),
+    status: ticketStatus("status").notNull().default("open"),
+    assigneeId: uuid("assignee_id").references(() => users.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("support_tickets_reference_key").on(t.reference),
+    index("support_tickets_user_idx").on(t.userId),
+    index("support_tickets_assignee_idx").on(t.assigneeId),
+    index("support_tickets_order_idx").on(t.orderId),
+    index("support_tickets_status_idx").on(t.status, t.createdAt),
+  ],
+);
+
+export const supportMessages = pgTable(
+  "support_messages",
+  {
+    id: id(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id),
+    authorRole: disputeParty("author_role").notNull(),
+    text: text("text").notNull(),
+    internal: boolean("internal").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("support_messages_ticket_idx").on(t.ticketId, t.createdAt),
+    index("support_messages_author_idx").on(t.authorId),
+  ],
+);

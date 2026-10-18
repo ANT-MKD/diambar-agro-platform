@@ -1,4 +1,9 @@
-import { MessageCircleQuestion } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { MessageCircleQuestion, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { market } from "@/data/market-remote";
 import { Link } from "@tanstack/react-router";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { TICKET_CATEGORY_LABEL, TICKET_STATUS_LABEL, type SupportTicket } from "@/data/support";
@@ -66,11 +71,65 @@ export function SupportTicketList({
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{t.message}</p>
             <div className="mt-2 text-[11px] text-muted-foreground">
-              {t.id.toUpperCase()} · {relativeTime(t.createdAt)}
+              {t.reference ?? t.id.toUpperCase()} · {relativeTime(t.createdAt)}
             </div>
+            {/* Suite de l'échange (réponses de l'équipe, et les vôtres). */}
+            {t.messages.length > 1 && (
+              <div className="mt-3 space-y-2 border-t border-border pt-3">
+                {t.messages.slice(1).map((m) => (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      "rounded-xl px-3 py-2 text-sm",
+                      m.authorRole === "platform" ? "bg-primary/10" : "bg-muted",
+                    )}
+                  >
+                    <div className="text-[10px] text-muted-foreground">
+                      {m.authorName} · {relativeTime(m.at)}
+                    </div>
+                    {m.text}
+                  </div>
+                ))}
+              </div>
+            )}
+            {market.isRemote() && t.status !== "closed" && <ReplyBox ticketId={t.id} />}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** Réponse à une demande (mode base) : elle repasse « Ouvert » côté équipe. */
+function ReplyBox({ ticketId }: { ticketId: string }) {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  return (
+    <form
+      className="mt-3 flex gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!text.trim()) return;
+        setSending(true);
+        const res = await market.replyTicket(ticketId, text.trim());
+        setSending(false);
+        if (!res.ok) {
+          toast.error(res.message);
+          return;
+        }
+        setText("");
+        toast.success("Message envoyé à l'équipe");
+      }}
+    >
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Répondre à l'équipe…"
+        aria-label="Répondre à l'équipe"
+      />
+      <Button type="submit" size="icon" disabled={sending} aria-label="Envoyer">
+        <Send className="h-4 w-4" />
+      </Button>
+    </form>
   );
 }

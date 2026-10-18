@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { Send, Search, MessageSquare, Paperclip, X, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
-import { restaurants, type ChatAttachment } from "@/data/mocks";
+import { restaurantOf, type ChatAttachment } from "@/data/mocks";
 import { useConversations, conversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ function MessagesPage() {
 
   const active = convs.find((c) => c.id === activeId) || null;
   const filtered = convs.filter((c) => {
-    const r = restaurants.find((x) => x.id === c.restaurantId);
+    const r = restaurantOf(c.restaurantId, c.restaurantName);
     return (
       r?.name.toLowerCase().includes(q.toLowerCase()) ||
       c.lastMessage.toLowerCase().includes(q.toLowerCase())
@@ -54,16 +55,31 @@ function MessagesPage() {
     reader.readAsDataURL(file);
   };
 
-  const send = () => {
+  const send = async () => {
     if (!active || (!draft.trim() && !attachment)) return;
-    conversationActions.send(active.id, draft.trim(), "farmer", undefined, attachment ?? undefined);
+    if (market.isRemote()) {
+      const res = await market.sendMessage(active.id, draft.trim(), attachment ?? undefined);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+    } else {
+      conversationActions.send(
+        active.id,
+        draft.trim(),
+        "farmer",
+        undefined,
+        attachment ?? undefined,
+      );
+    }
     setDraft("");
     setAttachment(null);
   };
 
   const openConv = (id: string) => {
     setActiveId(id);
-    conversationActions.markRead(id);
+    if (market.isRemote()) market.markConversationRead(id);
+    else conversationActions.markRead(id);
   };
 
   return (
@@ -84,7 +100,7 @@ function MessagesPage() {
           </div>
           <div className="flex-1 overflow-auto">
             {filtered.map((c) => {
-              const r = restaurants.find((x) => x.id === c.restaurantId);
+              const r = restaurantOf(c.restaurantId, c.restaurantName);
               const isActive = c.id === activeId;
               return (
                 <button
@@ -123,7 +139,7 @@ function MessagesPage() {
 
         {active ? (
           (() => {
-            const r = restaurants.find((x) => x.id === active.restaurantId);
+            const r = restaurantOf(active.restaurantId, active.restaurantName);
             return (
               <div className="flex flex-col">
                 <div className="p-4 border-b border-border flex items-center gap-3">
@@ -152,7 +168,7 @@ function MessagesPage() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    send();
+                    void send();
                   }}
                   className="p-3 border-t border-border space-y-2"
                 >
@@ -175,7 +191,11 @@ function MessagesPage() {
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept="image/*,.pdf,.doc,.docx"
+                      accept={
+                        market.isRemote()
+                          ? "image/jpeg,image/png,image/webp"
+                          : "image/*,.pdf,.doc,.docx"
+                      }
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) pickFile(file);

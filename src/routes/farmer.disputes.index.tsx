@@ -3,7 +3,6 @@ import { Headphones, FileWarning, Image, Gavel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DisputeListView } from "@/components/disputes/dispute-list-view";
 import { useDisputesForRole } from "@/data/disputes";
-import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/farmer/disputes/")({
   head: () => ({
@@ -44,7 +43,6 @@ const STEPS = [
 
 function FarmerDisputesIndex() {
   const disputes = useDisputesForRole("farmer");
-  const base = useBaseMode();
   return (
     <div className="space-y-6">
       <DisputeListView disputes={disputes} role="farmer" detailPath="/farmer/disputes/$disputeId" />
@@ -72,7 +70,7 @@ function FarmerDisputesIndex() {
             Notre équipe est disponible pour vous accompagner.
           </p>
           <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to={base ? "/contact" : "/farmer/support"}>
+            <Link to="/farmer/support">
               <Headphones className="h-3.5 w-3.5" />
               Contacter l'assistance
             </Link>

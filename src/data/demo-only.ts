@@ -9,19 +9,14 @@ export const DEMO_ONLY_PREFIXES = [
   // Restaurant
   "/restaurant/returns",
   "/restaurant/reviews",
-  "/restaurant/messages",
-  "/restaurant/support",
   "/restaurant/suppliers",
   "/restaurant/compare",
   "/restaurant/settings/team",
   // Producteur
   "/farmer/returns",
-  "/farmer/messages",
-  "/farmer/support",
   "/farmer/settings/team",
   // Livreur
   "/driver/routes",
-  "/driver/messages",
   "/driver/incidents",
   "/driver/vehicle",
   "/driver/settings/work",
@@ -29,8 +24,6 @@ export const DEMO_ONLY_PREFIXES = [
   // Administration
   "/admin/returns",
   "/admin/incidents",
-  "/admin/messages",
-  "/admin/support",
   "/admin/moderation",
   "/admin/documents",
   "/admin/refunds",

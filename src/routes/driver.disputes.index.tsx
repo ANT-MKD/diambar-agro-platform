@@ -13,7 +13,6 @@ import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { DisputeListView } from "@/components/disputes/dispute-list-view";
 import { useDisputesForRole } from "@/data/disputes";
 import { driverProfile } from "@/data/mocks";
-import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/driver/disputes/")({
   head: () => ({
@@ -34,27 +33,17 @@ export const Route = createFileRoute("/driver/disputes/")({
 function DriverDisputesIndex() {
   const disputes = useDisputesForRole("driver");
   const [supportOpen, setSupportOpen] = useState(false);
-  const base = useBaseMode();
-  // En mode base, le support passe par la page Contact.
-  const SupportButton = ({ small }: { small?: boolean }) =>
-    base ? (
-      <Button asChild variant="outline" size={small ? "sm" : "default"} className="gap-2">
-        <Link to="/contact">
-          <LifeBuoy className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
-          Contacter l'équipe
-        </Link>
-      </Button>
-    ) : (
-      <Button
-        variant="outline"
-        size={small ? "sm" : "default"}
-        className="gap-2"
-        onClick={() => setSupportOpen(true)}
-      >
-        <LifeBuoy className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
-        Contacter le support
-      </Button>
-    );
+  const SupportButton = ({ small }: { small?: boolean }) => (
+    <Button
+      variant="outline"
+      size={small ? "sm" : "default"}
+      className="gap-2"
+      onClick={() => setSupportOpen(true)}
+    >
+      <LifeBuoy className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
+      Contacter le support
+    </Button>
+  );
   return (
     <div className="space-y-6">
       <DisputeListView

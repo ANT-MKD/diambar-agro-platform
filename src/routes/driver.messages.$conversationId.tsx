@@ -1,12 +1,14 @@
+import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Paperclip, Phone, MessageSquare } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { restaurants } from "@/data/mocks";
+import { restaurantOf } from "@/data/mocks";
 import { useDriverConversation, driverConversationActions } from "@/data/store";
 
 export const Route = createFileRoute("/driver/messages/$conversationId")({
@@ -26,6 +28,10 @@ function DriverConversation() {
   const conv = useDriverConversation(conversationId);
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
+  const unread = conv?.unread ?? 0;
+  useEffect(() => {
+    if (unread > 0 && market.isRemote()) market.markConversationRead(conversationId);
+  }, [unread, conversationId]);
 
   if (!conv) {
     return (
@@ -45,10 +51,18 @@ function DriverConversation() {
     );
   }
 
-  const r = restaurants.find((x) => x.id === conv.restaurantId);
-  const send = () => {
+  const r = restaurantOf(conv.restaurantId, conv.restaurantName);
+  const send = async () => {
     if (!draft.trim()) return;
-    driverConversationActions.send(conv.id, draft.trim(), "me");
+    if (market.isRemote()) {
+      const res = await market.sendMessage(conv.id, draft.trim());
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+    } else {
+      driverConversationActions.send(conv.id, draft.trim(), "me");
+    }
     setDraft("");
   };
 
@@ -109,7 +123,7 @@ function DriverConversation() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            send();
+            void send();
           }}
           className="p-3 border-t border-border flex gap-2"
         >

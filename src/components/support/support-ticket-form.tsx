@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   supportTicketActions,
   TICKET_CATEGORY_LABEL,
@@ -22,7 +23,8 @@ import {
 interface SupportTicketFormProps {
   role: TicketRole;
   fromName: string;
-  onCreated?: (ticket: SupportTicket) => void;
+  /** Mode démo : le ticket créé ; mode base : rien (le serveur fait foi). */
+  onCreated?: (ticket?: SupportTicket) => void;
 }
 
 const CATEGORIES = Object.entries(TICKET_CATEGORY_LABEL) as [TicketCategory, string][];
@@ -33,10 +35,36 @@ export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFo
   const [orderRef, setOrderRef] = useState("");
   const [category, setCategory] = useState<TicketCategory>("other");
 
-  const handleSubmit = (e: FormEvent) => {
+  const [sending, setSending] = useState(false);
+  const reset = () => {
+    setSubject("");
+    setMessage("");
+    setOrderRef("");
+    setCategory("other");
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || message.trim().length < 10) {
       toast.error("Décrivez votre problème en au moins 10 caractères");
+      return;
+    }
+    if (market.isRemote()) {
+      setSending(true);
+      const res = await market.createTicket({
+        subject: subject.trim(),
+        message: message.trim(),
+        category,
+        orderRef: orderRef.trim() || undefined,
+      });
+      setSending(false);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(`Demande ${res.reference} envoyée à l'équipe Diambar`);
+      reset();
+      onCreated?.();
       return;
     }
     const ticket = supportTicketActions.create({
@@ -56,7 +84,10 @@ export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFo
   };
 
   return (
-    <form onSubmit={handleSubmit} className="glass rounded-2xl max-w-xl space-y-4 p-6">
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="glass rounded-2xl max-w-xl space-y-4 p-6"
+    >
       <div>
         <Label htmlFor="subject">Sujet</Label>
         <Input
@@ -105,7 +136,9 @@ export function SupportTicketForm({ role, fromName, onCreated }: SupportTicketFo
           className="mt-1.5"
         />
       </div>
-      <Button type="submit">Envoyer au support</Button>
+      <Button type="submit" disabled={sending}>
+        {sending ? "Envoi…" : "Envoyer au support"}
+      </Button>
     </form>
   );
 }

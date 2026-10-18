@@ -1202,6 +1202,19 @@ export const missionActions = {
   },
 };
 
+/** Mode base : fils lus sur le serveur. */
+export function replaceConversations(list: Conversation[]) {
+  conversationsStore.replace(list);
+}
+export function replaceDriverConversations(list: DriverConversation[]) {
+  driverConvosStore.replace(list);
+}
+/** Compteur de non-lus remis à zéro sans attendre le serveur. */
+export function markConversationReadLocally(id: string) {
+  conversationsStore.set((arr) => arr.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+  driverConvosStore.set((arr) => arr.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+}
+
 export const driverConversationActions = {
   startOrGet: (restaurantId: string) => {
     const existing = driverConvosStore.get().find((c) => c.restaurantId === restaurantId);

@@ -37,7 +37,7 @@ export async function nextNumber(q: Q, sequence: string): Promise<number> {
 
 export type NotificationInput = {
   /** « offer » : course ouverte annoncée à tous les livreurs. */
-  type: "order" | "payment" | "stock" | "system" | "offer";
+  type: "order" | "payment" | "stock" | "system" | "offer" | "message";
   title: string;
   body: string;
   link?: string;

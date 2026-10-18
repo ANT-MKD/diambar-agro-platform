@@ -82,6 +82,21 @@ import {
   type PreferencesPatch,
   type RestaurantPatch,
 } from "./profile-db.server";
+import {
+  addConversationNote,
+  markConversationRead,
+  MESSAGING_STAFF,
+  sendMessage,
+  startConversation,
+  updateConversationMeta,
+} from "./messaging-db.server";
+import {
+  assignTicket,
+  createTicket,
+  replyTicket,
+  setTicketStatus,
+  ticketFromConversation,
+} from "./support-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -1417,4 +1432,189 @@ export const requestAccountDeletionFn = createServerFn({ method: "POST" })
       await requestAccountDeletion(db, { id: me.id, role: me.role }, data.reason);
       return { ok: true as const };
     }),
+  );
+
+// --- Messagerie ------------------------------------------------------------------------
+
+const ALL_ROLES: Role[] = ["restaurant", "farmer", "driver", "admin"];
+const messageFile = z
+  .object({ name: z.string().max(200), dataUrl: z.string().max(3_000_000) })
+  .optional();
+
+export const startConversationFn = createServerFn({ method: "POST" })
+  .validator((input: { farmerId?: string; restaurantId?: string }) =>
+    parse(z.object({ farmerId: id.optional(), restaurantId: id.optional() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
+    withMarket(["restaurant", "farmer", "driver"], async (db, me) => ({
+      ok: true as const,
+      id: await startConversation(db, { id: me.id, role: me.role }, data),
+    })),
+  );
+
+export const sendMessageFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; text: string; file?: { name: string; dataUrl: string } }) =>
+    parse(z.object({ id, text: z.string().max(4000), file: messageFile }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(ALL_ROLES, async (db, me) => {
+      const stored = data.file
+        ? {
+            ...(await storeImage(BUCKETS.private, "messages", data.file.dataUrl)),
+            name: data.file.name,
+          }
+        : undefined;
+      try {
+        await sendMessage(db, { id: me.id, role: me.role }, data.id, {
+          text: data.text,
+          file: stored,
+        });
+      } catch (err) {
+        if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const markConversationReadFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => parse(z.object({ id }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(ALL_ROLES, async (db, me) => {
+      await markConversationRead(db, { id: me.id, role: me.role }, data.id);
+      return { ok: true as const };
+    }),
+  );
+
+export const conversationStaffFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      id: string;
+      priority?: "normal" | "important" | "urgent";
+      tags?: string[];
+      note?: string;
+    }) =>
+      parse(
+        z.object({
+          id,
+          priority: z.enum(["normal", "important", "urgent"]).optional(),
+          tags: z.array(z.string().max(40)).max(12).optional(),
+          note: z.string().max(4000).optional(),
+        }),
+        input,
+      ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        const who = { id: me.id, role: "admin" as const };
+        if (data.note !== undefined) await addConversationNote(db, who, data.id, data.note);
+        if (data.priority || data.tags) {
+          await updateConversationMeta(db, who, data.id, {
+            priority: data.priority,
+            tags: data.tags,
+          });
+        }
+        return { ok: true as const };
+      },
+      [...MESSAGING_STAFF],
+    ),
+  );
+
+// --- Support ----------------------------------------------------------------------------
+
+const ticketCategory = z.enum([
+  "delivery",
+  "products",
+  "payments",
+  "account",
+  "technical",
+  "other",
+]);
+
+export const createTicketFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      subject: string;
+      message: string;
+      category: string;
+      orderRef?: string;
+      urgent?: boolean;
+    }) =>
+      parse(
+        z.object({
+          subject: z.string().max(300),
+          message: z.string().max(5000),
+          category: ticketCategory,
+          orderRef: z.string().max(40).optional(),
+          urgent: z.boolean().optional(),
+        }),
+        input,
+      ),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { id?: string; reference?: string }> =>
+    withMarket(["restaurant", "farmer", "driver"], async (db, me) => ({
+      ok: true as const,
+      ...(await createTicket(db, { id: me.id, role: me.role }, data)),
+    })),
+  );
+
+export const replyTicketFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; text: string; internal?: boolean }) =>
+    parse(z.object({ id, text: z.string().max(5000), internal: z.boolean().optional() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(ALL_ROLES, async (db, me) => {
+      await replyTicket(db, { id: me.id, role: me.role }, data.id, data);
+      return { ok: true as const };
+    }),
+  );
+
+export const ticketStaffFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { id: string; status?: "open" | "answered" | "closed"; assigneeId?: string | null }) =>
+      parse(
+        z.object({
+          id,
+          status: z.enum(["open", "answered", "closed"]).optional(),
+          assigneeId: id.nullable().optional(),
+        }),
+        input,
+      ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        const who = { id: me.id, role: "admin" as const };
+        if (data.status) await setTicketStatus(db, who, data.id, data.status);
+        if (data.assigneeId !== undefined) await assignTicket(db, who, data.id, data.assigneeId);
+        return { ok: true as const };
+      },
+      [...MESSAGING_STAFF],
+    ),
+  );
+
+export const ticketFromConversationFn = createServerFn({ method: "POST" })
+  .validator((input: { conversationId: string; subject: string; category: string }) =>
+    parse(
+      z.object({ conversationId: id, subject: z.string().max(300), category: ticketCategory }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { id?: string; reference?: string }> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => ({
+        ok: true as const,
+        ...(await ticketFromConversation(
+          db,
+          { id: me.id, role: "admin" },
+          data.conversationId,
+          data,
+        )),
+      }),
+      [...MESSAGING_STAFF],
+    ),
   );

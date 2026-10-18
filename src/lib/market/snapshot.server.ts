@@ -5,6 +5,8 @@ import { readRecurringOrders } from "./recurring-read.server";
 import { readDisputes } from "./disputes-read.server";
 import { disputeStaff } from "./disputes-db.server";
 import { readCreditNotes } from "./credit-notes-db.server";
+import { readConversations } from "./messaging-db.server";
+import { readTickets } from "./support-db.server";
 import {
   categories,
   checkouts,
@@ -1245,6 +1247,8 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     disputes: await readDisputes(db, me),
     disputeStaff: me.role === "admin" ? await disputeStaff(db) : [],
     creditNotes: await readCreditNotes(db, me),
+    ...(await readConversations(db, me)),
+    supportTickets: await readTickets(db, me),
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

@@ -1,5 +1,7 @@
 import type {
   AppNotification,
+  Conversation,
+  DriverConversation,
   DriverWallet,
   Transaction,
   Withdrawal,
@@ -13,6 +15,7 @@ import type {
 } from "@/data/mocks";
 import type { InvoiceView } from "./documents-view";
 import type { CreditNote, Dispute } from "@/data/disputes";
+import type { SupportTicket } from "@/data/support";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
@@ -176,6 +179,11 @@ export type MarketSnapshot = {
   disputeStaff: { id: string; name: string }[];
   /** Avoirs du restaurant (tous pour l'équipe). */
   creditNotes: CreditNote[];
+  /** Messagerie : fils restaurant ↔ producteur, et livreur ↔ restaurant. */
+  conversations: Conversation[];
+  driverConversations: DriverConversation[];
+  /** Demandes d'aide (toutes pour l'équipe support). */
+  supportTickets: SupportTicket[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];

@@ -99,6 +99,13 @@
       "when": 1792303695626,
       "tag": "20261018091848_profiles_credit_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792343825214,
+      "tag": "20261018180140_messaging_support",
+      "breakpoints": true
     }
   ]
 }

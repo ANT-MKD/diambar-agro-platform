@@ -8,7 +8,13 @@ import type {
 } from "@/lib/market/types";
 import { getRules } from "./rules";
 import { firstDeliveryDay } from "@/lib/delivery-time";
-import type { MissionProofPhoto, MissionStatus, OrderStatus, PaymentMethod } from "./mocks";
+import type {
+  ChatAttachment,
+  MissionProofPhoto,
+  MissionStatus,
+  OrderStatus,
+  PaymentMethod,
+} from "./mocks";
 import { getMarketMode, isMarketRemote, setMarketMode, useMarketMode } from "./market-mode";
 import {
   clearDemoCollections,
@@ -20,6 +26,9 @@ import {
   recurringOrderActions,
   replaceMarketData,
   restaurantOrderActions,
+  markConversationReadLocally,
+  replaceConversations,
+  replaceDriverConversations,
   type AcceptResult,
 } from "./store";
 import {
@@ -61,6 +70,14 @@ import {
   withdrawMissionFn,
   createRecurringFn,
   openDisputeFn,
+  startConversationFn,
+  sendMessageFn,
+  markConversationReadFn,
+  conversationStaffFn,
+  createTicketFn,
+  replyTicketFn,
+  ticketStaffFn,
+  ticketFromConversationFn,
   updateAccountFn,
   updateAvatarFn,
   updatePreferencesFn,
@@ -120,7 +137,7 @@ import {
   type NewDisputeInput,
 } from "./disputes";
 import { clearFinanceDemoData } from "./finance";
-import { clearSupportDemoData } from "./support";
+import { clearSupportDemoData, replaceSupportTickets } from "./support";
 import {
   applyAdminDirectory,
   clearAdminDemoData,
@@ -157,6 +174,9 @@ async function load(): Promise<void> {
   replaceDisputes(snap.disputes ?? []);
   replaceDisputeStaff(snap.disputeStaff ?? []);
   replaceCreditNotes(snap.creditNotes ?? []);
+  replaceConversations(snap.conversations ?? []);
+  replaceDriverConversations(snap.driverConversations ?? []);
+  replaceSupportTickets(snap.supportTickets ?? []);
   if (snap.me.role === "admin") {
     replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
@@ -574,6 +594,78 @@ export const market = {
 
   requestAccountDeletion(reason: string): Promise<Result> {
     return remote(() => requestAccountDeletionFn({ data: { reason } }));
+  },
+
+  // --- Messagerie et support (mode base) ---------------------------------------------
+
+  /** Ouvre (ou retrouve) le fil avec un producteur (restaurant) ou un restaurant. */
+  startConversation(target: {
+    farmerId?: string;
+    restaurantId?: string;
+  }): Promise<Result<{ id: string }>> {
+    return remote(async () => {
+      const res = await startConversationFn({ data: target });
+      return res.ok ? { ok: true as const, id: res.id ?? "" } : res;
+    });
+  },
+
+  /** Message (et photo jointe, réduite avant l'envoi). */
+  async sendMessage(id: string, text: string, attachment?: ChatAttachment): Promise<Result> {
+    if (attachment && !attachment.mime.startsWith("image/")) {
+      return { ok: false, message: "Seules les photos (JPEG, PNG, WebP) peuvent être jointes." };
+    }
+    const file = attachment
+      ? { name: attachment.name, dataUrl: await downscaleDataUrl(attachment.dataUrl) }
+      : undefined;
+    return remote(() => sendMessageFn({ data: { id, text, file } }));
+  },
+
+  /** Fil lu : le compteur disparaît tout de suite, le serveur suit. */
+  markConversationRead(id: string) {
+    markConversationReadLocally(id);
+    void markConversationReadFn({ data: { id } }).catch(() => undefined);
+  },
+
+  conversationStaff(
+    id: string,
+    input: { priority?: "normal" | "important" | "urgent"; tags?: string[]; note?: string },
+  ): Promise<Result> {
+    return remote(() => conversationStaffFn({ data: { id, ...input } }));
+  },
+
+  createTicket(input: {
+    subject: string;
+    message: string;
+    category: string;
+    orderRef?: string;
+    urgent?: boolean;
+  }): Promise<Result<{ id: string; reference: string }>> {
+    return remote(async () => {
+      const res = await createTicketFn({ data: input });
+      return res.ok ? { ok: true as const, id: res.id ?? "", reference: res.reference ?? "" } : res;
+    });
+  },
+
+  replyTicket(id: string, text: string, internal = false): Promise<Result> {
+    return remote(() => replyTicketFn({ data: { id, text, internal } }));
+  },
+
+  ticketStaff(
+    id: string,
+    input: { status?: "open" | "answered" | "closed"; assigneeId?: string | null },
+  ): Promise<Result> {
+    return remote(() => ticketStaffFn({ data: { id, ...input } }));
+  },
+
+  ticketFromConversation(
+    conversationId: string,
+    subject: string,
+    category: string,
+  ): Promise<Result<{ id: string; reference: string }>> {
+    return remote(async () => {
+      const res = await ticketFromConversationFn({ data: { conversationId, subject, category } });
+      return res.ok ? { ok: true as const, id: res.id ?? "", reference: res.reference ?? "" } : res;
+    });
   },
 
   // --- Litiges ------------------------------------------------------------------------

@@ -400,16 +400,23 @@ function OrderDetail() {
                   </a>
                 </Button>
               )}
-              {farmer && myRestaurant && !base && (
+              {farmer && myRestaurant && (
                 <Button
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1"
-                  onClick={() => {
-                    const conversationId = conversationActions.startOrGet(
-                      myRestaurant.id,
-                      farmer.id,
-                    );
+                  onClick={async () => {
+                    let conversationId: string;
+                    if (base) {
+                      const res = await market.startConversation({ farmerId: farmer.id });
+                      if (!res.ok) {
+                        toast.error(res.message);
+                        return;
+                      }
+                      conversationId = res.id;
+                    } else {
+                      conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                    }
                     navigate({
                       to: "/restaurant/messages/$conversationId",
                       params: { conversationId },
@@ -491,17 +498,10 @@ function OrderDetail() {
           </div>
 
           <Button asChild variant="outline" className="w-full gap-2">
-            {base ? (
-              <Link to="/contact">
-                <LifeBuoy className="h-4 w-4" />
-                Contacter l'équipe Diambar
-              </Link>
-            ) : (
-              <Link to="/restaurant/support">
-                <LifeBuoy className="h-4 w-4" />
-                Contacter le support
-              </Link>
-            )}
+            <Link to="/restaurant/support">
+              <LifeBuoy className="h-4 w-4" />
+              Contacter le support
+            </Link>
           </Button>
         </div>
       </div>

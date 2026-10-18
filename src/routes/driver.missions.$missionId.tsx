@@ -607,7 +607,28 @@ function MissionDetail() {
                 </Link>
               )}
             </Button>
-            {base ? null : conversation ? (
+            {base && !conversation ? (
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={async () => {
+                  const res = await market.startConversation({
+                    restaurantId: mission.restaurantId,
+                  });
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
+                  navigate({
+                    to: "/driver/messages/$conversationId",
+                    params: { conversationId: res.id },
+                  });
+                }}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Contacter le restaurant
+              </Button>
+            ) : conversation ? (
               <Button asChild variant="outline" className="w-full justify-start gap-2">
                 <Link
                   to="/driver/messages/$conversationId"

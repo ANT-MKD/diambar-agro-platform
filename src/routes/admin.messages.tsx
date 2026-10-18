@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { StatCard } from "@/components/admin/stat-card";
@@ -31,7 +32,7 @@ import {
 import { useAllDisputes } from "@/data/disputes";
 import { useIncidents, useReturns, returnStage, RETURN_STAGE_LABEL } from "@/data/business";
 import { useRefunds, REFUND_STATUS_LABEL } from "@/data/finance";
-import { supportTicketActions } from "@/data/support";
+import { supportTicketActions, useSupportTickets } from "@/data/support";
 import { auditActions } from "@/data/admin-store";
 import { restaurants, farmers, drivers, type Order } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -127,6 +128,7 @@ function AdminMessages() {
   const incidents = useIncidents();
   const returns = useReturns();
   const refunds = useRefunds();
+  const tickets = useSupportTickets();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -143,7 +145,8 @@ function AdminMessages() {
       kind: "farmer",
       restaurantId: c.restaurantId,
       farmerId: c.farmerId,
-      counterpartName: FARMER_NAME,
+      counterpartName:
+        c.farmerName ?? farmers.find((f) => f.id === c.farmerId)?.farm ?? FARMER_NAME,
       lastMessage: c.lastMessage,
       lastAt: c.lastAt,
       unread: c.unread,
@@ -157,7 +160,7 @@ function AdminMessages() {
       id: c.id,
       kind: "driver",
       restaurantId: c.restaurantId,
-      counterpartName: DRIVER_NAME,
+      counterpartName: c.driverName ?? DRIVER_NAME,
       lastMessage: c.lastMessage,
       lastAt: c.lastAt,
       unread: c.unread,
@@ -251,14 +254,21 @@ function AdminMessages() {
   const openThread = (t: Thread) => {
     setActiveId(t.id);
     if (t.unread > 0) {
-      if (t.kind === "farmer") conversationActions.markRead(t.id);
+      if (market.isRemote()) market.markConversationRead(t.id);
+      else if (t.kind === "farmer") conversationActions.markRead(t.id);
       else driverConversationActions.markRead(t.id);
     }
   };
 
-  const send = () => {
+  const send = async () => {
     if (!active || !draft.trim()) return;
-    if (active.kind === "farmer") {
+    if (market.isRemote()) {
+      const res = await market.sendMessage(active.id, draft.trim());
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+    } else if (active.kind === "farmer") {
       conversationActions.send(active.id, draft.trim(), "admin", user.name);
     } else {
       driverConversationActions.send(active.id, draft.trim(), "them", user.name);
@@ -266,7 +276,20 @@ function AdminMessages() {
     setDraft("");
   };
 
+  const staffAction = async (
+    t: Thread,
+    input: { priority?: "normal" | "important" | "urgent"; tags?: string[]; note?: string },
+  ) => {
+    const res = await market.conversationStaff(t.id, input);
+    if (!res.ok) toast.error(res.message);
+    return res.ok;
+  };
+
   const setPriority = (t: Thread, priority: "normal" | "important" | "urgent") => {
+    if (market.isRemote()) {
+      void staffAction(t, { priority });
+      return;
+    }
     if (t.kind === "farmer") conversationActions.setPriority(t.id, priority);
     else driverConversationActions.setPriority(t.id, priority);
   };
@@ -275,13 +298,19 @@ function AdminMessages() {
     const next = (t.tags ?? []).includes(tag)
       ? (t.tags ?? []).filter((x) => x !== tag)
       : [...(t.tags ?? []), tag];
+    if (market.isRemote()) {
+      void staffAction(t, { tags: next });
+      return;
+    }
     if (t.kind === "farmer") conversationActions.setTags(t.id, next);
     else driverConversationActions.setTags(t.id, next);
   };
 
-  const addNote = () => {
+  const addNote = async () => {
     if (!active || !noteDraft.trim()) return;
-    if (active.kind === "farmer") {
+    if (market.isRemote()) {
+      if (!(await staffAction(active, { note: noteDraft.trim() }))) return;
+    } else if (active.kind === "farmer") {
       conversationActions.addInternalNote(active.id, user.name, noteDraft.trim());
     } else {
       driverConversationActions.addInternalNote(active.id, user.name, noteDraft.trim());
@@ -290,8 +319,22 @@ function AdminMessages() {
     toast.success("Note interne ajoutée");
   };
 
-  const createTicket = () => {
+  const createTicket = async () => {
     if (!active || !activeCtx) return;
+    if (market.isRemote()) {
+      const res = await market.ticketFromConversation(
+        active.id,
+        `Conversation ${active.kind === "farmer" ? "producteur" : "livreur"} — ${activeCtx.restaurant?.name ?? active.counterpartName}`,
+        "other",
+      );
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(`Ticket ${res.reference} créé`);
+      setTicketOpen(false);
+      return;
+    }
     const ticket = supportTicketActions.create({
       subject: `Conversation ${active.kind === "farmer" ? "agriculteur" : "livreur"} — ${activeCtx.restaurant?.name ?? active.counterpartName}`,
       message: active.lastMessage || "Conversation transférée depuis la messagerie de supervision.",
@@ -506,7 +549,7 @@ function AdminMessages() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  send();
+                  void send();
                 }}
                 className="flex gap-2"
               >
@@ -645,7 +688,11 @@ function AdminMessages() {
             <div className="space-y-2 border-t border-border pt-3">
               {active.ticketId ? (
                 <div className="text-xs text-muted-foreground">
-                  Ticket lié : <span className="font-mono">{active.ticketId.toUpperCase()}</span>
+                  Ticket lié :{" "}
+                  <span className="font-mono">
+                    {tickets.find((x) => x.id === active.ticketId)?.reference ??
+                      active.ticketId.toUpperCase()}
+                  </span>
                 </div>
               ) : ticketOpen ? (
                 <div className="space-y-2">
@@ -653,7 +700,7 @@ function AdminMessages() {
                     Créer un ticket support à partir de cette conversation ?
                   </p>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={createTicket}>
+                    <Button size="sm" className="flex-1" onClick={() => void createTicket()}>
                       Confirmer
                     </Button>
                     <Button
@@ -706,7 +753,7 @@ function AdminMessages() {
                 size="sm"
                 variant="outline"
                 className="w-full"
-                onClick={addNote}
+                onClick={() => void addNote()}
                 disabled={!noteDraft.trim()}
               >
                 Ajouter la note

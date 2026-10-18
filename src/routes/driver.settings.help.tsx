@@ -12,7 +12,9 @@ import {
 import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supportTicketActions } from "@/data/support";
+import { supportTicketActions, useSupportTickets } from "@/data/support";
+import { SupportTicketList } from "@/components/support/support-ticket-list";
+import { market } from "@/data/market-remote";
 import { callTeam, EMERGENCY_TEXT, sendSos } from "@/lib/sos";
 import { usePublicInfo } from "@/components/landing/use-public-info";
 import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
@@ -60,6 +62,7 @@ function HelpSettings() {
   const [q, setQ] = useState("");
   const hiddenInBase = useHiddenInBase();
   const [supportOpen, setSupportOpen] = useState(false);
+  const tickets = useSupportTickets();
   const filtered = useMemo(
     () =>
       FAQ.filter((f) => f.q.toLowerCase().includes(q.toLowerCase())).filter(
@@ -71,8 +74,18 @@ function HelpSettings() {
   const { company } = usePublicInfo();
   const base = useBaseMode();
   const sendUrgent = async () => {
-    // Démonstration : l'alerte crée aussi un ticket (dans le navigateur).
-    if (!base) await sendSos({ fromName: driverProfile.name });
+    // L'alerte crée aussi une demande urgente, en tête de file de l'équipe.
+    if (base) {
+      void market.createTicket({
+        subject: "🚨 SOS livreur — rappel immédiat",
+        message:
+          "Le livreur déclenche une alerte depuis l'application et demande un rappel immédiat.",
+        category: "delivery",
+        urgent: true,
+      });
+    } else {
+      await sendSos({ fromName: driverProfile.name });
+    }
     if (callTeam(company.phone)) {
       toast.success("Appel de l'équipe Diambar…", { description: EMERGENCY_TEXT });
     } else {
@@ -135,21 +148,19 @@ function HelpSettings() {
             <Siren className="h-4 w-4" />
             Situation urgente
           </Button>
-          {base ? (
-            <Button asChild className="gap-2">
-              <Link to="/contact">
-                <LifeBuoy className="h-4 w-4" />
-                Contacter l'équipe
-              </Link>
-            </Button>
-          ) : (
-            <Button className="gap-2" onClick={() => setSupportOpen(true)}>
-              <LifeBuoy className="h-4 w-4" />
-              Contacter le support
-            </Button>
-          )}
+          <Button className="gap-2" onClick={() => setSupportOpen(true)}>
+            <LifeBuoy className="h-4 w-4" />
+            Contacter le support
+          </Button>
         </div>
       </div>
+
+      {base && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Mes demandes</h3>
+          <SupportTicketList tickets={tickets} />
+        </div>
+      )}
 
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
         <DialogContent className="max-w-xl">
