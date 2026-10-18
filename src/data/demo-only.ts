@@ -7,8 +7,6 @@ import { useMarketMode } from "./market-mode";
 
 export const DEMO_ONLY_PREFIXES = [
   // Restaurant
-  "/restaurant/suppliers",
-  "/restaurant/compare",
   "/restaurant/settings/team",
   // Producteur
   "/farmer/settings/team",

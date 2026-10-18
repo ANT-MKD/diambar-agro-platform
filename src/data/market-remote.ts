@@ -8,8 +8,10 @@ import type {
 } from "@/lib/market/types";
 import { getRules } from "./rules";
 import { firstDeliveryDay } from "@/lib/delivery-time";
+import type { BudgetState } from "./budget";
 import type {
   ChatAttachment,
+  Supplier,
   DriverWorkCriteria,
   VehicleChangeReason,
   VehicleChangeRequest,
@@ -35,6 +37,9 @@ import {
   markConversationReadLocally,
   replaceConversations,
   replaceDriverFleet,
+  replaceRestaurantBook,
+  supplierActions,
+  wishlistActions,
   replaceFleetQueue,
   driverOnlineActions,
   vehicleActions,
@@ -111,6 +116,9 @@ import {
   fleetDecisionFn,
   setDriverOnlineFn,
   updateWorkSettingsFn,
+  supplierActionFn,
+  favoriteProductFn,
+  saveBudgetFn,
   updateAccountFn,
   updateAvatarFn,
   updatePreferencesFn,
@@ -232,6 +240,7 @@ async function load(): Promise<void> {
     incidents: snap.incidents ?? [],
   });
   if (snap.fleet) replaceDriverFleet(snap.fleet);
+  if (snap.book) replaceRestaurantBook(snap.book);
   if (snap.me.role === "admin") {
     replaceModeration(snap.moderation ?? []);
     replaceFleetQueue(snap.fleetQueue ?? { renewals: [], changeRequests: [] });
@@ -1157,6 +1166,78 @@ export const market = {
     if (patch.locationSharing !== undefined) {
       driverSettingsActions.setLocationSharing(patch.locationSharing);
     }
+    return { ok: true };
+  },
+
+  // --- Carnet du restaurant -------------------------------------------------------------
+
+  async createSupplier(
+    input: Omit<Supplier, "id" | "totalOrders" | "totalSpent" | "lastOrder" | "suspended"> & {
+      suspended?: boolean;
+    },
+  ): Promise<Result<{ id: string }>> {
+    if (isMarketRemote()) {
+      return remote(async () => {
+        const res = await supplierActionFn({
+          data: {
+            action: "create",
+            name: input.name,
+            contact: input.contact,
+            phone: input.phone,
+            email: input.email,
+            city: input.city,
+            notes: input.notes,
+            favorite: input.favorite,
+            suspended: input.suspended,
+            farmerId: input.farmerId ?? null,
+          },
+        });
+        return res.ok ? { ok: true as const, id: res.id ?? "" } : res;
+      });
+    }
+    return { ok: true, id: supplierActions.create(input) };
+  },
+
+  async updateSupplier(
+    id: string,
+    patch: Partial<
+      Pick<
+        Supplier,
+        "name" | "contact" | "phone" | "email" | "city" | "notes" | "favorite" | "suspended"
+      >
+    >,
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => supplierActionFn({ data: { action: "update", id, ...patch } }));
+    }
+    supplierActions.update(id, patch);
+    return { ok: true };
+  },
+
+  async removeSupplier(id: string): Promise<Result> {
+    if (isMarketRemote()) return remote(() => supplierActionFn({ data: { action: "remove", id } }));
+    supplierActions.remove(id);
+    return { ok: true };
+  },
+
+  /** Produit favori : le cœur change tout de suite, le serveur suit. */
+  async toggleFavorite(productId: string): Promise<Result> {
+    wishlistActions.toggle(productId);
+    if (!isMarketRemote()) return { ok: true };
+    const res = await remote(() => favoriteProductFn({ data: { productId } }));
+    if (!res.ok) wishlistActions.toggle(productId);
+    return res;
+  },
+
+  async clearFavorites(): Promise<Result> {
+    wishlistActions.clear();
+    if (!isMarketRemote()) return { ok: true };
+    return remote(() => favoriteProductFn({ data: { clear: true } }));
+  },
+
+  /** Budget d'achat (mensuel, seuil d'alerte, enveloppes). */
+  async saveBudget(budget: BudgetState): Promise<Result> {
+    if (isMarketRemote()) return remote(() => saveBudgetFn({ data: budget }));
     return { ok: true };
   },
 

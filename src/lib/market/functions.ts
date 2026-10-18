@@ -122,6 +122,14 @@ import {
   scheduleReturnPickup,
 } from "./returns-db.server";
 import {
+  clearFavoriteProducts,
+  createSupplier,
+  removeSupplier,
+  saveBudget,
+  toggleFavoriteProduct,
+  updateSupplier,
+} from "./restaurant-book-db.server";
+import {
   decideDocRenewal,
   decideVehicleChange,
   FLEET_STAFF,
@@ -2206,6 +2214,83 @@ export const updateWorkSettingsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ActionResult> =>
     withMarket(["driver"], async (db, me) => {
       await updateWorkSettings(db, { id: me.id, role: me.role }, data);
+      return { ok: true as const };
+    }),
+  );
+
+// --- Carnet du restaurant ---------------------------------------------------------
+
+const supplierFields = {
+  name: z.string().max(120).optional(),
+  contact: z.string().max(120).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().max(160).optional(),
+  city: z.string().max(80).optional(),
+  notes: z.string().max(1000).optional(),
+  favorite: z.boolean().optional(),
+  suspended: z.boolean().optional(),
+};
+
+const supplierActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("create"),
+    ...supplierFields,
+    name: z.string().max(120),
+    farmerId: id.nullable().optional(),
+  }),
+  z.object({ action: z.literal("update"), id, ...supplierFields }),
+  z.object({ action: z.literal("remove"), id }),
+]);
+
+export const supplierActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof supplierActionSchema>) => parse(supplierActionSchema, input))
+  .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
+    withMarket(["restaurant"], async (db, me) => {
+      if (data.action === "create") {
+        const { action: _a, ...input } = data;
+        return { ok: true as const, id: await createSupplier(db, me.id, input) };
+      }
+      if (data.action === "update") {
+        const { action: _a, id: supplierId, ...patch } = data;
+        await updateSupplier(db, me.id, supplierId, patch);
+      } else {
+        await removeSupplier(db, me.id, data.id);
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const favoriteProductFn = createServerFn({ method: "POST" })
+  .validator((input: { productId?: string; clear?: boolean }) =>
+    parse(z.object({ productId: id.optional(), clear: z.boolean().optional() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      if (data.clear) await clearFavoriteProducts(db, me.id);
+      else if (data.productId) await toggleFavoriteProduct(db, me.id, data.productId);
+      return { ok: true as const };
+    }),
+  );
+
+const budgetSchema = z.object({
+  monthly: z.number().finite().min(0),
+  alertThreshold: z.number().finite(),
+  categories: z
+    .array(
+      z.object({
+        key: z.string().max(40),
+        label: z.string().max(60),
+        allocated: z.number().finite().min(0),
+      }),
+    )
+    .max(20),
+});
+
+export const saveBudgetFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof budgetSchema>) => parse(budgetSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await saveBudget(db, me.id, data);
       return { ok: true as const };
     }),
   );

@@ -19,6 +19,7 @@ import {
   products,
   refunds,
   restaurants,
+  restaurantSuppliers,
   stockMovements,
   users,
   vehicles,
@@ -512,6 +513,43 @@ export async function placeOrder(
           )
       : [];
     const farmerById = new Map(farmerStatus.map((f) => [f.id, f]));
+    // Carnet du restaurant : un fournisseur qu'il a suspendu ne reçoit plus
+    // de commande ; les autres y entrent à la première commande.
+    const book = farmerStatus.length
+      ? await tx
+          .select({
+            farmerId: restaurantSuppliers.farmerId,
+            suspended: restaurantSuppliers.suspended,
+          })
+          .from(restaurantSuppliers)
+          .where(
+            and(
+              eq(restaurantSuppliers.restaurantId, restaurantId),
+              inArray(
+                restaurantSuppliers.farmerId,
+                farmerStatus.map((f) => f.id),
+              ),
+            ),
+          )
+      : [];
+    for (const f of farmerStatus) {
+      if (book.some((b) => b.farmerId === f.id && b.suspended)) {
+        fail(`Vous avez suspendu ${f.name} dans vos fournisseurs : réactivez-le pour commander.`);
+      }
+    }
+    const newSuppliers = farmerStatus.filter((f) => !book.some((b) => b.farmerId === f.id));
+    if (newSuppliers.length) {
+      await tx
+        .insert(restaurantSuppliers)
+        .values(
+          newSuppliers.map((f) => ({
+            restaurantId,
+            farmerId: f.id,
+            name: f.name,
+          })),
+        )
+        .onConflictDoNothing();
+    }
     const shortages: string[] = [];
     for (const id of ids) {
       const p = rows.find((r) => r.id === id);

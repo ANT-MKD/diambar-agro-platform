@@ -13,6 +13,7 @@ import { readIncidents } from "./incidents-db.server";
 import { MODERATION_STAFF, readModeration } from "./moderation-db.server";
 import { staffRoleOf } from "./market-common.server";
 import { readDriverFleet, readFleetQueue } from "./fleet-db.server";
+import { readRestaurantBook } from "./restaurant-book-db.server";
 import {
   categories,
   checkouts,
@@ -1259,6 +1260,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     returns: await readReturns(db, me),
     incidents: await readIncidents(db, me),
     fleet: me.role === "driver" ? await readDriverFleet(db, me.id) : null,
+    book: me.role === "restaurant" ? await readRestaurantBook(db, me.id) : null,
     fleetQueue:
       me.role === "admin" ? await readFleetQueue(db, me.id) : { renewals: [], changeRequests: [] },
     moderation:

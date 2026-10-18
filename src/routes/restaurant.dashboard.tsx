@@ -32,6 +32,8 @@ import {
   Legend,
 } from "recharts";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
+import { getBudget } from "@/data/budget";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import {
@@ -241,13 +243,18 @@ function Dashboard() {
 
   const budgetPct = Math.min(100, Math.round((monthSpend / Math.max(1, budget.monthly)) * 100));
 
-  const saveBudget = () => {
+  const saveBudget = async () => {
     const value = Number(budgetInput);
     if (!Number.isFinite(value) || value <= 0) {
       toast.error("Montant invalide");
       return;
     }
     restaurantBudgetActions.setMonthly(value);
+    const res = await market.saveBudget(getBudget());
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Budget mis à jour");
     setBudgetOpen(false);
   };

@@ -350,6 +350,8 @@ export const restaurants = pgTable(
     capacity: integer("capacity"),
     description: text("description"),
     contactName: text("contact_name"),
+    /** Budget d'achat : { monthly, alertThreshold, categories: [{ key, label, allocated }] }. */
+    budget: jsonb("budget"),
     updatedAt: updatedAt(),
   },
   (t) => [
@@ -1945,5 +1947,57 @@ export const docRenewalFiles = pgTable(
   (t) => [
     index("doc_renewal_files_renewal_idx").on(t.renewalId),
     index("doc_renewal_files_file_idx").on(t.fileId),
+  ],
+);
+
+// --- Carnet du restaurant ----------------------------------------------------------------
+// Fournisseurs du restaurant (producteurs de la plateforme, rejoints
+// automatiquement à la première commande, ou fournisseurs extérieurs saisis à
+// la main), favoris, suspension ; produits mis en favoris.
+
+export const restaurantSuppliers = pgTable(
+  "restaurant_suppliers",
+  {
+    id: id(),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => users.id),
+    /** Producteur de la plateforme (vide pour un fournisseur extérieur). */
+    farmerId: uuid("farmer_id").references(() => users.id),
+    name: text("name").notNull(),
+    contact: text("contact").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    email: text("email").notNull().default(""),
+    city: text("city").notNull().default(""),
+    notes: text("notes"),
+    favorite: boolean("favorite").notNull().default(false),
+    /** Suspendu par le restaurant : plus de commande chez lui. */
+    suspended: boolean("suspended").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("restaurant_suppliers_restaurant_idx").on(t.restaurantId),
+    index("restaurant_suppliers_farmer_idx").on(t.farmerId),
+    uniqueIndex("restaurant_suppliers_farmer_key")
+      .on(t.restaurantId, t.farmerId)
+      .where(sql`${t.farmerId} is not null`),
+  ],
+);
+
+export const productFavorites = pgTable(
+  "product_favorites",
+  {
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => users.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.restaurantId, t.productId] }),
+    index("product_favorites_product_idx").on(t.productId),
   ],
 );

@@ -197,6 +197,12 @@ export type MarketSnapshot = {
   moderation: ModerationItem[];
   /** Livreur : véhicule, problèmes, entretiens, documents, disponibilité. */
   fleet: DriverFleetView | null;
+  /** Restaurant : fournisseurs, produits favoris et budget d'achat. */
+  book: {
+    suppliers: import("@/data/mocks").Supplier[];
+    favorites: string[];
+    budget: import("@/data/budget").BudgetState | null;
+  } | null;
   /** Équipe : documents et changements de véhicule à vérifier. */
   fleetQueue: { renewals: DocRenewalView[]; changeRequests: ChangeRequestView[] };
   products: Product[];

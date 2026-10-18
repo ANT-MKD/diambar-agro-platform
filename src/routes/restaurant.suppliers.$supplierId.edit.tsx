@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { SupplierForm } from "@/components/restaurant/supplier-form";
-import { useSupplier, supplierActions } from "@/data/store";
+import { useSupplier } from "@/data/store";
 import { restaurants } from "@/data/mocks";
 import { useMyId } from "@/data/market-mode";
 
@@ -44,8 +45,12 @@ function EditSupplier() {
       <SupplierForm
         initial={s}
         submitLabel="Enregistrer les modifications"
-        onSubmit={(v) => {
-          supplierActions.update(supplierId, v);
+        onSubmit={async (v) => {
+          const res = await market.updateSupplier(supplierId, v);
+          if (!res.ok) {
+            toast.error(res.message);
+            return;
+          }
           toast.success("Fournisseur mis à jour");
           nav({ to: "/restaurant/suppliers/$supplierId", params: { supplierId } });
         }}

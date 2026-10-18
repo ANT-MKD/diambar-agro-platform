@@ -107,7 +107,7 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
-import { resetBudget } from "./budget";
+import { replaceBudget, resetBudget } from "./budget";
 import { replaceCategories } from "./catalog";
 import { replaceUnits } from "./units";
 import { getRules, replaceRules } from "./rules";
@@ -1315,6 +1315,13 @@ export const driverOnlineActions = {
   toggle: () => driverOnlineStore.set((v) => !v),
   set: (v: boolean) => driverOnlineStore.set(v),
 };
+
+/** Mode base (restaurant) : fournisseurs, produits favoris et budget lus sur le serveur. */
+export function replaceRestaurantBook(book: NonNullable<MarketSnapshot["book"]>) {
+  suppliersStore.replace(book.suppliers);
+  wishlistStore.replace(book.favorites);
+  replaceBudget(book.budget);
+}
 
 /** Préférences de travail par défaut d'un vrai compte (avant tout réglage). */
 const BASE_WORK_PREFS = {

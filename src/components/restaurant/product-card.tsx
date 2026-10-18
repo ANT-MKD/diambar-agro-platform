@@ -1,12 +1,12 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Plus, Star, MapPin, Heart } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { type Product, farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import {
   cartActions,
   useWishlist,
-  wishlistActions,
   useSuppliers,
   useProducts,
   useAllProductReviews,
@@ -65,8 +65,10 @@ export function RestaurantProductCard({ product }: { product: Product }) {
         aria-label={liked ? "Retirer des favoris" : "Ajouter aux favoris"}
         onClick={(e) => {
           e.preventDefault();
-          wishlistActions.toggle(product.id);
-          toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+          void market.toggleFavorite(product.id).then((res) => {
+            if (res.ok) toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+            else toast.error(res.message);
+          });
         }}
         className="absolute top-2 right-2 h-8 w-8 grid place-items-center rounded-full bg-background/85 backdrop-blur hover:bg-background transition z-10"
       >

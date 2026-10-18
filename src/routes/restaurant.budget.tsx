@@ -49,7 +49,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
-import { useBudget, budgetActions } from "@/data/budget";
+import { useBudget, budgetActions, getBudget } from "@/data/budget";
+import { market } from "@/data/market-remote";
 import {
   useRestaurantOrders,
   useProducts,
@@ -360,9 +361,17 @@ function BudgetPage() {
     "Budget actuel (référence)": budget.monthly,
   }));
 
-  const saveBudget = () => {
+  // L'écran change tout de suite ; avec la base, le budget est enregistré.
+  const persist = async () => {
+    const res = await market.saveBudget(getBudget());
+    if (!res.ok) toast.error(res.message);
+    return res.ok;
+  };
+
+  const saveBudget = async () => {
     budgetActions.setMonthly(Number(draftMonthly) || 0);
     budgetActions.setThreshold(Number(draftThreshold) || 80);
+    if (!(await persist())) return;
     toast.success("Budget mis à jour");
     setManageOpen(false);
   };
@@ -967,8 +976,11 @@ function BudgetPage() {
                   <Input
                     type="number"
                     defaultValue={c.allocated}
-                    onBlur={(e) => {
-                      budgetActions.setCategory(c.key, Number(e.target.value) || 0);
+                    onBlur={async (e) => {
+                      const value = Number(e.target.value) || 0;
+                      if (value === c.allocated) return;
+                      budgetActions.setCategory(c.key, value);
+                      if (!(await persist())) return;
                       toast.success(`Enveloppe « ${c.label} » mise à jour`);
                     }}
                     className="h-8 max-w-36 text-xs"
@@ -985,10 +997,11 @@ function BudgetPage() {
             <Button
               variant="ghost"
               className="w-full"
-              onClick={() => {
+              onClick={async () => {
                 budgetActions.reset();
                 setDraftMonthly("1200000");
                 setDraftThreshold("80");
+                if (!(await persist())) return;
                 toast.success("Budget réinitialisé");
               }}
             >

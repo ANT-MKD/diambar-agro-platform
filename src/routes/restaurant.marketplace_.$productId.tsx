@@ -24,7 +24,6 @@ import {
   productReviewActions,
   cartActions,
   useWishlist,
-  wishlistActions,
   useSuppliers,
   conversationActions,
 } from "@/data/store";
@@ -170,8 +169,10 @@ function ProductDetail() {
           <button
             aria-label={liked ? "Retirer des favoris" : "Ajouter aux favoris"}
             onClick={() => {
-              wishlistActions.toggle(product.id);
-              toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+              void market.toggleFavorite(product.id).then((res) => {
+                if (res.ok) toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+                else toast.error(res.message);
+              });
             }}
             className="absolute top-3 right-3 h-10 w-10 grid place-items-center rounded-full bg-background/85 backdrop-blur hover:bg-background transition"
           >

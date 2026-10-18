@@ -19,13 +19,13 @@ import {
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { farmers, products, restaurants } from "@/data/mocks";
 import {
   useSuppliers,
   useRestaurantOrders,
   useAllProductReviews,
-  supplierActions,
   supplierOrderStats,
 } from "@/data/store";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
@@ -53,15 +53,6 @@ function qualityScore(
           ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
           : "bg-rose-500/10 text-rose-500";
   return { score: base, label, tone };
-}
-
-function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 export const Route = createFileRoute("/restaurant/suppliers/")({
@@ -179,20 +170,25 @@ function SuppliersList() {
       .slice(0, 3);
   }, [suppliers, orders, reviews, businessReviews]);
 
-  const addToCarnet = (farmerId: string) => {
+  const addToCarnet = async (farmerId: string) => {
     if (!myRestaurant) return;
     const f = farmers.find((x) => x.id === farmerId);
     if (!f) return;
-    supplierActions.create({
+    // Pas d'adresse e-mail inventée : celle du compte du producteur est reprise.
+    const res = await market.createSupplier({
       restaurantId: myRestaurant.id,
       farmerId: f.id,
       name: f.farm,
       contact: f.name,
       phone: f.phone,
-      email: `contact@${slugify(f.farm)}.sn`,
+      email: "",
       city: f.city,
       favorite: false,
     });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(`${f.farm} ajouté à votre carnet`);
   };
 
@@ -478,8 +474,14 @@ function SuppliersList() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          supplierActions.toggleSuspend(s.id);
+                        onClick={async () => {
+                          const res = await market.updateSupplier(s.id, {
+                            suspended: !s.suspended,
+                          });
+                          if (!res.ok) {
+                            toast.error(res.message);
+                            return;
+                          }
                           toast.success(
                             s.suspended ? "Fournisseur réactivé" : "Fournisseur suspendu",
                           );
