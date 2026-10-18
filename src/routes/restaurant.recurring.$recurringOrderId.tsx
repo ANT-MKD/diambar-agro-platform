@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { market } from "@/data/market-remote";
+import { nextDeliveryLabel, upcomingDeliveries } from "@/lib/recurring-label";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -52,12 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import {
-  useRecurringOrder,
-  useRestaurantOrders,
-  useProducts,
-  recurringOrderActions,
-} from "@/data/store";
+import { useRecurringOrder, useRestaurantOrders, useProducts } from "@/data/store";
 import {
   farmers,
   type PriceRuleAction,
@@ -82,6 +79,12 @@ const PAUSE_REASONS = [
   "Autre",
 ];
 
+/** Action sur une récurrence : message de réussite, ou l'erreur du serveur. */
+async function act(p: Promise<{ ok: true } | { ok: false; message: string }>, success: string) {
+  const res = await p;
+  if (res.ok) toast.success(success);
+  else toast.error(res.message);
+}
 function RecurringDetail() {
   const { recurringOrderId } = Route.useParams();
   const navigate = useNavigate();
@@ -113,7 +116,11 @@ function RecurringDetail() {
   const lastOrder = generatedOrders[0] ?? null;
 
   const projectedOccurrences = useMemo(() => {
-    if (!ro || ro.status !== "active" || !ro.nextRunAt) return [];
+    if (!ro || ro.status !== "active") return [];
+    // Mode base : les prochaines livraisons, calculées comme sur le serveur.
+    const deliveries = upcomingDeliveries(ro, 6);
+    if (deliveries) return deliveries;
+    if (!ro.nextRunAt) return [];
     const out: Date[] = [];
     let cursor = new Date(ro.nextRunAt);
     for (let i = 0; i < 6; i++) {
@@ -160,19 +167,20 @@ function RecurringDetail() {
     setDraftItems(ro.items.map((i) => ({ productId: i.productId, qty: i.qty })));
     setEditingItems(true);
   };
-  const saveItems = () => {
-    recurringOrderActions.update(ro.id, {
+  const saveItems = async () => {
+    const res = await market.updateRecurring(ro.id, {
       items: draftItems.map((i) => ({
         productId: i.productId,
         qty: i.qty,
         referencePrice: priceOf(i.productId),
       })),
     });
+    if (!res.ok) return void toast.error(res.message);
     toast.success("Produits mis à jour");
     setEditingItems(false);
   };
 
-  const nextOccDay = ro.nextRunAt?.slice(0, 10);
+  const nextOccDay = ro.nextDeliveryOn ?? ro.nextRunAt?.slice(0, 10);
   const existingOverride = ro.exceptions.find(
     (e) => e.type === "override" && e.occurrenceDate === nextOccDay,
   );
@@ -182,8 +190,8 @@ function RecurringDetail() {
     );
     setOverrideOpen(true);
   };
-  const saveOverride = () => {
-    recurringOrderActions.overrideNextOccurrence(
+  const saveOverride = async () => {
+    const res = await market.overrideNextRecurring(
       ro.id,
       overrideItems.map((i) => ({
         productId: i.productId,
@@ -191,7 +199,8 @@ function RecurringDetail() {
         referencePrice: priceOf(i.productId),
       })),
     );
-    toast.success("Cette occurrence a été modifiée exceptionnellement");
+    if (!res.ok) return void toast.error(res.message);
+    toast.success("Cette livraison a été modifiée exceptionnellement");
     setOverrideOpen(false);
   };
 
@@ -234,10 +243,9 @@ function RecurringDetail() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => {
-                  recurringOrderActions.resume(ro.id);
-                  toast.success("Récurrence réactivée");
-                }}
+                onClick={() =>
+                  void act(market.recurringAction(ro.id, "resume"), "Récurrence réactivée")
+                }
               >
                 <Play className="h-4 w-4" />
                 Réactiver
@@ -251,26 +259,9 @@ function RecurringDetail() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => {
-                    recurringOrderActions.create({
-                      name: `${ro.name} (copie)`,
-                      farmerId: ro.farmerId,
-                      items: ro.items,
-                      frequency: ro.frequency,
-                      intervalDays: ro.intervalDays,
-                      daysOfWeek: ro.daysOfWeek,
-                      createTime: ro.createTime,
-                      deliverySlot: ro.deliverySlot,
-                      firstRunAt: new Date().toISOString(),
-                      end: ro.end,
-                      rules: ro.rules,
-                      deliveryAddress: ro.deliveryAddress,
-                      deliveryMode: ro.deliveryMode,
-                      instructions: ro.instructions,
-                      paymentMethod: ro.paymentMethod,
-                    });
-                    toast.success("Commande récurrente dupliquée");
-                  }}
+                  onClick={() =>
+                    void act(market.duplicateRecurring(ro), "Commande récurrente dupliquée")
+                  }
                 >
                   <Copy className="h-3.5 w-3.5 mr-2" />
                   Dupliquer
@@ -289,10 +280,9 @@ function RecurringDetail() {
                   description="Les commandes déjà générées ne sont pas supprimées et restent dans votre historique."
                   destructive
                   confirmLabel="Annuler la récurrence"
-                  onConfirm={() => {
-                    recurringOrderActions.cancel(ro.id, "full");
-                    toast.success("Commande récurrente annulée");
-                  }}
+                  onConfirm={() =>
+                    void act(market.recurringAction(ro.id, "cancel"), "Commande récurrente arrêtée")
+                  }
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -313,15 +303,9 @@ function RecurringDetail() {
           </b>
         </span>
         <span className="text-muted-foreground">
-          Prochaine exécution :{" "}
-          <b className="text-foreground">
-            {ro.nextRunAt
-              ? new Date(ro.nextRunAt).toLocaleString("fr-FR", {
-                  dateStyle: "long",
-                  timeStyle: "short",
-                })
-              : "—"}
-          </b>
+          {ro.nextDeliveryOn ? "Prochaine livraison" : "Prochaine exécution"} :{" "}
+          <b className="text-foreground">{nextDeliveryLabel(ro)}</b>
+          {ro.nextDeliveryOn && <> (commande passée la veille à {ro.createTime})</>}
         </span>
       </div>
 
@@ -337,10 +321,9 @@ function RecurringDetail() {
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              onClick={() => {
-                recurringOrderActions.resolvePendingAction(ro.id, "confirm");
-                toast.success("Alerte confirmée, commande traitée");
-              }}
+              onClick={() =>
+                void act(market.recurringAction(ro.id, "confirm"), "Décision enregistrée")
+              }
               className="gap-1.5"
             >
               <Check className="h-3.5 w-3.5" />
@@ -349,10 +332,9 @@ function RecurringDetail() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                recurringOrderActions.resolvePendingAction(ro.id, "cancel_occurrence");
-                toast.success("Occurrence annulée");
-              }}
+              onClick={() =>
+                void act(market.recurringAction(ro.id, "cancel_occurrence"), "Livraison annulée")
+              }
               className="gap-1.5"
             >
               <X className="h-3.5 w-3.5" />
@@ -365,23 +347,32 @@ function RecurringDetail() {
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass rounded-2xl p-4">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
-            <Calendar className="h-3.5 w-3.5" /> Prochaine commande
+            <Calendar className="h-3.5 w-3.5" />{" "}
+            {ro.nextDeliveryOn ? "Prochaine livraison" : "Prochaine commande"}
           </div>
           <div className="font-bold font-display">
-            {ro.nextRunAt
-              ? new Date(ro.nextRunAt).toLocaleDateString("fr-FR", {
+            {ro.nextDeliveryOn
+              ? new Date(`${ro.nextDeliveryOn}T00:00:00Z`).toLocaleDateString("fr-FR", {
                   day: "numeric",
                   month: "short",
+                  timeZone: "UTC",
                 })
-              : "—"}
+              : ro.nextRunAt
+                ? new Date(ro.nextRunAt).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : "—"}
           </div>
           <div className="text-xs text-muted-foreground">
-            {ro.nextRunAt
-              ? new Date(ro.nextRunAt).toLocaleTimeString("fr-FR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : ""}
+            {ro.nextDeliveryOn
+              ? ro.deliverySlot
+              : ro.nextRunAt
+                ? new Date(ro.nextRunAt).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : ""}
           </div>
         </div>
         <div className="glass rounded-2xl p-4">
@@ -785,12 +776,12 @@ function RecurringDetail() {
       </Tabs>
 
       {/* Actions ponctuelles sur la prochaine occurrence */}
-      {ro.status === "active" && ro.nextRunAt && (
+      {ro.status === "active" && nextOccDay && (
         <div className="glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">
             {existingOverride
-              ? "Cette prochaine commande a été modifiée exceptionnellement."
-              : `Une exception pour la prochaine commande du ${new Date(ro.nextRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })} ?`}
+              ? "Cette prochaine livraison a été modifiée exceptionnellement."
+              : `Une exception pour la livraison du ${new Date(`${nextOccDay}T00:00:00Z`).toLocaleDateString("fr-FR", { dateStyle: "long", timeZone: "UTC" })} ?`}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={openOverride}>
@@ -801,10 +792,12 @@ function RecurringDetail() {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={() => {
-                recurringOrderActions.skipNextOccurrence(ro.id, "Fermeture ponctuelle");
-                toast.success("Prochaine commande ignorée");
-              }}
+              onClick={() =>
+                void act(
+                  market.recurringAction(ro.id, "skip_next", { reason: "Fermeture ponctuelle" }),
+                  "Prochaine livraison sautée",
+                )
+              }
             >
               <SkipForward className="h-3.5 w-3.5" />
               Sauter la prochaine commande
@@ -849,12 +842,12 @@ function RecurringDetail() {
               Annuler
             </Button>
             <Button
-              onClick={() => {
-                recurringOrderActions.pause(
-                  ro.id,
-                  pauseReason,
-                  pauseUntil ? new Date(pauseUntil).toISOString() : undefined,
-                );
+              onClick={async () => {
+                const res = await market.recurringAction(ro.id, "pause", {
+                  reason: pauseReason,
+                  pausedUntil: pauseUntil || undefined,
+                });
+                if (!res.ok) return void toast.error(res.message);
                 toast.success("Récurrence mise en pause");
                 setPauseOpen(false);
               }}
@@ -872,8 +865,8 @@ function RecurringDetail() {
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
             Ces quantités ne s'appliquent qu'à la prochaine commande
-            {ro.nextRunAt
-              ? ` du ${new Date(ro.nextRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })}`
+            {nextOccDay
+              ? ` du ${new Date(`${nextOccDay}T00:00:00Z`).toLocaleDateString("fr-FR", { dateStyle: "long", timeZone: "UTC" })}`
               : ""}
             . Les commandes suivantes garderont les quantités habituelles.
           </p>
@@ -933,8 +926,9 @@ function RulesPanel({ ro }: { ro: NonNullable<ReturnType<typeof useRecurringOrde
   const [editing, setEditing] = useState(false);
   const dirty = JSON.stringify(rules) !== JSON.stringify(ro.rules);
 
-  const save = () => {
-    recurringOrderActions.update(ro.id, { rules });
+  const save = async () => {
+    const res = await market.updateRecurring(ro.id, { rules });
+    if (!res.ok) return void toast.error(res.message);
     toast.success("Règles mises à jour");
     setEditing(false);
   };

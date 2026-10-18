@@ -555,7 +555,7 @@ function AdminAnalytics() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <img
-                        src={r.farmer.avatar}
+                        src={r.farmer.avatar || undefined}
                         alt=""
                         className="h-7 w-7 rounded-full object-cover"
                       />

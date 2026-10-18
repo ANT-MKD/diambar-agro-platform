@@ -13,6 +13,7 @@
 // le verrouillage RLS est dans une migration écrite à la main.
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -148,6 +149,23 @@ export const refundStatus = pgEnum("refund_status", [
   "failed",
 ]);
 export const auditStatus = pgEnum("audit_status", ["success", "failed", "blocked", "cancelled"]);
+export const recurringStatus = pgEnum("recurring_status", ["active", "paused", "ended", "problem"]);
+export const disputeStatus = pgEnum("dispute_status", [
+  "open",
+  "investigating",
+  "awaiting_response",
+  "resolved",
+  "rejected",
+]);
+/** Partie d'un litige ; « platform » : Diambar elle-même. */
+export const disputeParty = pgEnum("dispute_party", ["restaurant", "farmer", "driver", "platform"]);
+export const disputePriority = pgEnum("dispute_priority", ["low", "medium", "high"]);
+export const disputeOutcome = pgEnum("dispute_outcome", [
+  "refund",
+  "partial",
+  "goodwill",
+  "rejected",
+]);
 
 // --- Référentiels --------------------------------------------------------------
 
@@ -498,6 +516,7 @@ export const missionReferenceSeq = pgSequence("mission_reference_seq", { startWi
 export const checkoutReferenceSeq = pgSequence("checkout_reference_seq", { startWith: 1001 });
 export const refundReferenceSeq = pgSequence("refund_reference_seq", { startWith: 501 });
 export const payoutReferenceSeq = pgSequence("payout_reference_seq", { startWith: 201 });
+export const disputeReferenceSeq = pgSequence("dispute_reference_seq", { startWith: 1 });
 
 /** Le panier validé par le restaurant : paiement et facture Diambar. */
 export const checkouts = pgTable(
@@ -582,6 +601,10 @@ export const orders = pgTable(
     /** Montant de cette commande couvert par le paiement déclaré du panier
      * (Wave, Orange Money) : base des remboursements si elle diminue ensuite. */
     paymentShare: integer("payment_share"),
+    /** Commande passée automatiquement par une commande récurrente. */
+    recurringOrderId: uuid("recurring_order_id").references((): AnyPgColumn => recurringOrders.id, {
+      onDelete: "set null",
+    }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -592,6 +615,7 @@ export const orders = pgTable(
     index("orders_restaurant_idx").on(t.restaurantId, t.createdAt),
     index("orders_farmer_idx").on(t.farmerId, t.createdAt),
     index("orders_status_idx").on(t.status),
+    index("orders_recurring_idx").on(t.recurringOrderId),
     check("orders_subtotal_positive", sql`${t.subtotal} >= 0`),
     check("orders_fees_positive", sql`${t.deliveryFee} >= 0 and ${t.discount} >= 0`),
   ],
@@ -983,5 +1007,190 @@ export const auditLogs = pgTable(
     index("audit_logs_actor_idx").on(t.actorId, t.at),
     index("audit_logs_module_idx").on(t.module, t.at),
     index("audit_logs_target_idx").on(t.targetType, t.targetId),
+  ],
+);
+
+// --- Commandes récurrentes -----------------------------------------------------
+
+/** Commande qui se répète : le serveur passe chaque commande automatiquement
+ * la veille de la livraison, à l'heure choisie, avec les règles du restaurant
+ * (prix, stock, budget, jour non ouvré). */
+export const recurringOrders = pgTable(
+  "recurring_orders",
+  {
+    id: id(),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => restaurants.userId),
+    farmerId: uuid("farmer_id")
+      .notNull()
+      .references(() => farmers.userId),
+    name: text("name").notNull(),
+    /** [{ productId, qty, referencePrice }] */
+    items: jsonb("items").notNull(),
+    /** weekly | biweekly | monthly | every_n_days | custom */
+    frequency: text("frequency").notNull(),
+    intervalDays: integer("interval_days"),
+    /** Jours de livraison (0 = dimanche). */
+    daysOfWeek: jsonb("days_of_week").notNull().default([]),
+    /** Heure de livraison souhaitée (« 09:30 »). */
+    deliveryTime: text("delivery_time").notNull(),
+    /** Heure à laquelle la commande est passée, la veille de la livraison. */
+    orderTime: text("order_time").notNull(),
+    firstDeliveryOn: date("first_delivery_on").notNull(),
+    /** { type: never } | { type: on_date, date } | { type: after_count, count } */
+    endRule: jsonb("end_rule").notNull(),
+    rules: jsonb("rules").notNull(),
+    deliveryAddress: text("delivery_address").notNull(),
+    paymentMethod: paymentMethod("payment_method").notNull(),
+    shortagePreference: shortagePreference("shortage_preference").notNull().default("partial"),
+    instructions: text("instructions"),
+    status: recurringStatus("status").notNull().default("active"),
+    pauseReason: text("pause_reason"),
+    pausedUntil: timestamp("paused_until", { withTimezone: true }),
+    /** Prochaine livraison prévue et moment où la commande sera passée. */
+    nextDeliveryOn: date("next_delivery_on"),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    generatedCount: integer("generated_count").notNull().default(0),
+    /** [{ id, type: skip | override, occurrenceDate, items?, reason?, createdAt }] */
+    exceptions: jsonb("exceptions").notNull().default([]),
+    /** Règle déclenchée qui attend la décision du restaurant. */
+    pendingAction: jsonb("pending_action"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("recurring_orders_restaurant_idx").on(t.restaurantId),
+    index("recurring_orders_farmer_idx").on(t.farmerId),
+    index("recurring_orders_due_idx").on(t.status, t.nextRunAt),
+    check("recurring_orders_generated_positive", sql`${t.generatedCount} >= 0`),
+  ],
+);
+
+export const recurringOrderEvents = pgTable(
+  "recurring_order_events",
+  {
+    id: id(),
+    recurringOrderId: uuid("recurring_order_id")
+      .notNull()
+      .references(() => recurringOrders.id, { onDelete: "cascade" }),
+    /** generated | skipped | rule_triggered | shifted | paused | resumed | cancelled | edited */
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    orderId: uuid("order_id").references(() => orders.id),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("recurring_order_events_recurring_idx").on(t.recurringOrderId, t.at),
+    index("recurring_order_events_order_idx").on(t.orderId),
+  ],
+);
+
+// --- Litiges ---------------------------------------------------------------------
+
+export const disputes = pgTable(
+  "disputes",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    orderId: uuid("order_id").references(() => orders.id),
+    missionId: uuid("mission_id").references(() => missions.id),
+    category: text("category").notNull(),
+    subcategory: text("subcategory").notNull(),
+    description: text("description").notNull(),
+    openedBy: uuid("opened_by")
+      .notNull()
+      .references(() => users.id),
+    openedByRole: disputeParty("opened_by_role").notNull(),
+    againstRole: disputeParty("against_role").notNull(),
+    againstUserId: uuid("against_user_id").references(() => users.id),
+    claimedAmount: integer("claimed_amount").notNull().default(0),
+    status: disputeStatus("status").notNull().default("open"),
+    priority: disputePriority("priority").notNull().default("medium"),
+    slaDueAt: timestamp("sla_due_at", { withTimezone: true }).notNull(),
+    escalations: integer("escalations").notNull().default(0),
+    assigneeId: uuid("assignee_id").references(() => users.id),
+    outcome: disputeOutcome("outcome"),
+    grantedAmount: integer("granted_amount"),
+    liableParty: disputeParty("liable_party"),
+    decisionReason: text("decision_reason"),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** Remboursement créé par la décision (restaurant indemnisé). */
+    refundId: uuid("refund_id").references(() => refunds.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("disputes_reference_key").on(t.reference),
+    index("disputes_order_idx").on(t.orderId),
+    index("disputes_mission_idx").on(t.missionId),
+    index("disputes_opened_by_idx").on(t.openedBy),
+    index("disputes_against_user_idx").on(t.againstUserId),
+    index("disputes_assignee_idx").on(t.assigneeId),
+    index("disputes_decided_by_idx").on(t.decidedBy),
+    index("disputes_refund_idx").on(t.refundId),
+    index("disputes_status_idx").on(t.status, t.createdAt),
+    check("disputes_claimed_positive", sql`${t.claimedAmount} >= 0`),
+    check("disputes_granted_positive", sql`${t.grantedAmount} is null or ${t.grantedAmount} >= 0`),
+  ],
+);
+
+export const disputeMessages = pgTable(
+  "dispute_messages",
+  {
+    id: id(),
+    disputeId: uuid("dispute_id")
+      .notNull()
+      .references(() => disputes.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id),
+    authorRole: disputeParty("author_role").notNull(),
+    text: text("text").notNull(),
+    /** Note interne de l'équipe, jamais montrée aux parties. */
+    internal: boolean("internal").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("dispute_messages_dispute_idx").on(t.disputeId, t.createdAt),
+    index("dispute_messages_author_idx").on(t.authorId),
+  ],
+);
+
+export const disputeEvents = pgTable(
+  "dispute_events",
+  {
+    id: id(),
+    disputeId: uuid("dispute_id")
+      .notNull()
+      .references(() => disputes.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id),
+    label: text("label").notNull(),
+    detail: text("detail"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("dispute_events_dispute_idx").on(t.disputeId, t.createdAt),
+    index("dispute_events_actor_idx").on(t.actorId),
+  ],
+);
+
+export const disputeAttachments = pgTable(
+  "dispute_attachments",
+  {
+    id: id(),
+    disputeId: uuid("dispute_id")
+      .notNull()
+      .references(() => disputes.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id").references(() => disputeMessages.id, { onDelete: "set null" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("dispute_attachments_dispute_idx").on(t.disputeId),
+    index("dispute_attachments_message_idx").on(t.messageId),
+    index("dispute_attachments_file_idx").on(t.fileId),
   ],
 );

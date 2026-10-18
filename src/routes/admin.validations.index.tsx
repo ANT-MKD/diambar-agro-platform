@@ -137,7 +137,11 @@ function AdminValidations() {
                   className="glass rounded-2xl p-5 hover:bg-accent/40 transition block"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={u?.avatar} alt="" className="h-11 w-11 rounded-full object-cover" />
+                    <img
+                      src={u?.avatar || undefined}
+                      alt=""
+                      className="h-11 w-11 rounded-full object-cover"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{u?.name}</div>
                       <div className="text-[11px] text-muted-foreground">

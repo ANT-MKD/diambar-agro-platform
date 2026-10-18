@@ -215,7 +215,11 @@ function AdminUserDetail() {
         <div className="space-y-6">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="glass rounded-2xl p-5 flex items-center gap-4">
-              <img src={user.avatar} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+              <img
+                src={user.avatar || undefined}
+                alt=""
+                className="h-16 w-16 rounded-2xl object-cover"
+              />
               <div className="space-y-1.5">
                 <RoleBadge role={user.role} />
                 <AdminBadge value={user.status} />

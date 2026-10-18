@@ -337,7 +337,11 @@ function AdminDeliveries() {
                       onClick={() => setSelectedId(m.id === selectedId ? null : m.id)}
                     >
                       <div className="flex items-center gap-2">
-                        <img src={d?.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        <img
+                          src={d?.avatar || undefined}
+                          alt=""
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
                         {d?.name ?? "—"}
                       </div>
                     </td>

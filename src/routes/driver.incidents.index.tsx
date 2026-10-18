@@ -49,7 +49,9 @@ import {
 import { useMissions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import type { DisputeAttachment } from "@/data/disputes";
-import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { callTeam, EMERGENCY_TEXT, sendSos } from "@/lib/sos";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { useBaseMode } from "@/data/demo-only";
 import { useMyId } from "@/data/market-mode";
 import { driverProfile } from "@/data/mocks";
 
@@ -147,15 +149,19 @@ function IncidentsPage() {
     toast.success(`Incident ${item.reference} signalé au support`);
   };
 
+  const { company } = usePublicInfo();
+  const base = useBaseMode();
   const sendUrgentTicket = async () => {
-    const id = await sendSos({
-      fromName: driverProfile.name,
-      missionRef: form.missionRef || undefined,
-    });
-    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
-      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
-    });
-    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
+    // Démonstration : l'alerte crée aussi un ticket (dans le navigateur).
+    if (!base)
+      await sendSos({ fromName: driverProfile.name, missionRef: form.missionRef || undefined });
+    if (callTeam(company.phone)) {
+      toast.success("Appel de l'équipe Diambar…", { description: EMERGENCY_TEXT });
+    } else {
+      toast.error("Aucun numéro d'astreinte n'est encore renseigné.", {
+        description: EMERGENCY_TEXT,
+      });
+    }
   };
 
   const filtered = useMemo(() => {

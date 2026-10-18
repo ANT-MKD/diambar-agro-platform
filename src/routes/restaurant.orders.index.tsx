@@ -207,7 +207,11 @@ function OrdersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 min-w-[160px]">
-                    <img src={f?.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+                    <img
+                      src={f?.avatar || undefined}
+                      alt=""
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
                     <div>
                       <div className="text-xs font-medium">{f?.farm}</div>
                       <div className="text-[10px] text-muted-foreground">{f?.city}</div>
@@ -321,7 +325,7 @@ function OrdersPage() {
                       >
                         <div className="flex items-center gap-2">
                           <img
-                            src={f?.avatar}
+                            src={f?.avatar || undefined}
                             alt=""
                             className="h-7 w-7 rounded-full object-cover"
                           />

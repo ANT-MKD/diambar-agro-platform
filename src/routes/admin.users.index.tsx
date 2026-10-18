@@ -213,7 +213,11 @@ function AdminUsers() {
                     params={{ userId: u.id }}
                     className="flex items-center gap-3"
                   >
-                    <img src={u.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                    <img
+                      src={u.avatar || undefined}
+                      alt=""
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
                     <div className="min-w-0">
                       <div className="font-medium truncate">{u.name}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>

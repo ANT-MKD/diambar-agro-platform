@@ -293,6 +293,8 @@ export type PlaceOrderInput = {
   paymentMethod: PaymentMethod;
   shortagePreference: "partial" | "cancel";
   instructions?: string;
+  /** Commande passée par une commande récurrente. */
+  recurringOrderId?: string;
 };
 
 export type PlacedOrder = {
@@ -583,6 +585,7 @@ export async function placeOrder(
           subtotal: sub,
           deliveryFee: quotes.get(farmerId)!.fee,
           distanceKm: quotes.get(farmerId)!.distanceKm,
+          recurringOrderId: input.recurringOrderId ?? null,
         })
         .returning();
       for (const l of lines) {

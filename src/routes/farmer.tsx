@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
   Package,
@@ -50,6 +52,7 @@ function FarmerLayout() {
   const MY_FARMER_ID = useMyId("farmer");
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const [open, setOpen] = useState(false);
   const notifs = useFarmerNotifications();
   const unread = notifs.filter((n) => !n.read).length;
@@ -60,7 +63,7 @@ function FarmerLayout() {
     .filter((c) => c.farmerId === MY_FARMER_ID)
     .reduce((s, c) => s + c.unread, 0);
 
-  const navSections = [
+  const navSectionsAll = [
     {
       label: "NAVIGATION",
       items: [
@@ -84,6 +87,11 @@ function FarmerLayout() {
       ],
     },
   ];
+  // Avec la base, les écrans encore en démonstration ne sont pas proposés.
+  const bottomItems = bottomNav.filter((it) => !hiddenInBase(it.to));
+  const navSections = navSectionsAll
+    .map((section) => ({ ...section, items: section.items.filter((it) => !hiddenInBase(it.to)) }))
+    .filter((section) => section.items.length > 0);
 
   if (maintenance.active) {
     return <MaintenanceScreen message={maintenance.message} />;
@@ -128,7 +136,11 @@ function FarmerLayout() {
         </nav>
         <div className="p-3 border-t border-border">
           <div className="glass rounded-xl p-3 flex items-center gap-3">
-            <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img
+              src={user.avatar || undefined}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover"
+            />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
               <div className="text-[11px] text-muted-foreground truncate">Agriculteur</div>
@@ -217,18 +229,21 @@ function FarmerLayout() {
             )}
           </Link>
           <img
-            src={user.avatar}
+            src={user.avatar || undefined}
             alt=""
             className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/40"
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
-          <Outlet />
+          <DemoOnlyOutlet home="/farmer/dashboard" />
         </main>
         <CommandPalette scope="farmer" />
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">
-          {bottomNav.map((it) => {
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid h-16"
+          style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}
+        >
+          {bottomItems.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (
               <Link

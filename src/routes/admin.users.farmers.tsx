@@ -91,7 +91,11 @@ function AdminFarmers() {
                     params={{ userId: user.id }}
                     className="flex items-center gap-3"
                   >
-                    <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                    <img
+                      src={user.avatar || undefined}
+                      alt=""
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
                     <div className="min-w-0">
                       <div className="font-medium truncate">{user.name}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{user.phone}</div>

@@ -467,6 +467,8 @@ export type Transaction = {
   // remboursement client dont le producteur est responsable — gross et
   // commission y sont négatifs (montants repris), voir store.ts.
   kind?: "delivery" | "refund_adjustment";
+  // Motif d'un ajustement de litige (« Litige LIT-0001 », « Indemnité Litige … »).
+  note?: string;
 };
 
 export const transactions: Transaction[] = [
@@ -1111,6 +1113,10 @@ export type RecurringOrderException = {
 };
 
 export type RecurringOrderEventKind =
+  | "created"
+  | "edited"
+  | "ended"
+  | "failed"
   | "generated"
   | "confirmed"
   | "delivered"
@@ -1156,6 +1162,8 @@ export type RecurringOrder = {
   pauseReason?: string;
   pausedUntil?: string;
   nextRunAt: string | null;
+  /** Mode base : prochaine livraison (AAAA-MM-JJ) ; la commande est passée la veille. */
+  nextDeliveryOn?: string;
   generatedOrderIds: string[];
   exceptions: RecurringOrderException[];
   history: RecurringOrderEvent[];

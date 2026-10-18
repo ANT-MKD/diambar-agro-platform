@@ -94,7 +94,7 @@ import {
 } from "./platform-settings";
 import type { MarketSnapshot } from "@/lib/market/types";
 import { markNotificationsReadFn } from "@/lib/market/functions";
-import { isMarketRemote } from "./market-mode";
+import { isMarketRemote, useMarketMode } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
   currentLoadKg,
@@ -367,12 +367,17 @@ export function useDriverConversations() {
 export function useDriverConversation(id: string) {
   return useDriverConversations().find((c) => c.id === id) ?? null;
 }
+/** Statut « en ligne » du livreur : un réglage du navigateur en
+ * démonstration. Avec la base, il n'est pas enregistré : le livreur est
+ * considéré disponible et voit toutes les courses ouvertes. */
 export function useDriverOnline() {
-  return useSyncExternalStore(
+  const { remote } = useMarketMode();
+  const online = useSyncExternalStore(
     driverOnlineStore.subscribe,
     driverOnlineStore.get,
     driverOnlineStore.get,
   );
+  return remote || online;
 }
 export function useDriverWallet() {
   return useSyncExternalStore(
@@ -2987,6 +2992,7 @@ export function replaceMarketData(s: MarketSnapshot) {
   applyAccount(s);
   replaceCategories(s.categories);
   replaceUnits(s.units ?? []);
+  recurringStore.replace(s.recurringOrders ?? []);
   replaceRules({
     cutoffHour: s.rules.cutoffHour,
     minOrderPerProducer: s.rules.minOrderPerProducer,

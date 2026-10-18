@@ -454,7 +454,11 @@ function Party({
   return (
     <div className="flex items-center gap-3">
       {avatar ? (
-        <img src={avatar} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0" />
+        <img
+          src={avatar || undefined}
+          alt=""
+          className="h-10 w-10 rounded-xl object-cover shrink-0"
+        />
       ) : (
         <div className="h-10 w-10 rounded-xl bg-muted grid place-items-center text-muted-foreground shrink-0">
           <Truck className="h-4 w-4" />

@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
   Store,
@@ -37,7 +39,7 @@ import { LogoutButton } from "@/components/common/logout-button";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { enterPortal, useMarketPolling } from "@/data/market-remote";
-import { useMyId } from "@/data/market-mode";
+import { isMarketRemote, useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant")({
   // Portail rendu dans le navigateur : ses données (celles du compte
@@ -61,6 +63,7 @@ function RestaurantLayout() {
   useMarketPolling();
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const cart = useCart();
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);
   const [open, setOpen] = useState(false);
@@ -71,18 +74,18 @@ function RestaurantLayout() {
   const unreadMessages = useConversations()
     .filter((c) => c.restaurantId === myRestaurant?.id)
     .reduce((s, c) => s + c.unread, 0);
-  // Il n'existe pas de vrai scheduler côté serveur dans cette démo : on
-  // vérifie donc les commandes récurrentes en retard à chaque ouverture du
-  // portail restaurant, et on les traite réellement à ce moment-là plutôt
-  // que d'attendre une exécution qui ne se déclencherait jamais seule.
+  // Démonstration (sans base) : les commandes récurrentes échues sont
+  // traitées dans le navigateur à l'ouverture du portail. Avec la base, c'est
+  // le serveur qui les génère.
   useEffect(() => {
+    if (isMarketRemote()) return;
     recurringOrderActions.tick();
     // Un onglet resté ouvert déclenche aussi les échéances (toutes les minutes).
     const id = setInterval(() => recurringOrderActions.tick(), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const navSections = [
+  const navSectionsAll = [
     {
       label: "NAVIGATION",
       items: [
@@ -119,6 +122,10 @@ function RestaurantLayout() {
       ],
     },
   ];
+  // Avec la base, les écrans encore en démonstration ne sont pas proposés.
+  const navSections = navSectionsAll
+    .map((section) => ({ ...section, items: section.items.filter((it) => !hiddenInBase(it.to)) }))
+    .filter((section) => section.items.length > 0);
 
   if (maintenance.active) {
     return <MaintenanceScreen message={maintenance.message} />;
@@ -163,7 +170,11 @@ function RestaurantLayout() {
         </nav>
         <div className="p-3 border-t border-border">
           <div className="glass rounded-xl p-3 flex items-center gap-3">
-            <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img
+              src={user.avatar || undefined}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover"
+            />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
               <div className="text-[11px] text-muted-foreground truncate">Restaurant</div>
@@ -256,13 +267,13 @@ function RestaurantLayout() {
             )}
           </Link>
           <img
-            src={user.avatar}
+            src={user.avatar || undefined}
             alt=""
             className="h-9 w-9 rounded-full object-cover ring-2 ring-amber-500/40"
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
-          <Outlet />
+          <DemoOnlyOutlet home="/restaurant/dashboard" />
         </main>
         <CommandPalette scope="restaurant" />
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">

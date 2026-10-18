@@ -433,7 +433,9 @@ function RevenuePage() {
                   <TableCell className="font-mono text-xs">
                     {t.orderRef}
                     {t.kind === "refund_adjustment" && (
-                      <span className="ml-1.5 text-muted-foreground">(ajustement)</span>
+                      <span className="ml-1.5 text-muted-foreground">
+                        ({t.note ?? "ajustement"})
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">{r?.name}</TableCell>

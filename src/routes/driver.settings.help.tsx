@@ -13,7 +13,9 @@ import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supportTicketActions } from "@/data/support";
-import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { callTeam, EMERGENCY_TEXT, sendSos } from "@/lib/sos";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
 import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings/help")({
@@ -29,7 +31,7 @@ const FAQ = [
   },
   {
     q: "Comment fonctionne mon portefeuille ?",
-    a: "Chaque mission livrée crédite votre portefeuille. Le virement vers votre moyen de paiement principal se fait selon la fréquence choisie dans Paiements (quotidien, hebdomadaire ou manuel).",
+    a: "Chaque course livrée crédite votre portefeuille. Depuis Portefeuille, demandez un retrait vers Wave ou Orange Money : l'équipe Diambar vous le verse.",
     to: "/driver/wallet",
   },
   {
@@ -56,18 +58,28 @@ const FAQ = [
 
 function HelpSettings() {
   const [q, setQ] = useState("");
+  const hiddenInBase = useHiddenInBase();
   const [supportOpen, setSupportOpen] = useState(false);
   const filtered = useMemo(
-    () => FAQ.filter((f) => f.q.toLowerCase().includes(q.toLowerCase())),
-    [q],
+    () =>
+      FAQ.filter((f) => f.q.toLowerCase().includes(q.toLowerCase())).filter(
+        (f) => !hiddenInBase(f.to),
+      ),
+    [q, hiddenInBase],
   );
 
+  const { company } = usePublicInfo();
+  const base = useBaseMode();
   const sendUrgent = async () => {
-    const id = await sendSos({ fromName: driverProfile.name });
-    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
-      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
-    });
-    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
+    // Démonstration : l'alerte crée aussi un ticket (dans le navigateur).
+    if (!base) await sendSos({ fromName: driverProfile.name });
+    if (callTeam(company.phone)) {
+      toast.success("Appel de l'équipe Diambar…", { description: EMERGENCY_TEXT });
+    } else {
+      toast.error("Aucun numéro d'astreinte n'est encore renseigné.", {
+        description: EMERGENCY_TEXT,
+      });
+    }
   };
 
   return (
@@ -123,10 +135,19 @@ function HelpSettings() {
             <Siren className="h-4 w-4" />
             Situation urgente
           </Button>
-          <Button className="gap-2" onClick={() => setSupportOpen(true)}>
-            <LifeBuoy className="h-4 w-4" />
-            Contacter le support
-          </Button>
+          {base ? (
+            <Button asChild className="gap-2">
+              <Link to="/contact">
+                <LifeBuoy className="h-4 w-4" />
+                Contacter l'équipe
+              </Link>
+            </Button>
+          ) : (
+            <Button className="gap-2" onClick={() => setSupportOpen(true)}>
+              <LifeBuoy className="h-4 w-4" />
+              Contacter le support
+            </Button>
+          )}
         </div>
       </div>
 

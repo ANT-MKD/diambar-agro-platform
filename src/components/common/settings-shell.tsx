@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useHiddenInBase } from "@/data/demo-only";
 import type { LucideIcon } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -23,8 +24,9 @@ export function SettingsShell({
   statusStrip?: ReactNode;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const groups = new Map<string | undefined, SettingsNavItem[]>();
-  for (const it of items) {
+  for (const it of items.filter((x) => !hiddenInBase(x.to))) {
     const arr = groups.get(it.group) ?? [];
     arr.push(it);
     groups.set(it.group, arr);

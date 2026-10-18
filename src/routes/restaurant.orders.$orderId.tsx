@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import {
   ArrowLeft,
   Phone,
@@ -80,7 +81,9 @@ function OrderDetail() {
   // affichait toujours "Oumar Ba" (drivers[0]) quelle que soit la commande.
   const mission = missions.find((m) => order && m.orderRef === order.reference);
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
-  const showMap = order?.status === "delivering" && !!driver;
+  // Avec la base, pas de carte : la position affichée serait simulée.
+  const base = useBaseMode();
+  const showMap = !base && order?.status === "delivering" && !!driver;
   const { snapshot } = useLiveTracking({
     trackingId: order?.reference,
     driverName: driver?.name,
@@ -147,26 +150,39 @@ function OrderDetail() {
               Recommander
             </Button>
             <Button asChild variant="outline" className="gap-2">
-              <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
-                <Download className="h-4 w-4" />
-                Télécharger la facture
-              </Link>
+              {base ? (
+                <Link to="/restaurant/invoices">
+                  <Download className="h-4 w-4" />
+                  Factures
+                </Link>
+              ) : (
+                <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
+                  <Download className="h-4 w-4" />
+                  Télécharger la facture
+                </Link>
+              )}
             </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl);
-                toast.success("Lien copié");
-              }}
-            >
-              <Copy className="h-4 w-4" />
-              Copier le lien
-            </Button>
-            <Button className="gap-2" onClick={share}>
-              <Share2 className="h-4 w-4" />
-              Partager le suivi
-            </Button>
+            {/* Lien de suivi public : seulement en démonstration (un visiteur
+                sans compte ne peut pas encore lire la commande en base). */}
+            {!base && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl);
+                  toast.success("Lien copié");
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                Copier le lien
+              </Button>
+            )}
+            {!base && (
+              <Button className="gap-2" onClick={share}>
+                <Share2 className="h-4 w-4" />
+                Partager le suivi
+              </Button>
+            )}
           </>
         }
       />
@@ -348,7 +364,11 @@ function OrderDetail() {
           <div className="glass rounded-2xl p-4">
             <div className="text-xs font-semibold text-muted-foreground mb-3">PRODUCTEUR</div>
             <div className="flex items-center gap-3">
-              <img src={farmer?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+              <img
+                src={farmer?.avatar || undefined}
+                alt=""
+                className="h-12 w-12 rounded-xl object-cover"
+              />
               <div className="flex-1">
                 <div className="font-semibold text-sm">{farmer?.farm}</div>
                 <div className="text-[11px] text-muted-foreground flex items-center gap-2">
@@ -380,7 +400,7 @@ function OrderDetail() {
                   </a>
                 </Button>
               )}
-              {farmer && myRestaurant && (
+              {farmer && myRestaurant && !base && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -408,7 +428,11 @@ function OrderDetail() {
             {driver ? (
               <>
                 <div className="flex items-center gap-3">
-                  <img src={driver.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
+                  <img
+                    src={driver.avatar || undefined}
+                    alt=""
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
                   <div className="flex-1">
                     <div className="font-semibold text-sm">{driver.name}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -467,10 +491,17 @@ function OrderDetail() {
           </div>
 
           <Button asChild variant="outline" className="w-full gap-2">
-            <Link to="/restaurant/support">
-              <LifeBuoy className="h-4 w-4" />
-              Contacter le support
-            </Link>
+            {base ? (
+              <Link to="/contact">
+                <LifeBuoy className="h-4 w-4" />
+                Contacter l'équipe Diambar
+              </Link>
+            ) : (
+              <Link to="/restaurant/support">
+                <LifeBuoy className="h-4 w-4" />
+                Contacter le support
+              </Link>
+            )}
           </Button>
         </div>
       </div>

@@ -119,7 +119,11 @@ function DriverMessagesList() {
               params={{ conversationId: c.id }}
               className="flex items-center gap-3 p-4 hover:bg-accent/40 transition"
             >
-              <img src={c.resto.avatar} alt="" className="h-11 w-11 rounded-full object-cover" />
+              <img
+                src={c.resto.avatar || undefined}
+                alt=""
+                className="h-11 w-11 rounded-full object-cover"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-sm truncate">{c.resto.name}</span>

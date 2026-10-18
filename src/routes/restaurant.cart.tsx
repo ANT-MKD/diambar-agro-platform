@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { ArrowRight, ShoppingCart, Trash2, Undo2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/restaurant/cart")({
 });
 
 function CartPage() {
+  const hiddenInBase = useHiddenInBase();
   const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
@@ -118,7 +120,11 @@ function CartPage() {
             return (
               <div key={farmer.id} className="glass rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
+                  <img
+                    src={farmer.avatar || undefined}
+                    alt=""
+                    className="h-10 w-10 rounded-xl object-cover"
+                  />
                   <div className="flex-1">
                     <div className="font-semibold text-sm">{farmer.farm}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -195,17 +201,19 @@ function CartPage() {
           <p className="text-[11px] text-muted-foreground text-center">
             Paiement sécurisé via Wave, Orange Money, ou à la livraison.
           </p>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="w-full gap-1.5 text-muted-foreground"
-          >
-            <Link to="/restaurant/returns">
-              <Undo2 className="h-3.5 w-3.5" />
-              Retours & avoirs
-            </Link>
-          </Button>
+          {!hiddenInBase("/restaurant/returns") && (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="w-full gap-1.5 text-muted-foreground"
+            >
+              <Link to="/restaurant/returns">
+                <Undo2 className="h-3.5 w-3.5" />
+                Retours & avoirs
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>

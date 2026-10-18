@@ -125,7 +125,7 @@ function Messages() {
                   className={`w-full p-3 flex items-center gap-3 border-b border-border text-left hover:bg-accent transition ${isActive ? "bg-accent" : ""}`}
                 >
                   <img
-                    src={c.farmer.avatar}
+                    src={c.farmer.avatar || undefined}
                     alt=""
                     className="h-10 w-10 rounded-full object-cover"
                   />
@@ -157,7 +157,7 @@ function Messages() {
           <div className="flex flex-col">
             <div className="p-4 border-b border-border flex items-center gap-3">
               <img
-                src={active.farmer.avatar}
+                src={active.farmer.avatar || undefined}
                 alt=""
                 className="h-10 w-10 rounded-full object-cover"
               />

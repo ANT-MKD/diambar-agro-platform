@@ -106,7 +106,7 @@ function SuppliersComparePage() {
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <img
-                        src={f.avatar}
+                        src={f.avatar || undefined}
                         alt={f.farm}
                         className="h-16 w-16 rounded-xl object-cover"
                       />

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   ArrowLeft,
   Star,
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
 });
 
 function ProductDetail() {
+  const hiddenInBase = useHiddenInBase();
   const myRestaurantId = useMyId("restaurant");
   const { productId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
@@ -191,7 +193,11 @@ function ProductDetail() {
           </div>
 
           <div className="glass rounded-xl p-4 flex items-center gap-3">
-            <img src={farmer?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+            <img
+              src={farmer?.avatar || undefined}
+              alt=""
+              className="h-12 w-12 rounded-xl object-cover"
+            />
             <div className="flex-1">
               <div className="font-semibold text-sm">{farmer?.farm}</div>
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -288,7 +294,7 @@ function ProductDetail() {
             <Button disabled={blocked} onClick={orderNow} className="flex-1 h-12 gap-2 text-base">
               <Zap className="h-5 w-5" /> Commander maintenant
             </Button>
-            {farmer && myRestaurant && (
+            {farmer && myRestaurant && !hiddenInBase("/restaurant/messages") && (
               <Button
                 variant="outline"
                 className="h-12 gap-2"

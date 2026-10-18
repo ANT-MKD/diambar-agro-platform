@@ -346,8 +346,8 @@ export function helpTopics(
           a: `Dans les ${info.receptionWindowHours} h qui suivent la livraison, indiquez depuis la commande la quantité refusée et le motif. Le remboursement est créé aussitôt et versé par l'équipe.`,
         },
         {
-          q: "Après le délai de contrôle",
-          a: "Passez par la page Contact : l'équipe examine la situation avec vous et le producteur.",
+          q: "Ouvrir un litige",
+          a: "Depuis la commande, « Signaler un problème » ouvre un litige : vous décrivez les faits, ajoutez des photos et indiquez le montant réclamé. L'autre partie peut répondre, l'équipe instruit puis tranche ; un montant accordé vous est remboursé.",
         },
       ],
     },

@@ -1,6 +1,9 @@
 import { and, asc, desc, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import { readCategories, readUnits } from "./catalog-db.server";
+import { readRecurringOrders } from "./recurring-read.server";
+import { readDisputes } from "./disputes-read.server";
+import { disputeStaff } from "./disputes-db.server";
 import {
   categories,
   checkouts,
@@ -82,7 +85,7 @@ export const PAYMENT_METHOD_DB: Record<
   "Free Money": "free_money",
   Espèces: "cash",
 };
-const PAYMENT_METHOD_LABEL: Record<string, PaymentMethod> = {
+export const PAYMENT_METHOD_LABEL: Record<string, PaymentMethod> = {
   wave: "Wave",
   orange_money: "Orange Money",
   free_money: "Free Money",
@@ -826,12 +829,21 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       // à la réception (montants repris, négatifs).
       const groups = new Map<string, Transaction>();
       for (const e of [...entries].reverse()) {
+        // Indemnité ou retenue de litige : une ligne à part, avec son motif.
+        const disputeLine = !!e.note && /Litige /.test(e.note);
         if (
           !e.orderId ||
-          (e.kind !== "sale" && e.kind !== "commission" && e.kind !== "refund_adjustment")
+          (e.kind !== "sale" &&
+            e.kind !== "commission" &&
+            e.kind !== "refund_adjustment" &&
+            !(e.kind === "adjustment" && disputeLine))
         )
           continue;
-        const key = e.refundId ? `rf_${e.refundId}` : `tx_${e.orderId}`;
+        const key = disputeLine
+          ? `lt_${e.id}`
+          : e.refundId
+            ? `rf_${e.refundId}`
+            : `tx_${e.orderId}`;
         const t =
           groups.get(key) ??
           ({
@@ -845,7 +857,8 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
             net: 0,
             method: (e.checkoutId && methodOfCheckout.get(e.checkoutId)) || "Wave",
             status: "Payé",
-            kind: e.refundId ? "refund_adjustment" : "delivery",
+            kind: e.refundId || disputeLine ? "refund_adjustment" : "delivery",
+            ...(disputeLine ? { note: e.note ?? undefined } : {}),
           } satisfies Transaction);
         if (e.kind === "commission") t.commission += -e.amount;
         else t.gross += e.amount;
@@ -1188,6 +1201,9 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     account,
     categories: await readCategories(db),
     units: await readUnits(db),
+    recurringOrders: me.role === "restaurant" ? await readRecurringOrders(db, me.id) : [],
+    disputes: await readDisputes(db, me),
+    disputeStaff: me.role === "admin" ? await disputeStaff(db) : [],
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

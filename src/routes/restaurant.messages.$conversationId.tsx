@@ -82,7 +82,7 @@ function RestaurantConversation() {
       <div className="glass rounded-2xl overflow-hidden flex flex-col h-[640px]">
         <div className="p-4 border-b border-border flex items-center gap-3">
           <img
-            src={farmer.avatar}
+            src={farmer.avatar || undefined}
             alt={`Photo du producteur ${farmer.farm}`}
             className="h-10 w-10 rounded-full object-cover"
           />

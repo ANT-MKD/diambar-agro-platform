@@ -75,7 +75,7 @@ function ProfileSettings() {
     >
       <div className="flex items-center gap-4">
         <img
-          src={form.avatar}
+          src={form.avatar || undefined}
           alt="Photo de profil du producteur"
           className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
         />

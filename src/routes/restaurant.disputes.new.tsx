@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DisputeForm } from "@/components/disputes/dispute-form";
 import { useRestaurantOrders, useMissions } from "@/data/store";
-import { suppliers, drivers } from "@/data/mocks";
+import { suppliers, drivers, farmers } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 
 export const Route = createFileRoute("/restaurant/disputes/new")({
@@ -42,6 +42,9 @@ function NewDispute() {
 
   const order = orders.find((o) => o.id === orderId) ?? null;
   const supplier = order ? suppliers.find((s) => s.farmerId === order.farmerId) : null;
+  // Nom de l'exploitation (annuaire réel en mode base).
+  const farmName =
+    farmers.find((f) => f.id === order?.farmerId)?.farm ?? supplier?.name ?? "Fournisseur";
   const mission = order ? missions.find((m) => m.orderRef === order.reference) : null;
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
 
@@ -50,7 +53,7 @@ function NewDispute() {
       <div className="max-w-2xl space-y-6">
         <PageHeader
           title="Déclarer un litige"
-          subtitle={`${order.reference} · ${supplier?.name ?? "Fournisseur"}`}
+          subtitle={`${order.reference} · ${farmName}`}
           actions={
             <Button variant="outline" className="gap-2" onClick={() => setOrderId(null)}>
               <ArrowLeft className="h-4 w-4" />
@@ -62,7 +65,7 @@ function NewDispute() {
           openedByRole="restaurant"
           openedByName={user.name}
           againstOptions={[
-            { role: "farmer", name: supplier?.name ?? "Fournisseur" },
+            { role: "farmer", name: farmName },
             { role: "driver", name: driver?.name ?? "Livreur (non assigné)" },
             { role: "platform", name: "Plateforme Diambar" },
           ]}

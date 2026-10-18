@@ -71,7 +71,7 @@ function OrderDetailPage() {
 
       <div className="flex items-center justify-between glass rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <img src={r?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+          <img src={r?.avatar || undefined} alt="" className="h-12 w-12 rounded-xl object-cover" />
           <div>
             <div className="font-semibold">{r?.name}</div>
             <div className="text-xs text-muted-foreground">
@@ -161,7 +161,7 @@ function OrderDetailPage() {
 
       {d && (
         <div className="glass rounded-2xl p-4 flex items-center gap-3">
-          <img src={d.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+          <img src={d.avatar || undefined} alt="" className="h-10 w-10 rounded-full object-cover" />
           <div className="flex-1">
             <div className="font-medium text-sm">{d.name}</div>
             <div className="text-xs text-muted-foreground">

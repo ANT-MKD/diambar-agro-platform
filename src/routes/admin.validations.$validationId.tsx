@@ -213,7 +213,11 @@ function ValidationDetail() {
       />
 
       <div className="glass rounded-2xl p-5 flex flex-wrap items-center gap-4">
-        <img src={user?.avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
+        <img
+          src={user?.avatar || undefined}
+          alt=""
+          className="h-14 w-14 rounded-full object-cover"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-lg">{user?.name ?? v.userId}</span>

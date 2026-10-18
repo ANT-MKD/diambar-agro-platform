@@ -204,7 +204,11 @@ function ScopeSection({ canManage, actorName }: { canManage: boolean; actorName:
             <div key={a.id} className="rounded-xl border border-border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <img src={a.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                  <img
+                    src={a.avatar || undefined}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
                   <div>
                     <div className="text-sm font-medium">{a.name}</div>
                     <div className="text-[11px] text-muted-foreground">{adminRole}</div>
@@ -313,7 +317,11 @@ function TeamsSection({ canManage }: { canManage: boolean }) {
                         : "border-border text-muted-foreground hover:bg-accent",
                     )}
                   >
-                    <img src={a.avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
+                    <img
+                      src={a.avatar || undefined}
+                      alt=""
+                      className="h-4 w-4 rounded-full object-cover"
+                    />
                     {a.name}
                   </button>
                 );

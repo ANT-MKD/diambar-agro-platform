@@ -79,6 +79,8 @@ export type Dispute = {
   slaDueAt: string;
   escalations: number;
   assignee: string | null;
+  /** Mode base : identifiant du membre de l'équipe assigné. */
+  assigneeId?: string;
   attachments: DisputeAttachment[];
   messages: DisputeMessage[];
   events: DisputeEvent[];
@@ -1061,4 +1063,23 @@ export function disputeStats(list: Dispute[]) {
 export function clearDisputesDemoData() {
   disputesStore.replace([]);
   creditsStore.replace([]);
+}
+
+/** Mode base : les litiges du compte, lus sur le serveur. */
+export function replaceDisputes(list: Dispute[]) {
+  disputesStore.replace(list);
+}
+
+// Équipe à qui confier un litige (mode base ; en démonstration, les agents
+// fictifs de SUPPORT_AGENTS servent d'exemple).
+const disputeStaffStore = createStore<{ id: string; name: string }[]>([]);
+export function replaceDisputeStaff(list: { id: string; name: string }[]) {
+  disputeStaffStore.replace(list);
+}
+export function useDisputeStaff() {
+  return useSyncExternalStore(
+    disputeStaffStore.subscribe,
+    disputeStaffStore.get,
+    disputeStaffStore.get,
+  );
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import { useMemo } from "react";
 import {
   Truck,
@@ -90,6 +91,7 @@ function DriverDashboard() {
   const myDriverId = useMyId("driver");
   const missions = useDriverMissions();
   const online = useDriverOnline();
+  const base = useBaseMode();
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
   const fleet = useMyDriverFleet();
@@ -255,19 +257,23 @@ function DriverDashboard() {
       <PageHeader
         title={`Bonjour ${driverProfile.name.split(" ")[0]} 👋`}
         subtitle={`${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} · ${
-          online
-            ? "Vous êtes en ligne · les missions vous seront proposées en temps réel"
-            : "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
+          base
+            ? "Les courses ouvertes sont dans « Missions »"
+            : online
+              ? "Vous êtes en ligne · les missions vous seront proposées en temps réel"
+              : "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
         }`}
         actions={
-          <Button
-            variant={online ? "outline" : "default"}
-            onClick={() => driverOnlineActions.toggle()}
-            className="gap-2"
-          >
-            {online ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-            {online ? "Passer hors-ligne" : "Se mettre en ligne"}
-          </Button>
+          base ? undefined : (
+            <Button
+              variant={online ? "outline" : "default"}
+              onClick={() => driverOnlineActions.toggle()}
+              className="gap-2"
+            >
+              {online ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+              {online ? "Passer hors-ligne" : "Se mettre en ligne"}
+            </Button>
+          )
         }
       />
 
@@ -490,12 +496,14 @@ function DriverDashboard() {
             <div className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-display font-bold">Ma tournée</h3>
-                <Link
-                  to="/driver/routes"
-                  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  Voir toute la tournée <ArrowRight className="h-3 w-3" />
-                </Link>
+                {!base && (
+                  <Link
+                    to="/driver/routes"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    Voir toute la tournée <ArrowRight className="h-3 w-3" />
+                  </Link>
+                )}
               </div>
               <LiveTrackingMapLazy
                 trackingId={nextMission.reference}
@@ -633,46 +641,50 @@ function DriverDashboard() {
 
         {/* Sidebar droite */}
         <div className="space-y-6">
-          {/* Alertes & incidents */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold flex items-center gap-2">
-                <TriangleAlert className="h-4 w-4 text-destructive" />
-                Alertes & incidents
-              </h3>
-              <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
-                Voir tout
-              </Link>
-            </div>
-            <div className="space-y-2">
-              {openIncidents.map((i) => (
-                <div
-                  key={i.id}
-                  className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
-                >
-                  <div className="font-semibold text-amber-700 dark:text-amber-400">
-                    {INCIDENT_TYPE_LABEL[i.type]}
-                  </div>
-                  <div className="text-muted-foreground">
-                    {i.missionRef} · {relativeTime(i.createdAt)}
-                  </div>
+          {!base && (
+            <>
+              {/* Alertes & incidents */}
+              <div className="glass rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-display font-bold flex items-center gap-2">
+                    <TriangleAlert className="h-4 w-4 text-destructive" />
+                    Alertes & incidents
+                  </h3>
+                  <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
+                    Voir tout
+                  </Link>
                 </div>
-              ))}
-              {lastPayment && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-                  <div className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    Paiement reçu
-                  </div>
-                  <div className="text-muted-foreground">
-                    + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
-                  </div>
+                <div className="space-y-2">
+                  {openIncidents.map((i) => (
+                    <div
+                      key={i.id}
+                      className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
+                    >
+                      <div className="font-semibold text-amber-700 dark:text-amber-400">
+                        {INCIDENT_TYPE_LABEL[i.type]}
+                      </div>
+                      <div className="text-muted-foreground">
+                        {i.missionRef} · {relativeTime(i.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                  {lastPayment && (
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
+                      <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                        Paiement reçu
+                      </div>
+                      <div className="text-muted-foreground">
+                        + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
+                      </div>
+                    </div>
+                  )}
+                  {openIncidents.length === 0 && !lastPayment && (
+                    <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
+                  )}
                 </div>
-              )}
-              {openIncidents.length === 0 && !lastPayment && (
-                <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
 
           {/* Portefeuille */}
           <div className="glass rounded-2xl p-5 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10">
@@ -767,33 +779,37 @@ function DriverDashboard() {
             </div>
           )}
 
-          {/* État du véhicule */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold flex items-center gap-2">
-                <Car className="h-4 w-4" />
-                État du véhicule
-              </h3>
-              <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
-                Voir les détails
-              </Link>
-            </div>
-            <div className="text-sm font-semibold">
-              {vehicle.brand} {vehicle.model}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
-            <span
-              className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
-            >
-              {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
-              {vehicleOk ? "Bon état" : "À vérifier"}
-            </span>
-            <div className="mt-3 text-xs text-muted-foreground">
-              {vehicle.nextMaintenanceAt
-                ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
-                : "Aucune maintenance programmée"}
-            </div>
-          </div>
+          {!base && (
+            <>
+              {/* État du véhicule */}
+              <div className="glass rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-display font-bold flex items-center gap-2">
+                    <Car className="h-4 w-4" />
+                    État du véhicule
+                  </h3>
+                  <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
+                    Voir les détails
+                  </Link>
+                </div>
+                <div className="text-sm font-semibold">
+                  {vehicle.brand} {vehicle.model}
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
+                <span
+                  className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
+                >
+                  {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
+                  {vehicleOk ? "Bon état" : "À vérifier"}
+                </span>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {vehicle.nextMaintenanceAt
+                    ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
+                    : "Aucune maintenance programmée"}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

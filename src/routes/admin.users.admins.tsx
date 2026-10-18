@@ -143,7 +143,7 @@ function AdminRow({
     <tr className="hover:bg-accent/50 transition">
       <td className="px-4 py-3">
         <Link to="/admin/users/$userId" params={{ userId }} className="flex items-center gap-3">
-          <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+          <img src={avatar || undefined} alt="" className="h-9 w-9 rounded-full object-cover" />
           <div className="font-medium">{name}</div>
         </Link>
       </td>

@@ -532,7 +532,7 @@ function SuppliersList() {
                         </button>
                         <div className="flex items-start gap-3">
                           <img
-                            src={f.avatar}
+                            src={f.avatar || undefined}
                             alt=""
                             className="h-14 w-14 rounded-xl object-cover"
                           />
@@ -620,7 +620,7 @@ function SuppliersList() {
                       return (
                         <div key={id} className="glass rounded-2xl p-3 flex items-center gap-3">
                           <img
-                            src={f.avatar}
+                            src={f.avatar || undefined}
                             alt=""
                             className="h-10 w-10 rounded-lg object-cover"
                           />
@@ -667,7 +667,11 @@ function SuppliersList() {
                     className="flex items-center gap-2 hover:bg-accent/40 rounded-lg p-1.5 -m-1.5"
                   >
                     <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
-                    <img src={f?.avatar} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                    <img
+                      src={f?.avatar || undefined}
+                      alt=""
+                      className="h-8 w-8 rounded-lg object-cover"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">{s.name}</div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-1">

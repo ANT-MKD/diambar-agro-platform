@@ -68,7 +68,7 @@ function TermsPage() {
           heading: "Litiges",
           paragraphs: [
             `À la réception, le restaurant peut refuser tout ou partie d'un produit dans les ${info.receptionWindowHours} heures suivant la livraison : le montant refusé lui est remboursé automatiquement.`,
-            `Tout autre litige relatif à une commande doit être signalé dans les ${info.receptionWindowHours} heures suivant la livraison auprès de l'équipe (page Contact) ; elle instruit le dossier et informe les deux parties de sa décision.`,
+            `Tout autre litige relatif à une commande doit être signalé dans les ${info.receptionWindowHours} heures suivant la livraison depuis l'espace Litiges de l'application ; l'équipe instruit le dossier et informe les parties de sa décision motivée.`,
           ],
         },
         {

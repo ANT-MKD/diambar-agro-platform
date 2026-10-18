@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouterState } from "@tanstack/react-router";
+import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   Activity,
   FileCheck2,
@@ -83,6 +85,8 @@ function AdminLayout() {
   // Rôle d'équipe lu par le serveur (base) : il décide des menus et actions.
   const adminRole = user.adminRole ?? fallbackRole;
   const path = useRouterState({ select: (s) => s.location.pathname });
+  // Avec la base, les écrans encore en démonstration ne sont pas proposés.
+  const hiddenInBase = useHiddenInBase();
   const [open, setOpen] = useState(false);
   const validations = useValidations();
   const disputes = useAllDisputes();
@@ -321,7 +325,9 @@ function AdminLayout() {
   const navSections = navSectionsAll
     .map((section) => ({
       ...section,
-      items: section.items.filter((it) => !it.permission || can(adminRole, it.permission)),
+      items: section.items.filter(
+        (it) => (!it.permission || can(adminRole, it.permission)) && !hiddenInBase(it.to),
+      ),
     }))
     .filter((section) => section.items.length > 0);
 
@@ -396,7 +402,11 @@ function AdminLayout() {
           </nav>
           <div className="p-3 border-t border-border">
             <div className="glass rounded-xl p-3 flex items-center gap-3">
-              <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <img
+                src={user.avatar || undefined}
+                alt=""
+                className="h-9 w-9 rounded-full object-cover"
+              />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold truncate">{user.name}</div>
                 <div className="text-[11px] text-muted-foreground truncate">{adminRole}</div>
@@ -478,14 +488,14 @@ function AdminLayout() {
               )}
             </Link>
             <img
-              src={user.avatar}
+              src={user.avatar || undefined}
               alt=""
               className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/40"
             />
           </header>
           <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8 print:p-0 print:overflow-visible">
             {shell.setup && path !== "/admin/setup" && <SetupBanner setup={shell.setup} />}
-            <Outlet />
+            <DemoOnlyOutlet home="/admin/dashboard" />
           </main>
           <CommandPalette scope="admin" />
           <nav

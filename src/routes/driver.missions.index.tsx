@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import { useMemo, useState } from "react";
 import {
   Truck,
@@ -72,6 +73,7 @@ function MissionsPage() {
   const all = useDriverMissions();
   const wallet = useDriverWallet();
   const online = useDriverOnline();
+  const base = useBaseMode();
   const fleet = useMyDriverFleet();
   const eligibilityFor = useMyMissionEligibility();
   const [tab, setTab] = useState<Tab>("available");
@@ -159,9 +161,15 @@ function MissionsPage() {
         <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-700 dark:text-rose-300">
           <strong>Véhicule non conforme.</strong> Votre assurance ou votre contrôle technique est
           expiré : vous ne pouvez plus accepter de mission tant que ce n'est pas régularisé.{" "}
-          <Link to="/driver/vehicle" className="font-semibold underline">
-            Mettre à jour mes documents
-          </Link>
+          {base ? (
+            <Link to="/contact" className="font-semibold underline">
+              Contacter l'équipe
+            </Link>
+          ) : (
+            <Link to="/driver/vehicle" className="font-semibold underline">
+              Mettre à jour mes documents
+            </Link>
+          )}
         </div>
       )}
 
@@ -397,25 +405,27 @@ function MissionsPage() {
             )}
           </div>
 
-          <div className="glass rounded-2xl p-5 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Statut de connexion
+          {!base && (
+            <div className="glass rounded-2xl p-5 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  Statut de connexion
+                </div>
+                <div className="mt-1 font-semibold flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
+                  />
+                  {online ? "En ligne" : "Hors-ligne"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {online ? "Vous recevez les missions" : "Aucune mission ne vous sera proposée"}
+                </p>
               </div>
-              <div className="mt-1 font-semibold flex items-center gap-2">
-                <span
-                  className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
-                />
-                {online ? "En ligne" : "Hors-ligne"}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {online ? "Vous recevez les missions" : "Aucune mission ne vous sera proposée"}
-              </p>
+              <Button variant="outline" size="sm" onClick={() => driverOnlineActions.toggle()}>
+                {online ? "Passer hors-ligne" : "Se mettre en ligne"}
+              </Button>
             </div>
-            <Button variant="outline" size="sm" onClick={() => driverOnlineActions.toggle()}>
-              {online ? "Passer hors-ligne" : "Se mettre en ligne"}
-            </Button>
-          </div>
+          )}
 
           <div className="glass rounded-2xl p-5 bg-gradient-to-br from-emerald-500/10 to-transparent">
             <h3 className="font-semibold text-sm flex items-center gap-2">

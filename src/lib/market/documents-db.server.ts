@@ -306,7 +306,11 @@ export async function readStatement(db: Db, userId: string, month: string): Prom
         : (r.missionRef ?? r.orderRef ?? "");
     return {
       at: r.at.toISOString(),
-      label: `${KIND_LABEL[r.kind] ?? "Écriture"}${r.note && r.kind !== "payout" ? ` (${r.note})` : ""}`,
+      // Une écriture de litige se lit par son motif (« Retenue Litige LIT-0001 »).
+      label:
+        r.note && /Litige /.test(r.note)
+          ? r.note
+          : `${KIND_LABEL[r.kind] ?? "Écriture"}${r.note && r.kind !== "payout" ? ` (${r.note})` : ""}`,
       reference: ref.trim(),
       amount: r.amount,
     };

@@ -13,6 +13,7 @@ import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { DisputeListView } from "@/components/disputes/dispute-list-view";
 import { useDisputesForRole } from "@/data/disputes";
 import { driverProfile } from "@/data/mocks";
+import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/driver/disputes/")({
   head: () => ({
@@ -33,6 +34,27 @@ export const Route = createFileRoute("/driver/disputes/")({
 function DriverDisputesIndex() {
   const disputes = useDisputesForRole("driver");
   const [supportOpen, setSupportOpen] = useState(false);
+  const base = useBaseMode();
+  // En mode base, le support passe par la page Contact.
+  const SupportButton = ({ small }: { small?: boolean }) =>
+    base ? (
+      <Button asChild variant="outline" size={small ? "sm" : "default"} className="gap-2">
+        <Link to="/contact">
+          <LifeBuoy className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
+          Contacter l'équipe
+        </Link>
+      </Button>
+    ) : (
+      <Button
+        variant="outline"
+        size={small ? "sm" : "default"}
+        className="gap-2"
+        onClick={() => setSupportOpen(true)}
+      >
+        <LifeBuoy className={small ? "h-3.5 w-3.5" : "h-4 w-4"} />
+        Contacter le support
+      </Button>
+    );
   return (
     <div className="space-y-6">
       <DisputeListView
@@ -43,10 +65,7 @@ function DriverDisputesIndex() {
         subtitle="Déclarez un désaccord, ajoutez vos preuves et suivez sa résolution."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setSupportOpen(true)}>
-              <LifeBuoy className="h-4 w-4" />
-              Contacter le support
-            </Button>
+            <SupportButton />
             <Button asChild className="gap-2">
               <Link to="/driver/disputes/new">
                 <Plus className="h-4 w-4" />
@@ -64,10 +83,7 @@ function DriverDisputesIndex() {
             Un incident peut parfois devenir un litige. N'hésitez pas à nous contacter.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setSupportOpen(true)}>
-          <LifeBuoy className="h-3.5 w-3.5" />
-          Contacter le support
-        </Button>
+        <SupportButton small />
       </div>
 
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>

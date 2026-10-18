@@ -1,4 +1,7 @@
 import { useEffect } from "react";
+import { downscaleDataUrl } from "@/lib/image-resize";
+import { getRules } from "./rules";
+import { firstDeliveryDay } from "@/lib/delivery-time";
 import type { MissionProofPhoto, MissionStatus, OrderStatus, PaymentMethod } from "./mocks";
 import { getMarketMode, isMarketRemote, setMarketMode, useMarketMode } from "./market-mode";
 import {
@@ -8,6 +11,7 @@ import {
   orderActions,
   getProducts,
   productActions,
+  recurringOrderActions,
   replaceMarketData,
   restaurantOrderActions,
   type AcceptResult,
@@ -49,15 +53,58 @@ import {
   uploadProductPhotoFn,
   uploadProofFn,
   withdrawMissionFn,
+  createRecurringFn,
+  openDisputeFn,
+  replyDisputeFn,
+  disputeStaffActionFn,
+  requestDisputeEscalationFn,
+  resolveDisputeFn,
+  updateRecurringFn,
+  recurringActionFn,
+  overrideNextRecurringFn,
 } from "@/lib/market/functions";
-import type { Product, StockMovement } from "./mocks";
+import type {
+  PaymentMethod as Method,
+  Product,
+  RecurringOrder,
+  RecurringOrderItem,
+  StockMovement,
+} from "./mocks";
+
+/** Nouvelle commande récurrente (mêmes champs que côté serveur). */
+export type RecurringCreate = {
+  name: string;
+  farmerId: string;
+  items: { productId: string; qty: number }[];
+  frequency: RecurringOrder["frequency"];
+  intervalDays?: number;
+  daysOfWeek: number[];
+  deliveryTime: string;
+  orderTime: string;
+  firstDeliveryOn: string;
+  end: RecurringOrder["end"];
+  rules: RecurringOrder["rules"];
+  deliveryAddress: string;
+  paymentMethod: Method;
+  shortagePreference: "partial" | "cancel";
+  instructions?: string;
+};
 import type { OrderActor } from "@/lib/order-lifecycle";
 import type { StatementView } from "@/lib/market/documents-view";
 import type { DeliveryPricing, FarmerPlaceRow, PlaceRow } from "@/lib/delivery-pricing";
 import type { DriverPay } from "@/lib/platform-rules";
 import { requireRole } from "@/lib/auth/functions";
 import { clearBusinessDemoData } from "./business";
-import { clearDisputesDemoData } from "./disputes";
+import {
+  clearDisputesDemoData,
+  disputeActions,
+  replaceDisputes,
+  replaceDisputeStaff,
+  type DisputeAttachment,
+  type DisputeOutcome,
+  type DisputeParty,
+  type NewDisputeInput,
+} from "./disputes";
 import { clearFinanceDemoData } from "./finance";
 import { clearSupportDemoData } from "./support";
 import {
@@ -93,6 +140,8 @@ async function load(): Promise<void> {
     clearAdminDemoData();
   }
   replaceMarketData(snap);
+  replaceDisputes(snap.disputes ?? []);
+  replaceDisputeStaff(snap.disputeStaff ?? []);
   if (snap.me.role === "admin") {
     replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
@@ -174,6 +223,25 @@ export type PlaceOrderRequest = {
   shortagePreference: "partial" | "cancel";
   instructions?: string;
 };
+
+/** Photos de preuve pour le serveur : images seulement, réduites (2 Mo au plus). */
+async function disputeFiles(
+  list: DisputeAttachment[],
+): Promise<
+  { ok: true; list: { name: string; dataUrl: string }[] } | { ok: false; message: string }
+> {
+  const out: { name: string; dataUrl: string }[] = [];
+  for (const f of list) {
+    if (!f.dataUrl || !f.mime.startsWith("image/")) {
+      return {
+        ok: false,
+        message: `${f.name} : seules les photos (JPEG, PNG, WebP) sont acceptées.`,
+      };
+    }
+    out.push({ name: f.name, dataUrl: await downscaleDataUrl(f.dataUrl) });
+  }
+  return { ok: true, list: out };
+}
 
 export const market = {
   isRemote: isMarketRemote,
@@ -456,6 +524,234 @@ export const market = {
   /** Admin : déplacer les produits d'une catégorie dans une autre. */
   async mergeCategory(fromId: string, intoId: string): Promise<Result<{ moved?: number }>> {
     return remote(() => mergeCategoryFn({ data: { fromId, intoId } }));
+  },
+
+  // --- Litiges ------------------------------------------------------------------------
+
+  /** Ouvre un litige (avec photos de preuve, réduites avant l'envoi). */
+  async openDispute(input: NewDisputeInput): Promise<Result<{ id: string }>> {
+    if (isMarketRemote()) {
+      const files = await disputeFiles(input.attachments ?? []);
+      if (!files.ok) return files;
+      const res = await remote(() =>
+        openDisputeFn({
+          data: {
+            orderId: input.orderId,
+            missionId: input.missionId,
+            category: input.category,
+            subcategory: input.subcategory,
+            description: input.description,
+            againstRole: input.againstRole,
+            claimedAmount: input.claimedAmount,
+            priority: input.priority,
+            files: files.list,
+          },
+        }),
+      );
+      return res.ok ? { ok: true, id: res.id ?? "" } : res;
+    }
+    return { ok: true, id: disputeActions.open(input) };
+  },
+
+  async replyDispute(
+    id: string,
+    msg: {
+      role: DisputeParty;
+      name: string;
+      text: string;
+      internal?: boolean;
+      attachments?: DisputeAttachment[];
+    },
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      const files = await disputeFiles(msg.attachments ?? []);
+      if (!files.ok) return files;
+      return remote(() =>
+        replyDisputeFn({ data: { id, text: msg.text, internal: msg.internal, files: files.list } }),
+      );
+    }
+    disputeActions.reply(id, msg);
+    return { ok: true };
+  },
+
+  /** Équipe : instruire, demander une réponse, assigner, escalader. */
+  async disputeStaffAction(
+    id: string,
+    action: "investigate" | "await_response" | "assign" | "escalate",
+    opts: {
+      assignee?: { id?: string; name: string };
+      reason?: string;
+      actor: string;
+      againstName?: string;
+    },
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() =>
+        disputeStaffActionFn({
+          data: { id, action, assigneeId: opts.assignee?.id, reason: opts.reason },
+        }),
+      );
+    }
+    if (action === "investigate") disputeActions.setStatus(id, "investigating", opts.actor);
+    else if (action === "await_response")
+      disputeActions.setStatus(
+        id,
+        "awaiting_response",
+        opts.actor,
+        `Réponse demandée à ${opts.againstName ?? "la partie"}`,
+      );
+    else if (action === "assign") disputeActions.assign(id, opts.assignee?.name ?? "", opts.actor);
+    else disputeActions.escalate(id, opts.reason ?? "Escalade", opts.actor);
+    return { ok: true };
+  },
+
+  /** Une partie demande l'escalade de son dossier. */
+  async requestDisputeEscalation(id: string, actor: string): Promise<Result> {
+    if (isMarketRemote()) return remote(() => requestDisputeEscalationFn({ data: { id } }));
+    disputeActions.escalate(id, `Escalade demandée par ${actor}`);
+    return { ok: true };
+  },
+
+  async resolveDispute(
+    id: string,
+    decision: {
+      outcome: DisputeOutcome;
+      grantedAmount: number;
+      liableParty: DisputeParty;
+      reason: string;
+      by: string;
+    },
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      if (decision.outcome === "credit") {
+        return {
+          ok: false,
+          message: "Les avoirs ne sont pas encore disponibles : choisissez un remboursement.",
+        };
+      }
+      return remote(() =>
+        resolveDisputeFn({
+          data: {
+            id,
+            outcome: decision.outcome as "refund" | "partial" | "goodwill" | "rejected",
+            grantedAmount: decision.grantedAmount,
+            liableParty: decision.liableParty,
+            reason: decision.reason,
+          },
+        }),
+      );
+    }
+    disputeActions.resolve(id, decision);
+    return { ok: true };
+  },
+
+  // --- Commandes récurrentes (restaurant) ------------------------------------------
+
+  /** Nouvelle récurrence : jours de livraison, commande passée la veille. */
+  async createRecurring(input: RecurringCreate): Promise<Result<{ id?: string }>> {
+    if (isMarketRemote()) return remote(() => createRecurringFn({ data: input }));
+    // Démonstration : la récurrence vit dans le navigateur.
+    const prices = new Map(getProducts().map((p) => [p.id, p.pricePerKg]));
+    const firstRun = new Date(`${input.firstDeliveryOn}T${input.orderTime}:00Z`);
+    firstRun.setUTCDate(firstRun.getUTCDate() - 1);
+    recurringOrderActions.create({
+      name: input.name,
+      farmerId: input.farmerId,
+      items: input.items.map((i) => ({ ...i, referencePrice: prices.get(i.productId) ?? 0 })),
+      frequency: input.frequency,
+      intervalDays: input.intervalDays,
+      daysOfWeek: input.daysOfWeek,
+      createTime: input.orderTime,
+      deliverySlot: input.deliveryTime,
+      firstRunAt: firstRun.toISOString(),
+      end: input.end,
+      rules: input.rules,
+      deliveryAddress: input.deliveryAddress,
+      deliveryMode: "standard",
+      instructions: input.instructions,
+      paymentMethod: input.paymentMethod,
+    });
+    return { ok: true };
+  },
+
+  /** Copie d'une récurrence, à partir de la première livraison possible. */
+  async duplicateRecurring(r: RecurringOrder): Promise<Result<{ id?: string }>> {
+    const first = new Date(firstDeliveryDay(new Date(), getRules().cutoffHour))
+      .toISOString()
+      .slice(0, 10);
+    return market.createRecurring({
+      name: `${r.name} (copie)`,
+      farmerId: r.farmerId,
+      items: r.items.map(({ productId, qty }) => ({ productId, qty })),
+      frequency: r.frequency,
+      intervalDays: r.intervalDays,
+      daysOfWeek: r.daysOfWeek,
+      deliveryTime: /^\d{2}:\d{2}$/.test(r.deliverySlot) ? r.deliverySlot : "09:00",
+      orderTime: r.createTime,
+      firstDeliveryOn: first,
+      end: r.end,
+      rules: r.rules,
+      deliveryAddress: r.deliveryAddress,
+      paymentMethod: r.paymentMethod,
+      shortagePreference: "partial",
+      instructions: r.instructions,
+    });
+  },
+
+  async updateRecurring(
+    id: string,
+    patch: {
+      name?: string;
+      items?: { productId: string; qty: number; referencePrice?: number }[];
+      rules?: RecurringOrder["rules"];
+    },
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() =>
+        updateRecurringFn({
+          data: {
+            id,
+            ...patch,
+            items: patch.items?.map(({ productId, qty }) => ({ productId, qty })),
+          },
+        }),
+      );
+    }
+    recurringOrderActions.update(id, {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.rules ? { rules: patch.rules } : {}),
+      ...(patch.items
+        ? { items: patch.items.map((i) => ({ ...i, referencePrice: i.referencePrice ?? 0 })) }
+        : {}),
+    });
+    return { ok: true };
+  },
+
+  /** Pause, reprise, arrêt, livraison sautée ou décision sur une règle. */
+  async recurringAction(
+    id: string,
+    action: "pause" | "resume" | "cancel" | "skip_next" | "confirm" | "cancel_occurrence",
+    opts: { reason?: string; pausedUntil?: string } = {},
+  ): Promise<Result<{ outcome?: string }>> {
+    if (isMarketRemote()) return remote(() => recurringActionFn({ data: { id, action, ...opts } }));
+    if (action === "pause") recurringOrderActions.pause(id, opts.reason ?? "", opts.pausedUntil);
+    else if (action === "resume") recurringOrderActions.resume(id);
+    else if (action === "cancel") recurringOrderActions.cancel(id, "full");
+    else if (action === "skip_next") recurringOrderActions.skipNextOccurrence(id, opts.reason);
+    else recurringOrderActions.resolvePendingAction(id, action);
+    return { ok: true };
+  },
+
+  async overrideNextRecurring(id: string, items: RecurringOrderItem[]): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() =>
+        overrideNextRecurringFn({
+          data: { id, items: items.map(({ productId, qty }) => ({ productId, qty })) },
+        }),
+      );
+    }
+    recurringOrderActions.overrideNextOccurrence(id, items);
+    return { ok: true };
   },
 
   /** Admin : renommer une unité sur tous les produits (fusion si elle existe). */

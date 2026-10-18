@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileText, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/driver/settings/profile")({
 });
 
 function ProfileSettings() {
+  const hiddenInBase = useHiddenInBase();
   const settings = useDriverSettings();
   const [name, setName] = useState(settings.profile.name);
   const [phone, setPhone] = useState(settings.profile.phone);
@@ -38,7 +40,7 @@ function ProfileSettings() {
     <div className="space-y-6">
       <div className="glass rounded-2xl p-5 flex items-center gap-4">
         <img
-          src={settings.profile.avatar}
+          src={settings.profile.avatar || undefined}
           alt=""
           className="h-16 w-16 rounded-full object-cover ring-2 ring-primary/30"
         />
@@ -97,12 +99,14 @@ function ProfileSettings() {
             </div>
           ))}
         </div>
-        <Button asChild variant="outline" size="sm" className="w-full gap-2">
-          <Link to="/driver/vehicle">
-            <FileText className="h-3.5 w-3.5" />
-            Voir mes documents (véhicule)
-          </Link>
-        </Button>
+        {!hiddenInBase("/driver/vehicle") && (
+          <Button asChild variant="outline" size="sm" className="w-full gap-2">
+            <Link to="/driver/vehicle">
+              <FileText className="h-3.5 w-3.5" />
+              Voir mes documents (véhicule)
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );

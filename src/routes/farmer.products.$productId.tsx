@@ -218,7 +218,7 @@ function ProductDetailPage() {
                   className="flex items-center gap-3 rounded-xl border border-border p-3 hover:border-primary/40 transition"
                 >
                   <img
-                    src={restaurant?.avatar}
+                    src={restaurant?.avatar || undefined}
                     alt=""
                     className="h-9 w-9 rounded-lg object-cover shrink-0"
                   />

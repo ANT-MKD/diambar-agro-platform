@@ -47,6 +47,28 @@ import { explainDbError } from "@/db/errors.server";
 import { normalizeDriverPay } from "@/lib/platform-rules";
 import { readAdminDirectory, type AdminDirectory } from "./admin-directory.server";
 import { approveCategory, mergeCategory, renameCategory, renameUnit } from "./catalog-db.server";
+import {
+  cancelRecurringOrder,
+  createRecurringOrder,
+  overrideNextRecurringDelivery,
+  pauseRecurringOrder,
+  resolveRecurringPending,
+  resumeRecurringOrder,
+  runDueRecurringOrders,
+  skipNextRecurringDelivery,
+  updateRecurringOrder,
+} from "./recurring-db.server";
+import {
+  assignDispute,
+  DISPUTE_STAFF,
+  escalateDispute,
+  openDispute,
+  replyDispute,
+  requestEscalation,
+  resolveDispute,
+  setDisputeStatus,
+  type StoredFile,
+} from "./disputes-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -126,6 +148,12 @@ async function sweepUnpaid(db: Db) {
     await issueDueInvoices(db);
   } catch (err) {
     console.error("[factures] émission", err);
+  }
+  try {
+    // Commandes récurrentes dont le moment est venu (la veille de la livraison).
+    await runDueRecurringOrders(db);
+  } catch (err) {
+    console.error("[récurrentes] passage", err);
   }
 }
 
@@ -791,6 +819,250 @@ export const renameUnitFn = createServerFn({ method: "POST" })
         moved: await renameUnit(db, me.id, data.from, data.to),
       }),
       CATALOG_STAFF,
+    ),
+  );
+
+// --- Commandes récurrentes (restaurant) -------------------------------------------------
+
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Heure invalide");
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
+const recurringItems = z
+  .array(z.object({ productId: id, qty: z.number().finite().positive().max(100_000) }))
+  .min(1, "Ajoutez au moins un produit.")
+  .max(40);
+const recurringRules = z.object({
+  priceIncreaseThresholdPct: z.number().finite().min(0).max(500),
+  onPriceIncrease: z.enum(["auto_continue", "ask_confirmation", "suspend"]),
+  onOutOfStock: z.enum(["cancel_item", "replace_equivalent", "cancel_all", "ask_confirmation"]),
+  maxBudget: z.number().finite().min(0).max(100_000_000),
+  onBudgetExceeded: z.enum(["ask_confirmation", "cancel", "reduce_quantities"]),
+  onNonBusinessDay: z.enum(["day_before", "day_after", "ask_confirmation"]),
+});
+const paymentChoice = z.enum(["Wave", "Orange Money", "Free Money", "Espèces"]);
+const recurringSchema = z.object({
+  name: z.string().trim().max(80),
+  farmerId: id,
+  items: recurringItems,
+  frequency: z.enum(["weekly", "biweekly", "monthly", "every_n_days", "custom"]),
+  intervalDays: z.number().int().min(1).max(60).optional(),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).max(7),
+  deliveryTime: hhmm,
+  orderTime: hhmm,
+  firstDeliveryOn: isoDay,
+  end: z.union([
+    z.object({ type: z.literal("never") }),
+    z.object({ type: z.literal("on_date"), date: z.string().min(10) }),
+    z.object({ type: z.literal("after_count"), count: z.number().int().min(1).max(1000) }),
+  ]),
+  rules: recurringRules,
+  deliveryAddress: z.string().trim().min(10, "Adresse trop courte (min 10 caractères)").max(300),
+  paymentMethod: paymentChoice,
+  shortagePreference: z.enum(["partial", "cancel"]),
+  instructions: z.string().trim().max(500).optional(),
+});
+
+export const createRecurringFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof recurringSchema>) => parse(recurringSchema, input))
+  .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
+    withMarket(["restaurant"], async (db, me) => ({
+      ok: true as const,
+      id: await createRecurringOrder(db, me.id, data),
+    })),
+  );
+
+const recurringPatchSchema = z.object({
+  id,
+  name: z.string().trim().max(80).optional(),
+  items: recurringItems.optional(),
+  rules: recurringRules.optional(),
+  deliveryAddress: z.string().trim().min(10).max(300).optional(),
+  paymentMethod: paymentChoice.optional(),
+  instructions: z.string().trim().max(500).optional(),
+});
+
+export const updateRecurringFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof recurringPatchSchema>) => parse(recurringPatchSchema, input))
+  .handler(async ({ data: { id: recurringId, ...patch } }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await updateRecurringOrder(db, me.id, recurringId, patch);
+      return { ok: true as const };
+    }),
+  );
+
+const recurringActionSchema = z.object({
+  id,
+  action: z.enum(["pause", "resume", "cancel", "skip_next", "confirm", "cancel_occurrence"]),
+  reason: z.string().trim().max(200).optional(),
+  pausedUntil: isoDay.optional(),
+});
+
+export const recurringActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof recurringActionSchema>) => parse(recurringActionSchema, input))
+  .handler(async ({ data }): Promise<ActionResult & { outcome?: string }> =>
+    withMarket(["restaurant"], async (db, me) => {
+      switch (data.action) {
+        case "pause":
+          await pauseRecurringOrder(db, me.id, data.id, data.reason ?? "", data.pausedUntil);
+          return { ok: true as const };
+        case "resume":
+          await resumeRecurringOrder(db, me.id, data.id);
+          return { ok: true as const };
+        case "cancel":
+          await cancelRecurringOrder(db, me.id, data.id);
+          return { ok: true as const };
+        case "skip_next":
+          await skipNextRecurringDelivery(db, me.id, data.id, data.reason ?? "");
+          return { ok: true as const };
+        default:
+          return {
+            ok: true as const,
+            outcome: await resolveRecurringPending(db, me.id, data.id, data.action),
+          };
+      }
+    }),
+  );
+
+const overrideSchema = z.object({ id, items: recurringItems });
+
+export const overrideNextRecurringFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof overrideSchema>) => parse(overrideSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await overrideNextRecurringDelivery(db, me.id, data.id, data.items);
+      return { ok: true as const };
+    }),
+  );
+
+// --- Litiges ------------------------------------------------------------------------------
+
+const disputeFiles = z
+  .array(
+    z.object({
+      name: z.string().trim().max(120),
+      dataUrl: z.string().max(3_000_000, "Photo trop lourde (2 Mo maximum)"),
+    }),
+  )
+  .max(4, "Quatre photos au plus.")
+  .default([]);
+
+/** Photos de preuve d'un litige, dans le stockage privé. */
+async function storeDisputeFiles(list: { name: string; dataUrl: string }[]): Promise<StoredFile[]> {
+  const out: StoredFile[] = [];
+  try {
+    for (const f of list) {
+      const file = await storeImage(BUCKETS.private, "litiges", f.dataUrl);
+      out.push({ ...file, name: f.name });
+    }
+  } catch (err) {
+    await removeObjects(out.map((f) => f.storageKey));
+    throw err;
+  }
+  return out;
+}
+
+const openDisputeSchema = z.object({
+  orderId: id.optional(),
+  missionId: id.optional(),
+  category: z.string().trim().min(2).max(40),
+  subcategory: z.string().trim().min(2).max(80),
+  description: z.string().trim().min(20, "Décrivez le problème (20 caractères minimum).").max(4000),
+  againstRole: z.enum(["restaurant", "farmer", "driver", "platform"]),
+  claimedAmount: z.number().finite().min(0).max(100_000_000),
+  priority: z.enum(["low", "medium", "high"]),
+  files: disputeFiles,
+});
+
+export const openDisputeFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof openDisputeSchema>) => parse(openDisputeSchema, input))
+  .handler(async ({ data: { files, ...input } }): Promise<ActionResult & { id?: string }> =>
+    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
+      const stored = await storeDisputeFiles(files);
+      try {
+        const d = await openDispute(db, { id: me.id, role: me.role }, input, stored);
+        return { ok: true as const, id: d.id };
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+    }),
+  );
+
+const replyDisputeSchema = z.object({
+  id,
+  text: z.string().trim().min(1, "Message vide").max(4000),
+  internal: z.boolean().optional(),
+  files: disputeFiles,
+});
+
+export const replyDisputeFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof replyDisputeSchema>) => parse(replyDisputeSchema, input))
+  .handler(async ({ data: { files, id: disputeId, ...input } }): Promise<ActionResult> =>
+    withMarket(["restaurant", "farmer", "driver", "admin"], async (db, me) => {
+      const stored = await storeDisputeFiles(files);
+      try {
+        await replyDispute(db, { id: me.id, role: me.role }, disputeId, input, stored);
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+const disputeStaffSchema = z.object({
+  id,
+  action: z.enum(["investigate", "await_response", "assign", "escalate"]),
+  assigneeId: id.optional(),
+  reason: z.string().trim().max(300).optional(),
+});
+
+export const disputeStaffActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof disputeStaffSchema>) => parse(disputeStaffSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        if (data.action === "investigate")
+          await setDisputeStatus(db, me.id, data.id, "investigating");
+        else if (data.action === "await_response")
+          await setDisputeStatus(db, me.id, data.id, "awaiting_response");
+        else if (data.action === "assign") {
+          if (!data.assigneeId) throw new MarketError("Choisissez un membre de l'équipe.");
+          await assignDispute(db, me.id, data.id, data.assigneeId);
+        } else await escalateDispute(db, me.id, data.id, data.reason ?? "");
+        return { ok: true as const };
+      },
+      [...DISPUTE_STAFF],
+    ),
+  );
+
+export const requestDisputeEscalationFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => parse(z.object({ id }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
+      await requestEscalation(db, { id: me.id, role: me.role }, data.id);
+      return { ok: true as const };
+    }),
+  );
+
+const resolveDisputeSchema = z.object({
+  id,
+  outcome: z.enum(["refund", "partial", "goodwill", "rejected"]),
+  grantedAmount: z.number().finite().min(0).max(100_000_000),
+  liableParty: z.enum(["restaurant", "farmer", "driver", "platform"]),
+  reason: z.string().trim().min(10, "Motivez la décision (10 caractères minimum).").max(2000),
+});
+
+export const resolveDisputeFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof resolveDisputeSchema>) => parse(resolveDisputeSchema, input))
+  .handler(async ({ data: { id: disputeId, ...input } }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await resolveDispute(db, me.id, disputeId, input);
+        return { ok: true as const };
+      },
+      [...DISPUTE_STAFF],
     ),
   );
 

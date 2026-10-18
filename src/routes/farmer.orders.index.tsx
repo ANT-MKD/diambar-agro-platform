@@ -162,7 +162,11 @@ function OrdersPage() {
                 params={{ orderId: o.id }}
                 className="flex items-center gap-4 p-4 hover:bg-accent transition"
               >
-                <img src={r?.avatar} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                <img
+                  src={r?.avatar || undefined}
+                  alt=""
+                  className="h-11 w-11 rounded-xl object-cover"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{r?.name}</span>

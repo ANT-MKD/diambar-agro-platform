@@ -7,10 +7,12 @@ import type {
   Order,
   PaymentMethod,
   Product,
+  RecurringOrder,
   RestaurantOrder,
   Role,
 } from "@/data/mocks";
 import type { InvoiceView } from "./documents-view";
+import type { Dispute } from "@/data/disputes";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
@@ -95,6 +97,12 @@ export type MarketSnapshot = {
   categories: MarketCategory[];
   /** Unités de vente utilisées par les produits. */
   units: MarketUnit[];
+  /** Restaurant : ses commandes récurrentes (vide pour les autres rôles). */
+  recurringOrders: RecurringOrder[];
+  /** Litiges de la personne (tous pour l'équipe). */
+  disputes: Dispute[];
+  /** Équipe : membres à qui confier un litige. */
+  disputeStaff: { id: string; name: string }[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];

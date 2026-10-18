@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { DisputeForm } from "@/components/disputes/dispute-form";
 import { useRestaurantOrder, useMissions } from "@/data/store";
-import { suppliers, drivers } from "@/data/mocks";
+import { suppliers, drivers, farmers } from "@/data/mocks";
 
 export const Route = createFileRoute("/restaurant/orders_/$orderId/dispute")({
   head: () => ({
@@ -35,6 +35,9 @@ function RestaurantOpenDispute() {
   if (!order)
     return <p className="py-12 text-center text-muted-foreground">Commande introuvable</p>;
   const supplier = suppliers.find((s) => s.farmerId === order.farmerId);
+  // Nom de l'exploitation (annuaire réel en mode base).
+  const farmName =
+    farmers.find((f) => f.id === order?.farmerId)?.farm ?? supplier?.name ?? "Fournisseur";
   const mission = missions.find((m) => m.orderRef === order.reference);
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
 
@@ -42,7 +45,7 @@ function RestaurantOpenDispute() {
     <div className="max-w-2xl space-y-6">
       <PageHeader
         title="Ouvrir un litige"
-        subtitle={`${order.reference} · ${supplier?.name ?? "Fournisseur"}`}
+        subtitle={`${order.reference} · ${farmName}`}
         actions={
           <Button
             variant="outline"
@@ -58,7 +61,7 @@ function RestaurantOpenDispute() {
         openedByRole="restaurant"
         openedByName={user.name}
         againstOptions={[
-          { role: "farmer", name: supplier?.name ?? "Fournisseur" },
+          { role: "farmer", name: farmName },
           { role: "driver", name: driver?.name ?? "Livreur (non assigné)" },
           { role: "platform", name: "Plateforme Diambar" },
         ]}

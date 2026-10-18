@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -59,6 +60,7 @@ function useDeliveryPricing(): DeliveryPricing {
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
 function OperationsPage() {
+  const hiddenInBase = useHiddenInBase();
   const [offset, setOffset] = useState(0);
   const day = useMemo(() => {
     const d = new Date();
@@ -144,7 +146,7 @@ function OperationsPage() {
             <AlertTriangle className="h-4 w-4 text-destructive" />À traiter maintenant
           </div>
           <ul className="text-sm space-y-1">
-            {urgentTickets.length > 0 && (
+            {urgentTickets.length > 0 && !hiddenInBase("/admin/support") && (
               <li>
                 <Link
                   to="/admin/support"
@@ -169,7 +171,7 @@ function OperationsPage() {
                 </Link>
               </li>
             )}
-            {pendingDocs.length > 0 && (
+            {pendingDocs.length > 0 && !hiddenInBase("/admin/documents") && (
               <li>
                 <Link to="/admin/documents" className="hover:underline">
                   {pendingDocs.length} document(s) livreur à vérifier

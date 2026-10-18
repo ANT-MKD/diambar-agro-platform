@@ -93,7 +93,7 @@ export function RestaurantProductCard({ product }: { product: Product }) {
         {farmer && (
           <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] text-muted-foreground min-w-0">
             <img
-              src={farmer.avatar}
+              src={farmer.avatar || undefined}
               alt=""
               className="hidden sm:block h-5 w-5 rounded-full object-cover"
             />

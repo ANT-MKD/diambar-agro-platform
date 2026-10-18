@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { market } from "@/data/market-remote";
 import { useState } from "react";
 import { ArrowLeft, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useOrder, useFarmerProfile } from "@/data/store";
-import { disputeActions, type DisputeAttachment } from "@/data/disputes";
+import { type DisputeAttachment } from "@/data/disputes";
 import { FileDrop } from "@/components/disputes/file-drop";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
@@ -51,9 +52,9 @@ function ReportPage() {
   // doit rester cohérent avec celui réellement appliqué au litige créé.
   const slaHours = severity === "high" ? 24 : severity === "medium" ? 48 : 72;
 
-  const submit = () => {
-    if (!description.trim()) {
-      toast.error("Veuillez décrire le problème");
+  const submit = async () => {
+    if (description.trim().length < 20) {
+      toast.error("Décrivez le problème (20 caractères minimum)");
       return;
     }
     const map: Record<string, [string, string]> = {
@@ -65,7 +66,7 @@ function ReportPage() {
       other: ["other", "Autre motif"],
     };
     const [category, subcategory] = map[issue] ?? ["other", "Autre motif"];
-    const id = disputeActions.open({
+    const res = await market.openDispute({
       category,
       subcategory,
       description: description.trim(),
@@ -86,8 +87,12 @@ function ReportPage() {
       priority: severity,
       channel: "app",
     });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Signalement enregistré · dossier de litige créé");
-    navigate({ to: "/farmer/disputes/$disputeId", params: { disputeId: id } });
+    navigate({ to: "/farmer/disputes/$disputeId", params: { disputeId: res.id } });
   };
 
   return (
@@ -163,6 +168,7 @@ function ReportPage() {
         </div>
 
         <FileDrop
+          accept="image/jpeg,image/png,image/webp"
           value={files}
           onChange={setFiles}
           by={farmerName}

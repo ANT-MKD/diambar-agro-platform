@@ -381,7 +381,11 @@ function AdminMessages() {
                   className={`w-full p-3 flex items-center gap-3 border-b border-border text-left hover:bg-accent transition ${isActive ? "bg-accent" : ""}`}
                 >
                   <div className="relative shrink-0">
-                    <img src={r?.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    <img
+                      src={r?.avatar || undefined}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
                     <span className="absolute -bottom-1 -right-1 grid h-4 w-4 place-items-center rounded-full bg-background border border-border text-muted-foreground">
                       <KindIcon className="h-2.5 w-2.5" />
                     </span>
@@ -422,7 +426,7 @@ function AdminMessages() {
           <div className="flex flex-col min-w-0">
             <div className="p-4 border-b border-border flex items-center gap-3">
               <img
-                src={activeCtx.restaurant?.avatar}
+                src={activeCtx.restaurant?.avatar || undefined}
                 alt=""
                 className="h-10 w-10 rounded-full object-cover"
               />

@@ -1,9 +1,19 @@
 import { supportTicketActions } from "@/data/support";
 
-// Numéro d'astreinte Diambar (à remplacer par le vrai numéro avant le
-// lancement) et numéros d'urgence publics au Sénégal.
-export const SUPPORT_HOTLINE = "+221 33 800 00 00";
+// Numéros d'urgence publics au Sénégal. Le numéro de l'équipe Diambar est
+// celui saisi dans Paramètres → Entreprise (jamais un numéro inventé).
 export const EMERGENCY_NUMBERS = { police: "17", pompiers: "18", samu: "1515" };
+
+/** Appelle l'équipe si son numéro est renseigné ; sinon rappelle les numéros
+ * d'urgence. Renvoie vrai si l'appel a été lancé. */
+export function callTeam(companyPhone: string): boolean {
+  const digits = companyPhone.replace(/[^\d+]/g, "");
+  if (digits.replace(/\D/g, "").length < 9) return false;
+  window.location.href = `tel:${digits}`;
+  return true;
+}
+
+export const EMERGENCY_TEXT = `Urgence : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}, SAMU ${EMERGENCY_NUMBERS.samu}.`;
 
 /** Alerte SOS : ticket de priorité urgente, avec la position GPS si le
  * téléphone la donne (sinon l'alerte part quand même, sans attendre). */

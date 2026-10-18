@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { market } from "@/data/market-remote";
 import { ArrowLeft, MessageSquare, Paperclip, HelpCircle, TrendingUp, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { DisputeDetailView } from "@/components/disputes/dispute-detail-view";
-import { useDisputeById, disputeActions } from "@/data/disputes";
+import { useDisputeById } from "@/data/disputes";
 import { restaurants } from "@/data/mocks";
 import { useMyId } from "@/data/market-mode";
+import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/restaurant/disputes/$disputeId")({
   head: () => ({
@@ -31,6 +33,7 @@ function RestaurantDisputeDetail() {
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const d = useDisputeById(disputeId);
+  const base = useBaseMode();
   if (!d)
     return (
       <div className="glass rounded-2xl p-10 text-center">
@@ -102,13 +105,14 @@ function RestaurantDisputeDetail() {
           </a>
           {!closed && (
             <button
-              onClick={() => {
-                disputeActions.reply(d.id, {
+              onClick={async () => {
+                const res = await market.replyDispute(d.id, {
                   role: "restaurant",
                   name: myName,
                   text: "Pourriez-vous fournir des informations complémentaires sur ce dossier (photos, bon de livraison, précisions) ?",
                 });
-                toast.success("Demande de complément envoyée");
+                if (res.ok) toast.success("Demande de complément envoyée");
+                else toast.error(res.message);
               }}
               className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2 text-left text-sm hover:bg-accent/40 transition"
             >
@@ -118,9 +122,10 @@ function RestaurantDisputeDetail() {
           )}
           {!closed && (
             <button
-              onClick={() => {
-                disputeActions.escalate(d.id, `Escalade demandée par ${myName}`);
-                toast.success("Litige escaladé · délai de réponse réduit à 12h");
+              onClick={async () => {
+                const res = await market.requestDisputeEscalation(d.id, myName);
+                if (res.ok) toast.success("Escalade demandée · l'équipe est prévenue");
+                else toast.error(res.message);
               }}
               className="flex w-full items-center gap-2 rounded-xl border border-destructive/30 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/5 transition"
             >
@@ -128,14 +133,16 @@ function RestaurantDisputeDetail() {
               Escalader le litige
             </button>
           )}
-          <Link
-            to="/restaurant/returns"
-            search={{ tab: "avoirs" }}
-            className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm hover:bg-accent/40 transition"
-          >
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            Voir mon portefeuille d'avoirs
-          </Link>
+          {!base && (
+            <Link
+              to="/restaurant/returns"
+              search={{ tab: "avoirs" }}
+              className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm hover:bg-accent/40 transition"
+            >
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              Voir mon portefeuille d'avoirs
+            </Link>
+          )}
         </div>
       }
     />

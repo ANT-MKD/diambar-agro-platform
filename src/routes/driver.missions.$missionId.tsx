@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -88,6 +89,7 @@ const FLOW: Array<{ status: "accepted" | "pickup" | "loaded" | "delivered"; labe
 ];
 
 function MissionDetail() {
+  const base = useBaseMode();
   const myDriverId = useMyId("driver");
   const navigate = useNavigate();
   const { missionId } = Route.useParams();
@@ -278,9 +280,15 @@ function MissionDetail() {
           <span>
             Véhicule non conforme : assurance ou contrôle technique expiré. Vous ne pouvez pas
             accepter de mission tant que ce n'est pas régularisé.{" "}
-            <Link to="/driver/vehicle" className="font-semibold underline">
-              Mettre à jour mes documents
-            </Link>
+            {base ? (
+              <Link to="/contact" className="font-semibold underline">
+                Contacter l'équipe
+              </Link>
+            ) : (
+              <Link to="/driver/vehicle" className="font-semibold underline">
+                Mettre à jour mes documents
+              </Link>
+            )}
           </span>
         </div>
       )}
@@ -587,12 +595,19 @@ function MissionDetail() {
               Actions rapides
             </div>
             <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link to="/driver/incidents" search={{ missionRef: mission.reference }}>
-                <TriangleAlert className="h-4 w-4" />
-                Signaler un incident
-              </Link>
+              {base ? (
+                <Link to="/driver/missions/$missionId/dispute" params={{ missionId: mission.id }}>
+                  <TriangleAlert className="h-4 w-4" />
+                  Signaler un problème
+                </Link>
+              ) : (
+                <Link to="/driver/incidents" search={{ missionRef: mission.reference }}>
+                  <TriangleAlert className="h-4 w-4" />
+                  Signaler un incident
+                </Link>
+              )}
             </Button>
-            {conversation ? (
+            {base ? null : conversation ? (
               <Button asChild variant="outline" className="w-full justify-start gap-2">
                 <Link
                   to="/driver/messages/$conversationId"
@@ -610,12 +625,14 @@ function MissionDetail() {
                 </Link>
               </Button>
             )}
-            <Button asChild variant="outline" className="w-full justify-start gap-2">
-              <Link to="/driver/routes">
-                <RouteIcon className="h-4 w-4" />
-                Voir ma tournée
-              </Link>
-            </Button>
+            {!base && (
+              <Button asChild variant="outline" className="w-full justify-start gap-2">
+                <Link to="/driver/routes">
+                  <RouteIcon className="h-4 w-4" />
+                  Voir ma tournée
+                </Link>
+              </Button>
+            )}
           </div>
 
           <div className="glass rounded-2xl p-4 space-y-2">

@@ -77,7 +77,7 @@ function RestaurantProfileSettings() {
     >
       <div className="flex items-center gap-4">
         <img
-          src={form.avatarUrl}
+          src={form.avatarUrl || undefined}
           alt={`Photo du restaurant ${form.displayName}`}
           className="h-20 w-20 rounded-2xl object-cover ring-2 ring-amber-500/30"
         />
