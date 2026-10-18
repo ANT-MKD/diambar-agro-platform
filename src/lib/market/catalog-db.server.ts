@@ -2,8 +2,9 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import { auditLogs, categories, farmers, products } from "@/db/schema";
 import { categoryNameProblem, cleanCategoryName, sameCategory } from "@/lib/category-name";
+import { BASE_UNITS, canonicalUnit, unitProblem } from "@/lib/units";
 import { fail, notifyOpsStaff, notifyUser, type Q, type Tx } from "./market-common.server";
-import type { MarketCategory } from "./types";
+import type { MarketCategory, MarketUnit } from "./types";
 
 // Catégories de produits : la liste officielle de l'équipe, plus celles que
 // les producteurs proposent en créant un produit. Une catégorie proposée sert
@@ -156,6 +157,57 @@ export async function mergeCategory(db: Db, adminId: string, fromId: string, int
       { name: from.name, products: moved.length },
       { name: into.name },
     );
+    return moved.length;
+  });
+}
+
+// --- Unités de vente -----------------------------------------------------------------
+
+/** Unités utilisées par les produits, avec leur nombre de produits. */
+export async function readUnits(q: Q): Promise<MarketUnit[]> {
+  const rows = await q
+    .select({ name: products.unit, productCount: sql<number>`count(*)::int` })
+    .from(products)
+    .groupBy(products.unit)
+    .orderBy(sql`count(*) desc`, asc(products.unit));
+  return rows.map((r) => ({ name: r.name, productCount: Number(r.productCount) }));
+}
+
+/** Unité d'un produit : une unité existante si elle est écrite autrement
+ * (« Sacs » → « sac »), sinon l'unité saisie, nettoyée. */
+export async function resolveUnit(q: Q, unit: string): Promise<string> {
+  const problem = unitProblem(unit);
+  if (problem) fail(problem);
+  const inUse = (await q.selectDistinct({ unit: products.unit }).from(products)).map((r) => r.unit);
+  return canonicalUnit(unit, [...BASE_UNITS, ...inUse]);
+}
+
+/** Renommer une unité sur tous les produits ; vers une unité existante, cela
+ * revient à fusionner les deux. Les commandes passées gardent leur unité. */
+export async function renameUnit(db: Db, adminId: string, from: string, to: string) {
+  const problem = unitProblem(to);
+  if (problem) fail(problem);
+  return db.transaction(async (tx) => {
+    const others = (await tx.selectDistinct({ unit: products.unit }).from(products))
+      .map((r) => r.unit)
+      .filter((u) => u !== from);
+    const target = canonicalUnit(to, [...others, ...BASE_UNITS]);
+    if (target === from) return 0;
+    const moved = await tx
+      .update(products)
+      .set({ unit: target, updatedAt: new Date() })
+      .where(eq(products.unit, from))
+      .returning({ id: products.id });
+    if (moved.length === 0) fail("Aucun produit n'utilise plus cette unité.");
+    await tx.insert(auditLogs).values({
+      actorId: adminId,
+      module: "moderation",
+      action: others.includes(target) ? "Unités fusionnées" : "Unité renommée",
+      targetType: "unit",
+      targetId: target,
+      before: { unit: from, products: moved.length },
+      after: { unit: target },
+    });
     return moved.length;
   });
 }

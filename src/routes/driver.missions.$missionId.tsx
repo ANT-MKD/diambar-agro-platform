@@ -64,6 +64,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { telLink, whatsappLink } from "@/lib/contact";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/missions/$missionId")({
   head: () => ({ meta: [{ title: "Mission · Livreur Diambar" }] }),
@@ -99,6 +100,7 @@ function MissionDetail() {
   const eligibilityFor = useMyMissionEligibility();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
+  const commissionRate = useRules().driverPay.commissionRate;
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
@@ -710,8 +712,8 @@ function MissionDetail() {
               Demandez au restaurant son code de remise à 4 chiffres et prenez une photo de la
               marchandise livrée.{" "}
               {market.isRemote()
-                ? `Gain de la course : ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} (commission plateforme déduite).`
-                : `Vous recevrez immédiatement ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre portefeuille (commission plateforme déjà déduite).`}
+                ? `Gain de la course : ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout, commissionRate))} (commission plateforme déduite).`
+                : `Vous recevrez immédiatement ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout, commissionRate))} sur votre portefeuille (commission plateforme déjà déduite).`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1">

@@ -9,10 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAYMENT_METHODS, farmers } from "@/data/mocks";
+import { farmers } from "@/data/mocks";
 import { useRestaurantProfile, restaurantProfileActions, useRestaurantOrders } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { invoiceNumberFor } from "@/lib/invoice-data";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/restaurant/settings/payments")({
   head: () => ({
@@ -32,6 +33,8 @@ export const Route = createFileRoute("/restaurant/settings/payments")({
 
 function RestaurantPaymentSettings() {
   const profile = useRestaurantProfile();
+  // Seuls les moyens de paiement ouverts par Diambar sont proposés.
+  const PAYMENT_METHODS = useRules().paymentMethods;
   const orders = useRestaurantOrders();
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
     Object.fromEntries(PAYMENT_METHODS.map((m) => [m, profile.enabledPaymentMethods.includes(m)])),

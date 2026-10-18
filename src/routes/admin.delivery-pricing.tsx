@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { MapPin, Plus, Route as RouteIcon, Trash2, Truck } from "lucide-react";
+import { Bike, MapPin, Plus, Route as RouteIcon, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -17,6 +17,9 @@ import {
   type PlaceRow,
 } from "@/lib/delivery-pricing";
 import { formatFCFA } from "@/lib/format";
+import { driverCommissionForPayout } from "@/lib/commission";
+import { missionPayout } from "@/lib/mission-pay";
+import type { DriverPay } from "@/lib/platform-rules";
 
 export const Route = createFileRoute("/admin/delivery-pricing")({
   head: () => ({ meta: [{ title: "Tarifs de livraison — Admin Diambar" }] }),
@@ -27,7 +30,12 @@ export const Route = createFileRoute("/admin/delivery-pricing")({
 // tranches, positions des quartiers, corrections par producteur. La même
 // distance sert à la paie du livreur.
 
-type Settings = { pricing: DeliveryPricing; places: PlaceRow[]; farmers: FarmerPlaceRow[] };
+type Settings = {
+  pricing: DeliveryPricing;
+  driverPay: DriverPay;
+  places: PlaceRow[];
+  farmers: FarmerPlaceRow[];
+};
 
 const notify = (res: Result, success: string) => {
   if (res.ok) toast.success(success);
@@ -87,7 +95,7 @@ function DeliveryPricingPage() {
         !error && <p className="text-sm text-muted-foreground">Chargement…</p>
       ) : (
         <>
-          <PricingCard initial={data.pricing} onSaved={load} />
+          <PricingAndPay data={data} onSaved={load} />
           <PlacesCard places={data.places} onSaved={load} />
           <FarmersCard farmers={data.farmers} onSaved={load} />
         </>
@@ -96,9 +104,95 @@ function DeliveryPricingPage() {
   );
 }
 
+// --- Barème et paie des livreurs ------------------------------------------------------
+
+/** Les deux cartes partagent la paie des livreurs en cours de saisie : les
+ * exemples de marge suivent les deux réglages. */
+function PricingAndPay({ data, onSaved }: { data: Settings; onSaved: () => void }) {
+  const [pay, setPay] = useState(data.driverPay);
+  return (
+    <>
+      <PricingCard initial={data.pricing} pay={pay} onSaved={onSaved} />
+      <DriverPayCard pay={pay} onChange={setPay} onSaved={onSaved} />
+    </>
+  );
+}
+
+function DriverPayCard({
+  pay,
+  onChange,
+  onSaved,
+}: {
+  pay: DriverPay;
+  onChange: (p: DriverPay) => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof DriverPay) => (v: number) => onChange({ ...pay, [k]: v });
+  const save = async () => {
+    setSaving(true);
+    const res = await market.saveDriverPay(pay);
+    setSaving(false);
+    if (notify(res, "Paie des livreurs enregistrée : elle s'applique aux prochaines courses"))
+      onSaved();
+  };
+  const example = missionPayout(10, 40, pay);
+  return (
+    <div className="glass space-y-4 rounded-2xl p-5" data-testid="driver-pay-card">
+      <h3 className="flex items-center gap-2 font-semibold">
+        <Bike className="h-4 w-4 text-primary" /> Paie des livreurs
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        Ce que gagne un livreur pour une course, et la part que garde Diambar. Les courses déjà
+        ouvertes gardent leur prix.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <NumberInput label="Prise en charge (F CFA)" value={pay.base} onChange={set("base")} />
+        <NumberInput label="Par km (F CFA)" value={pay.perKm} onChange={set("perKm")} />
+        <NumberInput
+          label="Par kg en plus (F CFA)"
+          value={pay.perKgOver}
+          onChange={set("perKgOver")}
+        />
+        <NumberInput label="Au-delà de (kg)" value={pay.freeKg} onChange={set("freeKg")} />
+        <NumberInput label="Course minimum (F CFA)" value={pay.minimum} onChange={set("minimum")} />
+        <NumberInput
+          label="Commission Diambar (%)"
+          value={pay.commissionRate}
+          onChange={set("commissionRate")}
+          hint={`Le livreur garde ${Math.max(0, 100 - pay.commissionRate)} % de la course`}
+        />
+        <NumberInput label="Moto jusqu'à (kg)" value={pay.motoMaxKg} onChange={set("motoMaxKg")} />
+        <NumberInput
+          label="Camionnette jusqu'à (kg)"
+          value={pay.vanMaxKg}
+          onChange={set("vanMaxKg")}
+          hint="Au-delà : camion"
+        />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Exemple : 10 km et 40 kg → course de {formatFCFA(example)}, dont{" "}
+        {formatFCFA(example - driverCommissionForPayout(example, pay.commissionRate))} pour le
+        livreur.
+      </p>
+      <Button onClick={save} disabled={saving}>
+        {saving ? "Enregistrement…" : "Enregistrer la paie des livreurs"}
+      </Button>
+    </div>
+  );
+}
+
 // --- Barème -----------------------------------------------------------------------
 
-function PricingCard({ initial, onSaved }: { initial: DeliveryPricing; onSaved: () => void }) {
+function PricingCard({
+  initial,
+  pay,
+  onSaved,
+}: {
+  initial: DeliveryPricing;
+  pay: DriverPay;
+  onSaved: () => void;
+}) {
   const [p, setP] = useState(initial);
   const [saving, setSaving] = useState(false);
   const setBracket = (i: number, patch: Partial<DeliveryPricing["brackets"][number]>) =>
@@ -211,8 +305,8 @@ function PricingCard({ initial, onSaved }: { initial: DeliveryPricing; onSaved: 
           </thead>
           <tbody className="divide-y divide-border">
             {examples.map(([km, kg]) => {
-              const q = deliveryFee(km, kg, p);
-              const cost = driverNetCost(km, kg);
+              const q = deliveryFee(km, kg, p, pay);
+              const cost = driverNetCost(km, kg, pay);
               return (
                 <tr key={`${km}-${kg}`}>
                   <td className="py-2 pr-3">

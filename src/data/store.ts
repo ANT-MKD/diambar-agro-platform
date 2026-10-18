@@ -85,11 +85,7 @@ import {
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
 import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
-import {
-  tierRateForVolume,
-  driverCommissionForPayout,
-  DRIVER_COMMISSION_RATE,
-} from "@/lib/commission";
+import { tierRateForVolume, driverCommissionForPayout } from "@/lib/commission";
 import {
   getCommissionTiers,
   getDeliveryZones,
@@ -112,6 +108,8 @@ import {
 import { createStore } from "./persist";
 import { resetBudget } from "./budget";
 import { replaceCategories } from "./catalog";
+import { replaceUnits } from "./units";
+import { getRules, replaceRules } from "./rules";
 import { resetSecurityForAccount } from "./security";
 import { payouts as demoPayoutList } from "./admin-mocks";
 import {
@@ -220,6 +218,10 @@ const cartStore = createStore<CartLine[]>([], "diambar:cart");
 const wishlistStore = createStore<string[]>([], "diambar:wishlist");
 const conversationsStore = createStore<Conversation[]>(seedConversations, "diambar:conversations");
 const recurringStore = createStore<RecurringOrder[]>(seedRecurring, "diambar:recurring");
+
+export function getProducts(): Product[] {
+  return productsStore.get();
+}
 
 export function useProducts() {
   return useSyncExternalStore(productsStore.subscribe, productsStore.get, productsStore.get);
@@ -957,7 +959,8 @@ export const missionActions = {
       // Crédit réel du portefeuille livreur : le montant brut de la mission,
       // puis la commission plateforme déduite séparément (deux écritures
       // liées par la même référence).
-      const commission = driverCommissionForPayout(updated.payout);
+      const rate = getRules().driverPay.commissionRate;
+      const commission = driverCommissionForPayout(updated.payout, rate);
       driverWalletActions.credit(
         `Mission ${updated.reference}`,
         updated.payout,
@@ -965,7 +968,7 @@ export const missionActions = {
         updated.reference,
       );
       driverWalletActions.credit(
-        `Commission plateforme (${DRIVER_COMMISSION_RATE}%)`,
+        `Commission plateforme (${rate}%)`,
         -commission,
         "commission",
         updated.reference,
@@ -1329,7 +1332,10 @@ export function useDeliveryFeeFor(address: string): number {
   return zone ? deliveryFeeForZone(zone) : 0;
 }
 
-export const RECEPTION_WINDOW_MS = 48 * 3600_000;
+/** Délai pour signaler un problème à la réception (réglé par l'admin). */
+export function receptionWindowMs(): number {
+  return getRules().receptionWindowHours * 3600_000;
+}
 
 /** Heure réelle de livraison d'une commande restaurant (dernier passage à
  * « livrée »), ou undefined pour une commande de démo sans historique. */
@@ -1473,7 +1479,7 @@ export const restaurantOrderActions = {
     }
     if (order.reception) return { ok: false, message: "La réception a déjà été contrôlée." };
     const deliveredAt = deliveredAtOf(order);
-    if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS) {
+    if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > receptionWindowMs()) {
       return {
         ok: false,
         message: "Le délai de 48 h après la livraison est dépassé : passez par le support.",
@@ -1838,12 +1844,12 @@ function openMissionForOrder(reference: string) {
       },
       distanceKm,
       estimatedMinutes,
-      payout: missionPayout(distanceKm, weightKg),
+      payout: missionPayout(distanceKm, weightKg, getRules().driverPay),
       weightKg,
       itemsCount: source.items.length,
       scheduledFor: restoOrder?.slotStart ?? now,
       createdAt: now,
-      vehicleType: vehicleForWeight(weightKg),
+      vehicleType: vehicleForWeight(weightKg, getRules().driverPay),
       urgency: restoOrder?.missionUrgency ?? urgencyForSlot(restoOrder?.slotStart),
       statusHistory: [{ status: "available", at: now }],
       instructions: restoOrder?.instructions,
@@ -2980,6 +2986,18 @@ export function replaceMarketData(s: MarketSnapshot) {
   }
   applyAccount(s);
   replaceCategories(s.categories);
+  replaceUnits(s.units ?? []);
+  replaceRules({
+    cutoffHour: s.rules.cutoffHour,
+    minOrderPerProducer: s.rules.minOrderPerProducer,
+    receptionWindowHours: s.rules.receptionWindowHours,
+    paymentDeadlineHour: s.rules.paymentDeadlineHour,
+    minPayout: s.rules.minPayout,
+    deliveryHours: s.rules.deliveryHours,
+    driverPay: s.rules.driverPay,
+    cities: s.rules.cities,
+    paymentMethods: s.rules.paymentMethods,
+  });
   // Panier : on retire ce qui n'existe plus au catalogue.
   const ids = new Set(s.products.map((p) => p.id));
   const cart = cartStore.get();

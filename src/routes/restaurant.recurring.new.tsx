@@ -41,6 +41,9 @@ import {
   type RecurringFrequency,
 } from "@/data/mocks";
 import { useCategoryNames } from "@/data/catalog";
+import { useRules } from "@/data/rules";
+import { clampTime } from "@/lib/delivery-time";
+import { minutesOf } from "@/lib/platform-rules";
 import { formatFCFA } from "@/lib/format";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
@@ -84,7 +87,8 @@ function NewRecurringOrder() {
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1]);
   const [createTime, setCreateTime] = useState("08:00");
   const [firstRunAt, setFirstRunAt] = useState(todayISODate());
-  const [deliverySlot, setDeliverySlot] = useState("14:00 – 16:00");
+  const deliveryHours = useRules().deliveryHours;
+  const [deliverySlot, setDeliverySlot] = useState(() => clampTime("09:00", deliveryHours));
   const [endType, setEndType] = useState<"never" | "on_date" | "after_count">("never");
   const [endDate, setEndDate] = useState(todayISODate());
   const [endCount, setEndCount] = useState(24);
@@ -176,8 +180,15 @@ function NewRecurringOrder() {
 
   const canGoStep1 = !!farmerId;
   const canGoStep2 = items.length > 0;
+  const deliveryTimeOff = !/^\d{2}:\d{2}$/.test(deliverySlot)
+    ? "Choisissez l'heure de livraison."
+    : minutesOf(deliverySlot) < minutesOf(deliveryHours.from) ||
+        minutesOf(deliverySlot) > minutesOf(deliveryHours.to)
+      ? `Les livraisons se font entre ${deliveryHours.from} et ${deliveryHours.to}.`
+      : null;
   const canGoStep3 =
-    daysOfWeek.length > 0 || frequency === "monthly" || frequency === "every_n_days";
+    (daysOfWeek.length > 0 || frequency === "monthly" || frequency === "every_n_days") &&
+    !deliveryTimeOff;
 
   const toggleDay = (d: number) => {
     setDaysOfWeek((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
@@ -515,15 +526,21 @@ function NewRecurringOrder() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Créneau de livraison souhaité</Label>
+              <Label htmlFor="recurring-delivery-time">Heure de livraison souhaitée</Label>
               <Input
+                id="recurring-delivery-time"
+                type="time"
+                step={900}
+                min={deliveryHours.from}
+                max={deliveryHours.to}
                 value={deliverySlot}
                 onChange={(e) => setDeliverySlot(e.target.value)}
-                placeholder="14:00 – 16:00"
               />
               <p className="text-[11px] text-muted-foreground">
-                La commande sera créée à {createTime} pour une livraison souhaitée sur ce créneau.
+                La commande sera créée à {createTime} pour une livraison vers {deliverySlot || "…"}{" "}
+                (livraisons entre {deliveryHours.from} et {deliveryHours.to}).
               </p>
+              {deliveryTimeOff && <p className="text-[11px] text-destructive">{deliveryTimeOff}</p>}
             </div>
 
             <div className="space-y-1.5">

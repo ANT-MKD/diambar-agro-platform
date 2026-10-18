@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMyId } from "@/data/market-mode";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/farmer/revenue/withdraw")({
   head: () => ({ meta: [{ title: "Retirer · Diambar Agro" }] }),
@@ -43,6 +44,7 @@ function WithdrawPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);
   const [amount, setAmount] = useState(50000);
+  const minPayout = useRules().minPayout;
   // Avec la base, Diambar envoie l'argent depuis son compte marchand : pas de
   // frais retenus sur le montant.
   const remoteMode = market.isRemote();
@@ -159,7 +161,7 @@ function WithdrawPage() {
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-                min={5000}
+                min={minPayout}
                 max={Math.max(0, available)}
               />
             </div>
@@ -196,7 +198,7 @@ function WithdrawPage() {
               </Button>
               <Button
                 onClick={() => setStep(3)}
-                disabled={amount < 5000 || amount > available}
+                disabled={amount < minPayout || amount > available}
                 className="gap-2"
               >
                 Continuer <ChevronRight className="h-4 w-4" />

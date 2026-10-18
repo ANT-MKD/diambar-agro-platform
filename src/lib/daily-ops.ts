@@ -20,9 +20,9 @@ const sameDay = (iso: string | undefined, day: Date) => {
 const deliveredAt = (o: RestaurantOrder) =>
   [...o.statusHistory].reverse().find((h) => h.status === "delivered")?.at;
 
-// Une livraison est à l'heure si elle arrive au plus tard 4 h après le début
-// du créneau choisi (la durée d'un créneau de réception).
-export const ON_TIME_WINDOW_MS = 4 * 3600_000;
+// Une livraison est à l'heure si elle arrive au plus tard une heure après
+// l'heure choisie par le restaurant.
+export const ON_TIME_WINDOW_MS = 3600_000;
 
 export type DailyOps = {
   ordersPlaced: number;
@@ -53,6 +53,8 @@ export type DailyOps = {
 
 export function computeDailyOps(input: {
   day: Date;
+  /** Commission de Diambar sur les courses (%), réglée par l'admin. */
+  driverCommissionRate?: number;
   restaurantOrders: RestaurantOrder[];
   missions: Mission[];
   transactions: Transaction[];
@@ -109,7 +111,8 @@ export function computeDailyOps(input: {
   );
   const driverPayouts = deliveredMissions.reduce((s, m) => s + m.payout, 0);
   const driverCommissions = deliveredMissions.reduce(
-    (s, m) => s + Math.round(m.payout * (DRIVER_COMMISSION_RATE / 100)),
+    (s, m) =>
+      s + Math.round(m.payout * ((input.driverCommissionRate ?? DRIVER_COMMISSION_RATE) / 100)),
     0,
   );
   let deliveryFees = 0;
@@ -171,6 +174,7 @@ export type DeliveryMargin = {
  * à ce que la plateforme paie au livreur. */
 export function deliveryMargins(input: {
   day: Date;
+  driverCommissionRate?: number;
   restaurantOrders: RestaurantOrder[];
   missions: Mission[];
 }): DeliveryMargin[] {
@@ -186,7 +190,8 @@ export function deliveryMargins(input: {
     const order = input.restaurantOrders.find((o) => o.reference === m.orderRef);
     if (!order) continue;
     const fee = orderAmounts(order).deliveryFee;
-    const cost = m.payout - Math.round(m.payout * (DRIVER_COMMISSION_RATE / 100));
+    const rate = input.driverCommissionRate ?? DRIVER_COMMISSION_RATE;
+    const cost = m.payout - Math.round(m.payout * (rate / 100));
     out.push({ mission: m, fee, cost, margin: fee - cost });
   }
   return out;
@@ -196,6 +201,7 @@ export function deliveryMargins(input: {
  * que la plateforme paie au livreur, de la pire à la moins mauvaise. */
 export function lossMakingDeliveries(input: {
   day: Date;
+  driverCommissionRate?: number;
   restaurantOrders: RestaurantOrder[];
   missions: Mission[];
 }): DeliveryMargin[] {

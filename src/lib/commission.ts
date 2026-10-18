@@ -1,4 +1,5 @@
 import type { Order } from "@/data/mocks";
+import { DEFAULT_DRIVER_PAY } from "@/lib/platform-rules";
 
 type Tier = { min: number; max: number | null; rate: number };
 
@@ -70,12 +71,12 @@ export function computeCommission(orders: Order[], tiers: Tier[], recorded?: Rec
 }
 
 /**
- * Commission plateforme sur une mission de livraison : taux fixe (le
- * livreur conserve 80 % de la course, cf. page /pricing), pas de barème par
- * palier comme pour les producteurs.
+ * Commission plateforme sur une mission de livraison : un taux unique réglé
+ * par l'admin (« Tarifs de livraison »), pas de barème par palier comme pour
+ * les producteurs. Valeur par défaut tant que rien n'est réglé.
  */
-export const DRIVER_COMMISSION_RATE = 20;
+export const DRIVER_COMMISSION_RATE = DEFAULT_DRIVER_PAY.commissionRate;
 
-export function driverCommissionForPayout(payout: number) {
-  return Math.round(payout * (DRIVER_COMMISSION_RATE / 100));
+export function driverCommissionForPayout(payout: number, rate = DRIVER_COMMISSION_RATE) {
+  return Math.round(payout * (rate / 100));
 }

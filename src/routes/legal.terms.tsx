@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/landing/legal-page";
+import { usePublicInfo } from "@/components/landing/use-public-info";
 
 export const Route = createFileRoute("/legal/terms")({
   head: () => ({
@@ -19,7 +20,12 @@ export const Route = createFileRoute("/legal/terms")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: () => (
+  component: TermsPage,
+});
+
+function TermsPage() {
+  const info = usePublicInfo();
+  return (
     <LegalPage
       eyebrow="Légal"
       title="Conditions générales d'utilisation"
@@ -50,17 +56,17 @@ export const Route = createFileRoute("/legal/terms")({
           heading: "Prix, commissions et paiements",
           paragraphs: [
             "La commission prélevée est dégressive selon le volume mensuel et n'est appliquée que sur les commandes livrées et confirmées.",
-            "Le producteur est payé sur la marchandise livrée ; les promotions et avoirs accordés par la plateforme ne sont jamais déduits de ses revenus. Ses demandes de retrait sont traitées sous 24 heures ouvrées vers Wave, Orange Money ou Free Money.",
-            "Les frais de livraison dépendent de la zone de livraison (une livraison par producteur) et sont affichés avant la validation de la commande. Une commande peut être passée jusqu'à 18 h pour une livraison le lendemain.",
-            "Le livreur perçoit 80 % du prix de la course, crédité dès la livraison confirmée par le code de remise du restaurant et une photo ; l'attente au-delà de 10 minutes est rémunérée.",
+            "Le producteur est payé sur la marchandise livrée ; les promotions et avoirs accordés par la plateforme ne sont jamais déduits de ses revenus. Ses demandes de retrait sont traitées sous 24 heures ouvrées vers Wave ou Orange Money.",
+            `Les frais de livraison dépendent de la distance et du poids (une livraison par producteur) et sont affichés avant la validation de la commande. Une commande peut être passée jusqu'à ${info.cutoffHour} h pour une livraison le lendemain, à l'heure choisie par le restaurant.`,
+            `Le livreur perçoit ${info.driverShare} % du prix de la course, crédité dès la livraison confirmée par le code de remise du restaurant et une photo.`,
             "Le restaurant peut annuler sa commande tant que le producteur n'a pas commencé la préparation ; un paiement mobile déjà effectué est alors remboursé intégralement.",
           ],
         },
         {
           heading: "Litiges",
           paragraphs: [
-            "À la réception, le restaurant peut refuser tout ou partie d'un produit dans les 48 heures suivant la livraison : le montant refusé lui est remboursé automatiquement.",
-            "Tout autre litige relatif à une commande doit être signalé dans les 48 heures suivant la livraison via le centre de litiges ; l'équipe support instruit le dossier et informe les deux parties de sa décision.",
+            `À la réception, le restaurant peut refuser tout ou partie d'un produit dans les ${info.receptionWindowHours} heures suivant la livraison : le montant refusé lui est remboursé automatiquement.`,
+            `Tout autre litige relatif à une commande doit être signalé dans les ${info.receptionWindowHours} heures suivant la livraison via le centre de litiges ; l'équipe support instruit le dossier et informe les deux parties de sa décision.`,
           ],
         },
         {
@@ -78,5 +84,5 @@ export const Route = createFileRoute("/legal/terms")({
         },
       ]}
     />
-  ),
-});
+  );
+}

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useCities } from "@/data/admin-store";
 import { useFarmerFarm, farmerFarmActions } from "@/data/store";
+import { useCategoryNames } from "@/data/catalog";
 
 export const Route = createFileRoute("/farmer/settings/farm")({
   head: () => ({
@@ -32,17 +33,8 @@ export const Route = createFileRoute("/farmer/settings/farm")({
   component: FarmSettings,
 });
 
-const PRODUCT_TYPES = [
-  "Légumes",
-  "Fruits",
-  "Volaille",
-  "Viande",
-  "Céréales",
-  "Tubercules",
-  "Épices",
-];
-
 function FarmSettings() {
+  const PRODUCT_TYPES = useCategoryNames();
   const farm = useFarmerFarm();
   const cities = useCities();
   const [form, setForm] = useState(farm);

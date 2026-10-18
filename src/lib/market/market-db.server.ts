@@ -37,7 +37,9 @@ import { checkMissionStep, checkOrderTransition, type OrderActor } from "@/lib/o
 import { zoneForAddress } from "@/lib/pricing";
 import { newTrackingToken } from "@/lib/tracking-id";
 import { PAYMENT_METHOD_DB, readRules, readZones } from "./snapshot.server";
-import { resolveCategory } from "./catalog-db.server";
+import { resolveCategory, resolveUnit } from "./catalog-db.server";
+import { deliveryTimeProblem } from "@/lib/delivery-time";
+import { readDriverPay } from "./rules-db.server";
 import {
   audit,
   fail,
@@ -115,12 +117,13 @@ export type ProductInput = {
 export async function saveProduct(db: Db, farmerId: string, input: ProductInput): Promise<string> {
   return db.transaction(async (tx) => {
     const categoryId = await resolveCategory(tx, input.category, farmerId);
+    const unit = await resolveUnit(tx, input.unit);
     const status = input.draft ? "draft" : input.paused ? "paused" : "active";
     const values = {
       categoryId,
       name: input.name,
       description: input.description || null,
-      unit: input.unit,
+      unit,
       price: input.price,
       minStock: input.minStock,
       minOrderQty: input.minOrder && input.minOrder > 0 ? input.minOrder : null,
@@ -299,8 +302,6 @@ export type PlacedOrder = {
   orders: { id: string; reference: string; farmerId: string; subtotal: number }[];
 };
 
-const DAY_MS = 24 * 3600_000;
-
 type FarmerPlace = {
   id: string;
   name: string;
@@ -319,6 +320,7 @@ async function quoteGroups(
   farmerById: Map<string, FarmerPlace>,
 ) {
   const pricing = await readDeliveryPricing(q);
+  const driverPay = await readDriverPay(q);
   const places = await readPlaces(q);
   const destination = places.byId.get(zone.id);
   if (!destination) {
@@ -339,7 +341,7 @@ async function quoteGroups(
     }
     const weight = lines.reduce((sum, l) => sum + l.qty, 0);
     quotes.set(farmerId, {
-      ...quoteDelivery(origin, destination, weight, pricing, f.adjustKm),
+      ...quoteDelivery(origin, destination, weight, pricing, f.adjustKm, driverPay),
       origin: origin.name,
       farmName: f.name,
     });
@@ -442,19 +444,11 @@ export async function placeOrder(
       fail(`La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`);
     }
 
-    // Créneau : jamais le jour même ; après l'heure limite, pas avant le
-    // surlendemain (Dakar est à l'heure UTC toute l'année).
-    const now = new Date();
+    // Heure de livraison choisie : jamais le jour même ; après l'heure
+    // limite, pas avant le surlendemain ; dans les heures de livraison.
     const slot = new Date(input.slotStart);
-    if (Number.isNaN(slot.getTime())) fail("Créneau de livraison invalide.");
-    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-    const firstDay = today + (now.getUTCHours() < rules.cutoffHour ? 1 : 2) * DAY_MS;
-    if (slot.getTime() < firstDay) {
-      fail(
-        `Passé ${rules.cutoffHour} h, la première livraison possible est après-demain : choisissez un autre créneau.`,
-      );
-    }
-    if (slot.getTime() > today + 15 * DAY_MS) fail("Créneau trop lointain (14 jours au plus).");
+    const slotProblem = deliveryTimeProblem(slot, new Date(), rules);
+    if (slotProblem) fail(slotProblem);
 
     if (!rules.paymentMethods.includes(input.paymentMethod)) {
       fail(`Le paiement par ${input.paymentMethod} n'est pas proposé pour le moment.`);
@@ -728,13 +722,14 @@ async function openMission(tx: Tx, o: OrderRow) {
     o.distanceKm != null ? Number(o.distanceKm) : routeEstimate(pickupCity, dropoffCity).distanceKm;
   const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id));
   const weightKg = qty3(lines.reduce((s, l) => s + Number(l.qtyConfirmed ?? l.qtyOrdered), 0));
+  const driverPay = await readDriverPay(tx);
   const values = {
     driverId: null,
     status: "available" as MissionStatus,
     scheduledFor: c.slotStart,
     distanceKm,
     weightKg,
-    payout: missionPayout(distanceKm, weightKg),
+    payout: missionPayout(distanceKm, weightKg, driverPay),
     urgency: urgencyForSlot(c.slotStart),
     updatedAt: new Date(),
   };

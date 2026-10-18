@@ -32,6 +32,7 @@ import {
   type SetupStepKey,
   type TvaSetting,
 } from "./setup-model";
+import { DEFAULT_RULES, minutesOf, normalizeDeliveryHours } from "@/lib/platform-rules";
 
 // Assistant de configuration : réservé au super administrateur, contrôlé ici
 // côté serveur. Chaque étape enregistre ses réglages dans la base (table
@@ -45,6 +46,8 @@ const SETTING_KEYS = [
   "min_order_per_producer",
   "reception_window_hours",
   "payment_deadline_hour",
+  "delivery_hours",
+  "min_payout",
   "commission_tiers",
   "tva",
   "payment_methods",
@@ -87,6 +90,9 @@ export const getSetupFn = createServerFn({ method: "GET" }).handler(
             s.payment_deadline_hour,
             DEFAULT_SETTINGS.payment_deadline_hour as number,
           ),
+          deliveryFrom: normalizeDeliveryHours(s.delivery_hours).from,
+          deliveryTo: normalizeDeliveryHours(s.delivery_hours).to,
+          minPayout: num(s.min_payout, DEFAULT_RULES.minPayout),
         },
         money: {
           tiers:
@@ -117,6 +123,12 @@ const companySchema = z.object({
   phone: z.string().refine((p) => normalizeSenegalPhone(p) !== null, {
     message: "Téléphone de contact : 9 chiffres attendus",
   }),
+  whatsapp: z
+    .string()
+    .default("")
+    .refine((p) => !p.trim() || normalizeSenegalPhone(p) !== null, {
+      message: "WhatsApp : 9 chiffres attendus, ou laissez vide",
+    }),
 });
 
 const zoneSchema = z.object({
@@ -134,6 +146,9 @@ const ordersSchema = z.object({
   minOrderPerProducer: z.number().int().min(0).max(10_000_000),
   receptionWindowHours: z.number().int().min(1).max(168),
   paymentDeadlineHour: z.number().int().min(0).max(23),
+  deliveryFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Heure de début invalide"),
+  deliveryTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Heure de fin invalide"),
+  minPayout: z.number().int().min(0).max(10_000_000),
 });
 
 const moneySchema = z.object({
@@ -260,7 +275,11 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
         }
         case "company": {
           const c = parse(companySchema, input.data);
-          const company: CompanyInfo = { ...c, phone: normalizeSenegalPhone(c.phone)! };
+          const company: CompanyInfo = {
+            ...c,
+            phone: normalizeSenegalPhone(c.phone)!,
+            whatsapp: c.whatsapp.trim() ? normalizeSenegalPhone(c.whatsapp)! : "",
+          };
           company.email = normalizeEmail(company.email);
           await store.setSettings({ company }, me.id);
           break;
@@ -272,12 +291,17 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
         }
         case "orders": {
           const o = parse(ordersSchema, input.data);
+          if (minutesOf(o.deliveryTo) - minutesOf(o.deliveryFrom) < 60) {
+            throw new Error("Les heures de livraison doivent couvrir au moins une heure.");
+          }
           await store.setSettings(
             {
               cutoff_hour: o.cutoffHour,
               min_order_per_producer: o.minOrderPerProducer,
               reception_window_hours: o.receptionWindowHours,
               payment_deadline_hour: o.paymentDeadlineHour,
+              delivery_hours: { from: o.deliveryFrom, to: o.deliveryTo },
+              min_payout: o.minPayout,
             },
             me.id,
           );

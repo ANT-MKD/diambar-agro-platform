@@ -12,6 +12,7 @@ import type {
 } from "@/data/mocks";
 import type { InvoiceView } from "./documents-view";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
+import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
 // Données de la place de marché envoyées par le serveur (mode base de
 // données), dans la forme qu'utilisent déjà les écrans : produits, commandes
@@ -84,11 +85,16 @@ export type MarketCategory = {
   proposedAt?: string;
 };
 
+/** Unité de vente utilisée par des produits. */
+export type MarketUnit = { name: string; productCount: number };
+
 export type MarketSnapshot = {
   me: { id: string; role: Role };
   account: MarketAccount;
   /** Catégories de produits (liste de l'équipe et propositions des producteurs). */
   categories: MarketCategory[];
+  /** Unités de vente utilisées par les produits. */
+  units: MarketUnit[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];
@@ -103,6 +109,16 @@ export type MarketSnapshot = {
   rules: {
     cutoffHour: number;
     minOrderPerProducer: number;
+    receptionWindowHours: number;
+    paymentDeadlineHour: number;
+    /** Plus petit retrait possible. */
+    minPayout: number;
+    /** Heures de livraison possibles (heure de Dakar). */
+    deliveryHours: DeliveryHours;
+    /** Paie des livreurs, commission et choix du véhicule. */
+    driverPay: DriverPay;
+    /** Villes ouvertes par l'admin. */
+    cities: string[];
     /** Moyens de paiement ouverts par l'admin. */
     paymentMethods: PaymentMethod[];
     /** Numéros marchands où payer (restaurant et admin seulement). */

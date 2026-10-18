@@ -9,7 +9,7 @@ export const SETUP_STEPS = [
   {
     key: "orders",
     label: "Règles de commande",
-    hint: "Heure limite, minimum, délai de réclamation",
+    hint: "Heure limite, heures de livraison, minimums, délais",
   },
   { key: "money", label: "Commission et TVA", hint: "Barème de commission, TVA" },
   { key: "payments", label: "Paiements", hint: "Numéros marchands Wave / Orange Money, espèces" },
@@ -36,6 +36,8 @@ export type CompanyInfo = {
   address: string;
   email: string;
   phone: string;
+  /** WhatsApp de contact affiché sur le site (facultatif). */
+  whatsapp?: string;
 };
 
 export type OrderRules = {
@@ -45,6 +47,11 @@ export type OrderRules = {
   /** Paiement Wave / Orange Money attendu au plus tard la veille du créneau
    * à cette heure (et dans les 24 h après la commande) ; sinon annulée. */
   paymentDeadlineHour: number;
+  /** Heures de livraison possibles (« 06:00 » – « 20:00 »), heure de Dakar. */
+  deliveryFrom: string;
+  deliveryTo: string;
+  /** Plus petit retrait possible, producteurs et livreurs (F CFA). */
+  minPayout: number;
 };
 
 export type CommissionTierSetting = {

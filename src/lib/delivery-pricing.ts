@@ -1,5 +1,6 @@
 import { driverCommissionForPayout } from "@/lib/commission";
 import { missionPayout } from "@/lib/mission-pay";
+import { DEFAULT_DRIVER_PAY, type DriverPay } from "@/lib/platform-rules";
 import type { Coords } from "@/lib/places";
 import { haversineKm } from "@/lib/tracking/geo-math";
 
@@ -70,9 +71,13 @@ export function estimateDistanceKm(
 }
 
 /** Ce que la course coûte à la plateforme : paie du livreur − sa commission. */
-export function driverNetCost(distanceKm: number, weightKg: number): number {
-  const payout = missionPayout(distanceKm, weightKg);
-  return payout - driverCommissionForPayout(payout);
+export function driverNetCost(
+  distanceKm: number,
+  weightKg: number,
+  pay: DriverPay = DEFAULT_DRIVER_PAY,
+): number {
+  const payout = missionPayout(distanceKm, weightKg, pay);
+  return payout - driverCommissionForPayout(payout, pay.commissionRate);
 }
 
 const up50 = (n: number) => Math.ceil(n / 50) * 50;
@@ -98,6 +103,7 @@ export function deliveryFee(
   distanceKm: number,
   weightKg: number,
   p: DeliveryPricing,
+  pay: DriverPay = DEFAULT_DRIVER_PAY,
 ): DeliveryQuote {
   const last = p.brackets[p.brackets.length - 1];
   const inBracket = p.brackets.find((b) => distanceKm <= b.upToKm);
@@ -108,7 +114,7 @@ export function deliveryFee(
   let fee = up50(base + weight);
   let floored = false;
   if (p.floorToCost) {
-    const cost = driverNetCost(distanceKm, weightKg);
+    const cost = driverNetCost(distanceKm, weightKg, pay);
     if (fee < cost) {
       fee = up50(cost);
       floored = true;

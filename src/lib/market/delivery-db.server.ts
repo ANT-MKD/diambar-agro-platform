@@ -10,7 +10,9 @@ import {
   type PlaceRow,
 } from "@/lib/delivery-pricing";
 import { findPlace, REFERENCE_PLACES, type Coords } from "@/lib/places";
+import type { DriverPay } from "@/lib/platform-rules";
 import type { Q } from "./market-common.server";
+import { readDriverPay } from "./rules-db.server";
 
 // Positions et barème de livraison, côté serveur (qui fait foi).
 
@@ -79,9 +81,10 @@ export function quoteDelivery(
   weightKg: number,
   pricing: DeliveryPricing,
   adjustKm = 0,
+  driverPay?: DriverPay,
 ): DeliveryQuote {
   const km = estimateDistanceKm(origin, destination, pricing.roadFactor, adjustKm);
-  return deliveryFee(km, weightKg, pricing);
+  return deliveryFee(km, weightKg, pricing, driverPay);
 }
 
 // --- Réglages (admin) -----------------------------------------------------------------
@@ -129,7 +132,7 @@ export async function readDeliverySettings(q: Q) {
     lng: f.lng,
     adjustKm: f.distanceAdjustKm,
   }));
-  return { pricing, places, farmers: farmerList };
+  return { pricing, driverPay: await readDriverPay(q), places, farmers: farmerList };
 }
 
 /** Le Sénégal et ses environs : une position hors de ce cadre est une erreur. */

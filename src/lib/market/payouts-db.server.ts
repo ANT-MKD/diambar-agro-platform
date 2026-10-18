@@ -6,6 +6,7 @@ import { readBalances } from "./ledger-db.server";
 import { audit, fail, nextNumber, notifyFinanceStaff, notifyUser } from "./market-common.server";
 import { normalizeProviderRef, readMerchantAccounts } from "./payments-db.server";
 import type { Tx } from "./market-common.server";
+import { readMinPayout } from "./rules-db.server";
 
 /** Montant soumis à double validation (un admin valide, un autre paie). */
 async function needsTwoAdmins(tx: Tx, amount: number): Promise<number | null> {
@@ -84,8 +85,6 @@ export async function approveRefund(db: Db, adminId: string, refundId: string): 
 // - Remboursements : ce que le restaurant a payé en trop (quantités
 //   manquantes, annulation) ou refusé à la réception.
 
-export const MIN_PAYOUT = 1000;
-
 const METHOD_LABEL = { wave: "Wave", orange_money: "Orange Money" } as const;
 export type PayoutMethod = keyof typeof METHOD_LABEL;
 
@@ -110,8 +109,9 @@ export async function requestPayout(
     const [me] = await tx.select().from(users).where(eq(users.id, userId));
     if (!me || (me.role !== "farmer" && me.role !== "driver")) fail("Compte introuvable.");
     const amount = Math.round(input.amount);
-    if (!Number.isFinite(amount) || amount < MIN_PAYOUT) {
-      fail(`Montant minimum : ${formatFCFA(MIN_PAYOUT)}.`);
+    const minPayout = await readMinPayout(tx);
+    if (!Number.isFinite(amount) || amount < minPayout) {
+      fail(`Montant minimum : ${formatFCFA(minPayout)}.`);
     }
     const balance = (await readBalances(tx, [userId])).get(userId)!;
     if (amount > balance.available) {

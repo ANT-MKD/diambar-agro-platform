@@ -44,8 +44,9 @@ import {
 import { issueDueInvoices, readStatement } from "./documents-db.server";
 import { checkSenegal, readDeliverySettings } from "./delivery-db.server";
 import { explainDbError } from "@/db/errors.server";
+import { normalizeDriverPay } from "@/lib/platform-rules";
 import { readAdminDirectory, type AdminDirectory } from "./admin-directory.server";
-import { approveCategory, mergeCategory, renameCategory } from "./catalog-db.server";
+import { approveCategory, mergeCategory, renameCategory, renameUnit } from "./catalog-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -152,7 +153,7 @@ const productSchema = z.object({
   name: z.string().trim().min(2, "Nom du produit trop court").max(80),
   category: z.string().trim().min(1, "Choisissez une catégorie").max(40),
   price: z.number().int("Prix en francs entiers").positive("Prix requis").max(10_000_000),
-  unit: z.string().trim().min(1).max(20),
+  unit: z.string().trim().min(1, "Indiquez l'unité de vente").max(20, "Unité trop longue"),
   stock: qty,
   minStock: qty,
   description: z.string().trim().max(1000).optional(),
@@ -778,6 +779,21 @@ export const mergeCategoryFn = createServerFn({ method: "POST" })
     ),
   );
 
+export const renameUnitFn = createServerFn({ method: "POST" })
+  .validator((input: { from: string; to: string }) =>
+    parse(z.object({ from: z.string().min(1).max(40), to: z.string().max(40) }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { moved?: number }> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => ({
+        ok: true as const,
+        moved: await renameUnit(db, me.id, data.from, data.to),
+      }),
+      CATALOG_STAFF,
+    ),
+  );
+
 // --- Annuaire de l'administration ----------------------------------------------------
 
 export type AdminDirectoryResult = ({ ok: true } & AdminDirectory) | { ok: false; message: string };
@@ -841,6 +857,53 @@ export const saveDeliveryPricingFn = createServerFn({ method: "POST" })
           action: "Tarifs de livraison modifiés",
           targetType: "settings",
           targetId: "delivery_pricing",
+          after: value,
+        });
+        return { ok: true as const };
+      },
+      PRICING_STAFF,
+    ),
+  );
+
+const driverPaySchema = z.object({
+  base: z.number().int().min(0).max(100_000),
+  perKm: z.number().int().min(0).max(10_000),
+  perKgOver: z.number().int().min(0).max(10_000),
+  freeKg: z.number().min(0).max(10_000),
+  minimum: z.number().int().min(0).max(100_000),
+  commissionRate: z.number().min(0).max(90),
+  motoMaxKg: z.number().min(1).max(5_000),
+  vanMaxKg: z.number().min(1).max(50_000),
+});
+
+/** Paie des livreurs, commission de Diambar et choix du véhicule : pour les
+ * prochaines courses (les courses déjà ouvertes gardent leur prix). */
+export const saveDriverPayFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof driverPaySchema>) => parse(driverPaySchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        if (data.vanMaxKg <= data.motoMaxKg) {
+          return {
+            ok: false as const,
+            message: "Le poids maximum d'une camionnette doit dépasser celui d'une moto.",
+          };
+        }
+        const value = normalizeDriverPay(data);
+        await db
+          .insert(settings)
+          .values({ key: "driver_pay", value, updatedBy: me.id })
+          .onConflictDoUpdate({
+            target: settings.key,
+            set: { value, updatedBy: me.id, updatedAt: new Date() },
+          });
+        await db.insert(auditLogs).values({
+          actorId: me.id,
+          module: "finance",
+          action: "Paie des livreurs modifiée",
+          targetType: "settings",
+          targetId: "driver_pay",
           after: value,
         });
         return { ok: true as const };

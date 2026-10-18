@@ -300,6 +300,7 @@ function CompanyStep({ snapshot, save, saving }: StepProps) {
     address: c?.address ?? "",
     email: c?.email ?? "",
     phone: c?.phone ? formatSenegalPhone(c.phone) : "",
+    whatsapp: c?.whatsapp ? formatSenegalPhone(c.whatsapp) : "",
   });
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
   return (
@@ -347,7 +348,15 @@ function CompanyStep({ snapshot, save, saving }: StepProps) {
           inputMode="tel"
           value={form.phone}
           onChange={set("phone")}
-          hint="9 chiffres, sans l'indicatif."
+          hint="9 chiffres, sans l'indicatif. Affiché sur la page Contact du site."
+        />
+        <TextField
+          label="WhatsApp (facultatif)"
+          type="tel"
+          inputMode="tel"
+          value={form.whatsapp}
+          onChange={set("whatsapp")}
+          hint="Affiché sur la page Contact. Laissez vide si vous n'en avez pas."
         />
       </div>
       <SaveButton saving={saving} />
@@ -486,6 +495,27 @@ function OrdersStep({ snapshot, save, saving }: StepProps) {
           min={1}
           max={168}
           hint="Temps laissé au restaurant pour signaler un produit abîmé ou manquant."
+        />
+        <TextField
+          label="Livraisons à partir de"
+          type="time"
+          value={o.deliveryFrom}
+          onChange={(v) => setO({ ...o, deliveryFrom: v })}
+          hint="Heure la plus tôt que le restaurant peut choisir."
+        />
+        <TextField
+          label="Livraisons jusqu'à"
+          type="time"
+          value={o.deliveryTo}
+          onChange={(v) => setO({ ...o, deliveryTo: v })}
+          hint="Heure la plus tard que le restaurant peut choisir."
+        />
+        <NumberField
+          label="Retrait minimum (F CFA)"
+          value={o.minPayout}
+          onChange={(v) => setO({ ...o, minPayout: v })}
+          min={0}
+          hint="Plus petit montant qu'un producteur ou un livreur peut retirer."
         />
         <Field
           label="Paiement attendu avant"

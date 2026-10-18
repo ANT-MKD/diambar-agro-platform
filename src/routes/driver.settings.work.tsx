@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/settings/work")({
   head: () => ({ meta: [{ title: "Travail & disponibilité · Paramètres livreur" }] }),
@@ -25,9 +26,10 @@ const URGENCY_LABEL = {
   express: "Express",
 } as const;
 const URGENCIES = Object.keys(URGENCY_LABEL) as (keyof typeof URGENCY_LABEL)[];
-const CITIES = ["Dakar", "Thiès", "Mbour"];
 
 function WorkSettings() {
+  // Villes ouvertes par Diambar.
+  const CITIES = useRules().cities;
   const settings = useDriverSettings();
   const online = useDriverOnline();
 

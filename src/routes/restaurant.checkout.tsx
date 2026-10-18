@@ -29,20 +29,22 @@ import {
 import { useDeliveryZones } from "@/data/platform-settings";
 import { market } from "@/data/market-remote";
 import { useDeliveryQuote } from "@/data/delivery-quote";
-import {
-  allocate,
-  deliveryFeeForZone,
-  MIN_ORDER_PER_PRODUCER,
-  zoneForAddress,
-} from "@/lib/pricing";
+import { allocate, deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
 import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { cutoffHint, deliverySlots } from "@/lib/reception-slots";
+import {
+  cutoffHint,
+  defaultTimeFor,
+  deliveryChoice,
+  deliveryDays,
+  deliveryTimeProblem,
+} from "@/lib/delivery-time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMyId } from "@/data/market-mode";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/restaurant/checkout")({
   head: () => ({ meta: [{ title: "Commander · Restaurant" }] }),
@@ -51,10 +53,11 @@ export const Route = createFileRoute("/restaurant/checkout")({
 
 const step1Schema = z.object({
   address: z.string().trim().min(10, "Adresse trop courte (min 10 caractères)"),
-  slot: z.string().min(1, "Choisissez un créneau"),
+  slot: z.string().min(1, "Choisissez le jour et l'heure de livraison"),
 });
 
 function Checkout() {
+  const rules = useRules();
   const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
@@ -124,14 +127,21 @@ function Checkout() {
     creditApplied: number;
     total: number;
   } | null>(null);
-  const availableSlots = useMemo(
-    () => deliverySlots(profile.receptionHours),
-    [profile.receptionHours],
+  // Jour et heure exacte de livraison, choisis par le restaurant.
+  const days = useMemo(
+    () => deliveryDays(new Date(), rules.cutoffHour, profile.receptionHours),
+    [rules.cutoffHour, profile.receptionHours],
   );
   const availableMethods =
     profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
-  const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
-  const chosenSlot = availableSlots.find((s) => s.label === slot);
+  const [day, setDay] = useState(days[0]?.date ?? "");
+  const chosenDay = days.find((d) => d.date === day);
+  const [time, setTime] = useState(() => defaultTimeFor(days[0], rules.deliveryHours));
+  const chosenSlot = day && time ? deliveryChoice(day, time) : null;
+  const slot = chosenSlot?.label ?? "";
+  const slotProblem = chosenSlot
+    ? deliveryTimeProblem(new Date(chosenSlot.start), new Date(), rules)
+    : "Choisissez le jour et l'heure de livraison";
   const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
   const [instructions, setInstructions] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(
@@ -165,10 +175,10 @@ function Checkout() {
         .filter((l) => l.product.farmerId === f.id)
         .reduce((s, l) => s + l.product.pricePerKg * l.qty, 0),
     }))
-    .filter((g) => g.amount < MIN_ORDER_PER_PRODUCER);
+    .filter((g) => g.amount < rules.minOrderPerProducer);
   const minimumProblem =
     underMinimum.length > 0
-      ? `Minimum ${formatFCFA(MIN_ORDER_PER_PRODUCER)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
+      ? `Minimum ${formatFCFA(rules.minOrderPerProducer)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
       : null;
 
   const goStep2 = () => {
@@ -178,6 +188,11 @@ function Checkout() {
     }
     if (zoneProblem) {
       toast.error(zoneProblem);
+      return;
+    }
+    if (slotProblem) {
+      setErrors({ slot: slotProblem });
+      toast.error(slotProblem);
       return;
     }
     const parsed = step1Schema.safeParse({ address, slot });
@@ -197,8 +212,8 @@ function Checkout() {
   // Avec la base : le serveur revérifie tout (prix, stock, créneau, zone) et
   // crée les commandes ; l'écran ne fait qu'afficher le résultat.
   const placeOnServer = async () => {
-    if (!chosenSlot) {
-      toast.error("Choisissez un créneau de livraison");
+    if (!chosenSlot || slotProblem) {
+      toast.error(slotProblem ?? "Choisissez le jour et l'heure de livraison");
       return;
     }
     setPlacing(true);
@@ -332,7 +347,7 @@ function Checkout() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 glass rounded-2xl p-6 space-y-4">
+        <div className="min-w-0 lg:col-span-2 glass rounded-2xl p-6 space-y-4">
           {step === 1 && (
             <>
               <h3 className="font-display text-lg font-bold flex items-center gap-2">
@@ -379,32 +394,67 @@ function Checkout() {
               </div>
               <h3 className="font-display text-lg font-bold flex items-center gap-2 pt-3">
                 <Calendar className="h-5 w-5 text-primary" />
-                Créneau souhaité
+                Livraison souhaitée
               </h3>
-              <p className="text-xs text-muted-foreground">{cutoffHint()}</p>
-              {availableSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aucun créneau de réception n'est configuré. Ouvrez au moins un jour dans{" "}
-                  <Link
-                    to="/restaurant/settings/establishment"
-                    className="text-primary hover:underline"
+              <p className="text-xs text-muted-foreground">
+                {cutoffHint(new Date(), rules.cutoffHour)} Livraisons entre{" "}
+                {rules.deliveryHours.from} et {rules.deliveryHours.to}.
+              </p>
+              <div
+                className="flex gap-2 overflow-x-auto pb-1"
+                role="radiogroup"
+                aria-label="Jour de livraison"
+                data-testid="delivery-days"
+              >
+                {days.map((d) => (
+                  <button
+                    key={d.date}
+                    type="button"
+                    role="radio"
+                    aria-checked={day === d.date}
+                    onClick={() => {
+                      setDay(d.date);
+                      setTime(defaultTimeFor(d, rules.deliveryHours));
+                    }}
+                    className={`shrink-0 rounded-xl border px-3 py-2 text-left text-sm transition ${day === d.date ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
                   >
-                    Paramètres → Établissement
-                  </Link>
-                  .
+                    <span className="block font-medium">{d.label}</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {d.reception
+                        ? `Réception ${d.reception.from}–${d.reception.to}`
+                        : "Fermé d'habitude"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Heure de livraison</span>
+                  <Input
+                    type="time"
+                    step={900}
+                    min={rules.deliveryHours.from}
+                    max={rules.deliveryHours.to}
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-36"
+                    aria-label="Heure de livraison"
+                  />
+                </label>
+                {chosenSlot && !slotProblem && (
+                  <p className="pb-2 text-sm text-muted-foreground">
+                    Livraison prévue : <span className="font-medium text-foreground">{slot}</span>
+                  </p>
+                )}
+              </div>
+              {chosenDay && !chosenDay.reception && (
+                <p className="text-xs text-amber-700">
+                  Votre établissement est fermé ce jour-là d'habitude (Paramètres → Établissement) :
+                  vérifiez que quelqu'un pourra réceptionner.
                 </p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {availableSlots.map((s) => (
-                    <button
-                      key={s.start}
-                      onClick={() => setSlot(s.label)}
-                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s.label ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+              )}
+              {slotProblem && chosenSlot && (
+                <p className="text-xs text-destructive">{slotProblem}</p>
               )}
               {errors.slot && (
                 <p className="text-xs text-destructive flex items-center gap-1">

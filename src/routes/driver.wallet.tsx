@@ -31,6 +31,7 @@ import { useDriverWallet, driverWalletActions, useDriverSettings, useMissions } 
 import { formatFCFA } from "@/lib/format";
 import { dayKey, addDays, referenceDay, gainsForDay } from "@/lib/driver-day";
 import type { PaymentMethod } from "@/data/mocks";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/wallet")({
   head: () => ({
@@ -54,6 +55,7 @@ const KIND_META: Record<string, { label: string; icon: typeof Wallet; tone: stri
 };
 
 function WalletPage() {
+  const minPayout = useRules().minPayout;
   const wallet = useDriverWallet();
   const settings = useDriverSettings();
   const missions = useMissions();
@@ -137,7 +139,8 @@ function WalletPage() {
   const submitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = Number(amount);
-    if (!value || value < 1000) return toast.error("Montant minimum : 1 000 FCFA");
+    if (!value || value < minPayout)
+      return toast.error(`Montant minimum : ${formatFCFA(minPayout)}`);
     if (value > wallet.balance) return toast.error("Solde insuffisant");
     if (market.isRemote()) {
       // Avec la base : la demande part à Diambar, qui verse à la main.
@@ -399,8 +402,8 @@ function WalletPage() {
             </Button>
             <p className="text-[11px] text-muted-foreground">
               {market.isRemote()
-                ? "Versé par Diambar sur le numéro de votre compte · minimum 1 000 FCFA · aucun frais."
-                : "Versement sous 24h · minimum 1 000 FCFA · aucun frais."}
+                ? `Versé par Diambar sur le numéro de votre compte · minimum ${formatFCFA(minPayout)} · aucun frais.`
+                : `Versement sous 24h · minimum ${formatFCFA(minPayout)} · aucun frais.`}
             </p>
           </form>
 

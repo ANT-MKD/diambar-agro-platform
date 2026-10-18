@@ -6,6 +6,7 @@ import {
   missionActions,
   movementActions,
   orderActions,
+  getProducts,
   productActions,
   replaceMarketData,
   restaurantOrderActions,
@@ -22,9 +23,11 @@ import {
   approvePayoutFn,
   approveRefundFn,
   getStatementFn,
+  saveDriverPayFn,
   approveCategoryFn,
   mergeCategoryFn,
   renameCategoryFn,
+  renameUnitFn,
   getAdminDirectoryFn,
   getDeliverySettingsFn,
   saveDeliveryPricingFn,
@@ -51,6 +54,7 @@ import type { Product, StockMovement } from "./mocks";
 import type { OrderActor } from "@/lib/order-lifecycle";
 import type { StatementView } from "@/lib/market/documents-view";
 import type { DeliveryPricing, FarmerPlaceRow, PlaceRow } from "@/lib/delivery-pricing";
+import type { DriverPay } from "@/lib/platform-rules";
 import { requireRole } from "@/lib/auth/functions";
 import { clearBusinessDemoData } from "./business";
 import { clearDisputesDemoData } from "./disputes";
@@ -62,6 +66,7 @@ import {
   replaceAdminServerNotifications,
 } from "./admin-store";
 import { ensureLocalCategory } from "./catalog";
+import { canonicalUnit, unitChoices, unitProblem } from "@/lib/units";
 
 // Place de marché côté navigateur. Avec une base de données, les données du
 // compte viennent du serveur et chaque action passe par lui ; sans base
@@ -199,8 +204,15 @@ export const market = {
         }),
       );
     }
-    // Démonstration : une nouvelle catégorie rejoint la liste locale.
-    p = { ...p, category: ensureLocalCategory(p.category) };
+    // Démonstration : une nouvelle catégorie rejoint la liste locale ; une
+    // unité écrite autrement qu'une unité existante reprend celle-ci.
+    const unitError = unitProblem(p.unit);
+    if (unitError) return { ok: false, message: unitError };
+    p = {
+      ...p,
+      category: ensureLocalCategory(p.category),
+      unit: canonicalUnit(p.unit, unitChoices(getProducts().map((x) => x.unit))),
+    };
     if (id) {
       productActions.update(id, p);
       return { ok: true, id };
@@ -446,9 +458,19 @@ export const market = {
     return remote(() => mergeCategoryFn({ data: { fromId, intoId } }));
   },
 
+  /** Admin : renommer une unité sur tous les produits (fusion si elle existe). */
+  async renameUnit(from: string, to: string): Promise<Result<{ moved?: number }>> {
+    return remote(() => renameUnitFn({ data: { from, to } }));
+  },
+
   /** Admin : barème, positions des lieux et des producteurs (mode base). */
   async deliverySettings(): Promise<
-    Result<{ pricing: DeliveryPricing; places: PlaceRow[]; farmers: FarmerPlaceRow[] }>
+    Result<{
+      pricing: DeliveryPricing;
+      driverPay: DriverPay;
+      places: PlaceRow[];
+      farmers: FarmerPlaceRow[];
+    }>
   > {
     try {
       return await getDeliverySettingsFn();
@@ -458,6 +480,10 @@ export const market = {
         message: err instanceof Error && err.message ? err.message : UNREACHABLE,
       };
     }
+  },
+
+  async saveDriverPay(pay: DriverPay): Promise<Result> {
+    return remote(() => saveDriverPayFn({ data: pay }));
   },
 
   async saveDeliveryPricing(pricing: DeliveryPricing): Promise<Result> {

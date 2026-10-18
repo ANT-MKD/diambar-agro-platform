@@ -45,7 +45,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   deliveredAtOf,
-  RECEPTION_WINDOW_MS,
+  receptionWindowMs,
   restaurantOrderActions,
   cartActions,
   useRestaurantOrder as useROrder,
@@ -572,9 +572,9 @@ function ReceptionCard({ orderId }: { orderId: string }) {
     );
   }
   const deliveredAt = deliveredAtOf(order);
-  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS)
+  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > receptionWindowMs())
     return null;
-  const deadline = new Date(new Date(deliveredAt).getTime() + RECEPTION_WINDOW_MS);
+  const deadline = new Date(new Date(deliveredAt).getTime() + receptionWindowMs());
   const amount = order.items.reduce((s, i) => s + (refused[i.productId] ?? 0) * i.price, 0);
 
   const submit = async (allGood: boolean) => {

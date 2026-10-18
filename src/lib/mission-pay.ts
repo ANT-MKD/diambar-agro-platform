@@ -1,27 +1,39 @@
 import type { Mission } from "@/data/mocks";
 import { cityCoords } from "@/lib/tracking/geo";
 import { haversineKm } from "@/lib/tracking/geo-math";
+import { DEFAULT_DRIVER_PAY, type DriverPay } from "@/lib/platform-rules";
 
 // Calculs d'une course de livraison, partagés par le navigateur (mode démo)
 // et par le serveur (commandes en base) : mêmes règles des deux côtés.
 
-export function vehicleForWeight(kg: number): Mission["vehicleType"] {
-  if (kg > 80) return "Camion";
-  if (kg > 30) return "Camionnette";
+/** Véhicule d'une course selon le poids, seuils réglés par l'admin. */
+export function vehicleForWeight(
+  kg: number,
+  pay: DriverPay = DEFAULT_DRIVER_PAY,
+): Mission["vehicleType"] {
+  if (kg > pay.vanMaxKg) return "Camion";
+  if (kg > pay.motoMaxKg) return "Camionnette";
   return "Moto";
 }
 
 // Rémunération d'une course : une prise en charge fixe, la distance et le
-// poids transporté. Avant, seule la distance comptait (120 FCFA/km) : une
-// course dans la même ville était payée 100 FCFA.
-export const MISSION_PAY = { base: 1000, perKm: 120, perKgOver20: 10, minimum: 1500 };
+// poids transporté, avec un minimum (réglés par l'admin dans « Tarifs de
+// livraison »).
+export const MISSION_PAY = {
+  base: DEFAULT_DRIVER_PAY.base,
+  perKm: DEFAULT_DRIVER_PAY.perKm,
+  perKgOver20: DEFAULT_DRIVER_PAY.perKgOver,
+  minimum: DEFAULT_DRIVER_PAY.minimum,
+};
 
-export function missionPayout(distanceKm: number, weightKg: number): number {
+export function missionPayout(
+  distanceKm: number,
+  weightKg: number,
+  pay: DriverPay = DEFAULT_DRIVER_PAY,
+): number {
   const raw =
-    MISSION_PAY.base +
-    distanceKm * MISSION_PAY.perKm +
-    Math.max(0, weightKg - 20) * MISSION_PAY.perKgOver20;
-  return Math.max(MISSION_PAY.minimum, Math.round(raw / 50) * 50);
+    pay.base + distanceKm * pay.perKm + Math.max(0, weightKg - pay.freeKg) * pay.perKgOver;
+  return Math.max(pay.minimum, Math.round(raw / 50) * 50);
 }
 
 /** "Le Baobab, Dakar Plateau" -> "Dakar Plateau" (même règle que la

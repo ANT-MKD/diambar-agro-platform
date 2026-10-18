@@ -28,7 +28,7 @@ const order = (over: Partial<RestaurantOrder>): RestaurantOrder => ({
     { status: "delivered", at: at(9) },
   ],
   paid: true,
-  slotStart: at(7),
+  slotStart: at(8),
   ...over,
 });
 
@@ -59,7 +59,7 @@ describe("opérations du jour", () => {
     });
     expect(ops.delivered).toBe(2);
     expect(ops.serviceRate).toBeCloseTo(18 / 20);
-    expect(ops.onTimeRate).toBe(0.5); // CMD-2 livrée 7 h après son créneau
+    expect(ops.onTimeRate).toBe(0.5); // CMD-2 livrée 7 h après l'heure choisie
     expect(ops.cashToReconcile).toBe(11000);
     // 3000 commissions + 2000 livraison + 1200 commissions livreur − 6000 courses
     expect(ops.margin.total).toBe(200);

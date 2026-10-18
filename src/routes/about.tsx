@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicShell, PageHero } from "@/components/landing/public-shell";
-import { teamMembers, milestones, impactStats } from "@/data/site-content";
+import { milestones, impactStats } from "@/data/site-content";
+import { usePublicInfo } from "@/components/landing/use-public-info";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/about")({
       {
         property: "og:description",
         content:
-          "L'équipe et l'histoire derrière la plateforme d'approvisionnement agricole du Sénégal.",
+          "L'histoire et les engagements de la plateforme d'approvisionnement agricole du Sénégal.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/about")({
 });
 
 function AboutPage() {
+  const info = usePublicInfo();
   return (
     <PublicShell>
       <PageHero
@@ -35,7 +37,7 @@ function AboutPage() {
 
       <section className="pb-16">
         <div className="mx-auto max-w-7xl px-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {impactStats.map((s) => (
+          {impactStats(info).map((s) => (
             <div key={s.label} className="glass rounded-2xl p-6 text-center">
               <p className="font-display text-3xl font-bold text-gradient-emerald">{s.value}</p>
               <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
@@ -64,29 +66,17 @@ function AboutPage() {
       </section>
 
       <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <h2 className="font-display text-3xl font-bold text-center">L'équipe</h2>
-          <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {teamMembers.map((t) => (
-              <div key={t.name} className="glass rounded-2xl p-5 text-center">
-                <img
-                  src={t.avatar}
-                  alt={`Portrait de ${t.name}`}
-                  loading="lazy"
-                  className="mx-auto h-20 w-20 rounded-2xl object-cover"
-                />
-                <h3 className="mt-4 font-semibold text-sm">{t.name}</h3>
-                <p className="text-xs text-emerald-500">{t.role}</p>
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{t.bio}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-12 text-center">
+        <div className="mx-auto max-w-3xl px-4 text-center">
+          <h2 className="font-display text-3xl font-bold">Parlons-en</h2>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Producteur, restaurant, livreur ou partenaire : dites-nous ce dont vous avez besoin.
+          </p>
+          <div className="mt-8">
             <Link
               to="/contact"
               className="inline-flex rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
             >
-              Travailler avec nous
+              Nous contacter
             </Link>
           </div>
         </div>

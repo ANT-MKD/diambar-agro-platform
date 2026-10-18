@@ -449,49 +449,6 @@ export const testimonials = [
   },
 ];
 
-export const faq = [
-  {
-    q: "Comment m'inscrire sur Diambar Agro ?",
-    a: "Cliquez sur \"Commencer maintenant\", choisissez votre rôle (Agriculteur, Restaurant ou Livreur) et suivez le processus d'onboarding guidé en 4 étapes. L'inscription est gratuite.",
-  },
-  {
-    q: "Quels sont les frais de la plateforme ?",
-    a: "La plateforme prélève une commission de 5% à 15% sur chaque commande selon le volume. Les frais de livraison varient de 1 000 à 5 000 FCFA selon la distance.",
-  },
-  {
-    q: "Comment fonctionnent les paiements ?",
-    a: "Nous acceptons Wave, Orange Money, Free Money et les espèces. Les paiements sont sécurisés et les agriculteurs reçoivent leur argent sous 24h après livraison confirmée.",
-  },
-  {
-    q: "Comment les agriculteurs sont-ils vérifiés ?",
-    a: "Chaque agriculteur soumet une pièce d'identité, une preuve d'exploitation et passe par un appel de vérification avec notre équipe. Le processus prend 24 à 48h.",
-  },
-  {
-    q: "Puis-je suivre ma livraison en temps réel ?",
-    a: "Oui, dès qu'un livreur prend en charge votre commande, vous pouvez suivre sa position GPS en temps réel depuis votre dashboard restaurant.",
-  },
-  {
-    q: "Que se passe-t-il si les produits ne correspondent pas ?",
-    a: "Vous pouvez signaler un problème dans les 2h après livraison. Notre équipe intervient sous 4h et un remboursement ou remplacement est organisé.",
-  },
-  {
-    q: "Est-ce que Diambar Agro couvre toute la région ?",
-    a: "Actuellement nous couvrons Dakar et Thiès. Nous allons étendre à Mbour, Saint-Louis et Ziguinchor d'ici fin 2025.",
-  },
-  {
-    q: "Peut-on passer des commandes récurrentes ?",
-    a: 'Oui. La fonctionnalité "Commande récurrente" permet aux restaurants de programmer des livraisons hebdomadaires automatiques.',
-  },
-  {
-    q: "Comment devenir livreur partenaire ?",
-    a: 'Inscrivez-vous avec le rôle "Livreur", soumettez votre permis de conduire et votre carte d\'identité. Vous pouvez commencer à recevoir des missions sous 48h.',
-  },
-  {
-    q: "Y a-t-il un abonnement ?",
-    a: "Non. L'inscription est gratuite pour tous. Les producteurs paient une commission sur les ventes livrées, les restaurants les frais de livraison de leur zone.",
-  },
-];
-
 export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
 export const PAYMENT_METHODS: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 export type Transaction = {

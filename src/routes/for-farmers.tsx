@@ -9,7 +9,7 @@ export const Route = createFileRoute("/for-farmers")({
       {
         name: "description",
         content:
-          "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, payé sous 24h par Wave, Orange Money ou Free Money.",
+          "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, retrait vers Wave ou Orange Money traité sous 24 h ouvrées.",
       },
       { property: "og:title", content: "Pour les agriculteurs — Diambar Agro" },
       {
@@ -38,14 +38,14 @@ export const Route = createFileRoute("/for-farmers")({
       role="farmer"
       stats={[
         { value: "Votre", label: "prix, fixé par vous" },
-        { value: "Mobile", label: "money : Wave, Orange, Free" },
+        { value: "Mobile", label: "money : Wave, Orange Money" },
         { value: "0\u00a0F", label: "frais d'inscription" },
       ]}
       benefits={[
         {
           icon: Wallet,
           title: "Paiement rapide",
-          desc: "Retrait sur Wave, Orange Money ou Free Money sous 24h après livraison.",
+          desc: "Retrait sur Wave ou Orange Money, traité sous 24 h ouvrées.",
         },
         {
           icon: Boxes,

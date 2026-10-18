@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
 import { PublicShell, PageHero } from "@/components/landing/public-shell";
 import { pricingPlans, pricingFaq } from "@/data/site-content";
+import { usePublicInfo } from "@/components/landing/use-public-info";
 import {
   Accordion,
   AccordionContent,
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Commission dégressive pour les producteurs, abonnement Restaurant Pro à 15 000 FCFA/mois, gratuit pour les livreurs partenaires.",
+          "Inscription gratuite : commission sur les ventes livrées pour les producteurs, frais de livraison selon la distance pour les restaurants, la plus grande part de la course pour les livreurs.",
       },
       { property: "og:title", content: "Tarifs — Diambar Agro" },
       {
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
+  const info = usePublicInfo();
   return (
     <PublicShell>
       <PageHero
@@ -40,7 +42,7 @@ function PricingPage() {
       />
       <section className="pb-20">
         <div className="mx-auto max-w-7xl px-4 grid md:grid-cols-3 gap-5">
-          {pricingPlans.map((p) => (
+          {pricingPlans(info).map((p) => (
             <div
               key={p.id}
               className={`glass rounded-3xl p-7 flex flex-col ${p.highlighted ? "border-emerald-500/40 ring-1 ring-emerald-500/30" : ""}`}
@@ -84,7 +86,7 @@ function PricingPage() {
             Questions sur la tarification
           </h2>
           <Accordion type="single" collapsible className="mt-8 space-y-3">
-            {pricingFaq.map((item, i) => (
+            {pricingFaq(info).map((item, i) => (
               <AccordionItem key={i} value={`p-${i}`} className="glass rounded-2xl px-5 border-0">
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
                   {item.q}

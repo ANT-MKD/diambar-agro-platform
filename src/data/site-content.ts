@@ -1,5 +1,7 @@
 // Contenu éditorial du site public (pages marketing, blog, légal)
 
+import { commissionExplanation, commissionRange, type PublicInfo } from "@/lib/public-info-model";
+
 export type PricingPlan = {
   id: string;
   name: string;
@@ -12,76 +14,125 @@ export type PricingPlan = {
   cta: string;
 };
 
-export const pricingPlans: PricingPlan[] = [
-  {
-    id: "farmer",
-    name: "Producteur",
-    audience: "Agriculteurs & coopératives",
-    price: "Gratuit",
-    period: "commission 5 – 15 %",
-    description: "Vendez directement aux restaurants, sans intermédiaire ni abonnement.",
-    features: [
-      "Boutique et catalogue illimités",
-      "Gestion du stock et alertes",
-      "Retrait vers Wave, OM ou Free (traité sous 24 h ouvrées)",
-      "Analytics de ventes",
-    ],
-    cta: "Créer mon compte",
-  },
-  {
-    id: "resto",
-    name: "Restaurant",
-    audience: "Restaurants, hôtels, cantines",
-    price: "Gratuit",
-    period: "frais de livraison selon la zone",
-    description: "L'approvisionnement piloté : récurrentes, factures et suivi de livraison.",
-    features: [
-      "Commandes récurrentes automatiques",
-      "Factures égales au montant payé, export CSV",
-      "Code de remise et photo à chaque livraison",
-      "48 h pour refuser un produit, remboursement automatique",
-      "Multi-utilisateurs (équipe)",
-    ],
-    highlighted: true,
-    cta: "Créer mon compte",
-  },
-  {
-    id: "driver",
-    name: "Livreur partenaire",
-    audience: "Livreurs indépendants",
-    price: "Gratuit",
-    period: "80 % de la course",
-    description:
-      "Choisissez vos missions, roulez quand vous voulez, payé dès la livraison confirmée.",
-    features: [
-      "Missions selon votre véhicule",
-      "Gain crédité à chaque livraison",
-      "Attente payée au-delà de 10 minutes",
-      "Retrait vers Wave, OM ou Free",
-      "Tournées optimisées",
-    ],
-    cta: "Créer mon compte",
-  },
-];
+const fcfa = (n: number) => `${new Intl.NumberFormat("fr-FR").format(n)} FCFA`;
 
-export const pricingFaq = [
-  {
-    q: "Y a-t-il des frais cachés ?",
-    a: "Non. La commission est prélevée uniquement sur les commandes livrées et confirmées. Aucun frais d'inscription, aucun engagement.",
-  },
-  {
-    q: "Comment est calculée la commission ?",
-    a: "Elle est dégressive selon votre volume mensuel : 15 % en dessous de 250 000 FCFA, jusqu'à 5 % au-delà de 1 500 000 FCFA.",
-  },
-  {
-    q: "Et si un produit arrive abîmé ou manquant ?",
-    a: "Vous avez 48 h après la livraison pour refuser tout ou partie d'une ligne depuis la commande : le montant vous est remboursé automatiquement.",
-  },
-  {
-    q: "Les frais de livraison sont-ils inclus ?",
-    a: "Non, ils sont facturés séparément selon la zone (de 1 000 à 8 500 FCFA de base) et affichés avant validation du panier.",
-  },
-];
+/** Offres de la page Tarifs, avec les taux réglés par l'admin. */
+export function pricingPlans(info: PublicInfo): PricingPlan[] {
+  return [
+    {
+      id: "farmer",
+      name: "Producteur",
+      audience: "Agriculteurs & coopératives",
+      price: "Gratuit",
+      period: `commission ${commissionRange(info.tiers)}`,
+      description: "Vendez directement aux restaurants, sans intermédiaire ni abonnement.",
+      features: [
+        "Boutique et catalogue illimités",
+        "Gestion du stock et alertes",
+        "Retrait vers Wave ou Orange Money (traité sous 24 h ouvrées)",
+        "Analytics de ventes",
+      ],
+      cta: "Créer mon compte",
+    },
+    {
+      id: "resto",
+      name: "Restaurant",
+      audience: "Restaurants, hôtels, cantines",
+      price: "Gratuit",
+      period: "frais de livraison selon la distance",
+      description: "L'approvisionnement piloté : récurrentes, factures et suivi de livraison.",
+      features: [
+        "Livraison à l'heure que vous choisissez",
+        "Commandes récurrentes automatiques",
+        "Factures égales au montant payé, export CSV",
+        "Code de remise et photo à chaque livraison",
+        `${info.receptionWindowHours} h pour refuser un produit, remboursement automatique`,
+      ],
+      highlighted: true,
+      cta: "Créer mon compte",
+    },
+    {
+      id: "driver",
+      name: "Livreur partenaire",
+      audience: "Livreurs indépendants",
+      price: "Gratuit",
+      period: `${info.driverShare} % de la course`,
+      description:
+        "Choisissez vos missions, roulez quand vous voulez, gain crédité dès la livraison confirmée.",
+      features: [
+        "Missions selon votre véhicule",
+        "Gain affiché avant d'accepter, crédité à chaque livraison",
+        "Retrait vers Wave ou Orange Money",
+        "Tournées regroupées",
+      ],
+      cta: "Créer mon compte",
+    },
+  ];
+}
+
+/** Questions sur la tarification (page Tarifs et FAQ). */
+export function pricingFaq(info: PublicInfo) {
+  return [
+    {
+      q: "Y a-t-il des frais cachés ?",
+      a: "Non. La commission est prélevée uniquement sur les commandes livrées et confirmées. Aucun frais d'inscription, aucun engagement.",
+    },
+    {
+      q: "Comment est calculée la commission ?",
+      a: commissionExplanation(info.tiers),
+    },
+    {
+      q: "Et si un produit arrive abîmé ou manquant ?",
+      a: `Vous avez ${info.receptionWindowHours} h après la livraison pour refuser tout ou partie d'une ligne depuis la commande : le montant vous est remboursé automatiquement.`,
+    },
+    {
+      q: "Les frais de livraison sont-ils inclus ?",
+      a: `Non, ils dépendent de la distance entre le producteur et votre restaurant et du poids commandé${info.deliveryFrom > 0 ? ` (à partir de ${fcfa(info.deliveryFrom)})` : ""}. Ils sont affichés avant la validation du panier.`,
+    },
+  ];
+}
+
+/** Questions générales de la page FAQ. */
+export function generalFaq(info: PublicInfo) {
+  return [
+    {
+      q: "Comment créer un compte ?",
+      a: "Choisissez votre rôle (Agriculteur, Restaurant ou Livreur) sur la page d'inscription et remplissez le formulaire. Votre dossier est vérifié par l'équipe avant l'ouverture du compte. L'inscription est gratuite.",
+    },
+    {
+      q: "Jusqu'à quelle heure puis-je commander ?",
+      a: `Avant ${info.cutoffHour} h pour être livré dès le lendemain. Vous choisissez le jour et l'heure de livraison au moment de commander.`,
+    },
+    {
+      q: "Comment fonctionnent les paiements ?",
+      a: "Les restaurants paient par Wave, Orange Money ou en espèces à la livraison, selon les moyens ouverts par la plateforme. Producteurs et livreurs retirent leurs gains vers Wave ou Orange Money.",
+    },
+    {
+      q: "Comment les agriculteurs sont-ils vérifiés ?",
+      a: "Chaque dossier d'inscription est examiné par l'équipe (identité, exploitation) avant que le producteur puisse vendre.",
+    },
+    {
+      q: "Puis-je suivre ma livraison ?",
+      a: "Oui. Vous suivez chaque étape de la commande depuis votre espace restaurant, et vous pouvez partager un lien de suivi avec un collaborateur.",
+    },
+    {
+      q: "Que se passe-t-il si les produits ne correspondent pas ?",
+      a: `Vous pouvez refuser les produits à la livraison ou les signaler dans les ${info.receptionWindowHours} h depuis la commande. La partie concernée vous est remboursée.`,
+    },
+    {
+      q: "Peut-on passer des commandes récurrentes ?",
+      a: "Oui. Les restaurants peuvent programmer des commandes qui se répètent (chaque semaine, par exemple) avec l'heure de livraison souhaitée.",
+    },
+    {
+      q: "Comment devenir livreur partenaire ?",
+      a: "Inscrivez-vous avec le rôle « Livreur » et transmettez votre permis, votre pièce d'identité et les papiers du véhicule. Les missions s'ouvrent une fois le dossier validé.",
+    },
+    {
+      q: "Y a-t-il un abonnement ?",
+      a: "Non. L'inscription est gratuite pour tous. Les producteurs paient une commission sur les ventes livrées, les restaurants les frais de livraison.",
+    },
+  ];
+}
 
 export type BlogPost = {
   slug: string;
@@ -103,8 +154,8 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Près de 30 % de la production maraîchère sénégalaise est perdue avant d'atteindre l'assiette. Voici ce qui change quand la vente est planifiée.",
     category: "Agriculture",
-    author: "Mamadou Diallo",
-    authorAvatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=120",
+    author: "Équipe Diambar",
+    authorAvatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120",
     date: "2025-05-12",
     readMinutes: 6,
     cover: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200",
@@ -123,8 +174,8 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Acheter en direct producteur fait baisser le coût matière de 15 à 25 %. Encore faut-il structurer ses achats.",
     category: "Restauration",
-    author: "Aminata Ndiaye",
-    authorAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120",
+    author: "Équipe Diambar",
+    authorAvatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120",
     date: "2025-05-06",
     readMinutes: 5,
     cover: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1200",
@@ -142,8 +193,8 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Créneaux, embouteillages, points de dépose : anatomie d'une livraison alimentaire réussie en zone urbaine dense.",
     category: "Logistique",
-    author: "Oumar Ba",
-    authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120",
+    author: "Équipe Diambar",
+    authorAvatar: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120",
     date: "2025-04-28",
     readMinutes: 7,
     cover: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1200",
@@ -175,33 +226,6 @@ export const blogPosts: BlogPost[] = [
   },
 ];
 
-export const teamMembers = [
-  {
-    name: "Seynabou Faye",
-    role: "Cofondatrice & CEO",
-    bio: "15 ans dans l'agro-industrie ouest-africaine.",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300",
-  },
-  {
-    name: "Cheikh Diop",
-    role: "Cofondateur & CTO",
-    bio: "Ex-lead engineer fintech mobile money.",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
-  },
-  {
-    name: "Marième Thiam",
-    role: "Directrice des opérations",
-    bio: "Pilotage logistique et réseau producteurs.",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300",
-  },
-  {
-    name: "Alioune Sarr",
-    role: "Responsable partenariats",
-    bio: "Anciennement acheteur pour un groupe hôtelier.",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300",
-  },
-];
-
 export const milestones = [
   {
     year: "2023",
@@ -226,9 +250,9 @@ export const milestones = [
 ];
 
 // Engagements de la plateforme (pas encore de chiffres d'activité publiés).
-export const impactStats = [
-  { value: "J+1", label: "livraison dès le lendemain" },
-  { value: "48 h", label: "pour signaler un problème à la réception" },
+export const impactStats = (info: PublicInfo) => [
+  { value: "J+1", label: `livraison dès le lendemain (commande avant ${info.cutoffHour} h)` },
+  { value: `${info.receptionWindowHours} h`, label: "pour signaler un problème à la réception" },
   { value: "24 h", label: "pour traiter un retrait producteur" },
   { value: "0 FCFA", label: "d'abonnement" },
 ];

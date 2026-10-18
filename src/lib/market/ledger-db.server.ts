@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { ledgerEntries, payments, payouts, settings } from "@/db/schema";
 import { driverCommissionForPayout, tierRateForVolume } from "@/lib/commission";
 import type { Q, Tx } from "./market-common.server";
+import { readDriverPay } from "./rules-db.server";
 
 // Grand livre : ce que Diambar doit à chaque producteur et à chaque livreur,
 // et ce que la plateforme garde. Le solde d'un compte est la somme de ses
@@ -66,7 +67,10 @@ export async function recordDelivery(
   const tiers = await readCommissionTiers(tx);
   const rate = tierRateForVolume(tiers, (await monthVolume(tx, o.farmerId, now)) + o.subtotal);
   const farmerCommission = Math.round((o.subtotal * rate) / 100);
-  const driverCommission = driverCommissionForPayout(m.payout);
+  const driverCommission = driverCommissionForPayout(
+    m.payout,
+    (await readDriverPay(tx)).commissionRate,
+  );
   const rows: (typeof ledgerEntries.$inferInsert)[] = [
     { account: "farmer", userId: o.farmerId, kind: "sale", amount: o.subtotal, orderId: o.id },
     {

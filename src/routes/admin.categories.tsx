@@ -14,10 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCategories } from "@/data/catalog";
+import { useUnits } from "@/data/units";
 import { useMarketMode } from "@/data/market-mode";
 import { market, type Result } from "@/data/market-remote";
 import { relativeTime } from "@/lib/format";
-import type { MarketCategory } from "@/lib/market/types";
+import type { MarketCategory, MarketUnit } from "@/lib/market/types";
+import { unitKey } from "@/lib/units";
 
 export const Route = createFileRoute("/admin/categories")({
   head: () => ({ meta: [{ title: "Catégories de produits — Admin Diambar" }] }),
@@ -27,6 +29,8 @@ export const Route = createFileRoute("/admin/categories")({
 // Catégories de produits : celles que les producteurs proposent en créant un
 // produit, à garder, renommer ou fusionner avec une autre ; et la liste
 // officielle (l'ordre d'affichage se règle dans l'assistant de démarrage).
+// Plus bas, les unités de vente écrites par les producteurs, à renommer ou
+// regrouper (« sacs » et « sac »).
 
 const notify = (res: Result, success: string) => {
   if (res.ok) toast.success(success);
@@ -39,6 +43,7 @@ function CategoriesPage() {
   const categories = useCategories();
   const proposed = categories.filter((c) => c.status === "proposed");
   const official = categories.filter((c) => c.status === "approved");
+  const units = useUnits();
 
   if (!remote) {
     return (
@@ -85,7 +90,85 @@ function CategoriesPage() {
           ))}
         </ul>
       </section>
+
+      <section className="glass space-y-3 rounded-2xl p-5" data-testid="product-units">
+        <div>
+          <h2 className="font-semibold">Unités de vente ({units.length})</h2>
+          <p className="text-xs text-muted-foreground">
+            Les producteurs peuvent écrire leur propre unité (« Autre unité »). Renommez-la ou
+            donnez-lui le nom d'une unité existante pour les regrouper. Les commandes déjà passées
+            gardent leur unité.
+          </p>
+        </div>
+        {units.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun produit pour le moment.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {units.map((u) => (
+              <UnitRow key={u.name} unit={u} others={units} />
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
+  );
+}
+
+function UnitRow({ unit: u, others }: { unit: MarketUnit; others: MarketUnit[] }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(u.name);
+  const [busy, setBusy] = useState(false);
+  const twin = others.find((o) => o.name !== u.name && unitKey(o.name) === unitKey(name));
+  const save = async () => {
+    setBusy(true);
+    const res = await market.renameUnit(u.name, name);
+    setBusy(false);
+    const done = notify(
+      res,
+      twin
+        ? `« ${u.name} » regroupée avec « ${twin.name} »`
+        : `Unité renommée${res.ok && res.moved ? ` sur ${res.moved} produit(s)` : ""}`,
+    );
+    if (done) setEditing(false);
+  };
+  return (
+    <li className="space-y-2 py-3" data-testid="unit-row">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="font-medium">{u.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {u.productCount} produit{u.productCount > 1 ? "s" : ""}
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+          <Pencil className="mr-1 h-4 w-4" /> Renommer ou regrouper
+        </Button>
+      </div>
+      {editing && (
+        <div className="space-y-1">
+          <div className="flex flex-wrap gap-2">
+            <Input
+              className="max-w-xs"
+              value={name}
+              maxLength={20}
+              onChange={(e) => setName(e.target.value)}
+              aria-label={`Nouveau nom pour l'unité ${u.name}`}
+            />
+            <Button size="sm" disabled={busy || !name.trim()} onClick={() => void save()}>
+              {twin ? "Regrouper" : "Enregistrer"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              Annuler
+            </Button>
+          </div>
+          {twin && (
+            <p className="text-xs text-muted-foreground">
+              Les {u.productCount} produit(s) en « {u.name} » passeront en « {twin.name} ».
+            </p>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 

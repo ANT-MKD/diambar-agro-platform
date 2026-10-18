@@ -42,7 +42,7 @@ import {
   type PlaceOrderInput,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
-import { approveCategory, mergeCategory, renameCategory } from "./catalog-db.server";
+import { approveCategory, mergeCategory, renameCategory, renameUnit } from "./catalog-db.server";
 import {
   approvePayout,
   approveRefund,
@@ -216,13 +216,18 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
     }
   });
 
-  it("refuse le jour même, sous le minimum et hors zone", async () => {
+  it("refuse le jour même, hors des heures de livraison, sous le minimum et hors zone", async () => {
     await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
     const today = new Date();
-    today.setUTCHours(23, 0, 0, 0);
+    today.setUTCHours(12, 0, 0, 0);
     await expect(
       placeOrder(db, restaurantId, order({ slotStart: today.toISOString() })),
-    ).rejects.toThrow(/première livraison possible/);
+    ).rejects.toThrow(/jour même|après-demain/);
+    const night = new Date(slot());
+    night.setUTCHours(22, 30, 0, 0);
+    await expect(
+      placeOrder(db, restaurantId, order({ slotStart: night.toISOString() })),
+    ).rejects.toThrow(/entre 06:00 et 20:00/);
     await expect(
       placeOrder(db, restaurantId, order({ lines: [{ productId: tomatoes.id, qty: 1 }] })),
     ).rejects.toThrow(/Minimum/);
@@ -1180,6 +1185,47 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
       "Catégorie renommée",
       "Catégories fusionnées",
     ]);
+  });
+
+  it("unités : une unité libre, reprise si elle existe, renommée ou regroupée par l'équipe", async () => {
+    const product = (name: string, unit: string) =>
+      saveProduct(db, farmerId, {
+        name,
+        category: "Légumes",
+        price: 1000,
+        unit,
+        stock: 5,
+        minStock: 1,
+        organic: false,
+        paused: false,
+        draft: false,
+      });
+    const unitOf = async (id: string) =>
+      (await db.select({ unit: products.unit }).from(products).where(eq(products.id, id)))[0].unit;
+
+    // Écrite autrement qu'une unité de base : celle-ci est reprise.
+    expect(await unitOf(await product("Oignons en sac", " Sacs "))).toBe("sac");
+    // Unité libre, nettoyée ; la même au pluriel la reprend.
+    const a = await product("Gombo", "Seau");
+    const b = await product("Piment", "seaux");
+    expect([await unitOf(a), await unitOf(b)]).toEqual(["seau", "seau"]);
+    const c = await product("Aubergines", "panier");
+    await expect(product("Bizarre", "<b>")).rejects.toThrow(/lettres/);
+
+    const snap = await readSnapshot(db, { id: restaurantId, role: "restaurant" });
+    expect(snap.units.find((u) => u.name === "seau")?.productCount).toBe(2);
+
+    // Renommer, puis regrouper avec une unité existante.
+    expect(await renameUnit(db, adminId, "panier", "Panier 5 kg")).toBe(1);
+    expect(await unitOf(c)).toBe("panier 5 kg");
+    expect(await renameUnit(db, adminId, "panier 5 kg", "seaux")).toBe(1);
+    expect(await unitOf(c)).toBe("seau");
+    await expect(renameUnit(db, adminId, "inconnue", "kg")).rejects.toThrow(/Aucun produit/);
+    const audits = await db
+      .select({ action: auditLogs.action })
+      .from(auditLogs)
+      .where(eq(auditLogs.targetType, "unit"));
+    expect(audits.map((x) => x.action).sort()).toEqual(["Unité renommée", "Unités fusionnées"]);
   });
 
   it("le producteur crée et modifie un produit, chaque écart de stock est tracé", async () => {

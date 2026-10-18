@@ -111,7 +111,7 @@ function EstablishmentSettings() {
 
       <SettingsCard
         title="Créneaux de réception"
-        description="Heures pendant lesquelles vous pouvez recevoir les livraisons. Ces créneaux alimentent directement le choix proposé à vos producteurs au moment de la commande."
+        description="Heures pendant lesquelles vous pouvez recevoir les livraisons. À la commande, l'heure de livraison proposée par défaut en tient compte (vous pouvez toujours la changer)."
         onSave={saveSlots}
       >
         <div className="space-y-2">

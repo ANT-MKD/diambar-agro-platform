@@ -67,7 +67,7 @@ export const Route = createFileRoute("/for-restaurants")({
       steps={[
         "Créez votre compte restaurant et renseignez vos adresses de livraison",
         "Parcourez le marketplace et comparez les producteurs",
-        "Validez votre panier et choisissez un créneau de livraison",
+        "Validez votre panier et choisissez le jour et l'heure de livraison",
         "Suivez la livraison en direct et téléchargez votre facture",
       ]}
     />

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
-import { readCategories } from "./catalog-db.server";
+import { readCategories, readUnits } from "./catalog-db.server";
 import {
   categories,
   checkouts,
@@ -45,6 +45,7 @@ import {
 } from "@/data/mocks";
 import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { lastAddressSegment, routeEstimate, vehicleForWeight } from "@/lib/mission-pay";
+import { DEFAULT_RULES, normalizeDeliveryHours, normalizeDriverPay } from "@/lib/platform-rules";
 import { cityCoords } from "@/lib/tracking/geo";
 import {
   paymentState,
@@ -130,10 +131,7 @@ async function cachedSignedUrl(storageKeyValue: string): Promise<string | undefi
   return url;
 }
 
-export type MarketRules = Omit<MarketSnapshot["rules"], "merchant"> & {
-  receptionWindowHours: number;
-  paymentDeadlineHour: number;
-};
+export type MarketRules = Omit<MarketSnapshot["rules"], "merchant" | "cities">;
 
 export async function readRules(db: Db): Promise<MarketRules> {
   const rows = await db
@@ -146,6 +144,9 @@ export async function readRules(db: Db): Promise<MarketRules> {
         "payment_methods",
         "reception_window_hours",
         "payment_deadline_hour",
+        "min_payout",
+        "delivery_hours",
+        "driver_pay",
       ]),
     );
   const v = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>;
@@ -170,6 +171,9 @@ export async function readRules(db: Db): Promise<MarketRules> {
     minOrderPerProducer: num(v.min_order_per_producer, 5000),
     receptionWindowHours: num(v.reception_window_hours, 48),
     paymentDeadlineHour: num(v.payment_deadline_hour, 20),
+    minPayout: num(v.min_payout, DEFAULT_RULES.minPayout),
+    deliveryHours: normalizeDeliveryHours(v.delivery_hours),
+    driverPay: normalizeDriverPay(v.driver_pay),
     paymentMethods,
   };
 }
@@ -712,7 +716,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       itemsCount: itemRows.filter((i) => i.orderId === o.id).length,
       scheduledFor: iso(m.scheduledFor)!,
       createdAt: iso(m.createdAt)!,
-      vehicleType: vehicleForWeight(weightKg),
+      vehicleType: vehicleForWeight(weightKg, rules.driverPay),
       urgency: m.urgency,
       proof: proof.length ? proof : undefined,
       statusHistory: history,
@@ -1183,6 +1187,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     me,
     account,
     categories: await readCategories(db),
+    units: await readUnits(db),
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,
@@ -1196,6 +1201,12 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     rules: {
       cutoffHour: rules.cutoffHour,
       minOrderPerProducer: rules.minOrderPerProducer,
+      receptionWindowHours: rules.receptionWindowHours,
+      paymentDeadlineHour: rules.paymentDeadlineHour,
+      minPayout: rules.minPayout,
+      deliveryHours: rules.deliveryHours,
+      driverPay: rules.driverPay,
+      cities: zoneList.filter((z) => z.active && !cityOfZone.has(z.id)).map((z) => z.name),
       paymentMethods: rules.paymentMethods,
       merchant: merchant ? { wave: merchant.wave, orangeMoney: merchant.orangeMoney } : null,
     },

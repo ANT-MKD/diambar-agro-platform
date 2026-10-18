@@ -6,13 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { type Product } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
@@ -20,6 +13,8 @@ import { StockStatusBadge } from "./status-badge";
 import { resizeImage } from "@/lib/image-resize";
 import { SAMPLE_IMAGES } from "./product-catalog";
 import { CategoryPicker } from "./category-picker";
+import { UnitPicker } from "./unit-picker";
+import { unitProblem } from "@/lib/units";
 import { categoryNameProblem, sameCategory } from "@/lib/category-name";
 import { getCategories } from "@/data/catalog";
 
@@ -51,7 +46,7 @@ const empty: ProductDraft = {
   description: "",
   minOrder: 1,
   minPrice: 0,
-  pickupAddress: "Thiès, Route de Khombole",
+  pickupAddress: "",
   availableFrom: "",
   barcode: "",
   organic: false,
@@ -104,6 +99,11 @@ export function ProductForm({
         toast.error(form.category.trim() ? problem : "Choisissez une catégorie");
         return;
       }
+    }
+    const unitError = unitProblem(form.unit);
+    if (unitError) {
+      toast.error(unitError);
+      return;
     }
     // Le SKU n'est plus obligatoire : généré s'il est vide.
     if (!form.sku)
@@ -168,18 +168,7 @@ export function ProductForm({
         <Section title="Prix & quantités">
           <div className="grid sm:grid-cols-3 gap-4">
             <Field label="Unité">
-              <Select value={form.unit} onValueChange={(v) => set("unit", v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {["kg", "litre", "unité", "botte", "sac"].map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UnitPicker value={form.unit} onChange={(v) => set("unit", v)} />
             </Field>
             <Field label="Prix de vente (FCFA) *">
               <Input

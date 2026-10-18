@@ -27,6 +27,7 @@ import { useMarketMode } from "@/data/market-mode";
 import { computeDailyOps, deliveryMargins, marginByBracket } from "@/lib/daily-ops";
 import { DEFAULT_DELIVERY_PRICING, type DeliveryPricing } from "@/lib/delivery-pricing";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/admin/operations")({
   head: () => ({
@@ -73,14 +74,24 @@ function OperationsPage() {
   const tickets = useSupportTickets();
   const docs = useDocRenewals();
 
+  const driverCommissionRate = useRules().driverPay.commissionRate;
   const ops = useMemo(
-    () => computeDailyOps({ day, restaurantOrders, missions, transactions, disputes, refunds }),
-    [day, restaurantOrders, missions, transactions, disputes, refunds],
+    () =>
+      computeDailyOps({
+        day,
+        restaurantOrders,
+        missions,
+        transactions,
+        disputes,
+        refunds,
+        driverCommissionRate,
+      }),
+    [day, restaurantOrders, missions, transactions, disputes, refunds, driverCommissionRate],
   );
   const pricing = useDeliveryPricing();
   const margins = useMemo(
-    () => deliveryMargins({ day, restaurantOrders, missions }),
-    [day, restaurantOrders, missions],
+    () => deliveryMargins({ day, restaurantOrders, missions, driverCommissionRate }),
+    [day, restaurantOrders, missions, driverCommissionRate],
   );
   const losses = useMemo(
     () => margins.filter((d) => d.margin < 0).sort((a, b) => a.margin - b.margin),
@@ -180,7 +191,7 @@ function OperationsPage() {
           label="Ponctualité"
           value={pct(ops.onTimeRate)}
           icon={Clock}
-          hint="Livrées au plus tard 4 h après le début du créneau"
+          hint="Livrées au plus tard 1 h après l'heure choisie par le restaurant"
         />
         <StatCard
           label="Litiges ouverts"

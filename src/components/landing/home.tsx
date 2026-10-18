@@ -20,6 +20,8 @@ import {
   Bike,
 } from "lucide-react";
 import { SignupCta, Eyebrow, SectionTitle, SoftGlow } from "./ui";
+import { usePublicInfo } from "./use-public-info";
+import type { PublicInfo } from "@/lib/public-info-model";
 
 // Page d'accueil du site public : une cible principale (les restaurants),
 // des preuves plutôt que des promesses, aucune donnée chiffrée invérifiable.
@@ -27,6 +29,7 @@ import { SignupCta, Eyebrow, SectionTitle, SoftGlow } from "./ui";
 /* ---------------------------------------------------------------- Accroche */
 
 export function HomeHero() {
+  const info = usePublicInfo();
   return (
     <section className="relative overflow-hidden pt-32 pb-16 sm:pt-40">
       <SoftGlow />
@@ -35,11 +38,12 @@ export function HomeHero() {
           Pilote · Dakar · Inscription gratuite
         </span>
         <h1 className="display-xl mx-auto mt-7 max-w-4xl text-[3.1rem] sm:text-7xl lg:text-[6.5rem]">
-          Vos produits frais, <span className="text-emerald-700">livrés demain matin.</span>
+          Vos produits frais, <span className="text-emerald-700">livrés dès demain.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-          Commandez avant 18&nbsp;h directement aux producteurs sénégalais. Livraison le lendemain,
-          preuve de remise et 48&nbsp;h pour vérifier.
+          Commandez avant {info.cutoffHour}&nbsp;h directement aux producteurs sénégalais. Livraison
+          le lendemain à l'heure choisie, preuve de remise et {info.receptionWindowHours}&nbsp;h
+          pour vérifier.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
           <SignupCta />
@@ -70,14 +74,14 @@ const VIDEO_AUDIENCES = [
   {
     icon: UtensilsCrossed,
     title: "Restaurants",
-    text: "Commande avant 18 h, livraison le lendemain, remise par code.",
+    text: "Commande la veille, livraison à l'heure choisie, remise par code.",
   },
   {
     icon: Sprout,
     title: "Producteurs",
     text: "Vos récoltes à votre prix, payées sur Wave ou Orange Money.",
   },
-  { icon: Bike, title: "Livreurs", text: "Des tournées du matin adaptées à votre véhicule." },
+  { icon: Bike, title: "Livreurs", text: "Des courses adaptées à votre véhicule." },
 ] as const;
 
 /** Présentation en vidéo (verticale, sous-titrée). Chargée seulement au clic
@@ -303,40 +307,42 @@ export function ResultSection() {
 
 /* -------------------------------------------------- 02 Comment ça marche */
 
-const HOW_STEPS = [
-  {
-    tab: "Commander",
-    title: "Vous commandez avant 18 h",
-    text: "Vous choisissez vos produits, le créneau de livraison du lendemain et vous payez par mobile money.",
-    see: "Les prix, les frais de livraison et le producteur, avant de valider.",
-    sure: "Le stock est réservé pour vous dès la commande.",
-  },
-  {
-    tab: "Préparer",
-    title: "Le producteur prépare",
-    text: "Le producteur accepte votre commande et la prépare. S'il manque un produit, vous choisissez à l'avance : remplacer ou être remboursé.",
-    see: "La confirmation du producteur, en temps réel.",
-    sure: "Remboursement automatique de ce qui ne peut pas être fourni.",
-  },
-  {
-    tab: "Livrer",
-    title: "Le livreur vous apporte la commande",
-    text: "Un livreur vérifié récupère la marchandise avec le code du producteur et vous l'apporte le matin.",
-    see: "Le livreur sur la carte et son heure d'arrivée.",
-    sure: "La remise se fait seulement avec votre code, photo à l'appui.",
-  },
-  {
-    tab: "Vérifier",
-    title: "Vous gardez 48 h pour vérifier",
-    text: "Un produit abîmé ou manquant ? Vous le signalez depuis l'app, avec une photo si besoin.",
-    see: "Le détail de la commande et votre facture.",
-    sure: "La partie concernée vous est remboursée.",
-  },
-] as const;
+const howSteps = (info: PublicInfo) =>
+  [
+    {
+      tab: "Commander",
+      title: `Vous commandez avant ${info.cutoffHour}\u00a0h`,
+      text: "Vous choisissez vos produits, le jour et l'heure de livraison, et vous payez par mobile money.",
+      see: "Les prix, les frais de livraison et le producteur, avant de valider.",
+      sure: "Le stock est réservé pour vous dès la commande.",
+    },
+    {
+      tab: "Préparer",
+      title: "Le producteur prépare",
+      text: "Le producteur accepte votre commande et la prépare. S'il manque un produit, vous choisissez à l'avance : remplacer ou être remboursé.",
+      see: "La confirmation du producteur, en temps réel.",
+      sure: "Remboursement automatique de ce qui ne peut pas être fourni.",
+    },
+    {
+      tab: "Livrer",
+      title: "Le livreur vous apporte la commande",
+      text: "Un livreur vérifié récupère la marchandise avec le code du producteur et vous l'apporte à l'heure choisie.",
+      see: "Le livreur sur la carte et son heure d'arrivée.",
+      sure: "La remise se fait seulement avec votre code, photo à l'appui.",
+    },
+    {
+      tab: "Vérifier",
+      title: `Vous gardez ${info.receptionWindowHours}\u00a0h pour vérifier`,
+      text: "Un produit abîmé ou manquant ? Vous le signalez depuis l'app, avec une photo si besoin.",
+      see: "Le détail de la commande et votre facture.",
+      sure: "La partie concernée vous est remboursée.",
+    },
+  ] as const;
 
 export function HowSection() {
   const [active, setActive] = useState(0);
-  const step = HOW_STEPS[active];
+  const steps = howSteps(usePublicInfo());
+  const step = steps[active];
   return (
     <section id="comment" className="scroll-mt-24 bg-[#12261d] py-20 text-white sm:py-28">
       <div className="mx-auto max-w-6xl px-4">
@@ -354,7 +360,7 @@ export function HowSection() {
             aria-label="Étapes d'une commande"
             className="flex gap-1 overflow-x-auto border-b border-white/10 p-2"
           >
-            {HOW_STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <button
                 key={s.tab}
                 role="tab"
@@ -383,7 +389,7 @@ export function HowSection() {
               </div>
             </div>
             <ol className="divide-y divide-white/10">
-              {HOW_STEPS.map((s, i) => (
+              {steps.map((s, i) => (
                 <li key={s.tab}>
                   <button
                     onClick={() => setActive(i)}
@@ -424,32 +430,38 @@ export function HowSection() {
 
 /* ----------------------------------------------------------- 03 Garanties */
 
-const GUARANTEES = [
-  {
-    value: "18 h",
-    label: "Heure limite",
-    text: "Commandez jusqu'à 18 h pour être livré le lendemain.",
-  },
-  { value: "J+1", label: "Livraison", text: "Sur le créneau du matin que vous choisissez." },
-  {
-    value: "Code",
-    label: "Remise sécurisée",
-    text: "Rien n'est remis sans votre code, et une photo est prise.",
-  },
-  {
-    value: "48 h",
-    label: "Pour vérifier",
-    text: "Abîmé ou manquant : la partie concernée est remboursée.",
-  },
-  { value: "PDF", label: "Facture", text: "Une facture pour chaque commande, dans votre espace." },
-  {
-    value: "0",
-    label: "Abonnement",
-    text: "Vous payez les produits et la livraison, rien d'autre.",
-  },
-] as const;
+const guarantees = (info: PublicInfo) =>
+  [
+    {
+      value: `${info.cutoffHour}\u00a0h`,
+      label: "Heure limite",
+      text: `Commandez jusqu'à ${info.cutoffHour}\u00a0h pour être livré le lendemain.`,
+    },
+    { value: "J+1", label: "Livraison", text: "À l'heure que vous choisissez." },
+    {
+      value: "Code",
+      label: "Remise sécurisée",
+      text: "Rien n'est remis sans votre code, et une photo est prise.",
+    },
+    {
+      value: `${info.receptionWindowHours}\u00a0h`,
+      label: "Pour vérifier",
+      text: "Abîmé ou manquant : la partie concernée est remboursée.",
+    },
+    {
+      value: "PDF",
+      label: "Facture",
+      text: "Une facture pour chaque commande, dans votre espace.",
+    },
+    {
+      value: "0",
+      label: "Abonnement",
+      text: "Vous payez les produits et la livraison, rien d'autre.",
+    },
+  ] as const;
 
 export function GuaranteesSection() {
+  const info = usePublicInfo();
   return (
     <section id="garanties" className="scroll-mt-24 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-4">
@@ -460,7 +472,7 @@ export function GuaranteesSection() {
           vérifier vous-même.
         </SectionTitle>
         <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-          {GUARANTEES.map((g) => (
+          {guarantees(info).map((g) => (
             <div
               key={g.label}
               className="rounded-[1.6rem] border border-black/5 bg-white p-5 shadow-sm sm:p-7"
@@ -475,7 +487,7 @@ export function GuaranteesSection() {
           <span className="eyebrow text-foreground/70">Paiements</span>
           <span>Wave</span>
           <span>Orange Money</span>
-          <span>Free Money</span>
+          <span>Espèces à la livraison</span>
         </div>
       </div>
     </section>
@@ -597,18 +609,18 @@ export function AudiencesSection() {
 
 /* -------------------------------------------------------------------- FAQ */
 
-const HOME_FAQ = [
+const homeFaq = (info: PublicInfo) => [
   {
     q: "Jusqu'à quelle heure puis-je commander ?",
-    a: "Jusqu'à 18 h pour être livré le lendemain, sur le créneau du matin de votre choix.",
+    a: `Jusqu'à ${info.cutoffHour}\u00a0h pour être livré le lendemain, à l'heure de votre choix.`,
   },
   {
     q: "Et si des produits sont abîmés ou manquants ?",
-    a: "Vous pouvez les refuser à la livraison ou les signaler dans les 48 h depuis l'application. La partie concernée vous est remboursée, sans négociation avec le producteur.",
+    a: `Vous pouvez les refuser à la livraison ou les signaler dans les ${info.receptionWindowHours}\u00a0h depuis l'application. La partie concernée vous est remboursée, sans négociation avec le producteur.`,
   },
   {
     q: "Comment se passe le paiement ?",
-    a: "Par mobile money : Wave, Orange Money ou Free Money. Les modalités (à la commande ou à la livraison) vous sont présentées à votre inscription.",
+    a: "Par Wave, Orange Money ou en espèces à la livraison, selon les moyens ouverts par la plateforme. Le montant à payer est affiché avant de valider la commande.",
   },
   {
     q: "Y a-t-il un abonnement ou des frais cachés ?",
@@ -626,17 +638,18 @@ const HOME_FAQ = [
     q: "Est-ce que je reçois une facture ?",
     a: "Oui, une facture est disponible pour chaque commande dans votre espace.",
   },
-] as const;
+];
 
 export function HomeFaq() {
   const [open, setOpen] = useState<number | null>(0);
+  const faq = homeFaq(usePublicInfo());
   return (
     <section id="faq" className="scroll-mt-24 py-20 sm:py-24">
       <div className="mx-auto max-w-3xl px-4">
         <Eyebrow index="05">Questions</Eyebrow>
         <SectionTitle className="!text-5xl sm:!text-6xl">Vos questions.</SectionTitle>
         <div className="mt-10 border-t border-border">
-          {HOME_FAQ.map((item, i) => {
+          {faq.map((item, i) => {
             const isOpen = open === i;
             return (
               <div key={item.q} className="border-b border-border">

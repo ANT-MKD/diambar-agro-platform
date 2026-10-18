@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/landing/legal-page";
+import { usePublicInfo } from "@/components/landing/use-public-info";
 
 export const Route = createFileRoute("/legal/privacy")({
   head: () => ({
@@ -19,7 +20,12 @@ export const Route = createFileRoute("/legal/privacy")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: () => (
+  component: PrivacyPage,
+});
+
+function PrivacyPage() {
+  const { company } = usePublicInfo();
+  return (
     <LegalPage
       eyebrow="Légal"
       title="Politique de confidentialité"
@@ -53,7 +59,7 @@ export const Route = createFileRoute("/legal/privacy")({
         {
           heading: "Vos droits",
           paragraphs: [
-            "Vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition. Une demande peut être adressée à privacy@diambar-agro.sn et sera traitée sous 30 jours.",
+            `Vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition. Une demande peut être adressée ${company.email ? `à ${company.email}` : "depuis la page Contact"} et sera traitée sous 30 jours.`,
           ],
         },
         {
@@ -70,5 +76,5 @@ export const Route = createFileRoute("/legal/privacy")({
         },
       ]}
     />
-  ),
-});
+  );
+}

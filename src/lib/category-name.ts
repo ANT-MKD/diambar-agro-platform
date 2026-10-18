@@ -5,6 +5,8 @@
 /** Clé de comparaison : minuscules, sans accents ni pluriel, espaces réduits. */
 export function categoryKey(name: string): string {
   return name
+    .replace(/œ/gi, "oe")
+    .replace(/æ/gi, "ae")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
