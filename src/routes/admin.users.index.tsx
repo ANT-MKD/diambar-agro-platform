@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   MoreVertical,
   Eye,
@@ -17,13 +18,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import {
-  adminUserActions,
-  auditActions,
-  usePlatformUsers,
-  useAdminRoleForEmail,
-  can,
-} from "@/data/admin-store";
+import { auditActions, usePlatformUsers, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { impersonationActions } from "@/data/impersonation";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
@@ -79,12 +74,16 @@ function AdminUsers() {
     ? users.filter((u) => u.joinedAt.slice(0, 7) === latestJoin.joinedAt.slice(0, 7)).length
     : 0;
 
-  const suspend = (u: (typeof users)[number], reason?: string) => {
+  const suspend = async (u: (typeof users)[number], reason?: string) => {
     if (!canSuspend) {
       toast.error("Votre rôle ne permet pas de suspendre un compte.");
       return;
     }
-    adminUserActions.setStatus(u.id, "suspended");
+    const res = await market.setAccountStatus(u.id, "suspended", reason);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Compte suspendu",
       target: u.name,
@@ -96,12 +95,16 @@ function AdminUsers() {
     toast.success("Compte suspendu");
   };
 
-  const reactivate = (u: (typeof users)[number]) => {
+  const reactivate = async (u: (typeof users)[number]) => {
     if (!canSuspend) {
       toast.error("Votre rôle ne permet pas de réactiver un compte.");
       return;
     }
-    adminUserActions.setStatus(u.id, "active");
+    const res = await market.setAccountStatus(u.id, "active");
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Compte réactivé",
       target: u.name,

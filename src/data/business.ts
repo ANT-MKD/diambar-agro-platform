@@ -11,14 +11,18 @@ import {
   refundForReturn,
   REFUND_BORN_BY_LABEL,
   type RefundBornBy,
+  type RefundStatus,
 } from "@/data/finance";
 import { orders, farmers } from "@/data/mocks";
 import { createStore } from "./persist";
+import { getRules } from "./rules";
 
 /** Producteur réel concerné par un retour — dérivé de la commande d'origine
  * (Order.farmerId), jamais stocké sur ReturnRequest pour éviter une source
  * de vérité dupliquée avec la commande. */
-export function farmerForReturn(r: { orderRef: string }) {
+export function farmerForReturn(r: { orderRef: string; farmerId?: string }) {
+  // Mode base : le producteur est lu avec le retour.
+  if (r.farmerId) return farmers.find((f) => f.id === r.farmerId);
   const order = orders.find((o) => o.reference === r.orderRef);
   return order ? farmers.find((f) => f.id === order.farmerId) : undefined;
 }
@@ -53,6 +57,8 @@ export type ReturnMessage = {
   id: string;
   at: string;
   authorRole: "restaurant" | "farmer";
+  /** Message de l'équipe Diambar (mode base). */
+  fromTeam?: boolean;
   authorName: string;
   text: string;
 };
@@ -127,6 +133,10 @@ export type ReturnRequest = {
   resolution?: ReturnResolution;
   escalatedDisputeId?: string;
   closedAt?: string;
+  /** Mode base : producteur et remboursement lus avec le retour. */
+  farmerId?: string;
+  farmerName?: string;
+  refund?: { id: string; reference: string; status: RefundStatus; amount: number };
 };
 
 // Étape opérationnelle affichée (stepper) — dérivée des champs ci-dessus,
@@ -297,8 +307,12 @@ export function returnCreationProblem(input: {
   lineValue: number;
   deliveredAt?: string;
 }): string | null {
-  if (input.deliveredAt && Date.now() - new Date(input.deliveredAt).getTime() > 48 * 3600_000) {
-    return "Le délai de réclamation de 48 h après la livraison est dépassé : contactez le support.";
+  const windowHours = getRules().receptionWindowHours;
+  if (
+    input.deliveredAt &&
+    Date.now() - new Date(input.deliveredAt).getTime() > windowHours * 3600_000
+  ) {
+    return `Le délai de réclamation de ${windowHours} h après la livraison est dépassé : contactez le support.`;
   }
   if (input.requestedAmount <= 0) return "Indiquez un montant.";
   if (input.requestedAmount > input.lineValue) {
@@ -786,6 +800,10 @@ export type Review = {
   photos?: DisputeAttachment[];
   createdAt: string;
   reply?: { at: string; text: string };
+  /** Mode base : commande notée, nom du restaurant et masquage (équipe). */
+  orderId?: string;
+  restaurantName?: string;
+  hidden?: boolean;
 };
 
 const seedReviews: Review[] = [
@@ -960,6 +978,10 @@ export type Incident = {
   createdAt: string;
   history: { at: string; actor: string; text: string }[];
   photos?: DisputeAttachment[];
+  /** Mode base : course et livreur liés. */
+  missionId?: string;
+  driverId?: string;
+  driverName?: string;
 };
 
 const seedIncidents: Incident[] = [
@@ -1103,8 +1125,18 @@ export const incidentActions = {
 // litiges et incidents doivent aussi pouvoir créer un vrai remboursement
 // sans provoquer d'import circulaire avec business.ts/disputes.ts.
 
-/** Mode base de données : les données de démonstration de ce module ne
- * sont pas montrées (le module passera en base dans un prochain lot). */
+/** Mode base de données : retours, avis et incidents lus sur le serveur. */
+export function replaceAfterSales(data: {
+  returns: ReturnRequest[];
+  reviews: Review[];
+  incidents: Incident[];
+}) {
+  returnsStore.replace(data.returns);
+  reviewsStore.replace(data.reviews);
+  incidentsStore.replace(data.incidents);
+}
+
+/** Mode base de données : les données de démonstration ne sont pas montrées. */
 export function clearBusinessDemoData() {
   returnsStore.replace([]);
   reviewsStore.replace([]);

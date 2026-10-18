@@ -13,6 +13,7 @@ import {
   History,
 } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
@@ -20,7 +21,6 @@ import { DisputeStatusBadge } from "@/components/disputes/dispute-badges";
 import { Button } from "@/components/ui/button";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import {
-  adminUserActions,
   auditActions,
   usePlatformUser,
   useValidations,
@@ -133,8 +133,12 @@ function AdminUserDetail() {
               <Button
                 size="sm"
                 className="gap-2"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "active");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "active");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte réactivé",
                     target: user.name,
@@ -153,8 +157,12 @@ function AdminUserDetail() {
                 size="sm"
                 variant="outline"
                 className="gap-2"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "suspended");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "suspended");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte suspendu",
                     target: user.name,
@@ -176,8 +184,12 @@ function AdminUserDetail() {
                 size="sm"
                 variant="outline"
                 className="gap-2 text-destructive"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "rejected");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "rejected");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte rejeté",
                     target: user.name,

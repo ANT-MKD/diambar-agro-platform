@@ -8,16 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FileDrop } from "@/components/disputes/file-drop";
-import {
-  useReturn,
-  returnActions,
-  RETURN_REASON_LABEL,
-  RETURN_STATUS_LABEL,
-} from "@/data/business";
+import { useReturn, RETURN_REASON_LABEL, RETURN_STATUS_LABEL } from "@/data/business";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
 import { useMyId } from "@/data/market-mode";
+import { market } from "@/data/market-remote";
 
 export const Route = createFileRoute("/restaurant/returns/$returnId")({
   head: () => ({ meta: [{ title: "Retour · Restaurant" }] }),
@@ -49,18 +45,35 @@ function ReturnDetail() {
     );
   }
 
-  const send = () => {
+  const send = async () => {
     if (!draft.trim() || !myRestaurant) return;
-    returnActions.reply(r.id, { role: "restaurant", name: myRestaurant.name, text: draft.trim() });
+    const res = await market.replyReturn(r.id, {
+      role: "restaurant",
+      name: myRestaurant.name,
+      text: draft.trim(),
+    });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     setDraft("");
     toast.success("Message envoyé au producteur");
   };
 
-  const attachDocs = (files: DisputeAttachment[]) => {
+  const attachDocs = async (files: DisputeAttachment[]) => {
     const added = files.slice(newPhotos.length);
     setNewPhotos(files);
     if (added.length > 0) {
-      returnActions.addPhotos(r.id, added);
+      const res = await market.replyReturn(
+        r.id,
+        { role: "restaurant", name: myRestaurant?.name ?? user.name, text: "" },
+        added,
+      );
+      if (!res.ok) {
+        toast.error(res.message);
+        setNewPhotos(newPhotos);
+        return;
+      }
       toast.success(`${added.length} document(s) ajouté(s)`);
     }
   };
@@ -216,7 +229,7 @@ function ReturnDetail() {
                 r.messages.map((m) => (
                   <div
                     key={m.id}
-                    className={`max-w-[80%] rounded-xl p-3 text-sm ${m.authorRole === "restaurant" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"}`}
+                    className={`max-w-[80%] rounded-xl p-3 text-sm ${m.authorRole === "restaurant" && !m.fromTeam ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"}`}
                   >
                     <div className="text-[11px] opacity-70 mb-0.5">
                       {m.authorName} · {relativeTime(m.at)}

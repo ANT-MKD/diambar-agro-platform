@@ -7,6 +7,11 @@ import { disputeStaff } from "./disputes-db.server";
 import { readCreditNotes } from "./credit-notes-db.server";
 import { readConversations } from "./messaging-db.server";
 import { readTickets } from "./support-db.server";
+import { readReviews } from "./reviews-db.server";
+import { readReturns } from "./returns-db.server";
+import { readIncidents } from "./incidents-db.server";
+import { MODERATION_STAFF, readModeration } from "./moderation-db.server";
+import { staffRoleOf } from "./market-common.server";
 import {
   categories,
   checkouts,
@@ -1249,6 +1254,14 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     creditNotes: await readCreditNotes(db, me),
     ...(await readConversations(db, me)),
     supportTickets: await readTickets(db, me),
+    reviews: await readReviews(db, me),
+    returns: await readReturns(db, me),
+    incidents: await readIncidents(db, me),
+    moderation:
+      me.role === "admin" &&
+      (MODERATION_STAFF as readonly string[]).includes((await staffRoleOf(db, me.id)) ?? "")
+        ? await readModeration(db)
+        : [],
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

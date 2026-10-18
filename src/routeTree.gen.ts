@@ -58,6 +58,7 @@ import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
+import { Route as FarmerReviewsRouteImport } from './routes/farmer.reviews'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerSupportRouteImport } from './routes/farmer.support'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
@@ -433,6 +434,11 @@ const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
 const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerReviewsRoute = FarmerReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
   getParentRoute: () => FarmerRoute,
 } as any)
 const FarmerSettingsRoute = FarmerSettingsRouteImport.update({
@@ -1180,6 +1186,7 @@ export interface FileRoutesByFullPath {
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRouteWithChildren
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -1357,6 +1364,7 @@ export interface FileRoutesByTo {
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -1535,6 +1543,7 @@ export interface FileRoutesById {
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRouteWithChildren
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -1719,6 +1728,7 @@ export interface FileRouteTypes {
     | '/farmer/dashboard'
     | '/farmer/messages'
     | '/farmer/notifications'
+    | '/farmer/reviews'
     | '/farmer/settings'
     | '/farmer/support'
     | '/legal/privacy'
@@ -1896,6 +1906,7 @@ export interface FileRouteTypes {
     | '/driver/wallet'
     | '/farmer/analytics'
     | '/farmer/dashboard'
+    | '/farmer/reviews'
     | '/farmer/support'
     | '/legal/privacy'
     | '/legal/terms'
@@ -2073,6 +2084,7 @@ export interface FileRouteTypes {
     | '/farmer/dashboard'
     | '/farmer/messages'
     | '/farmer/notifications'
+    | '/farmer/reviews'
     | '/farmer/settings'
     | '/farmer/support'
     | '/legal/privacy'
@@ -2579,6 +2591,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/farmer/notifications'
       preLoaderRoute: typeof FarmerNotificationsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/reviews': {
+      id: '/farmer/reviews'
+      path: '/reviews'
+      fullPath: '/farmer/reviews'
+      preLoaderRoute: typeof FarmerReviewsRouteImport
       parentRoute: typeof FarmerRoute
     }
     '/farmer/settings': {
@@ -3755,6 +3774,7 @@ interface FarmerRouteChildren {
   FarmerDashboardRoute: typeof FarmerDashboardRoute
   FarmerMessagesRoute: typeof FarmerMessagesRouteWithChildren
   FarmerNotificationsRoute: typeof FarmerNotificationsRouteWithChildren
+  FarmerReviewsRoute: typeof FarmerReviewsRoute
   FarmerSettingsRoute: typeof FarmerSettingsRouteWithChildren
   FarmerSupportRoute: typeof FarmerSupportRoute
   FarmerDisputesDisputeIdRoute: typeof FarmerDisputesDisputeIdRoute
@@ -3787,6 +3807,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerDashboardRoute: FarmerDashboardRoute,
   FarmerMessagesRoute: FarmerMessagesRouteWithChildren,
   FarmerNotificationsRoute: FarmerNotificationsRouteWithChildren,
+  FarmerReviewsRoute: FarmerReviewsRoute,
   FarmerSettingsRoute: FarmerSettingsRouteWithChildren,
   FarmerSupportRoute: FarmerSupportRoute,
   FarmerDisputesDisputeIdRoute: FarmerDisputesDisputeIdRoute,

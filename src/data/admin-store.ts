@@ -32,6 +32,7 @@ import {
 } from "./store";
 import { products, farmers, type AppNotification } from "./mocks";
 import { createStore } from "./persist";
+import { isMarketRemote } from "./market-mode";
 import { tiersStore, zonesStore, useCommissionTiers, useDeliveryZones } from "./platform-settings";
 
 export { useCommissionTiers, useDeliveryZones };
@@ -98,6 +99,8 @@ export const auditActions = {
     reason?: string;
     changes?: AuditChange[];
   }) => {
+    // Avec une base, le serveur tient le vrai journal (relu avec l'annuaire).
+    if (isMarketRemote()) return;
     logsStore.set((arr) => [
       {
         id: `al_${Date.now()}`,
@@ -204,6 +207,8 @@ export const ROLE_PERMISSIONS: Record<AdminRoleName, PermissionKey[]> = {
     "users.view",
     "users.edit",
     "validations.decide",
+    // Pas de rôle « Modération » distinct en base : les opérations modèrent.
+    "moderation.decide",
     "orders.view",
     "deliveries.view",
     "deliveries.reassign",
@@ -977,6 +982,11 @@ export function applyAdminDirectory(dir: {
   usersStore.replace(dir.users);
   adminRolesStore.replace(dir.staffRoles);
   logsStore.replace(dir.logs);
+}
+
+/** Produits signalés, lus sur le serveur. */
+export function replaceModeration(items: ModerationItem[]) {
+  moderationStore.replace(items);
 }
 
 /** Files de démonstration sans équivalent en base : vides. */

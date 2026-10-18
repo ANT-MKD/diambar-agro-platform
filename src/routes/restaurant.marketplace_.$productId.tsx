@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
-import { useHiddenInBase } from "@/data/demo-only";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
+import { market } from "@/data/market-remote";
 import {
   ArrowLeft,
   Star,
@@ -11,6 +12,7 @@ import {
   MessageSquare,
   Heart,
   Zap,
+  Flag,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,7 +28,7 @@ import {
   useSuppliers,
   conversationActions,
 } from "@/data/store";
-import { useReviews as useBusinessReviews } from "@/data/business";
+import { reviewScore, useReviews as useBusinessReviews } from "@/data/business";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -65,6 +67,10 @@ function ProductDetail() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
+  const base = useBaseMode();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   if (!product)
     return (
@@ -114,6 +120,30 @@ function ProductDetail() {
     setReviewText("");
     setReviewRating(5);
     setReviewOpen(false);
+  };
+
+  // Avec la base, les avis portent sur les commandes livrées (par producteur).
+  const farmerReviews = businessReviews.filter((r) => r.supplierId === product.farmerId);
+  const farmerAvg =
+    farmerReviews.length > 0
+      ? farmerReviews.reduce((s, r) => s + reviewScore(r), 0) / farmerReviews.length
+      : null;
+
+  const submitReport = async () => {
+    if (reportReason.trim().length < 5) {
+      toast.error("Expliquez le problème (5 caractères minimum)");
+      return;
+    }
+    setReporting(true);
+    const res = await market.reportProduct(product.id, reportReason.trim());
+    setReporting(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    toast.success("Merci : l'équipe Diambar va examiner ce produit");
+    setReportOpen(false);
+    setReportReason("");
   };
 
   const orderNow = () => {
@@ -298,8 +328,18 @@ function ProductDetail() {
               <Button
                 variant="outline"
                 className="h-12 gap-2"
-                onClick={() => {
-                  const conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                onClick={async () => {
+                  let conversationId: string;
+                  if (base) {
+                    const res = await market.startConversation({ farmerId: farmer.id });
+                    if (!res.ok) {
+                      toast.error(res.message);
+                      return;
+                    }
+                    conversationId = res.id;
+                  } else {
+                    conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                  }
                   navigate({
                     to: "/restaurant/messages/$conversationId",
                     params: { conversationId },
@@ -314,54 +354,101 @@ function ProductDetail() {
         </div>
       </div>
 
-      <section className="glass rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="font-display text-xl font-bold">Avis clients</h2>
-          {avg !== null && (
-            <div className="flex items-center gap-2">
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    className={`h-4 w-4 ${s <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
-                  />
-                ))}
-              </div>
-              <span className="font-bold">{avg.toFixed(1)}</span>
-              <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
-            </div>
-          )}
-        </div>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aucun avis pour ce produit pour le moment.
-          </p>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-3">
-            {reviews.map((r) => (
-              <div key={r.id} className="rounded-xl border border-border p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">{r.restaurantName}</span>
-                  <span className="text-[11px] text-muted-foreground">{relativeTime(r.at)}</span>
-                </div>
+      {base ? (
+        <section className="glass rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-display text-xl font-bold">Avis sur ce producteur</h2>
+            {farmerAvg !== null && (
+              <div className="flex items-center gap-2">
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Star
                       key={s}
-                      className={`h-3.5 w-3.5 ${s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                      className={`h-4 w-4 ${s <= Math.round(farmerAvg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
                     />
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>
+                <span className="font-bold">{farmerAvg.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">
+                  ({farmerReviews.length} commande{farmerReviews.length > 1 ? "s" : ""} notée
+                  {farmerReviews.length > 1 ? "s" : ""})
+                </span>
               </div>
-            ))}
+            )}
           </div>
-        )}
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => setReviewOpen(true)}>
-          <MessageSquare className="h-3.5 w-3.5" />
-          Laisser un avis
-        </Button>
-      </section>
+          <p className="text-sm text-muted-foreground">
+            {farmerAvg === null
+              ? "Aucune commande de ce producteur n'a encore été notée."
+              : "Note moyenne laissée par les restaurants après chaque livraison."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1">
+              <Link to="/restaurant/reviews/new">
+                <Star className="h-3.5 w-3.5" />
+                Noter une commande livrée
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-muted-foreground"
+              onClick={() => setReportOpen(true)}
+            >
+              <Flag className="h-3.5 w-3.5" />
+              Signaler ce produit
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <section className="glass rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-display text-xl font-bold">Avis clients</h2>
+            {avg !== null && (
+              <div className="flex items-center gap-2">
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`h-4 w-4 ${s <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                    />
+                  ))}
+                </div>
+                <span className="font-bold">{avg.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
+              </div>
+            )}
+          </div>
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucun avis pour ce produit pour le moment.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-3">
+              {reviews.map((r) => (
+                <div key={r.id} className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">{r.restaurantName}</span>
+                    <span className="text-[11px] text-muted-foreground">{relativeTime(r.at)}</span>
+                  </div>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-3.5 w-3.5 ${s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setReviewOpen(true)}>
+            <MessageSquare className="h-3.5 w-3.5" />
+            Laisser un avis
+          </Button>
+        </section>
+      )}
 
       {similar.length > 0 && (
         <section className="space-y-4">
@@ -401,6 +488,33 @@ function ProductDetail() {
               Annuler
             </Button>
             <Button onClick={submitReview}>Publier</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Signaler « {product.name} »</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Photo trompeuse, prix incohérent, produit interdit… L'équipe Diambar examine chaque
+            signalement.
+          </p>
+          <Textarea
+            rows={4}
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            maxLength={300}
+            placeholder="Décrivez le problème…"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={submitReport} disabled={reporting}>
+              Envoyer le signalement
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

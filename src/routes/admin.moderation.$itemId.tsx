@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Flag, Ban, Check, MessageSquareWarning, UserX } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { AdminBadge } from "@/components/admin/admin-badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import {
-  useModerationItem,
-  moderationActions,
-  useAdminRoleForEmail,
-  can,
-} from "@/data/admin-store";
+import { useModerationItem, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { useProducts } from "@/data/store";
 import { farmers } from "@/data/mocks";
 
@@ -78,7 +74,7 @@ function ModerationDetail() {
 
   const events = [...m.events].sort((a, b) => (a.at < b.at ? 1 : -1));
 
-  const submitChange = () => {
+  const submitChange = async () => {
     if (!changeNote.trim()) {
       toast.error("Décrivez la modification attendue");
       return;
@@ -87,7 +83,11 @@ function ModerationDetail() {
       toast.error("Votre rôle ne permet pas de modérer ce produit.");
       return;
     }
-    moderationActions.requestChange(m.id, changeNote.trim(), user.name);
+    const res = await market.moderateProduct(m, "request_change", changeNote.trim(), user.name);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Modification demandée au producteur");
     setChangeOpen(false);
     setChangeNote("");
@@ -112,7 +112,11 @@ function ModerationDetail() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           <div className="glass rounded-2xl overflow-hidden grid sm:grid-cols-2">
-            <img src={m.image} alt={m.name} className="h-full min-h-48 w-full object-cover" />
+            <img
+              src={m.image || undefined}
+              alt={m.name}
+              className="h-full min-h-48 w-full object-cover"
+            />
             <div className="p-5 space-y-2 text-sm">
               <h2 className="font-semibold mb-1">Informations</h2>
               <Row label="Producteur" value={farmer?.farm ?? m.farmer} />
@@ -170,8 +174,12 @@ function ModerationDetail() {
               <Button
                 disabled={closed}
                 className="w-full justify-start gap-2"
-                onClick={() => {
-                  moderationActions.approve(m.id, user.name);
+                onClick={async () => {
+                  const res = await market.moderateProduct(m, "keep", "", user.name);
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   toast.success("Produit conservé");
                 }}
               >
@@ -191,8 +199,12 @@ function ModerationDetail() {
                 disabled={closed}
                 variant="outline"
                 className="w-full justify-start gap-2 text-destructive"
-                onClick={() => {
-                  moderationActions.unpublish(m.id, user.name);
+                onClick={async () => {
+                  const res = await market.moderateProduct(m, "unpublish", "", user.name);
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   toast.success("Produit dépublié");
                 }}
               >
@@ -255,8 +267,12 @@ function ModerationDetail() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => {
-                moderationActions.suspendFarmer(m.id, user.name);
+              onClick={async () => {
+                const res = await market.moderateProduct(m, "suspend_farmer", "", user.name);
+                if (!res.ok) {
+                  toast.error(res.message);
+                  return;
+                }
                 toast.success("Producteur suspendu");
                 setSuspendOpen(false);
               }}

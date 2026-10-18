@@ -127,11 +127,12 @@ export async function audit(
     before?: unknown;
     after?: unknown;
     status?: "success" | "failed" | "blocked" | "cancelled";
+    module?: string;
   },
 ) {
   await q.insert(auditLogs).values({
     actorId: entry.actorId,
-    module: "finance",
+    module: entry.module ?? "finance",
     action: entry.action,
     targetType: entry.targetType,
     targetId: entry.targetId,
@@ -139,4 +140,24 @@ export async function audit(
     before: entry.before ?? null,
     after: entry.after ?? null,
   });
+}
+
+/** Rôle d'équipe d'un compte admin (null pour les autres comptes). */
+export async function staffRoleOf(q: Q, userId: string) {
+  const [p] = await q
+    .select({ role: adminProfiles.adminRole })
+    .from(adminProfiles)
+    .where(eq(adminProfiles.userId, userId));
+  return p?.role ?? null;
+}
+
+export async function requireStaffRole(
+  q: Q,
+  userId: string,
+  roles: readonly string[],
+  message = "Votre rôle ne permet pas cette action.",
+) {
+  const role = await staffRoleOf(q, userId);
+  if (!role || !roles.includes(role)) fail(message);
+  return role;
 }

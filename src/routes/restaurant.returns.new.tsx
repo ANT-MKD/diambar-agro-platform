@@ -8,17 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDrop } from "@/components/disputes/file-drop";
-import { deliveredAtOf, useRestaurantOrders } from "@/data/store";
-import { farmers, products, restaurants } from "@/data/mocks";
+import { deliveredAtOf, useProducts, useRestaurantOrders } from "@/data/store";
+import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
-import {
-  returnActions,
-  returnCreationProblem,
-  RETURN_REASON_LABEL,
-  type ReturnReason,
-} from "@/data/business";
+import { returnCreationProblem, RETURN_REASON_LABEL, type ReturnReason } from "@/data/business";
 import { useMyId } from "@/data/market-mode";
+import { market } from "@/data/market-remote";
 
 export const Route = createFileRoute("/restaurant/returns/new")({
   head: () => ({ meta: [{ title: "Déclarer un problème · Restaurant" }] }),
@@ -34,6 +30,8 @@ function NewReturn() {
   const { user } = useRouteContext({ from: "/restaurant" });
   const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const orders = useRestaurantOrders();
+  const products = useProducts();
+  const [sending, setSending] = useState(false);
 
   const [step, setStep] = useState(0);
   const [q, setQ] = useState("");
@@ -60,7 +58,11 @@ function NewReturn() {
   const order = orders.find((o) => o.id === orderId) ?? null;
   const farmer = order ? farmers.find((f) => f.id === order.farmerId) : null;
   const orderLine = order?.items.find((it) => it.productId === productId) ?? null;
-  const product = productId ? products.find((p) => p.id === productId) : null;
+  // Produit retiré du catalogue depuis : la ligne de commande suffit.
+  const product = productId
+    ? (products.find((p) => p.id === productId) ??
+      (orderLine ? { id: productId, name: "Produit commandé", unit: "", image: "" } : null))
+    : null;
 
   const canGoStep1 = !!orderId;
   const canGoStep2 = !!productId;
@@ -81,13 +83,14 @@ function NewReturn() {
     Number(requestedAmount) > 0 &&
     description.trim().length >= 10;
 
-  const submit = () => {
-    if (!order || !orderLine || !product || !myRestaurant) return;
+  const submit = async () => {
+    if (!order || !orderLine || !product || !myRestaurant || sending) return;
     if (amountProblem) {
       toast.error(amountProblem);
       return;
     }
-    const item = returnActions.create({
+    setSending(true);
+    const res = await market.createReturn({
       orderRef: order.reference,
       orderId: order.id,
       restaurantId: myRestaurant.id,
@@ -101,10 +104,15 @@ function NewReturn() {
       requestedAmount: Number(requestedAmount),
       photos,
     });
+    setSending(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Demande de retour envoyée au producteur", {
-      description: `${item.reference} · ${formatFCFA(item.requestedAmount)}`,
+      description: `${res.reference} · ${formatFCFA(Number(requestedAmount))}`,
     });
-    navigate({ to: "/restaurant/returns/$returnId", params: { returnId: item.id } });
+    navigate({ to: "/restaurant/returns/$returnId", params: { returnId: res.id } });
   };
 
   return (
@@ -219,7 +227,9 @@ function NewReturn() {
                       <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                     )}
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{p?.name ?? it.productId}</div>
+                      <div className="font-medium text-sm truncate">
+                        {p?.name ?? "Produit commandé"}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {it.qty} {p?.unit} · {formatFCFA(it.qty * it.price)}
                       </div>
@@ -352,7 +362,7 @@ function NewReturn() {
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
-          <Button onClick={submit} className="gap-2">
+          <Button onClick={submit} disabled={sending} className="gap-2">
             <Check className="h-4 w-4" />
             Envoyer la demande
           </Button>

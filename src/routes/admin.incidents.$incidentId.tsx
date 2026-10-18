@@ -37,7 +37,6 @@ import {
 import { formatFCFA, relativeTime } from "@/lib/format";
 import {
   useIncidents,
-  incidentActions,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
   INCIDENT_SEVERITY_LABEL,
@@ -131,7 +130,7 @@ function AdminIncidentDetail() {
     setNote("");
   };
 
-  const award = () => {
+  const award = async () => {
     const value = Number(amount);
     if (!Number.isFinite(value) || value < 0) {
       toast.error("Indiquez un montant valide");
@@ -141,7 +140,16 @@ function AdminIncidentDetail() {
       toast.error("Votre rôle ne permet pas de traiter cet incident.");
       return;
     }
-    incidentActions.resolve(incident.id, value, note.trim() || undefined, user.name);
+    const res = await market.resolveIncident(
+      incident.id,
+      value,
+      note.trim() || undefined,
+      user.name,
+    );
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
       target: incident.reference,
@@ -159,12 +167,21 @@ function AdminIncidentDetail() {
     cancelDeciding();
   };
 
-  const reject = () => {
+  const reject = async () => {
     if (!canDecideIncidents) {
       toast.error("Votre rôle ne permet pas de traiter cet incident.");
       return;
     }
-    incidentActions.resolve(incident.id, 0, note.trim() || "Demande jugée non fondée", user.name);
+    const res = await market.resolveIncident(
+      incident.id,
+      0,
+      note.trim() || "Demande jugée non fondée",
+      user.name,
+    );
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Indemnité refusée",
       target: incident.reference,

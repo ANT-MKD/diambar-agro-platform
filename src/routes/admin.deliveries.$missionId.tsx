@@ -33,12 +33,7 @@ import { formatFCFA, relativeTime } from "@/lib/format";
 import { useMission, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { market } from "@/data/market-remote";
 import { useAllDisputes } from "@/data/disputes";
-import {
-  useIncidents,
-  incidentActions,
-  INCIDENT_TYPE_LABEL,
-  type IncidentType,
-} from "@/data/business";
+import { useIncidents, INCIDENT_TYPE_LABEL, type IncidentType } from "@/data/business";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
 import { ProofPhotos } from "@/components/common/handover-code";
@@ -150,13 +145,14 @@ function AdminDeliveryDetail() {
     setNewDriverId("");
   };
 
-  const submitIncident = () => {
+  const submitIncident = async () => {
     if (!incidentDesc.trim()) {
       toast.error("Décrivez le problème");
       return;
     }
-    const item = incidentActions.create(
+    const item = await market.createIncident(
       {
+        missionId: mission.id,
         missionRef: mission.reference,
         type: incidentType,
         description: incidentDesc.trim(),
@@ -165,6 +161,10 @@ function AdminDeliveryDetail() {
       },
       user.name,
     );
+    if (!item.ok) {
+      toast.error(item.message);
+      return;
+    }
     auditActions.log({
       action: `Incident créé depuis la livraison (${item.reference})`,
       target: mission.reference,

@@ -641,50 +641,48 @@ function DriverDashboard() {
 
         {/* Sidebar droite */}
         <div className="space-y-6">
-          {!base && (
-            <>
-              {/* Alertes & incidents */}
-              <div className="glass rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-display font-bold flex items-center gap-2">
-                    <TriangleAlert className="h-4 w-4 text-destructive" />
-                    Alertes & incidents
-                  </h3>
-                  <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
-                    Voir tout
-                  </Link>
-                </div>
-                <div className="space-y-2">
-                  {openIncidents.map((i) => (
-                    <div
-                      key={i.id}
-                      className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
-                    >
-                      <div className="font-semibold text-amber-700 dark:text-amber-400">
-                        {INCIDENT_TYPE_LABEL[i.type]}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {i.missionRef} · {relativeTime(i.createdAt)}
-                      </div>
-                    </div>
-                  ))}
-                  {lastPayment && (
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-                      <div className="font-semibold text-emerald-700 dark:text-emerald-400">
-                        Paiement reçu
-                      </div>
-                      <div className="text-muted-foreground">
-                        + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
-                      </div>
-                    </div>
-                  )}
-                  {openIncidents.length === 0 && !lastPayment && (
-                    <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
-                  )}
-                </div>
+          <>
+            {/* Alertes & incidents */}
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold flex items-center gap-2">
+                  <TriangleAlert className="h-4 w-4 text-destructive" />
+                  Alertes & incidents
+                </h3>
+                <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
+                  Voir tout
+                </Link>
               </div>
-            </>
-          )}
+              <div className="space-y-2">
+                {openIncidents.map((i) => (
+                  <div
+                    key={i.id}
+                    className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
+                  >
+                    <div className="font-semibold text-amber-700 dark:text-amber-400">
+                      {INCIDENT_TYPE_LABEL[i.type]}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {i.missionRef} · {relativeTime(i.createdAt)}
+                    </div>
+                  </div>
+                ))}
+                {lastPayment && (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
+                    <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      Paiement reçu
+                    </div>
+                    <div className="text-muted-foreground">
+                      + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
+                    </div>
+                  </div>
+                )}
+                {openIncidents.length === 0 && !lastPayment && (
+                  <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
+                )}
+              </div>
+            </div>
+          </>
 
           {/* Portefeuille */}
           <div className="glass rounded-2xl p-5 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10">

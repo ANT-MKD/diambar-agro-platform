@@ -78,6 +78,19 @@ import {
   replyTicketFn,
   ticketStaffFn,
   ticketFromConversationFn,
+  createReviewFn,
+  replyReviewFn,
+  hideReviewFn,
+  reportProductFn,
+  moderateProductFn,
+  setAccountStatusFn,
+  createReturnFn,
+  replyReturnFn,
+  decideReturnFn,
+  creditReturnFn,
+  returnStaffFn,
+  createIncidentFn,
+  incidentActionFn,
   updateAccountFn,
   updateAvatarFn,
   updatePreferencesFn,
@@ -124,7 +137,19 @@ import type { StatementView } from "@/lib/market/documents-view";
 import type { DeliveryPricing, FarmerPlaceRow, PlaceRow } from "@/lib/delivery-pricing";
 import type { DriverPay } from "@/lib/platform-rules";
 import { requireRole } from "@/lib/auth/functions";
-import { clearBusinessDemoData } from "./business";
+import {
+  clearBusinessDemoData,
+  incidentActions,
+  replaceAfterSales,
+  returnActions,
+  reviewActions,
+  type IncidentType,
+  type ReturnReason,
+  type ReturnRequest,
+  type ReturnResolutionType,
+  type Review,
+} from "./business";
+import type { RefundBornBy } from "./finance";
 import {
   clearDisputesDemoData,
   disputeActions,
@@ -139,10 +164,14 @@ import {
 import { clearFinanceDemoData } from "./finance";
 import { clearSupportDemoData, replaceSupportTickets } from "./support";
 import {
+  adminUserActions,
   applyAdminDirectory,
   clearAdminDemoData,
+  moderationActions,
   replaceAdminServerNotifications,
+  replaceModeration,
 } from "./admin-store";
+import type { PlatformUserStatus } from "./admin-mocks";
 import { ensureLocalCategory } from "./catalog";
 import { canonicalUnit, unitChoices, unitProblem } from "@/lib/units";
 
@@ -177,7 +206,13 @@ async function load(): Promise<void> {
   replaceConversations(snap.conversations ?? []);
   replaceDriverConversations(snap.driverConversations ?? []);
   replaceSupportTickets(snap.supportTickets ?? []);
+  replaceAfterSales({
+    returns: snap.returns ?? [],
+    reviews: snap.reviews ?? [],
+    incidents: snap.incidents ?? [],
+  });
   if (snap.me.role === "admin") {
+    replaceModeration(snap.moderation ?? []);
     replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
     const dir = await getAdminDirectoryFn().catch(() => null);
@@ -666,6 +701,286 @@ export const market = {
       const res = await ticketFromConversationFn({ data: { conversationId, subject, category } });
       return res.ok ? { ok: true as const, id: res.id ?? "", reference: res.reference ?? "" } : res;
     });
+  },
+
+  // --- Avis ---------------------------------------------------------------------------
+
+  /** Note une commande livrée (restaurant). */
+  async createReview(input: Omit<Review, "id" | "createdAt">): Promise<Result> {
+    if (isMarketRemote()) {
+      if (!input.orderId) return { ok: false, message: "Choisissez la commande notée." };
+      return remote(() =>
+        createReviewFn({
+          data: {
+            orderId: input.orderId!,
+            quality: input.quality,
+            quantity: input.quantity,
+            freshness: input.freshness,
+            timeliness: input.timeliness,
+            packaging: input.packaging,
+            communication: input.communication,
+            comment: input.comment,
+            tags: input.tags ?? [],
+          },
+        }),
+      );
+    }
+    reviewActions.create(input);
+    return { ok: true };
+  },
+
+  async replyReview(id: string, text: string): Promise<Result> {
+    if (isMarketRemote()) return remote(() => replyReviewFn({ data: { id, text } }));
+    reviewActions.reply(id, text);
+    return { ok: true };
+  },
+
+  async hideReview(id: string, hidden: boolean): Promise<Result> {
+    if (isMarketRemote()) return remote(() => hideReviewFn({ data: { id, hidden } }));
+    if (hidden) reviewActions.remove(id);
+    return { ok: true };
+  },
+
+  // --- Modération ------------------------------------------------------------------------
+
+  /** Signale un produit à l'équipe (restaurant). */
+  async reportProduct(productId: string, reason: string): Promise<Result> {
+    if (isMarketRemote()) return remote(() => reportProductFn({ data: { productId, reason } }));
+    return { ok: true };
+  },
+
+  async moderateProduct(
+    item: { id: string; productId: string },
+    action: "keep" | "unpublish" | "request_change" | "suspend_farmer",
+    note = "",
+    actor?: string,
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => moderateProductFn({ data: { productId: item.productId, action, note } }));
+    }
+    if (action === "keep") moderationActions.approve(item.id, actor);
+    else if (action === "unpublish") moderationActions.unpublish(item.id, actor);
+    else if (action === "request_change") moderationActions.requestChange(item.id, note, actor);
+    else moderationActions.suspendFarmer(item.id, actor);
+    return { ok: true };
+  },
+
+  // --- Comptes (admin) ---------------------------------------------------------------
+
+  async setAccountStatus(
+    userId: string,
+    status: Extract<PlatformUserStatus, "active" | "suspended" | "rejected">,
+    reason?: string,
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      const res = await remote(() => setAccountStatusFn({ data: { userId, status, reason } }));
+      // La liste des comptes vient de l'annuaire : il est relu aussi.
+      if (res.ok) {
+        const dir = await getAdminDirectoryFn().catch(() => null);
+        if (dir?.ok) applyAdminDirectory(dir);
+      }
+      return res;
+    }
+    adminUserActions.setStatus(userId, status);
+    return { ok: true };
+  },
+
+  // --- Retours produit -------------------------------------------------------------------
+
+  /** Déclare un retour (restaurant), avec photos réduites avant l'envoi. */
+  async createReturn(
+    input: Omit<
+      ReturnRequest,
+      "id" | "reference" | "status" | "createdAt" | "history" | "messages"
+    >,
+  ): Promise<Result<{ id: string; reference: string }>> {
+    if (isMarketRemote()) {
+      if (!input.orderId || !input.productId) {
+        return { ok: false, message: "Choisissez la commande et le produit." };
+      }
+      const files = await disputeFiles(input.photos ?? []);
+      if (!files.ok) return files;
+      return remote(async () => {
+        const res = await createReturnFn({
+          data: {
+            orderId: input.orderId!,
+            productId: input.productId!,
+            qty: input.qty,
+            reason: input.reason as ReturnReason,
+            description: input.description,
+            requestedAmount: input.requestedAmount,
+            files: files.list,
+          },
+        });
+        return res.ok
+          ? { ok: true as const, id: res.id ?? "", reference: res.reference ?? "" }
+          : res;
+      });
+    }
+    const item = returnActions.create(input);
+    return { ok: true, id: item.id, reference: item.reference };
+  },
+
+  async replyReturn(
+    id: string,
+    msg: { role: "restaurant" | "farmer"; name: string; text: string },
+    photos: DisputeAttachment[] = [],
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      const files = await disputeFiles(photos);
+      if (!files.ok) return files;
+      return remote(() => replyReturnFn({ data: { id, text: msg.text, files: files.list } }));
+    }
+    if (msg.text.trim()) returnActions.reply(id, msg);
+    if (photos.length) returnActions.addPhotos(id, photos);
+    return { ok: true };
+  },
+
+  /** Décision du producteur : accepter (montant) ou refuser (motif). */
+  async decideReturn(
+    id: string,
+    input: { accept: boolean; amount?: number; note?: string },
+  ): Promise<Result> {
+    if (isMarketRemote()) return remote(() => decideReturnFn({ data: { id, ...input } }));
+    if (input.accept) returnActions.accept(id, input.amount ?? 0, input.note);
+    else returnActions.refuse(id, input.note ?? "");
+    return { ok: true };
+  },
+
+  async creditReturn(id: string): Promise<Result> {
+    if (isMarketRemote()) return remote(() => creditReturnFn({ data: { id } }));
+    return returnActions.issueCredit(id);
+  },
+
+  /** Équipe : récupération, inspection, décision, escalade, clôture. */
+  async returnStaff(
+    id: string,
+    input:
+      | {
+          action: "pickup";
+          driverId: string;
+          driverName: string;
+          scheduledFor: string;
+          address: string;
+        }
+      | { action: "picked_up" }
+      | { action: "received"; condition: string }
+      | { action: "inspect"; conform: boolean; note: string }
+      | {
+          action: "resolve";
+          type: ReturnResolutionType;
+          bornBy: RefundBornBy;
+          amount?: number;
+          note: string;
+        }
+      | { action: "escalate"; note: string }
+      | { action: "close" },
+    actor = "Admin Diambar",
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      if (input.action === "pickup") {
+        const { driverName: _name, ...rest } = input;
+        return remote(() => returnStaffFn({ data: { id, ...rest } }));
+      }
+      return remote(() =>
+        returnStaffFn({
+          data: { id, ...input } as Parameters<typeof returnStaffFn>[0]["data"],
+        }),
+      );
+    }
+    switch (input.action) {
+      case "pickup":
+        returnActions.adminSchedulePickup(id, { ...input, actor });
+        break;
+      case "picked_up":
+        returnActions.adminMarkPickedUp(id);
+        break;
+      case "received":
+        returnActions.adminMarkReceived(id, input.condition, actor);
+        break;
+      case "inspect":
+        returnActions.adminSetInspection(id, { ...input, inspectedBy: actor });
+        break;
+      case "resolve":
+        returnActions.adminResolve(id, { ...input, decidedBy: actor });
+        break;
+      case "escalate":
+        returnActions.adminEscalateToDispute(id, input.note, actor);
+        break;
+      case "close":
+        returnActions.adminClose(id, actor);
+        break;
+    }
+    return { ok: true };
+  },
+
+  // --- Incidents de course ---------------------------------------------------------------
+
+  async createIncident(
+    input: {
+      missionId?: string;
+      missionRef: string;
+      type: IncidentType;
+      description: string;
+      waitedMinutes: number;
+      compensationRequested: number;
+      photos?: DisputeAttachment[];
+    },
+    reportedBy?: string,
+  ): Promise<Result<{ id: string; reference: string }>> {
+    if (isMarketRemote()) {
+      if (!input.missionId) return { ok: false, message: "Choisissez la course concernée." };
+      const files = await disputeFiles(input.photos ?? []);
+      if (!files.ok) return files;
+      return remote(async () => {
+        const res = await createIncidentFn({
+          data: {
+            missionId: input.missionId!,
+            type: input.type,
+            description: input.description,
+            waitedMinutes: input.waitedMinutes,
+            compensationRequested: input.compensationRequested,
+            files: files.list,
+          },
+        });
+        return res.ok
+          ? { ok: true as const, id: res.id ?? "", reference: res.reference ?? "" }
+          : res;
+      });
+    }
+    const { missionId: _m, ...rest } = input;
+    const item = incidentActions.create(rest, reportedBy);
+    return { ok: true, id: item.id, reference: item.reference };
+  },
+
+  async escalateIncident(id: string): Promise<Result> {
+    if (isMarketRemote())
+      return remote(() => incidentActionFn({ data: { id, action: "escalate" } }));
+    incidentActions.escalate(id);
+    return { ok: true };
+  },
+
+  async commentIncident(id: string, text: string): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => incidentActionFn({ data: { id, action: "comment", text } }));
+    }
+    incidentActions.addComment(id, text);
+    return { ok: true };
+  },
+
+  async resolveIncident(
+    id: string,
+    awarded: number,
+    note?: string,
+    actor?: string,
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() =>
+        incidentActionFn({ data: { id, action: "resolve", awarded, text: note } }),
+      );
+    }
+    incidentActions.resolve(id, awarded, note, actor);
+    return { ok: true };
   },
 
   // --- Litiges ------------------------------------------------------------------------

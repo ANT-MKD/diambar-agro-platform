@@ -27,12 +27,12 @@ import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import {
   useIncidents,
-  incidentActions,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
   type IncidentStatus,
 } from "@/data/business";
 import { useMissions, useDriverWallet } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { driverProfile, restaurants, farmers } from "@/data/mocks";
 import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
 
@@ -79,9 +79,13 @@ function IncidentDetail() {
         ? "Accordée"
         : "Refusée";
 
-  const addComment = () => {
+  const addComment = async () => {
     if (!comment.trim()) return;
-    incidentActions.addComment(incident.id, comment.trim());
+    const res = await market.commentIncident(incident.id, comment.trim());
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     setComment("");
     toast.success("Commentaire ajouté");
   };
@@ -112,8 +116,12 @@ function IncidentDetail() {
             size="sm"
             variant="outline"
             className="gap-2"
-            onClick={() => {
-              incidentActions.escalate(incident.id);
+            onClick={async () => {
+              const res = await market.escalateIncident(incident.id);
+              if (!res.ok) {
+                toast.error(res.message);
+                return;
+              }
               toast.success("Incident escaladé au support");
             }}
           >

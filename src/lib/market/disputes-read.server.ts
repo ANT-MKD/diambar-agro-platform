@@ -20,7 +20,7 @@ import { isStored, signedUrl } from "./storage.server";
 // internes de l'équipe ne partent jamais vers les parties.
 
 const signed = new Map<string, { url: string; until: number }>();
-async function photoUrl(key: string): Promise<string | undefined> {
+export async function photoUrl(key: string): Promise<string | undefined> {
   if (!isStored(key)) return undefined;
   const hit = signed.get(key);
   if (hit && hit.until > Date.now()) return hit.url;

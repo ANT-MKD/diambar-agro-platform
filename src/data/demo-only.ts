@@ -7,24 +7,17 @@ import { useMarketMode } from "./market-mode";
 
 export const DEMO_ONLY_PREFIXES = [
   // Restaurant
-  "/restaurant/returns",
-  "/restaurant/reviews",
   "/restaurant/suppliers",
   "/restaurant/compare",
   "/restaurant/settings/team",
   // Producteur
-  "/farmer/returns",
   "/farmer/settings/team",
   // Livreur
   "/driver/routes",
-  "/driver/incidents",
   "/driver/vehicle",
   "/driver/settings/work",
   "/driver/settings/privacy",
   // Administration
-  "/admin/returns",
-  "/admin/incidents",
-  "/admin/moderation",
   "/admin/documents",
   "/admin/refunds",
 ];

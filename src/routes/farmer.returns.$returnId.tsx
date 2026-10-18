@@ -10,15 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { FileDrop } from "@/components/disputes/file-drop";
-import {
-  useReturn,
-  returnActions,
-  RETURN_REASON_LABEL,
-  RETURN_STATUS_LABEL,
-} from "@/data/business";
+import { useReturn, RETURN_REASON_LABEL, RETURN_STATUS_LABEL } from "@/data/business";
 import { useFarmerProfile } from "@/data/store";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
+import { market } from "@/data/market-remote";
 
 export const Route = createFileRoute("/farmer/returns/$returnId")({
   head: () => ({ meta: [{ title: "Retour · Espace producteur Diambar Agro" }] }),
@@ -55,23 +51,36 @@ function FarmerReturnDetail() {
     );
   }
 
-  const send = () => {
+  const send = async () => {
     if (!draft.trim()) return;
-    returnActions.reply(r.id, { role: "farmer", name: myName, text: draft.trim() });
+    const res = await market.replyReturn(r.id, {
+      role: "farmer",
+      name: myName,
+      text: draft.trim(),
+    });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     setDraft("");
     toast.success("Message envoyé au restaurant");
   };
 
-  const attachDocs = (files: DisputeAttachment[]) => {
+  const attachDocs = async (files: DisputeAttachment[]) => {
     const added = files.slice(newPhotos.length);
     setNewPhotos(files);
     if (added.length > 0) {
-      returnActions.addPhotos(r.id, added);
+      const res = await market.replyReturn(r.id, { role: "farmer", name: myName, text: "" }, added);
+      if (!res.ok) {
+        toast.error(res.message);
+        setNewPhotos(newPhotos);
+        return;
+      }
       toast.success(`${added.length} document(s) ajouté(s)`);
     }
   };
 
-  const accept = () => {
+  const accept = async () => {
     const parsed = Number(amount.replace(",", "."));
     if (amount.trim() === "" || !Number.isFinite(parsed)) {
       setAmountError("Montant invalide");
@@ -88,18 +97,30 @@ function FarmerReturnDetail() {
       return;
     }
     setAmountError(null);
-    returnActions.accept(r.id, parsed, note.trim() || undefined);
+    const res = await market.decideReturn(r.id, {
+      accept: true,
+      amount: parsed,
+      note: note.trim() || undefined,
+    });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Retour accepté", {
       description: `Demande de remboursement de ${formatFCFA(parsed)} envoyée à la plateforme.`,
     });
   };
 
-  const refuse = () => {
+  const refuse = async () => {
     if (!note.trim()) {
       toast.error("Indiquez un motif de refus avant de confirmer");
       return;
     }
-    returnActions.refuse(r.id, note.trim());
+    const res = await market.decideReturn(r.id, { accept: false, note: note.trim() });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Retour refusé");
   };
 
@@ -225,20 +246,23 @@ function FarmerReturnDetail() {
                 </div>
               )}
 
-              {r.status === "accepted" && (
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    const result = returnActions.issueCredit(r.id);
-                    if (!result.ok) toast.error(result.message);
-                    else toast.success("Avoir émis · il remplace le remboursement");
-                  }}
-                >
-                  <ReceiptText className="h-4 w-4" />
-                  Émettre l'avoir
-                </Button>
-              )}
+              {r.status === "accepted" &&
+                !r.escalatedDisputeId &&
+                !r.closedAt &&
+                r.resolution?.type !== "exchange" && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={async () => {
+                      const result = await market.creditReturn(r.id);
+                      if (!result.ok) toast.error(result.message);
+                      else toast.success("Avoir émis · il remplace le remboursement");
+                    }}
+                  >
+                    <ReceiptText className="h-4 w-4" />
+                    Émettre l'avoir
+                  </Button>
+                )}
 
               <Button
                 variant="outline"
@@ -292,7 +316,7 @@ function FarmerReturnDetail() {
                 r.messages.map((m) => (
                   <div
                     key={m.id}
-                    className={`max-w-[80%] rounded-xl p-3 text-sm ${m.authorRole === "farmer" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"}`}
+                    className={`max-w-[80%] rounded-xl p-3 text-sm ${m.authorRole === "farmer" && !m.fromTeam ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"}`}
                   >
                     <div className="text-[11px] opacity-70 mb-0.5">
                       {m.authorName} · {relativeTime(m.at)}

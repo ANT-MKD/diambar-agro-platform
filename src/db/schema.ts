@@ -1441,3 +1441,315 @@ export const supportMessages = pgTable(
     index("support_messages_author_idx").on(t.authorId),
   ],
 );
+
+// --- Avis après livraison -----------------------------------------------------------------
+// Un avis par commande livrée, noté par le restaurant sur six critères (1 à 5).
+// Le producteur peut répondre ; l'équipe peut masquer un avis abusif.
+
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: id(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => users.id),
+    farmerId: uuid("farmer_id")
+      .notNull()
+      .references(() => users.id),
+    driverId: uuid("driver_id").references(() => users.id),
+    quality: integer("quality").notNull(),
+    quantity: integer("quantity").notNull(),
+    freshness: integer("freshness").notNull(),
+    timeliness: integer("timeliness").notNull(),
+    packaging: integer("packaging").notNull(),
+    communication: integer("communication").notNull(),
+    comment: text("comment").notNull().default(""),
+    tags: jsonb("tags").notNull().default([]),
+    reply: text("reply"),
+    repliedAt: timestamp("replied_at", { withTimezone: true }),
+    /** Masqué par l'équipe (abusif) : plus compté ni affiché. */
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("reviews_order_key").on(t.orderId),
+    index("reviews_restaurant_idx").on(t.restaurantId),
+    index("reviews_farmer_idx").on(t.farmerId),
+    index("reviews_driver_idx").on(t.driverId),
+    check(
+      "reviews_scores_range",
+      sql`${t.quality} between 1 and 5 and ${t.quantity} between 1 and 5 and ${t.freshness} between 1 and 5 and ${t.timeliness} between 1 and 5 and ${t.packaging} between 1 and 5 and ${t.communication} between 1 and 5`,
+    ),
+  ],
+);
+
+// --- Modération du catalogue --------------------------------------------------------------
+
+export const productReportStatus = pgEnum("product_report_status", ["open", "resolved"]);
+
+/** Signalement d'un produit par un restaurant (photo trompeuse, prix…). */
+export const productReports = pgTable(
+  "product_reports",
+  {
+    id: id(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id),
+    reason: text("reason").notNull(),
+    status: productReportStatus("status").notNull().default("open"),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("product_reports_product_idx").on(t.productId, t.status),
+    index("product_reports_reporter_idx").on(t.reporterId),
+    index("product_reports_resolved_by_idx").on(t.resolvedBy),
+  ],
+);
+
+/** Décisions de modération sur un produit (historique affiché à l'équipe). */
+export const moderationEvents = pgTable(
+  "moderation_events",
+  {
+    id: id(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    actorId: uuid("actor_id").references(() => users.id),
+    text: text("text").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("moderation_events_product_idx").on(t.productId, t.createdAt),
+    index("moderation_events_actor_idx").on(t.actorId),
+  ],
+);
+
+// --- Retours ----------------------------------------------------------------------------
+// Le restaurant signale un produit livré non conforme, dans le délai de
+// réception. Le producteur accepte (remboursement à sa charge, ou avoir) ou
+// refuse ; l'équipe peut organiser la récupération, inspecter, trancher (qui
+// paie), escalader en litige et clôturer.
+
+export const returnReason = pgEnum("return_reason", [
+  "quality",
+  "quantity",
+  "wrong_item",
+  "damaged",
+  "late",
+  "other",
+]);
+export const returnStatus = pgEnum("return_status", ["pending", "accepted", "refused", "credited"]);
+export const returnReferenceSeq = pgSequence("return_reference_seq", { startWith: 1 });
+
+export const returnRequests = pgTable(
+  "return_requests",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItems.id),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => users.id),
+    farmerId: uuid("farmer_id")
+      .notNull()
+      .references(() => users.id),
+    qty: qty("qty").notNull(),
+    reason: returnReason("reason").notNull(),
+    description: text("description").notNull(),
+    requestedAmount: integer("requested_amount").notNull(),
+    awardedAmount: integer("awarded_amount"),
+    status: returnStatus("status").notNull().default("pending"),
+    decisionNote: text("decision_note"),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    refundId: uuid("refund_id").references(() => refunds.id),
+    creditNoteId: uuid("credit_note_id").references(() => creditNotes.id),
+    /** Récupération : livreur, créneau, adresse, étapes. */
+    pickup: jsonb("pickup"),
+    /** Inspection à réception : conforme ou non, note, par qui. */
+    inspection: jsonb("inspection"),
+    /** Décision de l'équipe : type, qui paie, note. */
+    resolution: jsonb("resolution"),
+    disputeId: uuid("dispute_id").references(() => disputes.id),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("return_requests_reference_key").on(t.reference),
+    index("return_requests_order_idx").on(t.orderId),
+    index("return_requests_item_idx").on(t.orderItemId),
+    index("return_requests_restaurant_idx").on(t.restaurantId, t.createdAt),
+    index("return_requests_farmer_idx").on(t.farmerId, t.createdAt),
+    index("return_requests_decided_by_idx").on(t.decidedBy),
+    index("return_requests_refund_idx").on(t.refundId),
+    index("return_requests_credit_note_idx").on(t.creditNoteId),
+    index("return_requests_dispute_idx").on(t.disputeId),
+    check("return_requests_amount_positive", sql`${t.requestedAmount} > 0`),
+    check("return_requests_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const returnMessages = pgTable(
+  "return_messages",
+  {
+    id: id(),
+    returnId: uuid("return_id")
+      .notNull()
+      .references(() => returnRequests.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id),
+    authorRole: disputeParty("author_role").notNull(),
+    text: text("text").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("return_messages_return_idx").on(t.returnId, t.createdAt),
+    index("return_messages_author_idx").on(t.authorId),
+  ],
+);
+
+export const returnEvents = pgTable(
+  "return_events",
+  {
+    id: id(),
+    returnId: uuid("return_id")
+      .notNull()
+      .references(() => returnRequests.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id),
+    text: text("text").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("return_events_return_idx").on(t.returnId, t.createdAt),
+    index("return_events_actor_idx").on(t.actorId),
+  ],
+);
+
+export const returnPhotos = pgTable(
+  "return_photos",
+  {
+    id: id(),
+    returnId: uuid("return_id")
+      .notNull()
+      .references(() => returnRequests.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("return_photos_return_idx").on(t.returnId),
+    index("return_photos_file_idx").on(t.fileId),
+    index("return_photos_uploaded_by_idx").on(t.uploadedBy),
+  ],
+);
+
+// --- Incidents de course --------------------------------------------------------------------
+// Le livreur signale un incident sur une de ses courses (client absent, panne,
+// accident…) et peut demander une indemnité ; l'équipe la verse sur son solde
+// (grand livre) ou la refuse.
+
+export const incidentType = pgEnum("incident_type", [
+  "client_absent",
+  "refused",
+  "breakdown",
+  "accident",
+  "traffic",
+  "address",
+  "other",
+]);
+export const incidentStatus = pgEnum("incident_status", ["open", "escalated", "resolved"]);
+export const incidentSeverity = pgEnum("incident_severity", ["low", "medium", "high", "critical"]);
+export const incidentReferenceSeq = pgSequence("incident_reference_seq", { startWith: 1 });
+
+export const incidents = pgTable(
+  "incidents",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    missionId: uuid("mission_id")
+      .notNull()
+      .references(() => missions.id),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => users.id),
+    type: incidentType("type").notNull(),
+    severity: incidentSeverity("severity").notNull(),
+    description: text("description").notNull(),
+    waitedMinutes: integer("waited_minutes").notNull().default(0),
+    compensationRequested: integer("compensation_requested").notNull().default(0),
+    compensationAwarded: integer("compensation_awarded"),
+    resolutionNote: text("resolution_note"),
+    status: incidentStatus("status").notNull().default("open"),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("incidents_reference_key").on(t.reference),
+    index("incidents_mission_idx").on(t.missionId),
+    index("incidents_driver_idx").on(t.driverId, t.createdAt),
+    index("incidents_status_idx").on(t.status),
+    index("incidents_resolved_by_idx").on(t.resolvedBy),
+    check(
+      "incidents_amounts_range",
+      sql`${t.waitedMinutes} >= 0 and ${t.compensationRequested} >= 0 and (${t.compensationAwarded} is null or ${t.compensationAwarded} >= 0)`,
+    ),
+  ],
+);
+
+export const incidentEvents = pgTable(
+  "incident_events",
+  {
+    id: id(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => incidents.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id),
+    text: text("text").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("incident_events_incident_idx").on(t.incidentId, t.createdAt),
+    index("incident_events_actor_idx").on(t.actorId),
+  ],
+);
+
+export const incidentPhotos = pgTable(
+  "incident_photos",
+  {
+    id: id(),
+    incidentId: uuid("incident_id")
+      .notNull()
+      .references(() => incidents.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("incident_photos_incident_idx").on(t.incidentId),
+    index("incident_photos_file_idx").on(t.fileId),
+  ],
+);

@@ -16,6 +16,8 @@ import type {
 import type { InvoiceView } from "./documents-view";
 import type { CreditNote, Dispute } from "@/data/disputes";
 import type { SupportTicket } from "@/data/support";
+import type { Incident, ReturnRequest, Review } from "@/data/business";
+import type { ModerationItem } from "@/data/admin-mocks";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
@@ -184,6 +186,14 @@ export type MarketSnapshot = {
   driverConversations: DriverConversation[];
   /** Demandes d'aide (toutes pour l'équipe support). */
   supportTickets: SupportTicket[];
+  /** Avis après livraison (notes de tous, détail des siens ; tout pour l'équipe). */
+  reviews: Review[];
+  /** Retours produit du restaurant ou du producteur (tous pour l'équipe retours). */
+  returns: ReturnRequest[];
+  /** Incidents de course du livreur (tous pour l'équipe). */
+  incidents: Incident[];
+  /** Équipe : produits signalés. */
+  moderation: ModerationItem[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];

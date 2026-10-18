@@ -100,6 +100,33 @@ import {
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
+import { createReview, replyReview, setReviewHidden, type ReviewInput } from "./reviews-db.server";
+import {
+  MODERATION_STAFF,
+  moderateProduct,
+  reportProduct,
+  type ModerationAction,
+} from "./moderation-db.server";
+import { setAccountStatus, type AccountStatusChange } from "./accounts-admin-db.server";
+import {
+  advanceReturnPickup,
+  closeReturn,
+  createReturn,
+  creditReturn,
+  escalateReturn,
+  farmerDecideReturn,
+  inspectReturn,
+  replyReturn,
+  resolveReturn,
+  RETURN_STAFF,
+  scheduleReturnPickup,
+} from "./returns-db.server";
+import {
+  commentIncident,
+  createIncident,
+  escalateIncident,
+  resolveIncident,
+} from "./incidents-db.server";
 import {
   BUCKETS,
   decodeImage,
@@ -976,12 +1003,15 @@ const disputeFiles = z
   .max(4, "Quatre photos au plus.")
   .default([]);
 
-/** Photos de preuve d'un litige, dans le stockage privé. */
-async function storeDisputeFiles(list: { name: string; dataUrl: string }[]): Promise<StoredFile[]> {
+/** Photos de preuve (litige, retour, incident), dans le stockage privé. */
+async function storeDisputeFiles(
+  list: { name: string; dataUrl: string }[],
+  folder = "litiges",
+): Promise<StoredFile[]> {
   const out: StoredFile[] = [];
   try {
     for (const f of list) {
-      const file = await storeImage(BUCKETS.private, "litiges", f.dataUrl);
+      const file = await storeImage(BUCKETS.private, folder, f.dataUrl);
       out.push({ ...file, name: f.name });
     }
   } catch (err) {
@@ -1617,4 +1647,343 @@ export const ticketFromConversationFn = createServerFn({ method: "POST" })
       }),
       [...MESSAGING_STAFF],
     ),
+  );
+
+// --- Avis après livraison ----------------------------------------------------------
+
+const score = z.number().int().min(1).max(5);
+
+export const createReviewFn = createServerFn({ method: "POST" })
+  .validator((input: ReviewInput) =>
+    parse(
+      z.object({
+        orderId: id,
+        quality: score,
+        quantity: score,
+        freshness: score,
+        timeliness: score,
+        packaging: score,
+        communication: score,
+        comment: z.string().max(1500),
+        tags: z.array(z.string().max(40)).max(8),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
+    withMarket(["restaurant"], async (db, me) => ({
+      ok: true as const,
+      id: await createReview(db, { id: me.id, role: me.role }, data),
+    })),
+  );
+
+export const replyReviewFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; text: string }) =>
+    parse(z.object({ id, text: z.string().max(1000) }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["farmer"], async (db, me) => {
+      await replyReview(db, { id: me.id, role: me.role }, data.id, data.text);
+      return { ok: true as const };
+    }),
+  );
+
+export const hideReviewFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; hidden: boolean }) =>
+    parse(z.object({ id, hidden: z.boolean() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await setReviewHidden(db, me.id, data.id, data.hidden);
+        return { ok: true as const };
+      },
+      [...MODERATION_STAFF],
+    ),
+  );
+
+// --- Modération du catalogue ----------------------------------------------------
+
+export const reportProductFn = createServerFn({ method: "POST" })
+  .validator((input: { productId: string; reason: string }) =>
+    parse(z.object({ productId: id, reason: z.string().max(300) }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await reportProduct(db, me.id, data.productId, data.reason);
+      return { ok: true as const };
+    }),
+  );
+
+export const moderateProductFn = createServerFn({ method: "POST" })
+  .validator((input: { productId: string; action: ModerationAction; note?: string }) =>
+    parse(
+      z.object({
+        productId: id,
+        action: z.enum(["keep", "unpublish", "request_change", "suspend_farmer"]),
+        note: z.string().max(500).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        if (data.action === "suspend_farmer" && me.staffRole !== "super_admin") {
+          return { ok: false as const, message: "Seul le super admin suspend un compte." };
+        }
+        await moderateProduct(db, me.id, data.productId, data.action, data.note ?? "");
+        return { ok: true as const };
+      },
+      [...MODERATION_STAFF],
+    ),
+  );
+
+// --- Statut des comptes (admin) -------------------------------------------------
+
+export const setAccountStatusFn = createServerFn({ method: "POST" })
+  .validator((input: { userId: string; status: AccountStatusChange; reason?: string }) =>
+    parse(
+      z.object({
+        userId: id,
+        status: z.enum(["active", "suspended", "rejected"]),
+        reason: z.string().max(300).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        await setAccountStatus(db, me, data.userId, data.status, data.reason ?? "");
+        return { ok: true as const };
+      },
+      ["super_admin"],
+    ),
+  );
+
+// --- Retours produit --------------------------------------------------------------
+
+const returnReasonEnum = z.enum(["quality", "quantity", "wrong_item", "damaged", "late", "other"]);
+
+const createReturnSchema = z.object({
+  orderId: id,
+  productId: id,
+  qty: z.number().finite().positive().max(1_000_000),
+  reason: returnReasonEnum,
+  description: z.string().trim().max(2000),
+  requestedAmount: z.number().finite().positive().max(100_000_000),
+  files: disputeFiles,
+});
+
+export const createReturnFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof createReturnSchema>) => parse(createReturnSchema, input))
+  .handler(
+    async ({
+      data: { files, ...input },
+    }): Promise<ActionResult & { id?: string; reference?: string }> =>
+      withMarket(["restaurant"], async (db, me) => {
+        const stored = await storeDisputeFiles(files, "retours");
+        try {
+          return {
+            ok: true as const,
+            ...(await createReturn(db, { id: me.id, role: me.role }, input, stored)),
+          };
+        } catch (err) {
+          await removeObjects(stored.map((f) => f.storageKey));
+          throw err;
+        }
+      }),
+  );
+
+const replyReturnSchema = z.object({
+  id,
+  text: z.string().max(2000),
+  files: disputeFiles,
+});
+
+export const replyReturnFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof replyReturnSchema>) => parse(replyReturnSchema, input))
+  .handler(async ({ data: { files, ...input } }): Promise<ActionResult> =>
+    withMarket(["restaurant", "farmer", "admin"], async (db, me) => {
+      const stored = await storeDisputeFiles(files, "retours");
+      try {
+        await replyReturn(db, { id: me.id, role: me.role }, input.id, input.text, stored);
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const decideReturnFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; accept: boolean; amount?: number; note?: string }) =>
+    parse(
+      z.object({
+        id,
+        accept: z.boolean(),
+        amount: z.number().finite().min(0).max(100_000_000).optional(),
+        note: z.string().max(500).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["farmer"], async (db, me) => {
+      await farmerDecideReturn(db, { id: me.id, role: me.role }, data.id, data);
+      return { ok: true as const };
+    }),
+  );
+
+export const creditReturnFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string }) => parse(z.object({ id }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["farmer", "admin"], async (db, me) => {
+      await creditReturn(db, { id: me.id, role: me.role }, data.id);
+      return { ok: true as const };
+    }),
+  );
+
+const returnStaffSchema = z.discriminatedUnion("action", [
+  z.object({
+    id,
+    action: z.literal("pickup"),
+    driverId: id,
+    scheduledFor: z.string().max(40),
+    address: z.string().max(300),
+  }),
+  z.object({ id, action: z.literal("picked_up") }),
+  z.object({ id, action: z.literal("received"), condition: z.string().max(300) }),
+  z.object({
+    id,
+    action: z.literal("inspect"),
+    conform: z.boolean(),
+    note: z.string().max(500),
+  }),
+  z.object({
+    id,
+    action: z.literal("resolve"),
+    type: z.enum(["refund", "exchange", "goodwill", "reject"]),
+    bornBy: z.enum(["farmer", "driver", "platform"]),
+    amount: z.number().finite().min(0).max(100_000_000).optional(),
+    note: z.string().max(500),
+  }),
+  z.object({ id, action: z.literal("escalate"), note: z.string().max(500) }),
+  z.object({ id, action: z.literal("close") }),
+]);
+
+export const returnStaffFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof returnStaffSchema>) => parse(returnStaffSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        const who = { id: me.id, role: "admin" as const };
+        switch (data.action) {
+          case "pickup":
+            await scheduleReturnPickup(db, who, data.id, data);
+            break;
+          case "picked_up":
+            await advanceReturnPickup(db, who, data.id, "picked_up");
+            break;
+          case "received":
+            await advanceReturnPickup(db, who, data.id, "received", data.condition);
+            break;
+          case "inspect":
+            await inspectReturn(db, who, data.id, data);
+            break;
+          case "resolve":
+            await resolveReturn(db, who, data.id, data);
+            break;
+          case "escalate":
+            await escalateReturn(db, who, data.id, data.note);
+            break;
+          case "close":
+            await closeReturn(db, who, data.id);
+            break;
+        }
+        return { ok: true as const };
+      },
+      [...RETURN_STAFF],
+    ),
+  );
+
+// --- Incidents de course ---------------------------------------------------------
+
+const createIncidentSchema = z.object({
+  missionId: id,
+  type: z.enum([
+    "client_absent",
+    "refused",
+    "breakdown",
+    "accident",
+    "traffic",
+    "address",
+    "other",
+  ]),
+  description: z.string().trim().max(2000),
+  waitedMinutes: z
+    .number()
+    .finite()
+    .min(0)
+    .max(24 * 60),
+  compensationRequested: z.number().finite().min(0).max(10_000_000),
+  files: disputeFiles,
+});
+
+export const createIncidentFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof createIncidentSchema>) => parse(createIncidentSchema, input))
+  .handler(
+    async ({
+      data: { files, ...input },
+    }): Promise<ActionResult & { id?: string; reference?: string }> =>
+      withMarket(["driver", "admin"], async (db, me) => {
+        const stored = await storeDisputeFiles(files, "incidents");
+        try {
+          return {
+            ok: true as const,
+            ...(await createIncident(db, { id: me.id, role: me.role }, input, stored)),
+          };
+        } catch (err) {
+          await removeObjects(stored.map((f) => f.storageKey));
+          throw err;
+        }
+      }),
+  );
+
+export const incidentActionFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      id: string;
+      action: "escalate" | "comment" | "resolve";
+      text?: string;
+      awarded?: number;
+    }) =>
+      parse(
+        z.object({
+          id,
+          action: z.enum(["escalate", "comment", "resolve"]),
+          text: z.string().max(1000).optional(),
+          awarded: z.number().finite().min(0).max(10_000_000).optional(),
+        }),
+        input,
+      ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver", "admin"], async (db, me) => {
+      const who = { id: me.id, role: me.role };
+      if (data.action === "escalate") await escalateIncident(db, who, data.id);
+      else if (data.action === "comment") await commentIncident(db, who, data.id, data.text ?? "");
+      else {
+        await resolveIncident(db, who, data.id, {
+          awarded: data.awarded ?? 0,
+          note: data.text,
+        });
+      }
+      return { ok: true as const };
+    }),
   );

@@ -18,6 +18,7 @@ import {
   Scale,
   RotateCcw,
   LifeBuoy,
+  Star,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -74,6 +75,7 @@ function FarmerLayout() {
         { to: "/farmer/stock", label: "Gestion du Stock", icon: Warehouse, badge: 0 },
         { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag, badge: pendingOrders },
         { to: "/farmer/returns", label: "Retours & avoirs", icon: RotateCcw, badge: 0 },
+        { to: "/farmer/reviews", label: "Avis reçus", icon: Star, badge: 0 },
         { to: "/farmer/revenue", label: "Mes Revenus", icon: TrendingUp, badge: 0 },
         { to: "/farmer/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
         { to: "/farmer/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
