@@ -93,8 +93,9 @@ import {
   zonesStore,
 } from "./platform-settings";
 import type { MarketAccount, MarketSnapshot } from "@/lib/market/types";
+import type { ChangeRequestView, DriverFleetView } from "@/lib/market/fleet-view";
 import { markNotificationsReadFn } from "@/lib/market/functions";
-import { isMarketRemote, useMarketMode } from "./market-mode";
+import { getMarketMode, isMarketRemote, useMarketMode } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
   currentLoadKg,
@@ -395,13 +396,16 @@ export function useDriverConversation(id: string) {
  * démonstration. Avec la base, il n'est pas enregistré : le livreur est
  * considéré disponible et voit toutes les courses ouvertes. */
 export function useDriverOnline() {
-  const { remote } = useMarketMode();
-  const online = useSyncExternalStore(
+  return useSyncExternalStore(
     driverOnlineStore.subscribe,
     driverOnlineStore.get,
     driverOnlineStore.get,
   );
-  return remote || online;
+}
+
+/** Livreur connecté : son vrai identifiant en mode base, « d1 » en démonstration. */
+export function myDriverId(): string {
+  return getMarketMode().me?.id ?? "d1";
 }
 export function useDriverWallet() {
   return useSyncExternalStore(
@@ -518,7 +522,7 @@ export function useMyMissionEligibility(): (m: Mission) => Eligibility {
   return useMemo(
     () => (m: Mission) =>
       missionEligibility(m, fleet, {
-        currentLoadKg: currentLoadKg(missions, "d1", m.id),
+        currentLoadKg: currentLoadKg(missions, myDriverId(), m.id),
         online,
       }),
     [fleet, missions, online],
@@ -655,6 +659,11 @@ export const vehicleActions = {
   },
 };
 
+/** Réglages du livreur à l'instant (hors rendu React). */
+export function getDriverSettings() {
+  return driverSettingsStore.get();
+}
+
 export function useDriverSettings() {
   return useSyncExternalStore(
     driverSettingsStore.subscribe,
@@ -712,7 +721,7 @@ export function autoAcceptableMissions(
   const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
   // Le réglage du livreur ne peut pas dépasser ce que son véhicule supporte.
   const weightLimit = Math.min(maxWeightKg, fleet.capacityKg);
-  let load = currentLoadKg(missions, "d1");
+  let load = currentLoadKg(missions, myDriverId());
   return missions.filter((m) => {
     const fits =
       m.status === "available" &&
@@ -1306,6 +1315,56 @@ export const driverOnlineActions = {
   toggle: () => driverOnlineStore.set((v) => !v),
   set: (v: boolean) => driverOnlineStore.set(v),
 };
+
+/** Préférences de travail par défaut d'un vrai compte (avant tout réglage). */
+const BASE_WORK_PREFS = {
+  radius: 50,
+  autoAccept: false,
+  criteria: {
+    minPayout: 0,
+    maxWeightKg: 1000,
+    acceptedUrgencies: ["standard", "priority", "express"] as Mission["urgency"][],
+    acceptedCities: [] as string[],
+  },
+};
+
+/** Mode base : véhicule, problèmes, entretiens, documents, disponibilité et
+ * préférences du livreur, lus sur le serveur. */
+export function replaceDriverFleet(f: DriverFleetView) {
+  if (f.vehicle) driverVehicleStore.replace(f.vehicle);
+  vehicleIssuesStore.replace(f.issues);
+  maintenanceHistoryStore.replace(f.maintenance);
+  vehicleChangeRequestsStore.replace(f.changeRequests);
+  docRenewalsStore.replace(f.renewals);
+  driverOnlineStore.replace(f.online);
+  driverSettingsStore.set((s) => ({
+    ...s,
+    ...BASE_WORK_PREFS,
+    ...(f.workPrefs ?? {}),
+    workingHours: f.workingHours ?? s.workingHours,
+    locationSharing: f.locationSharing,
+  }));
+}
+
+const fleetChangesStore = createStore<ChangeRequestView[]>([]);
+
+/** Équipe : changements de véhicule demandés par les livreurs. */
+export function useFleetChangeRequests() {
+  return useSyncExternalStore(
+    fleetChangesStore.subscribe,
+    fleetChangesStore.get,
+    fleetChangesStore.get,
+  );
+}
+
+/** Mode base (équipe) : documents et changements de véhicule à vérifier. */
+export function replaceFleetQueue(q: {
+  renewals: DocRenewal[];
+  changeRequests: ChangeRequestView[];
+}) {
+  docRenewalsStore.replace(q.renewals);
+  fleetChangesStore.replace(q.changeRequests);
+}
 
 // Un fournisseur du carnet lié à un vrai producteur (farmerId) doit afficher
 // ses vraies statistiques de commande, pas des totaux saisis une fois à la

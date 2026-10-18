@@ -393,6 +393,10 @@ export const drivers = pgTable("drivers", {
   isOnline: boolean("is_online").notNull().default(false),
   /** Adresse personnelle (facultative). */
   address: text("address"),
+  /** Préférences de travail : rayon, acceptation automatique, critères. */
+  workPrefs: jsonb("work_prefs"),
+  /** Position partagée avec le restaurant pendant une livraison. */
+  locationSharing: boolean("location_sharing").notNull().default(true),
   updatedAt: updatedAt(),
 });
 
@@ -425,10 +429,20 @@ export const vehicles = pgTable(
     insuranceExpiresAt: date("insurance_expires_at"),
     inspectionExpiresAt: date("inspection_expires_at"),
     status: vehicleStatus("status").notNull().default("active"),
+    brand: text("brand"),
+    model: text("model"),
+    year: integer("year"),
+    color: text("color"),
+    mileageKm: integer("mileage_km").notNull().default(0),
+    nextMaintenanceAt: date("next_maintenance_at"),
+    /** État déclaré point par point : { tires: "good" | "check", … }. */
+    condition: jsonb("condition"),
+    photoFileId: uuid("photo_file_id").references(() => files.id),
     createdAt: createdAt(),
   },
   (t) => [
     index("vehicles_driver_idx").on(t.driverId),
+    index("vehicles_photo_idx").on(t.photoFileId),
     check("vehicles_capacity_positive", sql`${t.capacityKg} > 0`),
   ],
 );
@@ -1751,5 +1765,185 @@ export const incidentPhotos = pgTable(
   (t) => [
     index("incident_photos_incident_idx").on(t.incidentId),
     index("incident_photos_file_idx").on(t.fileId),
+  ],
+);
+
+// --- Flotte des livreurs -----------------------------------------------------------------
+// Problèmes mécaniques signalés, entretiens, demandes de changement de véhicule
+// et renouvellements de documents (assurance, contrôle technique) validés par
+// l'équipe avant de compter.
+
+export const vehicleIssueType = pgEnum("vehicle_issue_type", [
+  "tires",
+  "brakes",
+  "battery",
+  "engine",
+  "lights",
+  "other",
+]);
+export const vehicleIssueSeverity = pgEnum("vehicle_issue_severity", ["low", "medium", "high"]);
+export const vehicleIssueStatus = pgEnum("vehicle_issue_status", [
+  "reported",
+  "in_progress",
+  "resolved",
+]);
+export const vehicleIssueReferenceSeq = pgSequence("vehicle_issue_reference_seq", {
+  startWith: 1,
+});
+
+export const vehicleIssues = pgTable(
+  "vehicle_issues",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    vehicleId: uuid("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => users.id),
+    type: vehicleIssueType("type").notNull(),
+    severity: vehicleIssueSeverity("severity").notNull(),
+    description: text("description").notNull(),
+    status: vehicleIssueStatus("status").notNull().default("reported"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("vehicle_issues_reference_key").on(t.reference),
+    index("vehicle_issues_vehicle_idx").on(t.vehicleId),
+    index("vehicle_issues_driver_idx").on(t.driverId, t.createdAt),
+  ],
+);
+
+export const vehicleIssuePhotos = pgTable(
+  "vehicle_issue_photos",
+  {
+    id: id(),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => vehicleIssues.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+  },
+  (t) => [
+    index("vehicle_issue_photos_issue_idx").on(t.issueId),
+    index("vehicle_issue_photos_file_idx").on(t.fileId),
+  ],
+);
+
+export const maintenanceEntries = pgTable(
+  "maintenance_entries",
+  {
+    id: id(),
+    vehicleId: uuid("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id),
+    label: text("label").notNull(),
+    mileageKm: integer("mileage_km").notNull().default(0),
+    doneAt: timestamp("done_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("maintenance_entries_vehicle_idx").on(t.vehicleId, t.doneAt)],
+);
+
+export const vehicleChangeReason = pgEnum("vehicle_change_reason", [
+  "sold",
+  "breakdown",
+  "new_vehicle",
+  "rental",
+  "other",
+]);
+export const requestStatus = pgEnum("request_status", ["pending", "approved", "rejected"]);
+export const vehicleChangeReferenceSeq = pgSequence("vehicle_change_reference_seq", {
+  startWith: 1,
+});
+
+export const vehicleChangeRequests = pgTable(
+  "vehicle_change_requests",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => users.id),
+    reason: vehicleChangeReason("reason").notNull(),
+    /** Véhicule proposé : type, marque, modèle, année, plaque, capacité, km. */
+    newVehicle: jsonb("new_vehicle").notNull(),
+    status: requestStatus("status").notNull().default("pending"),
+    note: text("note"),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("vehicle_change_requests_reference_key").on(t.reference),
+    index("vehicle_change_requests_driver_idx").on(t.driverId, t.createdAt),
+    index("vehicle_change_requests_decided_by_idx").on(t.decidedBy),
+  ],
+);
+
+export const vehicleChangeFiles = pgTable(
+  "vehicle_change_files",
+  {
+    id: id(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => vehicleChangeRequests.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+  },
+  (t) => [
+    index("vehicle_change_files_request_idx").on(t.requestId),
+    index("vehicle_change_files_file_idx").on(t.fileId),
+  ],
+);
+
+export const renewalDoc = pgEnum("renewal_doc", ["insurance", "inspection"]);
+
+export const docRenewals = pgTable(
+  "doc_renewals",
+  {
+    id: id(),
+    driverId: uuid("driver_id")
+      .notNull()
+      .references(() => users.id),
+    vehicleId: uuid("vehicle_id")
+      .notNull()
+      .references(() => vehicles.id),
+    doc: renewalDoc("doc").notNull(),
+    newExpiry: date("new_expiry").notNull(),
+    status: requestStatus("status").notNull().default("pending"),
+    note: text("note"),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("doc_renewals_driver_idx").on(t.driverId, t.createdAt),
+    index("doc_renewals_vehicle_idx").on(t.vehicleId),
+    index("doc_renewals_status_idx").on(t.status),
+    index("doc_renewals_decided_by_idx").on(t.decidedBy),
+  ],
+);
+
+export const docRenewalFiles = pgTable(
+  "doc_renewal_files",
+  {
+    id: id(),
+    renewalId: uuid("renewal_id")
+      .notNull()
+      .references(() => docRenewals.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => files.id),
+    name: text("name").notNull(),
+  },
+  (t) => [
+    index("doc_renewal_files_renewal_idx").on(t.renewalId),
+    index("doc_renewal_files_file_idx").on(t.fileId),
   ],
 );

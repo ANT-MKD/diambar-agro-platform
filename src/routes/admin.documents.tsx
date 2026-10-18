@@ -7,7 +7,9 @@ import { EmptyState } from "@/components/farmer/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { auditActions } from "@/data/admin-store";
-import { DOC_LABEL, docRenewalActions, useDocRenewals } from "@/data/store";
+import { DOC_LABEL, useDocRenewals, useFleetChangeRequests } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { VEHICLE_CHANGE_REASON_LABEL } from "@/data/mocks";
 import { relativeTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/documents")({
@@ -30,8 +32,12 @@ function DriverDocumentsPage() {
   const done = renewals.filter((r) => r.status !== "pending").slice(0, 20);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const approve = (id: string, label: string) => {
-    docRenewalActions.approve(id, user.name);
+  const changes = useFleetChangeRequests();
+  const pendingChanges = changes.filter((c) => c.status === "pending");
+
+  const approve = async (id: string, label: string) => {
+    const res = await market.fleetDecision("renewal", id, true, undefined, user.name);
+    if (!res.ok) return toast.error(res.message);
     auditActions.log({
       action: "Document livreur validé",
       target: id,
@@ -41,10 +47,11 @@ function DriverDocumentsPage() {
     });
     toast.success("Document validé · le livreur est prévenu");
   };
-  const reject = (id: string) => {
+  const reject = async (id: string) => {
     const note = (notes[id] ?? "").trim();
     if (note.length < 5) return toast.error("Indiquez le motif du refus");
-    docRenewalActions.reject(id, user.name, note);
+    const res = await market.fleetDecision("renewal", id, false, note, user.name);
+    if (!res.ok) return toast.error(res.message);
     auditActions.log({
       action: "Document livreur refusé",
       target: id,
@@ -126,6 +133,95 @@ function DriverDocumentsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {pendingChanges.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-semibold">Changements de véhicule</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {pendingChanges.map((c) => (
+              <div key={c.id} className="glass rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold">
+                      {c.reference} · {c.driverName}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {VEHICLE_CHANGE_REASON_LABEL[c.reason]} · envoyé {relativeTime(c.submittedAt)}
+                    </div>
+                  </div>
+                  <div className="text-right text-sm">
+                    <div className="font-semibold">
+                      {c.newVehicle.type} · {c.newVehicle.plate}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {[c.newVehicle.brand, c.newVehicle.model, c.newVehicle.year || ""]
+                        .filter(Boolean)
+                        .join(" ")}{" "}
+                      · {c.newVehicle.capacityKg} kg
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {c.docs.map((p) =>
+                    p.dataUrl ? (
+                      <a key={p.id} href={p.dataUrl} target="_blank" rel="noreferrer">
+                        <img
+                          src={p.dataUrl}
+                          alt={p.name}
+                          className="aspect-square w-full rounded-lg object-cover border border-border"
+                        />
+                      </a>
+                    ) : null,
+                  )}
+                </div>
+                <Input
+                  placeholder="Motif en cas de refus"
+                  value={notes[c.id] ?? ""}
+                  onChange={(e) => setNotes((n) => ({ ...n, [c.id]: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 gap-1"
+                    onClick={async () => {
+                      const res = await market.fleetDecision(
+                        "vehicle",
+                        c.id,
+                        true,
+                        undefined,
+                        user.name,
+                      );
+                      if (!res.ok) return toast.error(res.message);
+                      toast.success("Nouveau véhicule validé · le livreur est prévenu");
+                    }}
+                  >
+                    <Check className="h-4 w-4" />
+                    Valider
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-1 text-rose-600"
+                    onClick={async () => {
+                      const note = (notes[c.id] ?? "").trim();
+                      if (note.length < 5) return toast.error("Indiquez le motif du refus");
+                      const res = await market.fleetDecision(
+                        "vehicle",
+                        c.id,
+                        false,
+                        note,
+                        user.name,
+                      );
+                      if (!res.ok) return toast.error(res.message);
+                      toast.success("Demande refusée · le livreur est prévenu");
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                    Refuser
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {done.length > 0 && (

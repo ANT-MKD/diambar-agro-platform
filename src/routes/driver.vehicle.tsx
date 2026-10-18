@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   Car,
   Truck,
@@ -33,7 +34,6 @@ import {
   useMaintenanceHistory,
   useVehicleChangeRequests,
   useMissions,
-  vehicleActions,
 } from "@/data/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,8 +187,12 @@ function DriverVehiclePage() {
   const pickPhoto = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      vehicleActions.setPhoto(String(reader.result));
+    reader.onload = async () => {
+      const res = await market.vehiclePhoto(String(reader.result));
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
       toast.success("Photo du véhicule mise à jour");
     };
     reader.readAsDataURL(file);
@@ -211,13 +215,17 @@ function DriverVehiclePage() {
     setIssuePhotos([]);
     setLastIssueRef(null);
   };
-  const submitIssue = () => {
-    const issue = vehicleActions.reportIssue({
+  const submitIssue = async () => {
+    const issue = await market.reportVehicleIssue({
       type: issueType,
       severity: issueSeverity,
       description: issueDescription.trim(),
       photos: issuePhotos,
     });
+    if (!issue.ok) {
+      toast.error(issue.message);
+      return;
+    }
     setLastIssueRef(issue.reference);
     setIssueStep(5);
   };
@@ -226,21 +234,29 @@ function DriverVehiclePage() {
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [maintenanceDate, setMaintenanceDate] = useState("");
   const [mileageInput, setMileageInput] = useState(String(v.mileageKm));
-  const submitMaintenance = () => {
+  const submitMaintenance = async () => {
     if (!maintenanceDate) return;
-    vehicleActions.scheduleMaintenance(maintenanceDate);
+    const res = await market.updateVehicle({ nextMaintenanceAt: maintenanceDate });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(
       `Entretien programmé le ${new Date(maintenanceDate).toLocaleDateString("fr-FR")}`,
     );
     setMaintenanceOpen(false);
   };
-  const submitMileage = () => {
+  const submitMileage = async () => {
     const val = Number(mileageInput.replace(/\D/g, ""));
     if (!val || val < v.mileageKm) {
       toast.error("Le kilométrage doit être supérieur au précédent");
       return;
     }
-    vehicleActions.updateMileage(val);
+    const res = await market.updateVehicle({ mileageKm: val });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Kilométrage mis à jour");
   };
 
@@ -275,8 +291,8 @@ function DriverVehiclePage() {
     setChangeDocs([]);
     setLastChangeRef(null);
   };
-  const submitChangeRequest = () => {
-    const req = vehicleActions.requestChange({
+  const submitChangeRequest = async () => {
+    const req = await market.requestVehicleChange({
       reason: changeReason,
       newVehicle: {
         type: newVehicle.type,
@@ -289,6 +305,10 @@ function DriverVehiclePage() {
       },
       docs: changeDocs,
     });
+    if (!req.ok) {
+      toast.error(req.message);
+      return;
+    }
     setLastChangeRef(req.reference);
     setChangeStep(4);
   };
@@ -364,7 +384,13 @@ function DriverVehiclePage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="glass rounded-2xl overflow-hidden">
             <div className="relative">
-              <img src={v.photo} alt="" className="w-full h-56 object-cover" />
+              {v.photo ? (
+                <img src={v.photo} alt="" className="w-full h-56 object-cover" />
+              ) : (
+                <div className="w-full h-56 grid place-items-center bg-muted text-muted-foreground">
+                  <Car className="h-12 w-12" />
+                </div>
+              )}
               <input
                 ref={photoInputRef}
                 type="file"
@@ -386,8 +412,10 @@ function DriverVehiclePage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-display text-2xl font-bold">
-                    {v.brand} {v.model}{" "}
-                    <span className="text-muted-foreground font-normal text-lg">· {v.year}</span>
+                    {`${v.brand} ${v.model}`.trim() || v.type}{" "}
+                    {v.year > 0 && (
+                      <span className="text-muted-foreground font-normal text-lg">· {v.year}</span>
+                    )}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     {v.type} · Couleur {v.color}
@@ -532,10 +560,14 @@ function DriverVehiclePage() {
                 size="sm"
                 variant="outline"
                 className="w-full gap-2"
-                onClick={() => {
+                onClick={async () => {
                   const label = window.prompt("Type d'entretien (ex : Vidange, Freins, Pneus)");
                   if (label?.trim()) {
-                    vehicleActions.logMaintenance(label.trim());
+                    const res = await market.logMaintenance(label.trim());
+                    if (!res.ok) {
+                      toast.error(res.message);
+                      return;
+                    }
                     toast.success("Entretien ajouté à l'historique");
                   }
                 }}
@@ -615,8 +647,12 @@ function DriverVehiclePage() {
                         size="sm"
                         variant="outline"
                         className="mt-2 h-7"
-                        onClick={() => {
-                          vehicleActions.resolveIssue(i.id);
+                        onClick={async () => {
+                          const res = await market.resolveVehicleIssue(i.id);
+                          if (!res.ok) {
+                            toast.error(res.message);
+                            return;
+                          }
                           toast.success("Problème marqué comme résolu");
                         }}
                       >

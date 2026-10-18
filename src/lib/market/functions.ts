@@ -122,6 +122,20 @@ import {
   scheduleReturnPickup,
 } from "./returns-db.server";
 import {
+  decideDocRenewal,
+  decideVehicleChange,
+  FLEET_STAFF,
+  logMaintenance,
+  reportVehicleIssue,
+  requestVehicleChange,
+  resolveVehicleIssue,
+  setDriverOnline,
+  setVehiclePhoto,
+  submitDocRenewal,
+  updateVehicle,
+  updateWorkSettings,
+} from "./fleet-db.server";
+import {
   commentIncident,
   createIncident,
   escalateIncident,
@@ -1984,6 +1998,214 @@ export const incidentActionFn = createServerFn({ method: "POST" })
           note: data.text,
         });
       }
+      return { ok: true as const };
+    }),
+  );
+
+// --- Flotte des livreurs ---------------------------------------------------------
+
+const vehicleActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("update"),
+    brand: z.string().max(60).optional(),
+    model: z.string().max(60).optional(),
+    year: z.number().int().optional(),
+    color: z.string().max(40).optional(),
+    mileageKm: z.number().finite().min(0).max(10_000_000).optional(),
+    nextMaintenanceAt: z.string().max(10).nullable().optional(),
+  }),
+  z.object({ action: z.literal("resolve_issue"), id }),
+  z.object({ action: z.literal("maintenance"), label: z.string().max(200) }),
+]);
+
+export const vehicleActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof vehicleActionSchema>) => parse(vehicleActionSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      const who = { id: me.id, role: me.role };
+      if (data.action === "update") {
+        const { action: _a, ...patch } = data;
+        await updateVehicle(db, who, patch);
+      } else if (data.action === "resolve_issue") {
+        await resolveVehicleIssue(db, who, data.id);
+      } else {
+        await logMaintenance(db, who, data.label);
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const vehiclePhotoFn = createServerFn({ method: "POST" })
+  .validator((input: { dataUrl: string }) =>
+    parse(
+      z.object({ dataUrl: z.string().max(3_000_000, "Photo trop lourde (2 Mo maximum)") }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      const file = await storeImage(BUCKETS.private, `vehicules/${me.id}`, data.dataUrl);
+      try {
+        const old = await setVehiclePhoto(
+          db,
+          { id: me.id, role: me.role },
+          { ...file, name: "vehicule" },
+        );
+        if (old) await removeObjects([old]);
+      } catch (err) {
+        await removeObjects([file.storageKey]);
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+const vehicleIssueSchema = z.object({
+  type: z.enum(["tires", "brakes", "battery", "engine", "lights", "other"]),
+  severity: z.enum(["low", "medium", "high"]),
+  description: z.string().max(2000),
+  files: disputeFiles,
+});
+
+export const reportVehicleIssueFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof vehicleIssueSchema>) => parse(vehicleIssueSchema, input))
+  .handler(async ({ data: { files, ...input } }): Promise<ActionResult & { reference?: string }> =>
+    withMarket(["driver"], async (db, me) => {
+      const stored = await storeDisputeFiles(files, "vehicules");
+      try {
+        const r = await reportVehicleIssue(db, { id: me.id, role: me.role }, input, stored);
+        return { ok: true as const, reference: r.reference };
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+    }),
+  );
+
+const vehicleChangeSchema = z.object({
+  reason: z.enum(["sold", "breakdown", "new_vehicle", "rental", "other"]),
+  newVehicle: z.object({
+    type: z.enum(["Moto", "Camionnette", "Camion", "Tricycle"]),
+    brand: z.string().max(60),
+    model: z.string().max(60),
+    year: z.number().int().min(0).max(3000),
+    plate: z.string().max(20),
+    capacityKg: z.number().finite().min(0).max(100_000),
+    mileageKm: z.number().finite().min(0).max(10_000_000),
+  }),
+  files: disputeFiles,
+});
+
+export const requestVehicleChangeFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof vehicleChangeSchema>) => parse(vehicleChangeSchema, input))
+  .handler(async ({ data: { files, ...input } }): Promise<ActionResult & { reference?: string }> =>
+    withMarket(["driver"], async (db, me) => {
+      const stored = await storeDisputeFiles(files, "vehicules");
+      try {
+        const r = await requestVehicleChange(db, { id: me.id, role: me.role }, input, stored);
+        return { ok: true as const, reference: r.reference };
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+    }),
+  );
+
+const docRenewalSchema = z.object({
+  doc: z.enum(["insurance", "inspection"]),
+  newExpiry: z.string().max(10),
+  files: disputeFiles,
+});
+
+export const submitDocRenewalFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof docRenewalSchema>) => parse(docRenewalSchema, input))
+  .handler(async ({ data: { files, ...input } }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      const stored = await storeDisputeFiles(files, "documents");
+      try {
+        await submitDocRenewal(db, { id: me.id, role: me.role }, input, stored);
+      } catch (err) {
+        await removeObjects(stored.map((f) => f.storageKey));
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const fleetDecisionFn = createServerFn({ method: "POST" })
+  .validator(
+    (input: { kind: "renewal" | "vehicle"; id: string; approve: boolean; note?: string }) =>
+      parse(
+        z.object({
+          kind: z.enum(["renewal", "vehicle"]),
+          id,
+          approve: z.boolean(),
+          note: z.string().max(300).optional(),
+        }),
+        input,
+      ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(
+      ["admin"],
+      async (db, me) => {
+        const who = { id: me.id, role: "admin" as const };
+        if (data.kind === "renewal") await decideDocRenewal(db, who, data.id, data);
+        else await decideVehicleChange(db, who, data.id, data);
+        return { ok: true as const };
+      },
+      [...FLEET_STAFF],
+    ),
+  );
+
+export const setDriverOnlineFn = createServerFn({ method: "POST" })
+  .validator((input: { online: boolean }) => parse(z.object({ online: z.boolean() }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      await setDriverOnline(db, { id: me.id, role: me.role }, data.online);
+      return { ok: true as const };
+    }),
+  );
+
+const dayHours = z.object({
+  enabled: z.boolean(),
+  start: z.string().max(5),
+  end: z.string().max(5),
+});
+const workSettingsSchema = z.object({
+  workPrefs: z
+    .object({
+      radius: z.number().finite().optional(),
+      autoAccept: z.boolean().optional(),
+      criteria: z
+        .object({
+          minPayout: z.number().finite(),
+          maxWeightKg: z.number().finite(),
+          acceptedUrgencies: z.array(z.enum(["standard", "priority", "express"])).max(3),
+          acceptedCities: z.array(z.string().max(60)).max(30),
+        })
+        .optional(),
+    })
+    .optional(),
+  workingHours: z
+    .object({
+      mon: dayHours,
+      tue: dayHours,
+      wed: dayHours,
+      thu: dayHours,
+      fri: dayHours,
+      sat: dayHours,
+      sun: dayHours,
+    })
+    .optional(),
+  locationSharing: z.boolean().optional(),
+});
+
+export const updateWorkSettingsFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof workSettingsSchema>) => parse(workSettingsSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      await updateWorkSettings(db, { id: me.id, role: me.role }, data);
       return { ok: true as const };
     }),
   );

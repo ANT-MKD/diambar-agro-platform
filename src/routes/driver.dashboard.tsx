@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useBaseMode } from "@/data/demo-only";
 import { useMemo } from "react";
 import {
   Truck,
@@ -27,7 +26,6 @@ import { PageHeader } from "@/components/farmer/page-header";
 import {
   useDriverMissions,
   useDriverOnline,
-  driverOnlineActions,
   useDriverWallet,
   useDriverVehicle,
   useVehicleIssues,
@@ -91,7 +89,6 @@ function DriverDashboard() {
   const myDriverId = useMyId("driver");
   const missions = useDriverMissions();
   const online = useDriverOnline();
-  const base = useBaseMode();
   const wallet = useDriverWallet();
   const vehicle = useDriverVehicle();
   const fleet = useMyDriverFleet();
@@ -257,23 +254,22 @@ function DriverDashboard() {
       <PageHeader
         title={`Bonjour ${driverProfile.name.split(" ")[0]} 👋`}
         subtitle={`${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} · ${
-          base
-            ? "Les courses ouvertes sont dans « Missions »"
-            : online
-              ? "Vous êtes en ligne · les missions vous seront proposées en temps réel"
-              : "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
+          online
+            ? "Vous êtes en ligne · les missions vous seront proposées en temps réel"
+            : "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
         }`}
         actions={
-          base ? undefined : (
-            <Button
-              variant={online ? "outline" : "default"}
-              onClick={() => driverOnlineActions.toggle()}
-              className="gap-2"
-            >
-              {online ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-              {online ? "Passer hors-ligne" : "Se mettre en ligne"}
-            </Button>
-          )
+          <Button
+            variant={online ? "outline" : "default"}
+            onClick={async () => {
+              const res = await market.setOnline(!online);
+              if (!res.ok) toast.error(res.message);
+            }}
+            className="gap-2"
+          >
+            {online ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+            {online ? "Passer hors-ligne" : "Se mettre en ligne"}
+          </Button>
         }
       />
 
@@ -496,14 +492,12 @@ function DriverDashboard() {
             <div className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-display font-bold">Ma tournée</h3>
-                {!base && (
-                  <Link
-                    to="/driver/routes"
-                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    Voir toute la tournée <ArrowRight className="h-3 w-3" />
-                  </Link>
-                )}
+                <Link
+                  to="/driver/routes"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  Voir toute la tournée <ArrowRight className="h-3 w-3" />
+                </Link>
               </div>
               <LiveTrackingMapLazy
                 trackingId={nextMission.reference}
@@ -777,37 +771,35 @@ function DriverDashboard() {
             </div>
           )}
 
-          {!base && (
-            <>
-              {/* État du véhicule */}
-              <div className="glass rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-display font-bold flex items-center gap-2">
-                    <Car className="h-4 w-4" />
-                    État du véhicule
-                  </h3>
-                  <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
-                    Voir les détails
-                  </Link>
-                </div>
-                <div className="text-sm font-semibold">
-                  {vehicle.brand} {vehicle.model}
-                </div>
-                <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
-                <span
-                  className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
-                >
-                  {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
-                  {vehicleOk ? "Bon état" : "À vérifier"}
-                </span>
-                <div className="mt-3 text-xs text-muted-foreground">
-                  {vehicle.nextMaintenanceAt
-                    ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
-                    : "Aucune maintenance programmée"}
-                </div>
+          <>
+            {/* État du véhicule */}
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold flex items-center gap-2">
+                  <Car className="h-4 w-4" />
+                  État du véhicule
+                </h3>
+                <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
+                  Voir les détails
+                </Link>
               </div>
-            </>
-          )}
+              <div className="text-sm font-semibold">
+                {vehicle.brand} {vehicle.model}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
+              <span
+                className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
+              >
+                {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
+                {vehicleOk ? "Bon état" : "À vérifier"}
+              </span>
+              <div className="mt-3 text-xs text-muted-foreground">
+                {vehicle.nextMaintenanceAt
+                  ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
+                  : "Aucune maintenance programmée"}
+              </div>
+            </div>
+          </>
         </div>
       </div>
     </div>

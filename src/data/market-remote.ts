@@ -10,6 +10,12 @@ import { getRules } from "./rules";
 import { firstDeliveryDay } from "@/lib/delivery-time";
 import type {
   ChatAttachment,
+  DriverWorkCriteria,
+  VehicleChangeReason,
+  VehicleChangeRequest,
+  VehicleIssueSeverity,
+  VehicleIssueType,
+  WorkingHours,
   MissionProofPhoto,
   MissionStatus,
   OrderStatus,
@@ -28,6 +34,12 @@ import {
   restaurantOrderActions,
   markConversationReadLocally,
   replaceConversations,
+  replaceDriverFleet,
+  replaceFleetQueue,
+  driverOnlineActions,
+  vehicleActions,
+  docRenewalActions,
+  driverSettingsActions,
   replaceDriverConversations,
   type AcceptResult,
 } from "./store";
@@ -91,6 +103,14 @@ import {
   returnStaffFn,
   createIncidentFn,
   incidentActionFn,
+  vehicleActionFn,
+  vehiclePhotoFn,
+  reportVehicleIssueFn,
+  requestVehicleChangeFn,
+  submitDocRenewalFn,
+  fleetDecisionFn,
+  setDriverOnlineFn,
+  updateWorkSettingsFn,
   updateAccountFn,
   updateAvatarFn,
   updatePreferencesFn,
@@ -211,8 +231,10 @@ async function load(): Promise<void> {
     reviews: snap.reviews ?? [],
     incidents: snap.incidents ?? [],
   });
+  if (snap.fleet) replaceDriverFleet(snap.fleet);
   if (snap.me.role === "admin") {
     replaceModeration(snap.moderation ?? []);
+    replaceFleetQueue(snap.fleetQueue ?? { renewals: [], changeRequests: [] });
     replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
     const dir = await getAdminDirectoryFn().catch(() => null);
@@ -980,6 +1002,161 @@ export const market = {
       );
     }
     incidentActions.resolve(id, awarded, note, actor);
+    return { ok: true };
+  },
+
+  // --- Flotte du livreur ---------------------------------------------------------------
+
+  /** En ligne / hors ligne : seules les personnes en ligne prennent des courses. */
+  async setOnline(online: boolean): Promise<Result> {
+    if (isMarketRemote()) return remote(() => setDriverOnlineFn({ data: { online } }));
+    driverOnlineActions.set(online);
+    return { ok: true };
+  },
+
+  async updateVehicle(patch: {
+    brand?: string;
+    model?: string;
+    year?: number;
+    color?: string;
+    mileageKm?: number;
+    nextMaintenanceAt?: string | null;
+  }): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => vehicleActionFn({ data: { action: "update", ...patch } }));
+    }
+    const { nextMaintenanceAt, ...rest } = patch;
+    vehicleActions.update({
+      ...rest,
+      ...(nextMaintenanceAt !== undefined
+        ? { nextMaintenanceAt: nextMaintenanceAt ?? undefined }
+        : {}),
+    });
+    return { ok: true };
+  },
+
+  async vehiclePhoto(dataUrl: string): Promise<Result> {
+    if (isMarketRemote()) {
+      const small = await downscaleDataUrl(dataUrl);
+      return remote(() => vehiclePhotoFn({ data: { dataUrl: small } }));
+    }
+    vehicleActions.setPhoto(dataUrl);
+    return { ok: true };
+  },
+
+  async reportVehicleIssue(input: {
+    type: VehicleIssueType;
+    severity: VehicleIssueSeverity;
+    description: string;
+    photos?: DisputeAttachment[];
+  }): Promise<Result<{ reference: string }>> {
+    if (isMarketRemote()) {
+      const files = await disputeFiles(input.photos ?? []);
+      if (!files.ok) return files;
+      return remote(async () => {
+        const res = await reportVehicleIssueFn({
+          data: {
+            type: input.type,
+            severity: input.severity,
+            description: input.description,
+            files: files.list,
+          },
+        });
+        return res.ok ? { ok: true as const, reference: res.reference ?? "" } : res;
+      });
+    }
+    const issue = vehicleActions.reportIssue(input);
+    return { ok: true, reference: issue.reference };
+  },
+
+  async resolveVehicleIssue(id: string): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => vehicleActionFn({ data: { action: "resolve_issue", id } }));
+    }
+    vehicleActions.resolveIssue(id);
+    return { ok: true };
+  },
+
+  async logMaintenance(label: string): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => vehicleActionFn({ data: { action: "maintenance", label } }));
+    }
+    vehicleActions.logMaintenance(label);
+    return { ok: true };
+  },
+
+  async requestVehicleChange(input: {
+    reason: VehicleChangeReason;
+    newVehicle: VehicleChangeRequest["newVehicle"];
+    docs: DisputeAttachment[];
+  }): Promise<Result<{ reference: string }>> {
+    if (isMarketRemote()) {
+      const files = await disputeFiles(input.docs);
+      if (!files.ok) return files;
+      return remote(async () => {
+        const res = await requestVehicleChangeFn({
+          data: { reason: input.reason, newVehicle: input.newVehicle, files: files.list },
+        });
+        return res.ok ? { ok: true as const, reference: res.reference ?? "" } : res;
+      });
+    }
+    const req = vehicleActions.requestChange(input);
+    return { ok: true, reference: req.reference };
+  },
+
+  /** Document renouvelé (assurance, contrôle technique), validé par l'équipe. */
+  async submitDocRenewal(
+    doc: "insurance" | "inspection",
+    newExpiry: string,
+    photos: DisputeAttachment[],
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      if (!photos.length) return { ok: false, message: "Ajoutez la photo du document." };
+      const files = await disputeFiles(photos);
+      if (!files.ok) return files;
+      return remote(() => submitDocRenewalFn({ data: { doc, newExpiry, files: files.list } }));
+    }
+    return docRenewalActions.submit({ doc, newExpiry, photos });
+  },
+
+  /** Équipe : valider ou refuser un document ou un changement de véhicule. */
+  async fleetDecision(
+    kind: "renewal" | "vehicle",
+    id: string,
+    approve: boolean,
+    note?: string,
+    actor = "Admin Diambar",
+  ): Promise<Result> {
+    if (isMarketRemote()) {
+      return remote(() => fleetDecisionFn({ data: { kind, id, approve, note } }));
+    }
+    if (kind === "renewal") {
+      if (approve) docRenewalActions.approve(id, actor);
+      else docRenewalActions.reject(id, actor, note ?? "");
+    }
+    return { ok: true };
+  },
+
+  /** Préférences de travail, horaires, partage de position. */
+  async updateWorkSettings(patch: {
+    workPrefs?: { radius?: number; autoAccept?: boolean; criteria?: DriverWorkCriteria };
+    workingHours?: WorkingHours;
+    locationSharing?: boolean;
+  }): Promise<Result> {
+    if (isMarketRemote()) return remote(() => updateWorkSettingsFn({ data: patch }));
+    if (patch.workPrefs) {
+      const { criteria, ...prefs } = patch.workPrefs;
+      if (Object.keys(prefs).length) driverSettingsActions.setWorkPrefs(prefs);
+      if (criteria) driverSettingsActions.setCriteria(criteria);
+    }
+    if (patch.workingHours) {
+      for (const [day, h] of Object.entries(patch.workingHours)) {
+        driverSettingsActions.setWorkingDay(day as keyof WorkingHours, h);
+      }
+    }
+    if (patch.locationSharing !== undefined) {
+      driverSettingsActions.setLocationSharing(patch.locationSharing);
+    }
     return { ok: true };
   },
 

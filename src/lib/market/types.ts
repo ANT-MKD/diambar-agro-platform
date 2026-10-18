@@ -18,6 +18,7 @@ import type { CreditNote, Dispute } from "@/data/disputes";
 import type { SupportTicket } from "@/data/support";
 import type { Incident, ReturnRequest, Review } from "@/data/business";
 import type { ModerationItem } from "@/data/admin-mocks";
+import type { ChangeRequestView, DocRenewalView, DriverFleetView } from "./fleet-view";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
@@ -194,6 +195,10 @@ export type MarketSnapshot = {
   incidents: Incident[];
   /** Équipe : produits signalés. */
   moderation: ModerationItem[];
+  /** Livreur : véhicule, problèmes, entretiens, documents, disponibilité. */
+  fleet: DriverFleetView | null;
+  /** Équipe : documents et changements de véhicule à vérifier. */
+  fleetQueue: { renewals: DocRenewalView[]; changeRequests: ChangeRequestView[] };
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];

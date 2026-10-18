@@ -17,6 +17,7 @@ import {
   User,
   Building2,
   TriangleAlert,
+  Scale,
   Camera,
   Wallet,
   Undo2,
@@ -280,15 +281,9 @@ function MissionDetail() {
           <span>
             Véhicule non conforme : assurance ou contrôle technique expiré. Vous ne pouvez pas
             accepter de mission tant que ce n'est pas régularisé.{" "}
-            {base ? (
-              <Link to="/contact" className="font-semibold underline">
-                Contacter l'équipe
-              </Link>
-            ) : (
-              <Link to="/driver/vehicle" className="font-semibold underline">
-                Mettre à jour mes documents
-              </Link>
-            )}
+            <Link to="/driver/vehicle" className="font-semibold underline">
+              Mettre à jour mes documents
+            </Link>
           </span>
         </div>
       )}
@@ -595,18 +590,19 @@ function MissionDetail() {
               Actions rapides
             </div>
             <Button asChild variant="outline" className="w-full justify-start gap-2">
-              {base ? (
-                <Link to="/driver/missions/$missionId/dispute" params={{ missionId: mission.id }}>
-                  <TriangleAlert className="h-4 w-4" />
-                  Signaler un problème
-                </Link>
-              ) : (
-                <Link to="/driver/incidents" search={{ missionRef: mission.reference }}>
-                  <TriangleAlert className="h-4 w-4" />
-                  Signaler un incident
-                </Link>
-              )}
+              <Link to="/driver/incidents" search={{ missionRef: mission.reference }}>
+                <TriangleAlert className="h-4 w-4" />
+                Signaler un incident
+              </Link>
             </Button>
+            {base && (
+              <Button asChild variant="outline" className="w-full justify-start gap-2">
+                <Link to="/driver/missions/$missionId/dispute" params={{ missionId: mission.id }}>
+                  <Scale className="h-4 w-4" />
+                  Ouvrir un litige
+                </Link>
+              </Button>
+            )}
             {base && !conversation ? (
               <Button
                 variant="outline"
@@ -646,14 +642,12 @@ function MissionDetail() {
                 </Link>
               </Button>
             )}
-            {!base && (
-              <Button asChild variant="outline" className="w-full justify-start gap-2">
-                <Link to="/driver/routes">
-                  <RouteIcon className="h-4 w-4" />
-                  Voir ma tournée
-                </Link>
-              </Button>
-            )}
+            <Button asChild variant="outline" className="w-full justify-start gap-2">
+              <Link to="/driver/routes">
+                <RouteIcon className="h-4 w-4" />
+                Voir ma tournée
+              </Link>
+            </Button>
           </div>
 
           <div className="glass rounded-2xl p-4 space-y-2">

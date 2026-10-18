@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
-import { useBaseMode } from "@/data/demo-only";
 import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
 import { useHiddenInBase } from "@/data/demo-only";
 import {
@@ -29,7 +28,6 @@ import { LogoutButton } from "@/components/common/logout-button";
 import {
   useDriverNotifications,
   useDriverOnline,
-  driverOnlineActions,
   useDriverMissions,
   useDriverSettings,
   useDriverConversations,
@@ -71,7 +69,6 @@ function DriverLayout() {
   const [open, setOpen] = useState(false);
   const notifs = useDriverNotifications();
   const online = useDriverOnline();
-  const base = useBaseMode();
   const unread = notifs.filter((n) => !n.read).length;
   const missions = useDriverMissions();
   const settings = useDriverSettings();
@@ -103,8 +100,12 @@ function DriverLayout() {
     })();
   }, [missions, settings, online, fleet]);
 
-  const toggleOnline = () => {
-    driverOnlineActions.toggle();
+  const toggleOnline = async () => {
+    const res = await market.setOnline(!online);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(
       online
         ? "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
@@ -157,24 +158,22 @@ function DriverLayout() {
         </div>
 
         <div className="px-4 pb-3">
-          {!base && (
-            <button
-              onClick={toggleOnline}
-              className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
-                online
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                  : "bg-muted text-muted-foreground border border-border"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                {online ? <Zap className="h-3.5 w-3.5" /> : <ZapOff className="h-3.5 w-3.5" />}
-                {online ? "En ligne" : "Hors-ligne"}
-              </span>
-              <span
-                className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
-              />
-            </button>
-          )}
+          <button
+            onClick={toggleOnline}
+            className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition ${
+              online
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                : "bg-muted text-muted-foreground border border-border"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              {online ? <Zap className="h-3.5 w-3.5" /> : <ZapOff className="h-3.5 w-3.5" />}
+              {online ? "En ligne" : "Hors-ligne"}
+            </span>
+            <span
+              className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
+            />
+          </button>
         </div>
 
         <nav className="flex-1 px-3 space-y-4 overflow-auto scrollbar-thin">
@@ -237,20 +236,19 @@ function DriverLayout() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {!base && (
-              <button
-                onClick={toggleOnline}
-                className={`w-full mb-4 flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${online ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" : "bg-muted text-muted-foreground border border-border"}`}
-              >
-                <span className="flex items-center gap-2">
-                  {online ? <Zap className="h-3.5 w-3.5" /> : <ZapOff className="h-3.5 w-3.5" />}
-                  {online ? "En ligne" : "Hors-ligne"}
-                </span>
-                <span
-                  className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
-                />
-              </button>
-            )}
+            <button
+              onClick={toggleOnline}
+              className={`w-full mb-4 flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${online ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" : "bg-muted text-muted-foreground border border-border"}`}
+            >
+              <span className="flex items-center gap-2">
+                {online ? <Zap className="h-3.5 w-3.5" /> : <ZapOff className="h-3.5 w-3.5" />}
+                {online ? "En ligne" : "Hors-ligne"}
+              </span>
+              <span
+                className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
+              />
+            </button>
+
             <nav className="space-y-4">
               {navSections.map((s) => (
                 <div key={s.label} className="space-y-1">
@@ -298,17 +296,16 @@ function DriverLayout() {
             </kbd>
           </button>
           {/* Toggle on/off mobile */}
-          {!base && (
-            <button
-              onClick={toggleOnline}
-              className={`lg:hidden inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold ${online ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
-              />
-              {online ? "En ligne" : "Hors-ligne"}
-            </button>
-          )}
+          <button
+            onClick={toggleOnline}
+            className={`lg:hidden inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold ${online ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
+            />
+            {online ? "En ligne" : "Hors-ligne"}
+          </button>
+
           <ThemeToggle />
           <Link
             to="/driver/notifications"

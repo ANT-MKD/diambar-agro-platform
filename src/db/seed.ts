@@ -253,7 +253,7 @@ export async function seedDemo(db: Db) {
   const driverId = userId("livreur@diambar.sn");
   await db
     .insert(drivers)
-    .values({ userId: driverId, licenseNumber: "SN-2024-8891", isOnline: false })
+    .values({ userId: driverId, licenseNumber: "SN-2024-8891", isOnline: true })
     .onConflictDoNothing();
   await db
     .insert(driverZones)

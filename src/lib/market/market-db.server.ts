@@ -1083,11 +1083,33 @@ export async function acceptMission(db: Db, driverId: string, missionId: string)
     if (m.status !== "available") {
       fail("Cette mission n'est plus disponible (déjà prise par un autre livreur).");
     }
+    const [me] = await tx
+      .select({ online: drivers.isOnline })
+      .from(drivers)
+      .where(eq(drivers.userId, driverId));
+    if (me && !me.online) fail("Passez en ligne pour accepter une course.");
     // Capacité du véhicule : la charge des courses en cours compte aussi.
     const fleet = await tx
-      .select({ capacity: vehicles.capacityKg })
+      .select({
+        capacity: vehicles.capacityKg,
+        insurance: vehicles.insuranceExpiresAt,
+        inspection: vehicles.inspectionExpiresAt,
+      })
       .from(vehicles)
       .where(and(eq(vehicles.driverId, driverId), eq(vehicles.status, "active")));
+    // Un véhicule dont l'assurance ou le contrôle technique a expiré ne
+    // prend plus de course (le document renouvelé est validé par l'équipe).
+    const today = new Date().toISOString().slice(0, 10);
+    if (
+      fleet.length &&
+      fleet.every(
+        (v) => (v.insurance && v.insurance < today) || (v.inspection && v.inspection < today),
+      )
+    ) {
+      fail(
+        "Assurance ou contrôle technique expiré : envoyez le document renouvelé (Mon véhicule).",
+      );
+    }
     if (fleet.length) {
       const capacity = Math.max(...fleet.map((v) => v.capacity));
       const [{ load }] = await tx

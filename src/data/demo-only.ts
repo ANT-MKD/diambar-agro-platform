@@ -12,13 +12,7 @@ export const DEMO_ONLY_PREFIXES = [
   "/restaurant/settings/team",
   // Producteur
   "/farmer/settings/team",
-  // Livreur
-  "/driver/routes",
-  "/driver/vehicle",
-  "/driver/settings/work",
-  "/driver/settings/privacy",
   // Administration
-  "/admin/documents",
   "/admin/refunds",
 ];
 

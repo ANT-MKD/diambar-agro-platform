@@ -158,7 +158,11 @@ export function ToggleRow({
         <div className="text-sm font-medium">{label}</div>
         {description && <div className="text-xs text-muted-foreground">{description}</div>}
       </div>
-      {children ?? <Switch checked={!!checked} onCheckedChange={(v) => onChange?.(v)} />}
+      {/* Un libellé d'état à côté ne remplace pas l'interrupteur. */}
+      <div className="flex shrink-0 items-center gap-3">
+        {children}
+        <Switch checked={!!checked} onCheckedChange={(v) => onChange?.(v)} />
+      </div>
     </div>
   );
 }

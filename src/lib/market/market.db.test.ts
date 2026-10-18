@@ -164,7 +164,7 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
       })
       .returning();
     driver2Id = d2.id;
-    await db.insert(drivers).values({ userId: driver2Id });
+    await db.insert(drivers).values({ userId: driver2Id, isOnline: true });
     await db.insert(vehicles).values({ driverId: driver2Id, type: "camionnette", capacityKg: 900 });
     await db.update(vehicles).set({ capacityKg: 900 }).where(eq(vehicles.driverId, driverId));
     // Les restaurants de démo sont actifs pour commander.

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { MapPin, Check } from "lucide-react";
 import { ToggleRow } from "@/components/common/settings-shell";
 import { useDriverSettings, driverSettingsActions } from "@/data/store";
@@ -27,8 +28,15 @@ function PrivacySettings() {
           label="Partage de localisation"
           description="Utilisée uniquement pendant une mission active."
           checked={settings.locationSharing}
-          onChange={(v) => {
+          onChange={async (v) => {
             driverSettingsActions.setLocationSharing(v);
+            if (market.isRemote()) {
+              const res = await market.updateWorkSettings({ locationSharing: v });
+              if (!res.ok) {
+                toast.error(res.message);
+                return;
+              }
+            }
             toast.success(
               v ? "Partage de localisation activé" : "Partage de localisation désactivé",
             );

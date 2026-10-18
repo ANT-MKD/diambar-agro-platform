@@ -6,7 +6,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Zap, LogOut, Trash2 } from "lucide-react";
 import { SecurityPanel } from "@/components/common/security-panel";
-import { driverOnlineActions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,11 +35,16 @@ function SecuritySettings() {
     navigate({ to: "/login" });
   };
 
-  const suspendAccount = () => {
-    driverOnlineActions.set(false);
+  // Pause : hors ligne (plus aucune course proposée) puis déconnexion.
+  const suspendAccount = async () => {
+    const res = await market.setOnline(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     setSuspendOpen(false);
-    toast.success("Compte suspendu · vous êtes déconnecté");
-    navigate({ to: "/login" });
+    toast.success("Compte en pause · vous êtes hors ligne et déconnecté");
+    await logout();
   };
 
   const requestDeletion = async () => {
@@ -74,16 +78,14 @@ function SecuritySettings() {
           Zone dangereuse
         </div>
         <div className="mt-3 flex flex-col gap-2">
-          {!base && (
-            <Button
-              variant="outline"
-              className="justify-start gap-2 text-rose-500 hover:text-rose-600"
-              onClick={() => setSuspendOpen(true)}
-            >
-              <Zap className="h-4 w-4" />
-              Suspendre mon compte
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="justify-start gap-2 text-rose-500 hover:text-rose-600"
+            onClick={() => setSuspendOpen(true)}
+          >
+            <Zap className="h-4 w-4" />
+            Suspendre mon compte
+          </Button>
           <Button
             variant="outline"
             className="justify-start gap-2 text-rose-500 hover:text-rose-600"
