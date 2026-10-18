@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { commissionExplanation, commissionRange, telLink, whatsappLink } from "./public-info-model";
+import {
+  commissionExplanation,
+  commissionRange,
+  paymentMethodsText,
+  telLink,
+  whatsappLink,
+} from "./public-info-model";
 
 describe("informations du site public", () => {
   const tiers = [
@@ -24,5 +30,18 @@ describe("informations du site public", () => {
     expect(whatsappLink("")).toBeNull();
     expect(telLink("+221 77 123 45 67")).toBe("tel:+221771234567");
     expect(telLink("12")).toBeNull();
+  });
+
+  it("moyens de paiement annoncés = ceux ouverts par l'admin", () => {
+    expect(paymentMethodsText({ wave: true, orangeMoney: true, cash: true })).toBe(
+      "par Wave, Orange Money ou en espèces à la livraison",
+    );
+    expect(paymentMethodsText({ wave: true, orangeMoney: true, cash: false })).toBe(
+      "par Wave ou Orange Money",
+    );
+    expect(paymentMethodsText({ wave: false, orangeMoney: false, cash: true })).toBe(
+      "en espèces à la livraison",
+    );
+    expect(paymentMethodsText({ wave: true, orangeMoney: false, cash: false })).toBe("par Wave");
   });
 });

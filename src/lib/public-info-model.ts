@@ -17,6 +17,14 @@ export type PublicInfo = {
   deliveryFrom: number;
   cutoffHour: number;
   receptionWindowHours: number;
+  /** Paiement mobile attendu au plus tard la veille de la livraison, à cette heure. */
+  paymentDeadlineHour: number;
+  /** Plus petit retrait possible (producteurs et livreurs). */
+  minPayout: number;
+  /** Moyens de paiement ouverts aux restaurants. */
+  payments: { wave: boolean; orangeMoney: boolean; cash: boolean };
+  /** Ville du pilote (assistant, étape Zone). */
+  pilotCity: string;
 };
 
 export const DEFAULT_PUBLIC_INFO: PublicInfo = {
@@ -26,7 +34,22 @@ export const DEFAULT_PUBLIC_INFO: PublicInfo = {
   deliveryFrom: 0,
   cutoffHour: DEFAULT_RULES.cutoffHour,
   receptionWindowHours: DEFAULT_RULES.receptionWindowHours,
+  paymentDeadlineHour: DEFAULT_RULES.paymentDeadlineHour,
+  minPayout: DEFAULT_RULES.minPayout,
+  payments: { wave: true, orangeMoney: true, cash: true },
+  pilotCity: "Dakar",
 };
+
+/** « par Wave, Orange Money ou en espèces à la livraison », selon les moyens
+ * ouverts (à placer après « vous payez »). */
+export function paymentMethodsText(p: PublicInfo["payments"]): string {
+  const mobile = [p.wave && "Wave", p.orangeMoney && "Orange Money"].filter(Boolean) as string[];
+  const cash = "en espèces à la livraison";
+  if (mobile.length === 0) return p.cash ? cash : "selon les moyens indiqués à la commande";
+  const byMobile = `par ${mobile.join(", ")}`;
+  if (!p.cash) return byMobile.replace(/, (?=[^,]*$)/, " ou ");
+  return `${byMobile} ou ${cash}`;
+}
 
 const fcfa = (n: number) => `${new Intl.NumberFormat("fr-FR").format(n)} F CFA`;
 const pct = (n: number) => `${new Intl.NumberFormat("fr-FR").format(n)} %`;

@@ -51,7 +51,7 @@ function DriversPage() {
         {
           icon: Clock,
           title: "Liberté totale",
-          desc: "Passez en ligne quand vous voulez, refusez une mission sans pénalité.",
+          desc: "Vous acceptez seulement les courses qui vous conviennent, sans horaires imposés.",
         },
         {
           icon: Banknote,
@@ -60,8 +60,8 @@ function DriversPage() {
         },
         {
           icon: RouteIcon,
-          title: "Itinéraires optimisés",
-          desc: "Plusieurs collectes regroupées en une tournée quand c'est possible.",
+          title: "Remise simple",
+          desc: "Code du producteur à la collecte, code du restaurant et photo à la livraison.",
         },
         {
           icon: ShieldCheck,
@@ -70,9 +70,9 @@ function DriversPage() {
         },
       ]}
       steps={[
-        "Inscrivez-vous et transmettez permis, pièce d'identité et assurance",
+        "Inscrivez-vous : votre véhicule, votre numéro de permis et vos zones",
         "Attendez la validation de votre dossier par l'équipe",
-        "Activez le mode « En ligne » et acceptez vos premières missions",
+        "Acceptez les courses ouvertes qui vous conviennent",
         "Remettez la commande avec le code du restaurant et une photo : le gain est crédité",
       ]}
     />

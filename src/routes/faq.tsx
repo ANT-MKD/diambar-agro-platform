@@ -24,7 +24,7 @@ export const Route = createFileRoute("/faq")({
       {
         name: "description",
         content:
-          "Commissions, délais de paiement, livraison, litiges : toutes les réponses sur le fonctionnement de Diambar Agro.",
+          "Commissions, paiements, livraison, réception : toutes les réponses sur le fonctionnement de Diambar Agro.",
       },
       { property: "og:title", content: "FAQ — Questions fréquentes | Diambar Agro" },
       {

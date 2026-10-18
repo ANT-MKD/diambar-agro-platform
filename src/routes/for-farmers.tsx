@@ -9,12 +9,12 @@ export const Route = createFileRoute("/for-farmers")({
       {
         name: "description",
         content:
-          "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, retrait vers Wave ou Orange Money traité sous 24 h ouvrées.",
+          "Vendez votre récolte directement aux restaurants du Sénégal, sans intermédiaire, et retirez vos gains vers Wave ou Orange Money.",
       },
       { property: "og:title", content: "Pour les agriculteurs — Diambar Agro" },
       {
         property: "og:description",
-        content: "Vendez votre récolte en direct aux restaurants, payé sous 24h.",
+        content: "Vendez votre récolte en direct aux restaurants, à votre prix.",
       },
       { property: "og:type", content: "website" },
       {
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/for-farmers")({
     <RoleLanding
       eyebrow="Agriculteurs & coopératives"
       title="Vendez votre récolte au juste prix"
-      subtitle="Publiez vos stocks, recevez des commandes de restaurants vérifiés et soyez payé sous 24h. Sans abonnement."
+      subtitle="Publiez vos stocks, recevez des commandes de restaurants vérifiés et retirez vos gains vers Wave ou Orange Money. Sans abonnement."
       image="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=1200"
       cta="Créer mon compte"
       role="farmer"
@@ -44,18 +44,18 @@ export const Route = createFileRoute("/for-farmers")({
       benefits={[
         {
           icon: Wallet,
-          title: "Paiement rapide",
-          desc: "Retrait sur Wave ou Orange Money, traité sous 24 h ouvrées.",
+          title: "Gains clairs",
+          desc: "Votre gain (prix moins la commission) est crédité à la livraison ; vous le retirez sur Wave ou Orange Money.",
         },
         {
           icon: Boxes,
           title: "Stock maîtrisé",
-          desc: "Alertes de rupture, mouvements d'entrée/sortie et inventaire complet.",
+          desc: "Stock réservé à chaque commande, mouvements tracés, alerte quand un produit passe sous votre seuil.",
         },
         {
           icon: BarChart3,
-          title: "Analytics de ventes",
-          desc: "Comprenez vos meilleurs produits, vos pics de demande et vos prévisions.",
+          title: "Vos ventes en clair",
+          desc: "Produits les plus vendus, évolution des commandes et relevé mensuel de vos gains.",
         },
         {
           icon: ShieldCheck,
@@ -64,10 +64,10 @@ export const Route = createFileRoute("/for-farmers")({
         },
       ]}
       steps={[
-        "Créez votre compte producteur et vérifiez votre identité",
-        "Ajoutez vos produits avec photos, prix et quantités disponibles",
-        "Acceptez les commandes entrantes depuis votre tableau Kanban",
-        "Remettez la marchandise au livreur et suivez le paiement",
+        "Créez votre compte producteur : l'équipe vérifie votre exploitation",
+        "Ajoutez vos produits avec photos, prix, unité et quantité disponible",
+        "Acceptez, ajustez ou refusez les commandes depuis votre tableau",
+        "Remettez la marchandise au livreur avec votre code de collecte",
       ]}
     />
   ),

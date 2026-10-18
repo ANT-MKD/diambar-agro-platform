@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/landing/legal-page";
 import { usePublicInfo } from "@/components/landing/use-public-info";
+import { commissionExplanation, paymentMethodsText } from "@/lib/public-info-model";
 
 export const Route = createFileRoute("/legal/terms")({
   head: () => ({
@@ -41,7 +42,7 @@ function TermsPage() {
         {
           heading: "Comptes et vérification",
           paragraphs: [
-            "Chaque utilisateur s'engage à fournir des informations exactes lors de son inscription. Les comptes producteurs et livreurs font l'objet d'une vérification documentaire préalable.",
+            "Chaque utilisateur s'engage à fournir des informations exactes lors de son inscription. Chaque compte (producteur, restaurant, livreur) est vérifié par l'équipe avant son ouverture.",
             "Diambar Agro peut suspendre un compte en cas de fausse déclaration, de fraude ou de manquement répété aux règles de la plateforme.",
           ],
         },
@@ -55,7 +56,8 @@ function TermsPage() {
         {
           heading: "Prix, commissions et paiements",
           paragraphs: [
-            "La commission prélevée est dégressive selon le volume mensuel et n'est appliquée que sur les commandes livrées et confirmées.",
+            `La commission prélevée sur les ventes des producteurs n'est appliquée que sur les commandes livrées. ${commissionExplanation(info.tiers)}`,
+            `Le restaurant paie ${paymentMethodsText(info.payments)}. Un paiement mobile est attendu au plus tard la veille de la livraison à ${info.paymentDeadlineHour} h ; à défaut, la commande est annulée et le stock remis en vente.`,
             "Le producteur est payé sur la marchandise livrée ; les promotions et avoirs accordés par la plateforme ne sont jamais déduits de ses revenus. Ses demandes de retrait sont traitées sous 24 heures ouvrées vers Wave ou Orange Money.",
             `Les frais de livraison dépendent de la distance et du poids (une livraison par producteur) et sont affichés avant la validation de la commande. Une commande peut être passée jusqu'à ${info.cutoffHour} h pour une livraison le lendemain, à l'heure choisie par le restaurant.`,
             `Le livreur perçoit ${info.driverShare} % du prix de la course, crédité dès la livraison confirmée par le code de remise du restaurant et une photo.`,
@@ -66,7 +68,7 @@ function TermsPage() {
           heading: "Litiges",
           paragraphs: [
             `À la réception, le restaurant peut refuser tout ou partie d'un produit dans les ${info.receptionWindowHours} heures suivant la livraison : le montant refusé lui est remboursé automatiquement.`,
-            `Tout autre litige relatif à une commande doit être signalé dans les ${info.receptionWindowHours} heures suivant la livraison via le centre de litiges ; l'équipe support instruit le dossier et informe les deux parties de sa décision.`,
+            `Tout autre litige relatif à une commande doit être signalé dans les ${info.receptionWindowHours} heures suivant la livraison auprès de l'équipe (page Contact) ; elle instruit le dossier et informe les deux parties de sa décision.`,
           ],
         },
         {

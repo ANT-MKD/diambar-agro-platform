@@ -5,7 +5,7 @@ import { settings } from "@/db/schema";
 import { readDeliveryPricing } from "@/lib/market/delivery-db.server";
 import { readCommissionTiers } from "@/lib/market/ledger-db.server";
 import { readDriverPay } from "@/lib/market/rules-db.server";
-import type { CompanyInfo } from "@/lib/platform/setup-model";
+import type { CompanyInfo, PaymentMethodsSetting } from "@/lib/platform/setup-model";
 import { DEFAULT_PUBLIC_INFO, type PublicInfo } from "./public-info-model";
 
 // Informations du site public, lues sans session. Sans base (aperçu) ou si la
@@ -24,9 +24,21 @@ export const getPublicInfoFn = createServerFn({ method: "GET" }).handler(
       const rows = await db
         .select()
         .from(settings)
-        .where(inArray(settings.key, ["company", "cutoff_hour", "reception_window_hours"]));
+        .where(
+          inArray(settings.key, [
+            "company",
+            "cutoff_hour",
+            "reception_window_hours",
+            "payment_deadline_hour",
+            "min_payout",
+            "payment_methods",
+            "pilot_city",
+          ]),
+        );
       const v = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>;
       const c = (v.company ?? {}) as Partial<CompanyInfo>;
+      const pm = v.payment_methods as Partial<PaymentMethodsSetting> | undefined;
+      const d = DEFAULT_PUBLIC_INFO;
       const [tiers, driverPay, pricing] = await Promise.all([
         readCommissionTiers(db),
         readDriverPay(db),
@@ -43,11 +55,19 @@ export const getPublicInfoFn = createServerFn({ method: "GET" }).handler(
         tiers: tiers.map(({ rate, min, max }) => ({ rate, min, max })),
         driverShare: 100 - driverPay.commissionRate,
         deliveryFrom: pricing.brackets[0]?.fee ?? 0,
-        cutoffHour: num(v.cutoff_hour, DEFAULT_PUBLIC_INFO.cutoffHour),
-        receptionWindowHours: num(
-          v.reception_window_hours,
-          DEFAULT_PUBLIC_INFO.receptionWindowHours,
-        ),
+        cutoffHour: num(v.cutoff_hour, d.cutoffHour),
+        receptionWindowHours: num(v.reception_window_hours, d.receptionWindowHours),
+        paymentDeadlineHour: num(v.payment_deadline_hour, d.paymentDeadlineHour),
+        minPayout: num(v.min_payout, d.minPayout),
+        // Sans réglage, mêmes moyens que l'écran de commande par défaut.
+        payments: pm
+          ? {
+              wave: !!pm.wave?.enabled,
+              orangeMoney: !!pm.orangeMoney?.enabled,
+              cash: !!pm.cashOnDelivery?.enabled,
+            }
+          : d.payments,
+        pilotCity: text(v.pilot_city) || d.pilotCity,
       };
     } catch (err) {
       console.error("[site public]", err instanceof Error ? err.message : err);
