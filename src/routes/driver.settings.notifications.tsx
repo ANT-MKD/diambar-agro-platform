@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { NotificationPrefsBase } from "@/components/common/notification-prefs";
 import { ToggleRow } from "@/components/common/settings-shell";
 import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
 import { useDriverSettings, driverSettingsActions } from "@/data/store";
@@ -56,6 +58,11 @@ const DRIVER_RULES = [
 ] as const;
 
 function NotificationSettings() {
+  // Mode base : seulement les notifications réellement envoyées.
+  return useBaseMode() ? <NotificationPrefsBase role="driver" /> : <DemoNotificationSettings />;
+}
+
+function DemoNotificationSettings() {
   const settings = useDriverSettings();
   const notif = settings.notif;
   const set = (patch: Partial<typeof notif>) => driverSettingsActions.setNotif(patch);

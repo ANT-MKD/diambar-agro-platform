@@ -4,6 +4,7 @@ import { readCategories, readUnits } from "./catalog-db.server";
 import { readRecurringOrders } from "./recurring-read.server";
 import { readDisputes } from "./disputes-read.server";
 import { disputeStaff } from "./disputes-db.server";
+import { readCreditNotes } from "./credit-notes-db.server";
 import {
   categories,
   checkouts,
@@ -71,7 +72,9 @@ import type {
   MarketAccount,
   MarketSnapshot,
   MarketZone,
+  ReceptionHoursSetting,
 } from "./types";
+import { readPreferences } from "./profile-db.server";
 
 // Lecture des données de la place de marché pour un compte : chacun ne
 // reçoit que ce qui le concerne (voir `scope`).
@@ -110,6 +113,11 @@ const DEFAULT_IMAGE = demoProducts[0]?.image ?? "";
 
 export function avatarFor(name: string) {
   return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || "?")}`;
+}
+
+/** Photo de profil envoyée par la personne (stockage public). */
+function avatarUrlOf(key: string | null | undefined): string | null {
+  return key ? publicUrl(key) : null;
 }
 
 function phoneLabel(phone: string | null | undefined) {
@@ -313,6 +321,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       lastName: users.lastName,
       phone: users.phone,
       status: users.status,
+      avatarKey: users.avatarKey,
     })
     .from(farmers)
     .innerJoin(users, eq(users.id, farmers.userId))
@@ -331,6 +340,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       address: restaurants.address,
       zoneId: restaurants.zoneId,
       phone: users.phone,
+      avatarKey: users.avatarKey,
     })
     .from(restaurants)
     .innerJoin(users, eq(users.id, restaurants.userId))
@@ -347,6 +357,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       firstName: users.firstName,
       lastName: users.lastName,
       phone: users.phone,
+      avatarKey: users.avatarKey,
     })
     .from(drivers)
     .innerJoin(users, eq(users.id, drivers.userId))
@@ -608,13 +619,18 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
         deliveryAddress: c?.deliveryAddress ?? "",
         paymentMethod: PAYMENT_METHOD_LABEL[pay?.method ?? "wave"] ?? "Wave",
         statusHistory: events.map((e) => ({ status: e.status, at: iso(e.at)! })),
-        paid: payment?.state === "paid" || payment?.state === "collected",
-        paidAt: payment?.paidAt ?? payment?.collectedAt,
+        // Panier réglé entièrement par un avoir : rien à payer.
+        paid:
+          c?.paymentMode === "credit" ||
+          payment?.state === "paid" ||
+          payment?.state === "collected",
+        paidAt: c?.paymentMode === "credit" ? createdAt : (payment?.paidAt ?? payment?.collectedAt),
         payment,
         refunds: refundsByOrder.get(o.id),
         subtotal: o.subtotal,
         deliveryFee: o.deliveryFee,
-        promoDiscount: o.discount || undefined,
+        // Les remises en base viennent des avoirs.
+        creditApplied: o.discount || undefined,
         shortagePreference: o.shortagePreference,
         instructions: c?.instructions ?? undefined,
         slotStart: iso(c?.slotStart),
@@ -747,7 +763,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       city: cityName(f.zoneId, f.pickupAddress),
       farm: f.farmName,
       phone: phoneLabel(f.phone),
-      avatar: avatarFor(name),
+      avatar: avatarUrlOf(f.avatarKey) ?? avatarFor(name),
       rating: 0,
       products: listedCount.get(f.id) ?? 0,
       verified: f.status === "active",
@@ -759,7 +775,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     city: cityName(r.zoneId, r.address),
     type: r.cuisine ?? "Restaurant",
     phone: phoneLabel(r.phone),
-    avatar: avatarFor(r.name),
+    avatar: avatarUrlOf(r.avatarKey) ?? avatarFor(r.name),
   }));
   const deliveredBy = new Map(deliveredCount.map((d) => [d.driverId, d.n]));
   const directoryDrivers: DirectoryDriver[] = driverRows.map((d) => {
@@ -774,7 +790,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       rating: 0,
       missions: deliveredBy.get(d.id) ?? 0,
       phone: phoneLabel(d.phone),
-      avatar: avatarFor(name),
+      avatar: avatarUrlOf(d.avatarKey) ?? avatarFor(name),
     };
   });
 
@@ -1139,9 +1155,11 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     .limit(60);
   const notificationList: AppNotification[] = notifRows.map((n) => ({
     id: n.id,
-    type: (["order", "payment", "stock", "system", "message"].includes(n.type)
-      ? n.type
-      : "system") as AppNotification["type"],
+    type: (n.type === "offer"
+      ? "order"
+      : ["order", "payment", "stock", "system", "message"].includes(n.type)
+        ? n.type
+        : "system") as AppNotification["type"],
     title: n.title,
     body: n.body ?? "",
     at: iso(n.createdAt)!,
@@ -1158,6 +1176,8 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       phone: users.phone,
       createdAt: users.createdAt,
       city: cities.name,
+      avatarKey: users.avatarKey,
+      preferences: users.preferences,
     })
     .from(users)
     .leftJoin(cities, eq(cities.id, users.cityId))
@@ -1169,6 +1189,8 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     phone: meRow?.phone ?? "",
     city: meRow?.city ?? "",
     createdAt: iso(meRow?.createdAt) ?? new Date().toISOString(),
+    avatarUrl: avatarUrlOf(meRow?.avatarKey) ?? "",
+    preferences: readPreferences(meRow?.preferences),
   };
   if (me.role === "farmer") {
     const [f] = await db.select().from(farmers).where(eq(farmers.userId, me.id));
@@ -1176,8 +1198,12 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       account.farm = {
         name: f.farmName,
         address: f.pickupAddress,
-        city: cityName(f.zoneId, f.pickupAddress) || account.city,
+        city: account.city || cityName(f.zoneId, f.pickupAddress),
         areaHa: f.areaHa == null ? null : Number(f.areaHa),
+        certification: f.certification,
+        productionTypes: Array.isArray(f.productionTypes) ? (f.productionTypes as string[]) : [],
+        description: f.description ?? "",
+        lang: f.lang,
       };
     }
   } else if (me.role === "driver") {
@@ -1188,12 +1214,26 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
       .orderBy(desc(vehicles.createdAt))
       .limit(1);
     if (v) account.vehicle = { type: v.type, capacityKg: v.capacityKg, plate: v.plate ?? "" };
+    const [d] = await db
+      .select({ address: drivers.address })
+      .from(drivers)
+      .where(eq(drivers.userId, me.id));
+    account.driver = { address: d?.address ?? "" };
   } else if (me.role === "restaurant") {
-    const [r] = await db
-      .select({ ninea: restaurants.ninea, billingEmail: restaurants.billingEmail })
-      .from(restaurants)
-      .where(eq(restaurants.userId, me.id));
-    if (r) account.billing = { ninea: r.ninea ?? "", email: r.billingEmail ?? account.email };
+    const [r] = await db.select().from(restaurants).where(eq(restaurants.userId, me.id));
+    if (r) {
+      account.billing = { ninea: r.ninea ?? "", email: r.billingEmail ?? account.email };
+      account.restaurant = {
+        name: r.name,
+        cuisine: r.cuisine ?? "",
+        description: r.description ?? "",
+        contactName: r.contactName ?? "",
+        capacity: r.capacity,
+        address: r.address,
+        receptionHours: (r.receptionHours as ReceptionHoursSetting | null) ?? null,
+        paymentTermsDays: r.paymentTermsDays,
+      };
+    }
   }
 
   return {
@@ -1204,6 +1244,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     recurringOrders: me.role === "restaurant" ? await readRecurringOrders(db, me.id) : [],
     disputes: await readDisputes(db, me),
     disputeStaff: me.role === "admin" ? await disputeStaff(db) : [],
+    creditNotes: await readCreditNotes(db, me),
     products: productList,
     orders: orderList,
     restaurantOrders: restaurantOrderList,

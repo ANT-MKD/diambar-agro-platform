@@ -1,4 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { market } from "@/data/market-remote";
+import { logoutFn } from "@/lib/auth/functions";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Zap, LogOut, Trash2 } from "lucide-react";
@@ -27,6 +30,11 @@ function SecuritySettings() {
   const navigate = useNavigate();
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const base = useBaseMode();
+  const logout = async () => {
+    await logoutFn();
+    navigate({ to: "/login" });
+  };
 
   const suspendAccount = () => {
     driverOnlineActions.set(false);
@@ -35,7 +43,17 @@ function SecuritySettings() {
     navigate({ to: "/login" });
   };
 
-  const requestDeletion = () => {
+  const requestDeletion = async () => {
+    if (base) {
+      const res = await market.requestAccountDeletion("");
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success("Demande envoyée à l'équipe Diambar");
+      setDeleteOpen(false);
+      return;
+    }
     const ticket = supportTicketActions.create({
       subject: "Demande de suppression de compte",
       message: `Le livreur ${driverProfile.name} demande la suppression définitive de son compte Diambar Agro.`,
@@ -56,14 +74,16 @@ function SecuritySettings() {
           Zone dangereuse
         </div>
         <div className="mt-3 flex flex-col gap-2">
-          <Button
-            variant="outline"
-            className="justify-start gap-2 text-rose-500 hover:text-rose-600"
-            onClick={() => setSuspendOpen(true)}
-          >
-            <Zap className="h-4 w-4" />
-            Suspendre mon compte
-          </Button>
+          {!base && (
+            <Button
+              variant="outline"
+              className="justify-start gap-2 text-rose-500 hover:text-rose-600"
+              onClick={() => setSuspendOpen(true)}
+            >
+              <Zap className="h-4 w-4" />
+              Suspendre mon compte
+            </Button>
+          )}
           <Button
             variant="outline"
             className="justify-start gap-2 text-rose-500 hover:text-rose-600"
@@ -72,11 +92,9 @@ function SecuritySettings() {
             <Trash2 className="h-4 w-4" />
             Demander la suppression du compte
           </Button>
-          <Button variant="outline" asChild className="justify-start gap-2">
-            <Link to="/login">
-              <LogOut className="h-4 w-4" />
-              Se déconnecter
-            </Link>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => void logout()}>
+            <LogOut className="h-4 w-4" />
+            Se déconnecter
           </Button>
         </div>
       </div>
@@ -111,7 +129,10 @@ function SecuritySettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction className="bg-rose-500 hover:bg-rose-600" onClick={requestDeletion}>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600"
+              onClick={() => void requestDeletion()}
+            >
               Envoyer la demande
             </AlertDialogAction>
           </AlertDialogFooter>

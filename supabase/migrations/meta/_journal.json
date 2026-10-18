@@ -92,6 +92,13 @@
       "when": 1792296011699,
       "tag": "20261018053626_recurring_disputes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792303695626,
+      "tag": "20261018091848_profiles_credit_notes",
+      "breakpoints": true
     }
   ]
 }

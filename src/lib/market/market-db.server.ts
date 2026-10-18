@@ -41,6 +41,13 @@ import { resolveCategory, resolveUnit } from "./catalog-db.server";
 import { deliveryTimeProblem } from "@/lib/delivery-time";
 import { readDriverPay } from "./rules-db.server";
 import {
+  recordCreditUse,
+  releaseOrderCredit,
+  reserveCredit,
+  creditUsedOn,
+  restoreCredit,
+} from "./credit-notes-db.server";
+import {
   audit,
   fail,
   MarketError,
@@ -295,12 +302,16 @@ export type PlaceOrderInput = {
   instructions?: string;
   /** Commande passée par une commande récurrente. */
   recurringOrderId?: string;
+  /** Avoir à déduire du panier. */
+  creditNoteId?: string;
 };
 
 export type PlacedOrder = {
   checkoutId: string;
   checkoutReference: string;
   total: number;
+  /** Part réglée par un avoir. */
+  creditApplied: number;
   orders: { id: string; reference: string; farmerId: string; subtotal: number }[];
 };
 
@@ -547,7 +558,22 @@ export async function placeOrder(
     const quotes = await quoteGroups(tx, zone, groups, farmerById);
     const subtotal = [...subtotals.values()].reduce((s, v) => s + v, 0);
     const deliveryFee = [...quotes.values()].reduce((s, q) => s + q.fee, 0);
-    const total = subtotal + deliveryFee;
+    // Avoir : réparti entre les commandes au prorata de ce que chacune coûte.
+    const farmerOrder = [...groups.keys()];
+    const credit = input.creditNoteId
+      ? await reserveCredit(
+          tx,
+          restaurantId,
+          input.creditNoteId,
+          farmerOrder.map((f) => subtotals.get(f)! + quotes.get(f)!.fee),
+        )
+      : null;
+    const creditOf = new Map(farmerOrder.map((f, i) => [f, credit?.parts[i] ?? 0]));
+    const discount = [...creditOf.values()].reduce((s, v) => s + v, 0);
+    const total = subtotal + deliveryFee - discount;
+    // Tout réglé par l'avoir : rien à encaisser.
+    const paymentMode =
+      total === 0 ? "credit" : input.paymentMethod === "Espèces" ? "cash" : "prepaid";
     const realZone = await tx.select({ id: zones.id }).from(zones).where(eq(zones.id, zone.id));
     const [checkout] = await tx
       .insert(checkouts)
@@ -559,10 +585,10 @@ export async function placeOrder(
         deliveryAddress: input.deliveryAddress,
         instructions: input.instructions || null,
         zoneId: realZone.length ? zone.id : null,
-        paymentMode: input.paymentMethod === "Espèces" ? "cash" : "prepaid",
+        paymentMode,
         subtotal,
         deliveryFee,
-        discount: 0,
+        discount,
         total,
       })
       .returning();
@@ -584,6 +610,7 @@ export async function placeOrder(
           trackingToken: newTrackingToken(),
           subtotal: sub,
           deliveryFee: quotes.get(farmerId)!.fee,
+          discount: creditOf.get(farmerId) ?? 0,
           distanceKm: quotes.get(farmerId)!.distanceKm,
           recurringOrderId: input.recurringOrderId ?? null,
         })
@@ -621,14 +648,25 @@ export async function placeOrder(
       });
       created.push({ id: order.id, reference: order.reference, farmerId, subtotal: sub });
     }
-    if (checkout.paymentMode === "cash") {
-      // Espèces : chaque commande est réglée à son livreur.
+    if (credit) {
+      await recordCreditUse(
+        tx,
+        credit.id,
+        created.map((o) => ({ orderId: o.id, amount: creditOf.get(o.farmerId) ?? 0 })),
+      );
+    }
+    if (checkout.paymentMode === "credit") {
+      // Réglé par l'avoir : aucun paiement à attendre.
+    } else if (checkout.paymentMode === "cash") {
+      // Espèces : chaque commande est réglée à son livreur (moins sa part d'avoir).
       for (const o of created) {
+        const due = o.subtotal + quotes.get(o.farmerId)!.fee - (creditOf.get(o.farmerId) ?? 0);
+        if (due <= 0) continue;
         await tx.insert(payments).values({
           checkoutId: checkout.id,
           orderId: o.id,
           method: "cash",
-          amount: o.subtotal + quotes.get(o.farmerId)!.fee,
+          amount: due,
           status: "pending",
         });
       }
@@ -644,6 +682,7 @@ export async function placeOrder(
       checkoutId: checkout.id,
       checkoutReference: checkout.reference,
       total,
+      creditApplied: discount,
       orders: created,
     };
   });
@@ -768,7 +807,7 @@ async function openMission(tx: Tx, o: OrderRow) {
     .where(eq(users.status, "active"));
   for (const d of activeDrivers) {
     await notifyUser(tx, d.id, {
-      type: "order",
+      type: "offer",
       title: "Nouvelle course disponible",
       body: `${reference} · ${pickupCity} → ${dropoffCity}, ${formatFCFA(values.payout)}`,
       link: `/driver/missions/${missionId}`,
@@ -785,6 +824,8 @@ async function cancelCascade(
   actorId: string | null,
   note?: string,
 ) {
+  // La part d'avoir utilisée retourne à l'avoir.
+  await releaseOrderCredit(tx, o, 0);
   const lines = await tx.select().from(orderItems).where(eq(orderItems.orderId, o.id));
   for (const l of lines) {
     const reserved = Number(l.qtyConfirmed ?? l.qtyOrdered);
@@ -927,6 +968,8 @@ export async function confirmOrder(
       }
     }
     const newSubtotal = kept.reduce((s, k) => s + Math.round(k.qty * k.line.unitPrice), 0);
+    // Commande réduite : la remise d'avoir ne dépasse pas ce qu'elle coûte encore.
+    await releaseOrderCredit(tx, o, newSubtotal + o.deliveryFee);
     await notifyUser(tx, o.restaurantId, {
       type: "order",
       title: "Quantités ajustées",
@@ -983,33 +1026,44 @@ export async function reportReception(
       .where(eq(orders.id, o.id));
     if (amount > 0) {
       // Le restaurant est remboursé de ce qu'il a refusé ; le producteur le
-      // rend sur son solde (commission rendue au prorata).
-      const reference = `REM-${await nextNumber(tx, "refund_reference_seq")}`;
-      const [refund] = await tx
-        .insert(refunds)
-        .values({
-          reference,
-          orderId: o.id,
-          source: "reception",
-          amount,
-          bornBy: "farmer",
-          status: "pending",
-          reason: `Refus à la réception sur ${o.reference}`,
-        })
-        .returning({ id: refunds.id });
-      await recordReceptionRefusal(tx, o, amount, refund.id);
+      // rend sur son solde (commission rendue au prorata). Ce qui avait été
+      // réglé par un avoir retourne d'abord à l'avoir, le reste en argent.
+      const backToCredit = await restoreCredit(
+        tx,
+        o.id,
+        Math.min(amount, await creditUsedOn(tx, o.id)),
+      );
+      const cash = amount - backToCredit;
+      const reference = cash > 0 ? `REM-${await nextNumber(tx, "refund_reference_seq")}` : null;
+      const [refund] = reference
+        ? await tx
+            .insert(refunds)
+            .values({
+              reference,
+              orderId: o.id,
+              source: "reception",
+              amount: cash,
+              bornBy: "farmer",
+              status: "pending",
+              reason: `Refus à la réception sur ${o.reference}`,
+            })
+            .returning({ id: refunds.id })
+        : [null];
+      await recordReceptionRefusal(tx, o, amount, refund?.id ?? null);
       await notifyUser(tx, o.farmerId, {
         type: "order",
         title: "Refus à la réception",
         body: `${o.reference} : ${formatFCFA(amount)} refusés par le restaurant, repris sur votre solde`,
         link: `/farmer/orders/${o.id}`,
       });
-      await notifyFinanceStaff(tx, {
-        type: "payment",
-        title: "Remboursement à faire",
-        body: `${reference} · ${formatFCFA(amount)} refusés à la réception (${o.reference})`,
-        link: "/admin/payments",
-      });
+      if (reference) {
+        await notifyFinanceStaff(tx, {
+          type: "payment",
+          title: "Remboursement à faire",
+          body: `${reference} · ${formatFCFA(cash)} refusés à la réception (${o.reference})`,
+          link: "/admin/payments",
+        });
+      }
     }
     return { refusedAmount: amount };
   });

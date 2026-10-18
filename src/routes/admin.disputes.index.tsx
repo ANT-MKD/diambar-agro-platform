@@ -1,4 +1,3 @@
-import { useBaseMode } from "@/data/demo-only";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -42,7 +41,6 @@ const TABS: { v: DisputeStatus | "all" | "overdue"; label: string }[] = [
 function AdminDisputes() {
   const disputes = useAllDisputes();
   const credits = useCreditNotes();
-  const base = useBaseMode();
   const [tab, setTab] = useState<DisputeStatus | "all" | "overdue">("all");
   const stats = useMemo(() => disputeStats(disputes), [disputes]);
   const rows = disputes.filter((d) =>
@@ -71,15 +69,10 @@ function AdminDisputes() {
             v: stats.avgHours ? `${stats.avgHours.toFixed(0)} h` : "—",
           },
           { l: "Remboursé ce mois", v: formatFCFA(stats.refundedThisMonth) },
-          base
-            ? {
-                l: "Montant accordé (total)",
-                v: formatFCFA(disputes.reduce((s, d) => s + (d.grantedAmount ?? 0), 0)),
-              }
-            : {
-                l: "Avoirs émis",
-                v: `${credits.length} · ${formatFCFA(credits.reduce((s, c) => s + c.amount, 0))}`,
-              },
+          {
+            l: "Avoirs émis",
+            v: `${credits.length} · ${formatFCFA(credits.reduce((s, c) => s + (c.initialAmount ?? c.amount), 0))}`,
+          },
         ].map((k) => (
           <div key={k.l} className="glass rounded-2xl p-4">
             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{k.l}</div>

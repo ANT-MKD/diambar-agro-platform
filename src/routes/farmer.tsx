@@ -25,7 +25,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useFarmerNotifications, useOrders, useConversations } from "@/data/store";
+import { useFarmerNotifications, useOrders, useConversations, useIdentity } from "@/data/store";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { enterPortal, useMarketPolling } from "@/data/market-remote";
@@ -47,7 +47,8 @@ const bottomNav = [
 ];
 
 function FarmerLayout() {
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
   useMarketPolling();
   const MY_FARMER_ID = useMyId("farmer");
   const maintenance = useMaintenanceMode();

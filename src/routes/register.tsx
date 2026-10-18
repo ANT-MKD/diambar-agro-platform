@@ -1,3 +1,4 @@
+import { usePublicInfo } from "@/components/landing/use-public-info";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useId, useState } from "react";
 import {
@@ -688,6 +689,7 @@ function Step3({
 }
 
 function RegistrationsClosed() {
+  const { pilotCity } = usePublicInfo();
   return (
     <div>
       <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-700">
@@ -695,7 +697,7 @@ function RegistrationsClosed() {
       </div>
       <h1 className="mt-5 display-xl text-4xl">Inscriptions bientôt ouvertes</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Nous finalisons le lancement du pilote à Dakar. Les inscriptions des restaurants, des
+        Nous finalisons le lancement du pilote à {pilotCity}. Les inscriptions des restaurants, des
         producteurs et des livreurs ouvrent très bientôt.
       </p>
       <p className="mt-4 text-sm text-muted-foreground">

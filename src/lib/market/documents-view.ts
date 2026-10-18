@@ -127,7 +127,9 @@ export function invoicePdfData(v: InvoiceView): InvoiceData {
         unitPrice: f.amount,
         amount: f.amount,
       })),
-      ...(c.discount > 0 ? [{ name: "Remise", qty: "1", unitPrice: 0, amount: -c.discount }] : []),
+      ...(c.discount > 0
+        ? [{ name: "Avoir déduit", qty: "1", unitPrice: 0, amount: -c.discount }]
+        : []),
     ],
     totals: [
       ...(withTva

@@ -1,3 +1,4 @@
+import { issueCreditNote } from "./credit-notes-db.server";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
@@ -33,7 +34,7 @@ import { readRules } from "./snapshot.server";
 // débitée sur son solde (ou la plateforme prend en charge).
 
 export type Party = "restaurant" | "farmer" | "driver" | "platform";
-export type Outcome = "refund" | "partial" | "goodwill" | "rejected";
+export type Outcome = "refund" | "partial" | "credit" | "goodwill" | "rejected";
 type Me = { id: string; role: "restaurant" | "farmer" | "driver" | "admin" };
 
 /** Équipe qui instruit et tranche les litiges. */
@@ -473,6 +474,9 @@ export async function resolveDispute(
     }
     if (!rejected && liable === d.openedByRole)
       fail("La partie indemnisée ne peut pas être celle qui paie.");
+    if (input.outcome === "credit" && d.openedByRole !== "restaurant") {
+      fail("Un avoir se déduit des commandes d'un restaurant : choisissez une autre issue.");
+    }
 
     const [o] = d.orderId ? await tx.select().from(orders).where(eq(orders.id, d.orderId)) : [];
     const [m] = d.missionId
@@ -491,7 +495,26 @@ export async function resolveDispute(
     let refundId: string | null = null;
     if (granted > 0) {
       const note = `Litige ${d.reference}`;
-      if (d.openedByRole === "restaurant") {
+      if (d.openedByRole === "restaurant" && input.outcome === "credit") {
+        // Avoir : déduit des prochaines commandes du restaurant ; la partie
+        // responsable le rend sur son solde dès maintenant.
+        const credit = await issueCreditNote(tx, {
+          restaurantId: d.openedBy,
+          amount: granted,
+          disputeId: d.id,
+          bornBy: liable as "farmer" | "driver" | "platform",
+          reason: `${note} — ${reason}`,
+          createdBy: adminId,
+        });
+        await ledger(
+          tx,
+          liable as "farmer" | "driver" | "platform",
+          liableUser,
+          -granted,
+          `Avoir ${credit.reference} · ${note}`,
+          { orderId: o?.id ?? null, missionId: m?.id },
+        );
+      } else if (d.openedByRole === "restaurant") {
         // Remboursement du restaurant : un dossier Remboursement, payé comme les autres.
         if (!o) fail("Commande introuvable.");
         const reference = `REM-${await nextNumber(tx, "refund_reference_seq")}`;
@@ -560,9 +583,11 @@ export async function resolveDispute(
         ? "Remboursement intégral"
         : input.outcome === "partial"
           ? "Remboursement partiel"
-          : input.outcome === "goodwill"
-            ? "Geste commercial"
-            : "Réclamation rejetée";
+          : input.outcome === "credit"
+            ? "Avoir émis"
+            : input.outcome === "goodwill"
+              ? "Geste commercial"
+              : "Réclamation rejetée";
     await addEvent(
       tx,
       id,

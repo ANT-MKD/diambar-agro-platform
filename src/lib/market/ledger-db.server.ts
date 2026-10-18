@@ -133,7 +133,7 @@ export async function recordReceptionRefusal(
   tx: Tx,
   o: { id: string; farmerId: string; subtotal: number },
   refused: number,
-  refundId: string,
+  refundId: string | null,
 ) {
   if (refused <= 0) return;
   const [row] = await tx

@@ -18,6 +18,7 @@ import type {
   NewStaffMember,
   RegistrationOptions,
   StaffRole,
+  SecurityEvent,
 } from "./store.server";
 
 // Annuaire en mémoire, réservé au mode démo sans base de données : comptes de
@@ -82,6 +83,7 @@ class MemoryAccountStore implements AccountStore {
         twoFaEnabled: !!demo.twoFaEnabled,
         staffRole: demo.role === "admin" ? (LABEL_TO_STAFF[demo.label ?? ""] ?? null) : null,
         lastLoginAt: null,
+        passwordChangedAt: null,
         city: record?.city ?? null,
       };
       this.accounts.push(account);
@@ -133,6 +135,7 @@ class MemoryAccountStore implements AccountStore {
       twoFaEnabled: false,
       staffRole: null,
       lastLoginAt: null,
+      passwordChangedAt: null,
       city: input.city,
     };
     this.accounts.push(account);
@@ -164,7 +167,14 @@ class MemoryAccountStore implements AccountStore {
 
   async setPasswordHash(userId: string, hash: string) {
     const account = this.accounts.find((a) => a.id === userId);
-    if (account) account.passwordHash = hash;
+    if (!account) return;
+    account.passwordHash = hash;
+    account.passwordChangedAt = new Date();
+  }
+
+  async securityEvents(): Promise<SecurityEvent[]> {
+    // Mode démo sans base : pas de journal conservé.
+    return [];
   }
 
   async recordLogin(userId: string) {
@@ -271,6 +281,7 @@ class MemoryAccountStore implements AccountStore {
       twoFaEnabled: false,
       staffRole: input.staffRole,
       lastLoginAt: null,
+      passwordChangedAt: null,
       city: null,
     };
     this.accounts.push(account);

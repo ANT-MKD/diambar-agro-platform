@@ -14,6 +14,10 @@ import { useRestaurantProfile, restaurantProfileActions, useRestaurantOrders } f
 import { formatFCFA } from "@/lib/format";
 import { invoiceNumberFor } from "@/lib/invoice-data";
 import { useRules } from "@/data/rules";
+import { toast } from "sonner";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
+import { useServerForm } from "@/hooks/use-server-form";
 
 export const Route = createFileRoute("/restaurant/settings/payments")({
   head: () => ({
@@ -39,7 +43,8 @@ function RestaurantPaymentSettings() {
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
     Object.fromEntries(PAYMENT_METHODS.map((m) => [m, profile.enabledPaymentMethods.includes(m)])),
   );
-  const [billing, setBilling] = useState({
+  const base = useBaseMode();
+  const [billing, setBilling] = useServerForm({
     terms: String(profile.paymentTermsDays),
     billingEmail: profile.billingEmail,
   });
@@ -51,7 +56,16 @@ function RestaurantPaymentSettings() {
     return true;
   };
 
-  const saveBilling = () => {
+  const saveBilling = async () => {
+    if (market.isRemote()) {
+      // Seul l'email de facturation se règle ici ; le délai est fixé par Diambar.
+      const res = await market.saveRestaurant({ billingEmail: billing.billingEmail });
+      if (!res.ok) {
+        toast.error(res.message);
+        return false;
+      }
+      return true;
+    }
     restaurantProfileActions.update({
       paymentTermsDays: Number(billing.terms),
       billingEmail: billing.billingEmail,
@@ -66,21 +80,41 @@ function RestaurantPaymentSettings() {
 
   return (
     <>
-      <SettingsCard
-        title="Méthodes de paiement"
-        description="Activez les moyens de règlement que vous utilisez au checkout."
-        onSave={saveMethods}
-      >
-        {PAYMENT_METHODS.map((m) => (
-          <ToggleRow
-            key={m}
-            label={m}
-            description={m === "Espèces" ? "Réglé à la livraison" : "Paiement instantané"}
-            checked={enabled[m]}
-            onChange={(v) => setEnabled({ ...enabled, [m]: v })}
-          />
-        ))}
-      </SettingsCard>
+      {base ? (
+        <div className="glass rounded-2xl p-6 space-y-2">
+          <h3 className="font-semibold">Moyens de paiement acceptés</h3>
+          <p className="text-sm text-muted-foreground">
+            Ouverts par Diambar pour toutes les commandes : vous choisissez à chaque panier.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {PAYMENT_METHODS.map((m) => (
+              <span
+                key={m}
+                className="rounded-full border border-border px-3 py-1 text-sm font-medium"
+              >
+                {m}
+                {m === "Espèces" ? " · à la livraison" : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <SettingsCard
+          title="Méthodes de paiement"
+          description="Activez les moyens de règlement que vous utilisez au checkout."
+          onSave={saveMethods}
+        >
+          {PAYMENT_METHODS.map((m) => (
+            <ToggleRow
+              key={m}
+              label={m}
+              description={m === "Espèces" ? "Réglé à la livraison" : "Paiement instantané"}
+              checked={enabled[m]}
+              onChange={(v) => setEnabled({ ...enabled, [m]: v })}
+            />
+          ))}
+        </SettingsCard>
+      )}
 
       <SettingsCard
         title="Facturation"
@@ -89,9 +123,17 @@ function RestaurantPaymentSettings() {
       >
         <FieldRow
           label="Délai de règlement"
-          hint="Détermine la date d'échéance affichée sur vos factures."
+          hint={
+            base
+              ? "Fixé par Diambar : le paiement se fait à la commande (ou à la livraison en espèces)."
+              : "Détermine la date d'échéance affichée sur vos factures."
+          }
         >
-          <Select value={billing.terms} onValueChange={(v) => setBilling({ ...billing, terms: v })}>
+          <Select
+            value={billing.terms}
+            disabled={base}
+            onValueChange={(v) => setBilling({ ...billing, terms: v })}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -112,51 +154,67 @@ function RestaurantPaymentSettings() {
         </FieldRow>
       </SettingsCard>
 
-      <div className="glass rounded-2xl p-6 space-y-4">
-        <h3 className="font-semibold">Historique de paiement</h3>
-        {paidOrders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun paiement enregistré pour l'instant.</p>
-        ) : (
-          <div className="overflow-x-auto -mx-2 px-2">
-            <table className="w-full min-w-[480px] text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="py-2">Facture</th>
-                  <th className="py-2">Producteur</th>
-                  <th className="py-2">Méthode</th>
-                  <th className="py-2">Date</th>
-                  <th className="py-2 text-right">Montant</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paidOrders.map((o) => (
-                  <tr key={o.id} className="border-b border-border last:border-0">
-                    <td className="py-2.5">
-                      <Link
-                        to="/restaurant/invoices/$invoiceId"
-                        params={{ invoiceId: o.id }}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        {invoiceNumberFor(o.id, o.createdAt, o.reference)}
-                      </Link>
-                    </td>
-                    <td className="py-2.5 text-muted-foreground">
-                      {farmers.find((f) => f.id === o.farmerId)?.name ?? "—"}
-                    </td>
-                    <td className="py-2.5 text-muted-foreground">{o.paymentMethod}</td>
-                    <td className="py-2.5 text-muted-foreground">
-                      {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(
-                        new Date(o.createdAt),
-                      )}
-                    </td>
-                    <td className="py-2.5 text-right font-medium">{formatFCFA(o.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {base ? (
+        <div className="glass rounded-2xl p-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Factures et paiements</h3>
+            <p className="text-sm text-muted-foreground">
+              Vos factures numérotées et leurs paiements.
+            </p>
           </div>
-        )}
-      </div>
+          <Link to="/restaurant/invoices" className="text-sm font-semibold text-primary">
+            Voir mes factures
+          </Link>
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-6 space-y-4">
+          <h3 className="font-semibold">Historique de paiement</h3>
+          {paidOrders.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucun paiement enregistré pour l'instant.
+            </p>
+          ) : (
+            <div className="overflow-x-auto -mx-2 px-2">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2">Facture</th>
+                    <th className="py-2">Producteur</th>
+                    <th className="py-2">Méthode</th>
+                    <th className="py-2">Date</th>
+                    <th className="py-2 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paidOrders.map((o) => (
+                    <tr key={o.id} className="border-b border-border last:border-0">
+                      <td className="py-2.5">
+                        <Link
+                          to="/restaurant/invoices/$invoiceId"
+                          params={{ invoiceId: o.id }}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          {invoiceNumberFor(o.id, o.createdAt, o.reference)}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 text-muted-foreground">
+                        {farmers.find((f) => f.id === o.farmerId)?.name ?? "—"}
+                      </td>
+                      <td className="py-2.5 text-muted-foreground">{o.paymentMethod}</td>
+                      <td className="py-2.5 text-muted-foreground">
+                        {new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(
+                          new Date(o.createdAt),
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right font-medium">{formatFCFA(o.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

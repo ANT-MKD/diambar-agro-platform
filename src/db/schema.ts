@@ -78,7 +78,8 @@ export const stockReason = pgEnum("stock_reason", [
   "order_adjusted",
   "adjustment",
 ]);
-export const paymentMode = pgEnum("payment_mode", ["prepaid", "pay_on_delivery", "cash"]);
+/** « credit » : panier entièrement réglé par un avoir, rien à encaisser. */
+export const paymentMode = pgEnum("payment_mode", ["prepaid", "pay_on_delivery", "cash", "credit"]);
 export const orderStatus = pgEnum("order_status", [
   "pending",
   "confirmed",
@@ -163,6 +164,8 @@ export const disputePriority = pgEnum("dispute_priority", ["low", "medium", "hig
 export const disputeOutcome = pgEnum("dispute_outcome", [
   "refund",
   "partial",
+  /** Avoir à utiliser sur une prochaine commande. */
+  "credit",
   "goodwill",
   "rejected",
 ]);
@@ -254,6 +257,13 @@ export const users = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    /** Dernier changement de mot de passe (affiché dans Sécurité). */
+    passwordChangedAt: timestamp("password_changed_at", { withTimezone: true }),
+    /** Photo de profil : chemin dans le stockage public. */
+    avatarKey: text("avatar_key"),
+    /** Préférences personnelles : notifications coupées, newsletter, numéros
+     * de retrait… (voir UserPreferences). */
+    preferences: jsonb("preferences").notNull().default({}),
     /** Suppression logique : le compte est masqué puis anonymisé. */
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
@@ -336,6 +346,10 @@ export const restaurants = pgTable(
     billingEmail: text("billing_email"),
     paymentTermsDays: integer("payment_terms_days").notNull().default(0),
     deliveryInstructions: text("delivery_instructions"),
+    /** Nombre de couverts, présentation et responsable des achats. */
+    capacity: integer("capacity"),
+    description: text("description"),
+    contactName: text("contact_name"),
     updatedAt: updatedAt(),
   },
   (t) => [
@@ -360,6 +374,10 @@ export const farmers = pgTable(
     certification: certification("certification").notNull().default("none"),
     areaHa: numeric("area_ha", { precision: 8, scale: 2, mode: "number" }),
     lang: preferredLang("lang").notNull().default("fr"),
+    /** Présentation affichée aux restaurants. */
+    description: text("description"),
+    /** Types de produits cultivés (noms de catégories). */
+    productionTypes: jsonb("production_types").notNull().default([]),
     updatedAt: updatedAt(),
   },
   (t) => [index("farmers_zone_idx").on(t.zoneId)],
@@ -373,6 +391,8 @@ export const drivers = pgTable("drivers", {
   /** Horaires par jour : { mon: { enabled, start, end }, … } */
   workingHours: jsonb("working_hours"),
   isOnline: boolean("is_online").notNull().default(false),
+  /** Adresse personnelle (facultative). */
+  address: text("address"),
   updatedAt: updatedAt(),
 });
 
@@ -517,6 +537,7 @@ export const checkoutReferenceSeq = pgSequence("checkout_reference_seq", { start
 export const refundReferenceSeq = pgSequence("refund_reference_seq", { startWith: 501 });
 export const payoutReferenceSeq = pgSequence("payout_reference_seq", { startWith: 201 });
 export const disputeReferenceSeq = pgSequence("dispute_reference_seq", { startWith: 1 });
+export const creditNoteReferenceSeq = pgSequence("credit_note_reference_seq", { startWith: 1 });
 
 /** Le panier validé par le restaurant : paiement et facture Diambar. */
 export const checkouts = pgTable(
@@ -1192,5 +1213,70 @@ export const disputeAttachments = pgTable(
     index("dispute_attachments_dispute_idx").on(t.disputeId),
     index("dispute_attachments_message_idx").on(t.messageId),
     index("dispute_attachments_file_idx").on(t.fileId),
+  ],
+);
+
+// --- Avoirs -----------------------------------------------------------------------------
+// Montant dû à un restaurant, à déduire de ses prochaines commandes (décision
+// de litige). La partie responsable est débitée dans le grand livre à
+// l'émission ; à l'utilisation, le restaurant paie d'autant moins.
+
+export const creditNoteStatus = pgEnum("credit_note_status", ["active", "used", "cancelled"]);
+
+export const creditNotes = pgTable(
+  "credit_notes",
+  {
+    id: id(),
+    reference: text("reference").notNull(),
+    restaurantId: uuid("restaurant_id")
+      .notNull()
+      .references(() => restaurants.userId),
+    amount: integer("amount").notNull(),
+    /** Ce qui reste à utiliser. */
+    balance: integer("balance").notNull(),
+    disputeId: uuid("dispute_id").references(() => disputes.id),
+    bornBy: liableParty("born_by").notNull().default("platform"),
+    reason: text("reason"),
+    status: creditNoteStatus("status").notNull().default("active"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("credit_notes_reference_key").on(t.reference),
+    index("credit_notes_restaurant_idx").on(t.restaurantId, t.status),
+    index("credit_notes_dispute_idx").on(t.disputeId),
+    index("credit_notes_created_by_idx").on(t.createdBy),
+    check("credit_notes_amount_positive", sql`${t.amount} > 0`),
+    check("credit_notes_balance_range", sql`${t.balance} >= 0 and ${t.balance} <= ${t.amount}`),
+  ],
+);
+
+/** Utilisation d'un avoir sur une commande ; rendue si la commande est
+ * annulée ou réduite. */
+export const creditNoteUses = pgTable(
+  "credit_note_uses",
+  {
+    id: id(),
+    creditNoteId: uuid("credit_note_id")
+      .notNull()
+      .references(() => creditNotes.id),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    amount: integer("amount").notNull(),
+    /** Part rendue à l'avoir (annulation, quantités réduites). */
+    restored: integer("restored").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("credit_note_uses_note_idx").on(t.creditNoteId),
+    index("credit_note_uses_order_idx").on(t.orderId),
+    check("credit_note_uses_amount_positive", sql`${t.amount} > 0`),
+    check(
+      "credit_note_uses_restored_range",
+      sql`${t.restored} >= 0 and ${t.restored} <= ${t.amount}`,
+    ),
   ],
 );

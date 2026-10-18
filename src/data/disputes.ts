@@ -106,6 +106,8 @@ export type CreditNote = {
   // est alors le solde restant), et le détail de chaque utilisation.
   initialAmount?: number;
   usages?: { orderRef: string; amount: number; at: string }[];
+  /** Motif (décision du litige). */
+  reason?: string;
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -515,6 +517,11 @@ function nextCreditRef(arr: CreditNote[]) {
   );
   return `AV-${String(max + 1).padStart(4, "0")}`;
 }
+/** Mode base : avoirs tels qu'enregistrés sur le serveur. */
+export function replaceCreditNotes(list: CreditNote[]) {
+  creditsStore.replace(list);
+}
+
 export const creditActions = {
   /** Émet un vrai avoir suite à un retour accepté par le producteur — plus
    * une simple chaîne de texte posée sur le retour, mais une entrée réelle

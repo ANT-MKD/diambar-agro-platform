@@ -36,6 +36,7 @@ import {
   missionActions,
   autoAcceptableMissions,
   useMyDriverFleet,
+  useIdentity,
 } from "@/data/store";
 import { driverProfile } from "@/data/mocks";
 import { useMaintenanceMode } from "@/data/admin-store";
@@ -60,7 +61,8 @@ const bottomNav = [
 ];
 
 function DriverLayout() {
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
   useMarketPolling();
   const MY_DRIVER_ID = useMyId("driver");
   const maintenance = useMaintenanceMode();

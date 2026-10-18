@@ -32,6 +32,7 @@ import {
   recurringOrderActions,
   useRestaurantOrders,
   useConversations,
+  useIdentity,
 } from "@/data/store";
 import { restaurants } from "@/data/mocks";
 import { CommandPalette } from "@/components/common/command-palette";
@@ -59,7 +60,8 @@ const bottomNav = [
 
 function RestaurantLayout() {
   const myRestaurantId = useMyId("restaurant");
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
   useMarketPolling();
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });

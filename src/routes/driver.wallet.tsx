@@ -27,7 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDriverWallet, driverWalletActions, useDriverSettings, useMissions } from "@/data/store";
+import {
+  useDriverWallet,
+  driverWalletActions,
+  useDriverSettings,
+  useMissions,
+  useMyAccount,
+} from "@/data/store";
+import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { formatFCFA } from "@/lib/format";
 import { dayKey, addDays, referenceDay, gainsForDay } from "@/lib/driver-day";
 import type { PaymentMethod } from "@/data/mocks";
@@ -61,7 +68,15 @@ function WalletPage() {
   const missions = useMissions();
   const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("Wave");
+  const account = useMyAccount();
+  const payout = account?.preferences.payout;
+  const [method, setMethod] = useState<PaymentMethod>(
+    payout?.primary === "orange_money" ? "Orange Money" : "Wave",
+  );
+  // Numéro qui recevra l'argent : celui enregistré pour ce moyen, sinon le
+  // téléphone du compte.
+  const payoutNumber =
+    (method === "Orange Money" ? payout?.orangeMoney : payout?.wave) || account?.phone || "";
 
   // Les transactions de démo sont figées dans le passé : "maintenant" est
   // ancré sur la dernière mission réelle du livreur, sinon "aujourd'hui" et
@@ -402,7 +417,7 @@ function WalletPage() {
             </Button>
             <p className="text-[11px] text-muted-foreground">
               {market.isRemote()
-                ? `Versé par Diambar sur le numéro de votre compte · minimum ${formatFCFA(minPayout)} · aucun frais.`
+                ? `Versé par Diambar sur le ${payoutNumber ? formatSenegalPhone(payoutNumber) : "numéro de votre compte"} · minimum ${formatFCFA(minPayout)} · aucun frais. Numéros modifiables dans Paramètres → Paiements.`
                 : `Versement sous 24h · minimum ${formatFCFA(minPayout)} · aucun frais.`}
             </p>
           </form>

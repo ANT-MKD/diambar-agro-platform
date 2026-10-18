@@ -47,7 +47,7 @@ import {
   type PermissionKey,
 } from "@/data/admin-store";
 import { useAllDisputes } from "@/data/disputes";
-import { useConversations, useDriverConversations } from "@/data/store";
+import { useConversations, useDriverConversations, useIdentity } from "@/data/store";
 import { useIncidents, useReturns } from "@/data/business";
 import { useRefunds } from "@/data/finance";
 import { useAdminPayments, useAdminPayouts, useAdminRefunds } from "@/data/payments-store";
@@ -79,7 +79,8 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminLayout() {
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
   useMarketPolling();
   const fallbackRole = useAdminRoleForEmail(user.email);
   // Rôle d'équipe lu par le serveur (base) : il décide des menus et actions.

@@ -29,6 +29,7 @@ import type {
   DecideResult,
   NewApplicant,
   RegistrationOptions,
+  SecurityEvent,
 } from "./store.server";
 
 const accountColumns = {
@@ -43,6 +44,7 @@ const accountColumns = {
   twoFaEnabled: users.twoFaEnabled,
   staffRole: adminProfiles.adminRole,
   lastLoginAt: users.lastLoginAt,
+  passwordChangedAt: users.passwordChangedAt,
 };
 
 /** Violation d'unicité PostgreSQL (email ou téléphone déjà pris entre-temps). */
@@ -137,6 +139,10 @@ export class DbAccountStore implements AccountStore {
             farmName: (d.farmName ?? "").trim(),
             pickupAddress: (d.location ?? "").trim(),
             areaHa: parseArea(d.areaHectares),
+            // Types de produits déclarés à l'inscription (Paramètres → Exploitation).
+            productionTypes: [
+              ...new Set((d.productTypes ?? []).map((t) => t.trim()).filter(Boolean)),
+            ].slice(0, 20),
           });
         } else if (input.role === "restaurant") {
           await tx.insert(restaurants).values({
@@ -192,10 +198,27 @@ export class DbAccountStore implements AccountStore {
   }
 
   async setPasswordHash(userId: string, hash: string): Promise<void> {
+    const now = new Date();
     await this.db
       .update(users)
-      .set({ passwordHash: hash, updatedAt: new Date() })
+      .set({ passwordHash: hash, passwordChangedAt: now, updatedAt: now })
       .where(eq(users.id, userId));
+  }
+
+  async securityEvents(userId: string, limit: number): Promise<SecurityEvent[]> {
+    const rows = await this.db
+      .select({ at: auditLogs.at, action: auditLogs.action, status: auditLogs.status })
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.targetType, "user"),
+          eq(auditLogs.targetId, userId),
+          inArray(auditLogs.module, ["auth", "security"]),
+        ),
+      )
+      .orderBy(desc(auditLogs.at))
+      .limit(limit);
+    return rows.map((r) => ({ at: r.at.toISOString(), action: r.action, status: r.status }));
   }
 
   async recordLogin(userId: string): Promise<void> {

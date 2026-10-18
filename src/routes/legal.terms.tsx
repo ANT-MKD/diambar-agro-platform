@@ -58,7 +58,7 @@ function TermsPage() {
           paragraphs: [
             `La commission prélevée sur les ventes des producteurs n'est appliquée que sur les commandes livrées. ${commissionExplanation(info.tiers)}`,
             `Le restaurant paie ${paymentMethodsText(info.payments)}. Un paiement mobile est attendu au plus tard la veille de la livraison à ${info.paymentDeadlineHour} h ; à défaut, la commande est annulée et le stock remis en vente.`,
-            "Le producteur est payé sur la marchandise livrée ; les promotions et avoirs accordés par la plateforme ne sont jamais déduits de ses revenus. Ses demandes de retrait sont traitées sous 24 heures ouvrées vers Wave ou Orange Money.",
+            "Le producteur est payé sur la marchandise livrée ; les gestes commerciaux de la plateforme ne sont jamais déduits de ses revenus, seuls le sont un refus à la réception ou un remboursement ou avoir mis à sa charge par une décision de litige. Ses demandes de retrait sont traitées sous 24 heures ouvrées vers Wave ou Orange Money.",
             `Les frais de livraison dépendent de la distance et du poids (une livraison par producteur) et sont affichés avant la validation de la commande. Une commande peut être passée jusqu'à ${info.cutoffHour} h pour une livraison le lendemain, à l'heure choisie par le restaurant.`,
             `Le livreur perçoit ${info.driverShare} % du prix de la course, crédité dès la livraison confirmée par le code de remise du restaurant et une photo.`,
             "Le restaurant peut annuler sa commande tant que le producteur n'a pas commencé la préparation ; un paiement mobile déjà effectué est alors remboursé intégralement.",

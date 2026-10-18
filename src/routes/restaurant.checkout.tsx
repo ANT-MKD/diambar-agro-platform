@@ -30,7 +30,12 @@ import { useDeliveryZones } from "@/data/platform-settings";
 import { market } from "@/data/market-remote";
 import { useDeliveryQuote } from "@/data/delivery-quote";
 import { allocate, deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
-import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
+import {
+  useCreditNotes,
+  useCreditNotesForRestaurant,
+  isCreditExpired,
+  creditActions,
+} from "@/data/disputes";
 import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import {
@@ -104,7 +109,10 @@ function Checkout() {
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
-  const credits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
+  // Avec la base, le serveur n'envoie que les avoirs de ce restaurant.
+  const ownCredits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
+  const serverCredits = useCreditNotes();
+  const credits = remoteMode ? serverCredits : ownCredits;
   const availableCredits = credits.filter((c) => c.status === "issued" && !isCreditExpired(c));
   const [appliedCreditId, setAppliedCreditId] = useState<string | null>(null);
   const appliedCredit = availableCredits.find((c) => c.id === appliedCreditId) ?? null;
@@ -225,6 +233,7 @@ function Checkout() {
       paymentMethod: method,
       shortagePreference,
       instructions: instructions.trim() || undefined,
+      creditNoteId: appliedCredit?.id,
     });
     setPlacing(false);
     if (!res.ok) {
@@ -236,9 +245,9 @@ function Checkout() {
     setConfirmedSummary({
       count: res.orders.length,
       subtotal,
-      delivery: res.total - subtotal,
+      delivery: res.total + res.creditApplied - subtotal,
       discount: 0,
-      creditApplied: 0,
+      creditApplied: res.creditApplied,
       total: res.total,
     });
     cartActions.clear();
@@ -594,7 +603,7 @@ function Checkout() {
             />
           )}
 
-          {step !== 3 && !remoteMode && availableCredits.length > 0 && (
+          {step !== 3 && availableCredits.length > 0 && (
             <div className="border-t border-border pt-3 space-y-2">
               <div className="text-xs font-medium text-muted-foreground">
                 Avoirs disponibles ({formatFCFA(availableCredits.reduce((s, c) => s + c.amount, 0))}

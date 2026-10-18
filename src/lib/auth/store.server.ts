@@ -40,7 +40,12 @@ export type AccountRecord = {
   /** Rôle dans l'équipe, pour les comptes administrateurs. */
   staffRole: StaffRole | null;
   lastLoginAt: Date | null;
+  passwordChangedAt: Date | null;
 };
+
+/** Événement de sécurité d'un compte (connexions, mot de passe, double
+ * authentification), lu dans le journal d'audit. */
+export type SecurityEvent = { at: string; action: string; status: string };
 
 export type ApplicantRole = "farmer" | "restaurant" | "driver";
 
@@ -128,6 +133,8 @@ export interface AccountStore {
   /** Compte « en attente » + profil métier + dossier de validation. */
   createApplicant(input: NewApplicant): Promise<CreateApplicantResult>;
   setPasswordHash(userId: string, hash: string): Promise<void>;
+  /** Derniers événements de sécurité du compte (connexions réussies ou non…). */
+  securityEvents(userId: string, limit: number): Promise<SecurityEvent[]>;
   recordLogin(userId: string): Promise<void>;
   audit(entry: AuditEntry): Promise<void>;
   registrationsOpen(): Promise<boolean>;

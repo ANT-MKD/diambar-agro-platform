@@ -69,6 +69,19 @@ import {
   setDisputeStatus,
   type StoredFile,
 } from "./disputes-db.server";
+import {
+  requestAccountDeletion,
+  setAvatar,
+  updateAccount,
+  updateDriver,
+  updateFarm,
+  updatePreferences,
+  updateRestaurant,
+  type AccountPatch,
+  type FarmPatch,
+  type PreferencesPatch,
+  type RestaurantPatch,
+} from "./profile-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
@@ -315,6 +328,7 @@ const orderSchema = z.object({
   paymentMethod: z.enum(["Wave", "Orange Money", "Free Money", "Espèces"]),
   shortagePreference: z.enum(["partial", "cancel"]),
   instructions: z.string().trim().max(500).optional(),
+  creditNoteId: id.optional(),
 });
 
 export type PlaceOrderResult =
@@ -323,6 +337,7 @@ export type PlaceOrderResult =
       checkoutId: string;
       checkoutReference: string;
       total: number;
+      creditApplied: number;
       orders: { id: string; reference: string }[];
     }
   | { ok: false; message: string };
@@ -365,6 +380,7 @@ export const placeOrderFn = createServerFn({ method: "POST" })
         checkoutId: placed.checkoutId,
         checkoutReference: placed.checkoutReference,
         total: placed.total,
+        creditApplied: placed.creditApplied,
         orders: placed.orders.map(({ id: orderId, reference }) => ({ id: orderId, reference })),
       };
     }),
@@ -1047,7 +1063,7 @@ export const requestDisputeEscalationFn = createServerFn({ method: "POST" })
 
 const resolveDisputeSchema = z.object({
   id,
-  outcome: z.enum(["refund", "partial", "goodwill", "rejected"]),
+  outcome: z.enum(["refund", "partial", "credit", "goodwill", "rejected"]),
   grantedAmount: z.number().finite().min(0).max(100_000_000),
   liableParty: z.enum(["restaurant", "farmer", "driver", "platform"]),
   reason: z.string().trim().min(10, "Motivez la décision (10 caractères minimum).").max(2000),
@@ -1259,4 +1275,146 @@ export const saveFarmerDeliveryFn = createServerFn({ method: "POST" })
       },
       PRICING_STAFF,
     ),
+  );
+
+// --- Profils et réglages personnels ------------------------------------------------------
+
+const PROFILE_ROLES: Role[] = ["restaurant", "farmer", "driver", "admin"];
+const shortText = (max: number) => z.string().max(max);
+
+export const updateAccountFn = createServerFn({ method: "POST" })
+  .validator((input: AccountPatch) =>
+    parse(
+      z.object({
+        firstName: shortText(80).optional(),
+        lastName: shortText(80).optional(),
+        phone: shortText(30).optional(),
+        city: shortText(80).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(PROFILE_ROLES, async (db, me) => {
+      await updateAccount(db, { id: me.id, role: me.role }, data);
+      return { ok: true as const };
+    }),
+  );
+
+/** Photo de profil : image envoyée (réduite par le navigateur), ou null pour
+ * la retirer. L'ancienne photo est supprimée du stockage. */
+export const updateAvatarFn = createServerFn({ method: "POST" })
+  .validator((input: { dataUrl: string | null }) =>
+    parse(z.object({ dataUrl: z.string().max(3_000_000).nullable() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(PROFILE_ROLES, async (db, me) => {
+      const stored = data.dataUrl
+        ? await storeImage(BUCKETS.public, "profils", data.dataUrl)
+        : null;
+      try {
+        const previous = await setAvatar(
+          db,
+          { id: me.id, role: me.role },
+          stored?.storageKey ?? null,
+        );
+        if (previous) await removeObjects([previous]).catch(() => undefined);
+      } catch (err) {
+        if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
+        throw err;
+      }
+      return { ok: true as const };
+    }),
+  );
+
+export const updatePreferencesFn = createServerFn({ method: "POST" })
+  .validator((input: PreferencesPatch) =>
+    parse(
+      z.object({
+        mutedNotifications: z.array(shortText(20)).max(10).optional(),
+        newsletter: z.boolean().optional(),
+        payout: z
+          .object({
+            wave: shortText(20).optional(),
+            orangeMoney: shortText(20).optional(),
+            primary: z.enum(["wave", "orange_money"]).optional(),
+          })
+          .optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(PROFILE_ROLES, async (db, me) => {
+      await updatePreferences(db, { id: me.id, role: me.role }, data);
+      return { ok: true as const };
+    }),
+  );
+
+const slotSchema = z.object({ open: z.boolean(), from: shortText(5), to: shortText(5) });
+
+export const updateRestaurantFn = createServerFn({ method: "POST" })
+  .validator((input: RestaurantPatch) =>
+    parse(
+      z.object({
+        name: shortText(200).optional(),
+        cuisine: shortText(100).optional(),
+        description: shortText(1000).optional(),
+        contactName: shortText(200).optional(),
+        capacity: z.number().int().nullable().optional(),
+        address: shortText(300).optional(),
+        ninea: shortText(60).optional(),
+        billingEmail: shortText(250).optional(),
+        receptionHours: z.record(slotSchema).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant"], async (db, me) => {
+      await updateRestaurant(db, { id: me.id, role: "restaurant" }, data);
+      return { ok: true as const };
+    }),
+  );
+
+export const updateFarmFn = createServerFn({ method: "POST" })
+  .validator((input: FarmPatch) =>
+    parse(
+      z.object({
+        name: shortText(200).optional(),
+        address: shortText(300).optional(),
+        areaHa: z.number().nullable().optional(),
+        certification: z.enum(["none", "bio", "raisonnee", "globalgap"]).optional(),
+        productionTypes: z.array(shortText(80)).max(30).optional(),
+        description: shortText(1000).optional(),
+        lang: z.enum(["fr", "wo"]).optional(),
+      }),
+      input,
+    ),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["farmer"], async (db, me) => {
+      await updateFarm(db, { id: me.id, role: "farmer" }, data);
+      return { ok: true as const };
+    }),
+  );
+
+export const updateDriverFn = createServerFn({ method: "POST" })
+  .validator((input: { address?: string }) =>
+    parse(z.object({ address: shortText(300).optional() }), input),
+  )
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["driver"], async (db, me) => {
+      await updateDriver(db, { id: me.id, role: "driver" }, data);
+      return { ok: true as const };
+    }),
+  );
+
+export const requestAccountDeletionFn = createServerFn({ method: "POST" })
+  .validator((input: { reason: string }) => parse(z.object({ reason: shortText(500) }), input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
+      await requestAccountDeletion(db, { id: me.id, role: me.role }, data.reason);
+      return { ok: true as const };
+    }),
   );

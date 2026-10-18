@@ -7,8 +7,15 @@ import { Button } from "@/components/ui/button";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { useSecurity, securityActions } from "@/data/security";
 import { relativeTime } from "@/lib/format";
+import { useBaseMode } from "@/data/demo-only";
+import { SecurityPanelBase } from "./security-panel-base";
 
-export function SecurityPanel({
+export function SecurityPanel(props: { title?: string; description?: string }) {
+  // Mode base : mot de passe, double authentification et journal réels.
+  return useBaseMode() ? <SecurityPanelBase {...props} /> : <DemoSecurityPanel {...props} />;
+}
+
+function DemoSecurityPanel({
   title = "Sécurité",
   description = "Protégez votre compte.",
 }: {

@@ -24,6 +24,13 @@ export async function sessionAccount(store: AccountStore): Promise<AccountRecord
   return account;
 }
 
+/** Compte connecté, quel que soit son rôle (Paramètres → Sécurité). */
+export async function requireAccount(store: AccountStore): Promise<AccountRecord> {
+  const account = await sessionAccount(store);
+  if (!account) throw new Error("Session expirée. Reconnectez-vous.");
+  return account;
+}
+
 /**
  * Garde des fonctions serveur réservées à l'équipe : le contrôle se fait ici,
  * côté serveur, et pas seulement en masquant des boutons à l'écran.

@@ -306,7 +306,9 @@ export function DisputeDetailView({
                   <SelectContent>
                     {(
                       (base
-                        ? ["refund", "partial", "goodwill", "rejected"]
+                        ? d.openedByRole === "restaurant"
+                          ? ["refund", "partial", "credit", "goodwill", "rejected"]
+                          : ["refund", "partial", "goodwill", "rejected"]
                         : [
                             "refund",
                             "partial",
@@ -362,9 +364,11 @@ export function DisputeDetailView({
               </div>
               {base && outcome !== "rejected" && (
                 <p className="text-[11px] text-muted-foreground">
-                  {d.openedByRole === "restaurant"
-                    ? "Un remboursement est créé (Encaissements), payé comme les autres ; la partie débitée le rend sur son solde."
-                    : "L'indemnité est créditée sur le solde du plaignant et retenue sur celui de la partie débitée."}
+                  {d.openedByRole === "restaurant" && outcome === "credit"
+                    ? "Un avoir est créé : le restaurant le déduit de ses prochaines commandes ; la partie débitée le rend sur son solde."
+                    : d.openedByRole === "restaurant"
+                      ? "Un remboursement est créé (Encaissements), payé comme les autres ; la partie débitée le rend sur son solde."
+                      : "L'indemnité est créditée sur le solde du plaignant et retenue sur celui de la partie débitée."}
                 </p>
               )}
               <Button

@@ -133,7 +133,16 @@ function RestaurantDisputeDetail() {
               Escalader le litige
             </button>
           )}
-          {!base && (
+          {base ? (
+            <Link
+              to="/restaurant/disputes"
+              hash="avoirs"
+              className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm hover:bg-accent/40 transition"
+            >
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              Voir mes avoirs
+            </Link>
+          ) : (
             <Link
               to="/restaurant/returns"
               search={{ tab: "avoirs" }}

@@ -121,11 +121,18 @@ export async function requestPayout(
           : `Solde disponible insuffisant : ${formatFCFA(balance.available)}.`,
       );
     }
+    // Numéro saisi, sinon celui enregistré dans Paramètres pour ce moyen,
+    // sinon le téléphone du compte.
+    const saved = (me.preferences as { payout?: { wave?: string; orangeMoney?: string } } | null)
+      ?.payout;
+    const savedNumber = input.method === "wave" ? saved?.wave : saved?.orangeMoney;
     const number = input.accountNumber?.trim()
       ? normalizeWalletNumber(input.accountNumber)
-      : me.phone
-        ? normalizeWalletNumber(me.phone)
-        : fail("Indiquez le numéro qui recevra l'argent.");
+      : savedNumber
+        ? normalizeWalletNumber(savedNumber)
+        : me.phone
+          ? normalizeWalletNumber(me.phone)
+          : fail("Indiquez le numéro qui recevra l'argent.");
     const reference = `VER-${await nextNumber(tx, "payout_reference_seq")}`;
     await tx.insert(payouts).values({
       reference,

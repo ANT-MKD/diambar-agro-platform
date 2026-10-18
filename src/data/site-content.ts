@@ -347,7 +347,7 @@ export function helpTopics(
         },
         {
           q: "Ouvrir un litige",
-          a: "Depuis la commande, « Signaler un problème » ouvre un litige : vous décrivez les faits, ajoutez des photos et indiquez le montant réclamé. L'autre partie peut répondre, l'équipe instruit puis tranche ; un montant accordé vous est remboursé.",
+          a: "Depuis la commande, « Signaler un problème » ouvre un litige : vous décrivez les faits, ajoutez des photos et indiquez le montant réclamé. L'autre partie peut répondre, l'équipe instruit puis tranche ; un montant accordé vous est remboursé, ou crédité en avoir à déduire de votre prochaine commande.",
         },
       ],
     },

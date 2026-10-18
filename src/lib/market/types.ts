@@ -12,7 +12,7 @@ import type {
   Role,
 } from "@/data/mocks";
 import type { InvoiceView } from "./documents-view";
-import type { Dispute } from "@/data/disputes";
+import type { CreditNote, Dispute } from "@/data/disputes";
 import type { AdminPayment, AdminPayout, AdminRefund, MerchantNumbers } from "./payment-view";
 import type { DeliveryHours, DriverPay } from "@/lib/platform-rules";
 
@@ -61,6 +61,54 @@ export type MarketZone = {
 };
 
 /** Compte connecté, tel qu'enregistré : remplace les profils de démonstration. */
+/** Préférences personnelles enregistrées avec le compte. */
+export type UserPreferences = {
+  /** Types de notifications coupés (« order », « stock »). */
+  mutedNotifications: string[];
+  newsletter: boolean;
+  /** Numéros qui reçoivent les retraits (9 chiffres), et le moyen préféré. */
+  payout: { wave: string; orangeMoney: string; primary: "wave" | "orange_money" };
+};
+
+export type ReceptionHoursSetting = Record<string, { open: boolean; from: string; to: string }>;
+
+// --- Modifications du profil (Paramètres) ---
+
+export type AccountPatch = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  city?: string;
+};
+
+export type PreferencesPatch = {
+  mutedNotifications?: string[];
+  newsletter?: boolean;
+  payout?: { wave?: string; orangeMoney?: string; primary?: "wave" | "orange_money" };
+};
+
+export type RestaurantPatch = {
+  name?: string;
+  cuisine?: string;
+  description?: string;
+  contactName?: string;
+  capacity?: number | null;
+  address?: string;
+  ninea?: string;
+  billingEmail?: string;
+  receptionHours?: ReceptionHoursSetting;
+};
+
+export type FarmPatch = {
+  name?: string;
+  address?: string;
+  areaHa?: number | null;
+  certification?: "none" | "bio" | "raisonnee" | "globalgap";
+  productionTypes?: string[];
+  description?: string;
+  lang?: "fr" | "wo";
+};
+
 export type MarketAccount = {
   firstName: string;
   lastName: string;
@@ -68,12 +116,35 @@ export type MarketAccount = {
   phone: string;
   city: string;
   createdAt: string;
-  /** Producteur : exploitation déclarée à l'inscription. */
-  farm?: { name: string; address: string; city: string; areaHa: number | null };
-  /** Livreur : véhicule enregistré. */
+  /** Photo de profil (adresse publique), vide sans photo. */
+  avatarUrl: string;
+  preferences: UserPreferences;
+  /** Producteur : exploitation. */
+  farm?: {
+    name: string;
+    address: string;
+    city: string;
+    areaHa: number | null;
+    certification: "none" | "bio" | "raisonnee" | "globalgap";
+    productionTypes: string[];
+    description: string;
+    lang: "fr" | "wo";
+  };
+  /** Livreur : véhicule enregistré et adresse. */
   vehicle?: { type: string; capacityKg: number; plate: string };
-  /** Restaurant : informations de facturation. */
+  driver?: { address: string };
+  /** Restaurant : facturation et fiche de l'établissement. */
   billing?: { ninea: string; email: string };
+  restaurant?: {
+    name: string;
+    cuisine: string;
+    description: string;
+    contactName: string;
+    capacity: number | null;
+    address: string;
+    receptionHours: ReceptionHoursSetting | null;
+    paymentTermsDays: number;
+  };
 };
 
 /** Catégorie de produits : officielle, ou proposée par un producteur. */
@@ -103,6 +174,8 @@ export type MarketSnapshot = {
   disputes: Dispute[];
   /** Équipe : membres à qui confier un litige. */
   disputeStaff: { id: string; name: string }[];
+  /** Avoirs du restaurant (tous pour l'équipe). */
+  creditNotes: CreditNote[];
   products: Product[];
   orders: Order[];
   restaurantOrders: RestaurantOrder[];

@@ -36,13 +36,26 @@ export async function nextNumber(q: Q, sequence: string): Promise<number> {
 }
 
 export type NotificationInput = {
-  type: "order" | "payment" | "stock" | "system";
+  /** « offer » : course ouverte annoncée à tous les livreurs. */
+  type: "order" | "payment" | "stock" | "system" | "offer";
   title: string;
   body: string;
   link?: string;
 };
 
+/** Notifications que la personne peut couper dans ses réglages (les
+ * paiements, litiges et messages de l'équipe arrivent toujours). */
+export const MUTABLE_NOTIFICATIONS = ["order", "stock", "offer"] as const;
+
 export async function notifyUser(q: Q, userId: string, n: NotificationInput) {
+  if ((MUTABLE_NOTIFICATIONS as readonly string[]).includes(n.type)) {
+    const [u] = await q
+      .select({ preferences: users.preferences })
+      .from(users)
+      .where(eq(users.id, userId));
+    const muted = (u?.preferences as { mutedNotifications?: unknown } | null)?.mutedNotifications;
+    if (Array.isArray(muted) && muted.includes(n.type)) return;
+  }
   await q.insert(notifications).values({ userId, ...n });
 }
 

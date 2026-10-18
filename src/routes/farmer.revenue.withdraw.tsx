@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,11 @@ import {
   useWallets,
   usePaymentPrefs,
   useTransactions,
+  useMyAccount,
 } from "@/data/store";
+import { formatSenegalPhone } from "@/lib/auth/helpers";
+
+const phoneLabel = (nine: string) => (/^\d{9}$/.test(nine) ? formatSenegalPhone(nine) : nine);
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +33,21 @@ function WithdrawPage() {
   const navigate = useNavigate();
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
+  // Mode base : numéros enregistrés dans Paramètres, sinon le téléphone du compte.
+  const account = useMyAccount();
+  const remoteWallets = (
+    [
+      ["Wave", account?.preferences.payout.wave, "#1DB7FF"],
+      ["Orange Money", account?.preferences.payout.orangeMoney, "#FF6F00"],
+    ] as const
+  ).map(([m, saved, color]) => ({
+    id: `remote-${m}`,
+    method: m as PaymentMethod,
+    color,
+    phone: saved
+      ? phoneLabel(saved)
+      : `numéro de votre compte${account?.phone ? ` (${phoneLabel(account.phone)})` : ""}`,
+  }));
   const paymentPrefs = usePaymentPrefs();
   const transactions = useTransactions().filter((t) => t.farmerId === myFarmerId);
   // Un retrait "En cours" réserve déjà les fonds : seul un retrait en échec
@@ -120,29 +139,25 @@ function WithdrawPage() {
           <div className="space-y-4">
             <h3 className="font-semibold">Choisissez le compte de réception</h3>
             <div className="space-y-2">
-              {wallets
-                .filter((w) => !remoteMode || w.method === "Wave" || w.method === "Orange Money")
-                .map((w) => (
-                  <button
-                    key={w.id}
-                    onClick={() => setMethod(w.method)}
-                    className={`w-full text-left rounded-xl border p-4 flex items-center gap-3 transition ${method === w.method ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}
+              {(remoteMode ? remoteWallets : wallets).map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => setMethod(w.method)}
+                  className={`w-full text-left rounded-xl border p-4 flex items-center gap-3 transition ${method === w.method ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border"}`}
+                >
+                  <span
+                    className="grid h-10 w-10 place-items-center rounded-xl font-bold text-white text-xs"
+                    style={{ background: w.color }}
                   >
-                    <span
-                      className="grid h-10 w-10 place-items-center rounded-xl font-bold text-white text-xs"
-                      style={{ background: w.color }}
-                    >
-                      {w.method.slice(0, 2)}
-                    </span>
-                    <div className="flex-1">
-                      <div className="font-semibold">{w.method}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {remoteMode ? "Sur le numéro de votre compte" : w.phone}
-                      </div>
-                    </div>
-                    {method === w.method && <Check className="h-5 w-5 text-primary" />}
-                  </button>
-                ))}
+                    {w.method.slice(0, 2)}
+                  </span>
+                  <div className="flex-1">
+                    <div className="font-semibold">{w.method}</div>
+                    <div className="text-xs text-muted-foreground">{w.phone}</div>
+                  </div>
+                  {method === w.method && <Check className="h-5 w-5 text-primary" />}
+                </button>
+              ))}
             </div>
             <div className="flex justify-end">
               <Button onClick={() => setStep(2)} className="gap-2">
@@ -213,11 +228,7 @@ function WithdrawPage() {
             <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
               <Row
                 k="Compte"
-                v={
-                  remoteMode
-                    ? `${method} · numéro de votre compte Diambar`
-                    : `${method} · ${wallets.find((w) => w.method === method)?.phone}`
-                }
+                v={`${method} · ${(remoteMode ? remoteWallets : wallets).find((w) => w.method === method)?.phone ?? ""}`}
               />
               <Row k="Montant brut" v={formatFCFA(amount)} />
               <Row k="Frais" v={`-${formatFCFA(fee)}`} />

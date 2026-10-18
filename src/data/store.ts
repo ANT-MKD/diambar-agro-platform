@@ -92,7 +92,7 @@ import {
   useDeliveryZones,
   zonesStore,
 } from "./platform-settings";
-import type { MarketSnapshot } from "@/lib/market/types";
+import type { MarketAccount, MarketSnapshot } from "@/lib/market/types";
 import { markNotificationsReadFn } from "@/lib/market/functions";
 import { isMarketRemote, useMarketMode } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
@@ -198,6 +198,30 @@ const walletsStore = createStore<Wallet[]>(seedWallets, "diambar:wallets");
 const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diambar:farmer-profile");
 const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
 const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
+/** Compte connecté tel que renvoyé par le serveur (mode base de données). */
+const accountStore = createStore<MarketAccount | null>(null);
+
+export function useMyAccount(): MarketAccount | null {
+  return useSyncExternalStore(accountStore.subscribe, accountStore.get, accountStore.get);
+}
+
+/** Nom et photo affichés dans l'en-tête : ceux enregistrés sur le serveur
+ * (mode base), sinon ceux de la session. */
+export function useIdentity(user: { name: string; avatar: string }) {
+  const a = useMyAccount();
+  if (!a) return user;
+  return {
+    name: `${a.firstName} ${a.lastName}`.trim() || user.name,
+    avatar: a.avatarUrl || user.avatar,
+  };
+}
+
+/** « 771234567 » → « 77 123 45 67 ». */
+function formatWallet(nine: string) {
+  return /^\d{9}$/.test(nine)
+    ? `${nine.slice(0, 2)} ${nine.slice(2, 5)} ${nine.slice(5, 7)} ${nine.slice(7)}`
+    : nine;
+}
 const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
 const restaurantTeamStore = createStore<RestaurantTeamMember[]>(
   seedRestaurantTeamMembers,
@@ -3064,43 +3088,72 @@ function applyAccount(s: MarketSnapshot) {
 
   const reset = firstVisitOf(s.me.id);
   if (reset) resetSecurityForAccount(a.createdAt);
+  // Profils : tels qu'enregistrés sur le serveur.
+  accountStore.replace(a);
+  const prefs = a.preferences;
   if (s.me.role === "farmer") {
     farmerProfileStore.set((p) => ({
-      ...(reset ? { ...p, bio: "", avatar: "", lang: "fr" as const } : p),
+      ...p,
       firstName: a.firstName,
       lastName: a.lastName,
       email: a.email,
       phone: a.phone,
+      bio: a.farm?.description ?? "",
+      avatar: a.avatarUrl,
+      lang: a.farm?.lang ?? "fr",
     }));
     farmerFarmStore.set((f) => ({
-      ...(reset ? { ...f, types: [], certification: "none" as const, size: "" } : f),
+      ...f,
       name: a.farm?.name ?? f.name,
       city: a.farm?.city ?? a.city,
       address: a.farm?.address ?? f.address,
-      ...(a.farm?.areaHa != null ? { size: String(a.farm.areaHa) } : {}),
+      size: a.farm?.areaHa != null ? String(a.farm.areaHa) : "",
+      types: a.farm?.productionTypes ?? [],
+      certification: a.farm?.certification ?? "none",
     }));
-    if (reset) {
-      walletsStore.set([]);
-      teamStore.set([]);
-    }
+    paymentPrefsStore.set((p) => ({
+      ...p,
+      primary: prefs.payout.primary === "orange_money" ? "Orange Money" : "Wave",
+    }));
+    walletsStore.set(
+      (
+        [
+          ["Wave", prefs.payout.wave, "#1DB7FF"],
+          ["Orange Money", prefs.payout.orangeMoney, "#FF6F00"],
+        ] as const
+      )
+        .filter(([, phone]) => phone)
+        .map(([method, phone, color]) => ({
+          id: `w-${method}`,
+          method,
+          balance: 0,
+          phone: formatWallet(phone),
+          color,
+        })),
+    );
+    if (reset) teamStore.set([]);
   } else if (s.me.role === "restaurant") {
+    const r = a.restaurant;
     restaurantProfileStore.set((p) => ({
-      ...(reset
-        ? {
-            ...p,
-            cuisine: "",
-            bio: "",
-            avatarUrl: "",
-            capacity: 0,
-            newsletter: false,
-            paymentTermsDays: 0,
-          }
-        : p),
+      ...p,
+      displayName: r?.name ?? p.displayName,
+      cuisine: r?.cuisine ?? "",
+      bio: r?.description ?? "",
+      manager: r?.contactName || fullName,
+      capacity: r?.capacity ?? 0,
+      avatarUrl: a.avatarUrl,
+      newsletter: prefs.newsletter,
       phone: a.phone,
       email: a.email,
-      manager: fullName,
-      ninea: a.billing?.ninea ?? p.ninea,
+      city: a.city || p.city,
+      ninea: a.billing?.ninea ?? "",
       billingEmail: a.billing?.email ?? a.email,
+      paymentTermsDays: r?.paymentTermsDays ?? 0,
+      ...(r?.receptionHours
+        ? {
+            receptionHours: { ...p.receptionHours, ...r.receptionHours } as typeof p.receptionHours,
+          }
+        : {}),
     }));
     if (reset) {
       restaurantTeamStore.set([]);
@@ -3111,13 +3164,27 @@ function applyAccount(s: MarketSnapshot) {
       ...d,
       profile: {
         ...d.profile,
-        ...(reset ? { address: "", avatar: "" } : {}),
+        address: a.driver?.address ?? "",
+        avatar: a.avatarUrl,
         name: fullName,
         phone: a.phone,
         email: a.email,
         city: a.city,
       },
-      ...(reset ? { paymentMethods: [] } : {}),
+      // Comptes de retrait enregistrés (Paramètres → Paiements).
+      paymentMethods: (
+        [
+          ["wave", "Wave", prefs.payout.wave],
+          ["orange_money", "Orange Money", prefs.payout.orangeMoney],
+        ] as const
+      )
+        .filter(([, , phone]) => phone)
+        .map(([key, method, phone]) => ({
+          id: `pm-${key}`,
+          method,
+          label: formatWallet(phone),
+          active: prefs.payout.primary === key,
+        })),
     }));
     driverVehicleStore.set((v) => ({
       ...(reset

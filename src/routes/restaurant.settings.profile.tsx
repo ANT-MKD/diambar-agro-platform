@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { useServerForm } from "@/hooks/use-server-form";
 import { toast } from "sonner";
 import { SettingsCard, FieldRow, ToggleRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useRestaurantProfile, restaurantProfileActions } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/restaurant/settings/profile")({
   head: () => ({
@@ -26,7 +29,8 @@ const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
 function RestaurantProfileSettings() {
   const profile = useRestaurantProfile();
-  const [form, setForm] = useState(profile);
+  const base = useBaseMode();
+  const [form, setForm] = useServerForm(profile);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const set = (
     k: "displayName" | "cuisine" | "phone" | "email" | "manager" | "bio" | "avatarUrl",
@@ -47,7 +51,7 @@ function RestaurantProfileSettings() {
     reader.readAsDataURL(file);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.displayName.trim()) {
       toast.error("Le nom affiché est obligatoire");
       return false;
@@ -55,6 +59,31 @@ function RestaurantProfileSettings() {
     if (!/^\S+@\S+\.\S+$/.test(form.email)) {
       toast.error("Adresse email invalide");
       return false;
+    }
+    if (market.isRemote()) {
+      // Enregistré sur le serveur : fiche, téléphone, newsletter, photo.
+      const steps = [
+        () =>
+          market.saveRestaurant({
+            name: form.displayName,
+            cuisine: form.cuisine,
+            description: form.bio,
+            contactName: form.manager,
+          }),
+        () => market.saveAccount({ phone: form.phone }),
+        () => market.savePreferences({ newsletter: form.newsletter }),
+        ...(form.avatarUrl !== profile.avatarUrl
+          ? [() => market.saveAvatar(form.avatarUrl || null)]
+          : []),
+      ];
+      for (const step of steps) {
+        const res = await step();
+        if (!res.ok) {
+          toast.error(res.message);
+          return false;
+        }
+      }
+      return true;
     }
     restaurantProfileActions.update({
       displayName: form.displayName,
@@ -117,8 +146,16 @@ function RestaurantProfileSettings() {
         <FieldRow label="Téléphone">
           <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
         </FieldRow>
-        <FieldRow label="Email">
-          <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+        <FieldRow
+          label="Email"
+          hint={base ? "Adresse de connexion : pour la changer, contactez l'équipe." : undefined}
+        >
+          <Input
+            type="email"
+            value={form.email}
+            readOnly={base}
+            onChange={(e) => set("email", e.target.value)}
+          />
         </FieldRow>
       </div>
       <FieldRow label="Responsable des achats">

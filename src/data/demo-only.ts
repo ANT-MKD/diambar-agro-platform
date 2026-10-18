@@ -25,6 +25,7 @@ export const DEMO_ONLY_PREFIXES = [
   "/driver/incidents",
   "/driver/vehicle",
   "/driver/settings/work",
+  "/driver/settings/privacy",
   // Administration
   "/admin/returns",
   "/admin/incidents",

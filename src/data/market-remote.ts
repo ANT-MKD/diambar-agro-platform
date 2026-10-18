@@ -1,5 +1,11 @@
 import { useEffect } from "react";
 import { downscaleDataUrl } from "@/lib/image-resize";
+import type {
+  AccountPatch,
+  FarmPatch,
+  PreferencesPatch,
+  RestaurantPatch,
+} from "@/lib/market/types";
 import { getRules } from "./rules";
 import { firstDeliveryDay } from "@/lib/delivery-time";
 import type { MissionProofPhoto, MissionStatus, OrderStatus, PaymentMethod } from "./mocks";
@@ -55,6 +61,13 @@ import {
   withdrawMissionFn,
   createRecurringFn,
   openDisputeFn,
+  updateAccountFn,
+  updateAvatarFn,
+  updatePreferencesFn,
+  updateRestaurantFn,
+  updateFarmFn,
+  updateDriverFn,
+  requestAccountDeletionFn,
   replyDisputeFn,
   disputeStaffActionFn,
   requestDisputeEscalationFn,
@@ -100,6 +113,7 @@ import {
   disputeActions,
   replaceDisputes,
   replaceDisputeStaff,
+  replaceCreditNotes,
   type DisputeAttachment,
   type DisputeOutcome,
   type DisputeParty,
@@ -142,6 +156,7 @@ async function load(): Promise<void> {
   replaceMarketData(snap);
   replaceDisputes(snap.disputes ?? []);
   replaceDisputeStaff(snap.disputeStaff ?? []);
+  replaceCreditNotes(snap.creditNotes ?? []);
   if (snap.me.role === "admin") {
     replaceAdminServerNotifications(snap.notifications);
     // Vrais comptes, rôles et journal ; en cas d'échec, les listes restent vides.
@@ -222,6 +237,8 @@ export type PlaceOrderRequest = {
   paymentMethod: PaymentMethod;
   shortagePreference: "partial" | "cancel";
   instructions?: string;
+  /** Avoir à déduire du panier. */
+  creditNoteId?: string;
 };
 
 /** Photos de preuve pour le serveur : images seulement, réduites (2 Mo au plus). */
@@ -347,6 +364,7 @@ export const market = {
       checkoutId: string;
       checkoutReference: string;
       total: number;
+      creditApplied: number;
       orders: { id: string; reference: string }[];
     }>
   > {
@@ -526,6 +544,38 @@ export const market = {
     return remote(() => mergeCategoryFn({ data: { fromId, intoId } }));
   },
 
+  // --- Profil et réglages (mode base) -----------------------------------------------
+
+  saveAccount(patch: AccountPatch): Promise<Result> {
+    return remote(() => updateAccountFn({ data: patch }));
+  },
+
+  /** Photo de profil réduite (512 px) avant l'envoi ; null la retire. */
+  async saveAvatar(dataUrl: string | null): Promise<Result> {
+    const small = dataUrl ? await downscaleDataUrl(dataUrl, 512, 0.85) : null;
+    return remote(() => updateAvatarFn({ data: { dataUrl: small } }));
+  },
+
+  savePreferences(patch: PreferencesPatch): Promise<Result> {
+    return remote(() => updatePreferencesFn({ data: patch }));
+  },
+
+  saveRestaurant(patch: RestaurantPatch): Promise<Result> {
+    return remote(() => updateRestaurantFn({ data: patch }));
+  },
+
+  saveFarm(patch: FarmPatch): Promise<Result> {
+    return remote(() => updateFarmFn({ data: patch }));
+  },
+
+  saveDriver(patch: { address?: string }): Promise<Result> {
+    return remote(() => updateDriverFn({ data: patch }));
+  },
+
+  requestAccountDeletion(reason: string): Promise<Result> {
+    return remote(() => requestAccountDeletionFn({ data: { reason } }));
+  },
+
   // --- Litiges ------------------------------------------------------------------------
 
   /** Ouvre un litige (avec photos de preuve, réduites avant l'envoi). */
@@ -623,17 +673,11 @@ export const market = {
     },
   ): Promise<Result> {
     if (isMarketRemote()) {
-      if (decision.outcome === "credit") {
-        return {
-          ok: false,
-          message: "Les avoirs ne sont pas encore disponibles : choisissez un remboursement.",
-        };
-      }
       return remote(() =>
         resolveDisputeFn({
           data: {
             id,
-            outcome: decision.outcome as "refund" | "partial" | "goodwill" | "rejected",
+            outcome: decision.outcome,
             grantedAmount: decision.grantedAmount,
             liableParty: decision.liableParty,
             reason: decision.reason,
