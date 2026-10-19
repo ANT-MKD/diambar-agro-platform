@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
-  adminProfiles,
   conversationMessages,
   conversationReads,
   conversations,
@@ -12,7 +11,7 @@ import {
   users,
 } from "@/db/schema";
 import type { Conversation, DriverConversation } from "@/data/mocks";
-import { audit, fail, notifyUser, type Q, type Tx } from "./market-common.server";
+import { audit, fail, hasPermission, notifyUser, type Q, type Tx } from "./market-common.server";
 import { loadPeople } from "./people.server";
 import { isStored, signedUrl } from "./storage.server";
 
@@ -25,14 +24,11 @@ type Role = "restaurant" | "farmer" | "driver" | "admin";
 export type Me = { id: string; role: Role };
 export type MessageFile = { storageKey: string; mime: string; size: number; name: string };
 
-export const MESSAGING_STAFF = ["super_admin", "operations", "support"] as const;
+/** Permission de l'équipe qui lit et répond aux conversations. */
+export const MESSAGING_PERMISSION = "messages.view" as const;
 
-export async function isMessagingStaff(q: Q, userId: string): Promise<boolean> {
-  const [p] = await q
-    .select({ role: adminProfiles.adminRole })
-    .from(adminProfiles)
-    .where(eq(adminProfiles.userId, userId));
-  return !!p && (MESSAGING_STAFF as readonly string[]).includes(p.role);
+export function isMessagingStaff(q: Q, userId: string): Promise<boolean> {
+  return hasPermission(q, userId, MESSAGING_PERMISSION);
 }
 
 type ConversationRow = typeof conversations.$inferSelect;

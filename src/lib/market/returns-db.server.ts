@@ -37,8 +37,8 @@ import {
   nextNumber,
   notifyOpsStaff,
   notifyUser,
-  requireStaffRole,
-  staffRoleOf,
+  hasPermission,
+  requirePermission,
   type Q,
   type Tx,
 } from "./market-common.server";
@@ -56,7 +56,7 @@ type Me = { id: string; role: "restaurant" | "farmer" | "driver" | "admin" };
 type Row = typeof returnRequests.$inferSelect;
 
 /** Équipe qui traite les retours (comme les litiges). */
-export const RETURN_STAFF = ["super_admin", "operations", "support"] as const;
+export const RETURN_PERMISSION = "returns.decide" as const;
 
 const REASON_LABEL: Record<ReturnReason, string> = {
   quality: "Qualité non conforme",
@@ -187,10 +187,10 @@ async function loadFor(
   const [r] = lock ? await base.for("update") : await base;
   if (!r) fail("Retour introuvable.");
   if (me.role === "admin") {
-    await requireStaffRole(
+    await requirePermission(
       q,
       me.id,
-      RETURN_STAFF,
+      RETURN_PERMISSION,
       "Votre rôle ne permet pas de traiter les retours.",
     );
     return { r, staff: true };
@@ -283,12 +283,16 @@ export async function farmerDecideReturn(
         body: `${r.reference} : ${note}`,
         link: `/restaurant/returns/${r.id}`,
       });
-      await notifyOpsStaff(tx, {
-        type: "system",
-        title: "Retour refusé par le producteur",
-        body: `${r.reference} sur ${o.reference} : ${note.slice(0, 100)}`,
-        link: `/admin/returns/${r.id}`,
-      });
+      await notifyOpsStaff(
+        tx,
+        {
+          type: "system",
+          title: "Retour refusé par le producteur",
+          body: `${r.reference} sur ${o.reference} : ${note.slice(0, 100)}`,
+          link: `/admin/returns/${r.id}`,
+        },
+        "returns.decide",
+      );
       return;
     }
     const awarded = Math.round(input.amount ?? r.requestedAmount);
@@ -706,8 +710,7 @@ export async function closeReturn(db: Db, me: Me, id: string) {
 export async function readReturns(q: Q, me: Me): Promise<ReturnRequest[]> {
   if (me.role === "driver") return [];
   if (me.role === "admin") {
-    const role = await staffRoleOf(q, me.id);
-    if (!role || !(RETURN_STAFF as readonly string[]).includes(role)) return [];
+    if (!(await hasPermission(q, me.id, RETURN_PERMISSION))) return [];
   }
   const rows = await q
     .select({

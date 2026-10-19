@@ -5,7 +5,6 @@ import {
   Ban,
   CheckCircle2,
   Trash2,
-  Eye,
   ShieldCheck,
   ArrowUpRight,
   ShoppingBag,
@@ -28,10 +27,8 @@ import {
   useAdminRoleForEmail,
   can,
 } from "@/data/admin-store";
-import { impersonationActions } from "@/data/impersonation";
 import { useAllDisputes } from "@/data/disputes";
-import { useOrders, useMissions } from "@/data/store";
-import { products } from "@/data/mocks";
+import { useOrders, useMissions, useProducts } from "@/data/store";
 import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { findFarmerRecord, findRestaurantRecord, findDriverRecord } from "@/lib/user-links";
 import { MISSION_BADGE } from "@/lib/driver-day";
@@ -53,6 +50,8 @@ export const Route = createFileRoute("/admin/users/$userId")({
 const TABS = ["Vue d'ensemble", "Commandes", "Litiges", "Activité"] as const;
 
 function AdminUserDetail() {
+  // Produits réels (base) ou de démonstration, selon le mode.
+  const products = useProducts();
   const { userId } = Route.useParams();
   const { user: currentAdmin } = useRouteContext({ from: "/admin" });
   const currentAdminRole = useAdminRoleForEmail(currentAdmin.email);
@@ -111,24 +110,6 @@ function AdminUserDetail() {
         subtitle={`${user.email} · ${user.phone}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                impersonationActions.start(user.id, user.name, user.role);
-                auditActions.log({
-                  action: "Impersonation démarrée",
-                  target: user.name,
-                  module: "security",
-                  level: "critical",
-                });
-                toast.success(`Vous naviguez en tant que ${user.name}`);
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              Voir en tant que
-            </Button>
             {canSuspend && user.status !== "active" && (
               <Button
                 size="sm"

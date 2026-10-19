@@ -3,7 +3,8 @@ import type { DemoAccount } from "@/data/demo-accounts";
 import type { Role } from "@/data/mocks";
 import type { AdminRoleName } from "@/data/admin-mocks";
 import { normalizeEmail } from "./helpers";
-import { STAFF_ROLE_LABEL, type AccountRecord } from "./store.server";
+import type { PermissionKey } from "./permissions";
+import type { AccountRecord } from "./store.server";
 
 /** Coût bcrypt des mots de passe enregistrés (≈ 70 ms par vérification). */
 export const BCRYPT_COST = 10;
@@ -18,6 +19,8 @@ export type CurrentUser = {
   avatar: string;
   /** Rôle dans l'équipe d'administration, lu dans l'annuaire (comptes admin). */
   adminRole?: AdminRoleName;
+  /** Permissions de ce rôle (le serveur les vérifie à chaque action). */
+  adminPermissions?: PermissionKey[];
 };
 
 function findDemo(email: string): DemoAccount | undefined {
@@ -38,8 +41,8 @@ export function toCurrentUser(account: AccountRecord): CurrentUser {
     name,
     avatar:
       demo?.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-    ...(account.role === "admin" && account.staffRole
-      ? { adminRole: STAFF_ROLE_LABEL[account.staffRole] }
+    ...(account.role === "admin" && account.staffRoleName
+      ? { adminRole: account.staffRoleName, adminPermissions: account.permissions }
       : {}),
   };
 }

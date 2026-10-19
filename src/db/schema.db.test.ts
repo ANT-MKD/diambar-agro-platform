@@ -66,7 +66,7 @@ describe.skipIf(!adminUrl)("schéma de la base", () => {
     const rows = await db.execute<{ tablename: string; rowsecurity: boolean }>(
       sql`select tablename, rowsecurity from pg_tables where schemaname = 'public'`,
     );
-    expect(rows.length).toBe(64);
+    expect(rows.length).toBe(65);
     expect(rows.filter((r) => !r.rowsecurity).map((r) => r.tablename)).toEqual([]);
   });
 

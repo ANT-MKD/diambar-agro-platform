@@ -45,6 +45,7 @@ import {
 } from "@/data/business";
 import { useMissions, useOrders, missionActions, useReassignCandidates } from "@/data/store";
 import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 import { useAllDisputes } from "@/data/disputes";
 import { refundActions, type RefundMethod } from "@/data/finance";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
@@ -84,6 +85,7 @@ function AdminIncidentDetail() {
   const orders = useOrders();
   const disputes = useAllDisputes();
   const navigate = useNavigate();
+  const base = useBaseMode();
 
   const incident = incidents.find((i) => i.id === incidentId);
   const candidates = useReassignCandidates(
@@ -230,7 +232,7 @@ function AdminIncidentDetail() {
     setRefundOpen(true);
   };
 
-  const submitRefund = () => {
+  const submitRefund = async () => {
     const value = Number(refundAmount);
     if (!order || !restaurant) return;
     if (!Number.isFinite(value) || value <= 0) {
@@ -239,6 +241,17 @@ function AdminIncidentDetail() {
     }
     if (!canDecideIncidents) {
       toast.error("Votre rôle ne permet pas de créer un remboursement depuis cet incident.");
+      return;
+    }
+    if (base) {
+      // Avec la base : dossier créé par le serveur, versé depuis Encaissements.
+      const res = await market.refundRestaurantForIncident(incident.id, value, refundReason.trim());
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(`${res.reference ?? "Remboursement"} créé · à verser dans Encaissements`);
+      setRefundOpen(false);
       return;
     }
     const refund = refundActions.create(
@@ -537,7 +550,8 @@ function AdminIncidentDetail() {
           <DialogHeader>
             <DialogTitle>Rembourser le client</DialogTitle>
             <DialogDescription>
-              Crée un dossier suivi dans Remboursements pour {restaurant?.name}, lié à cet incident.
+              Crée un dossier suivi dans Remboursements pour {restaurant?.name}, lié à cet incident
+              {base && " (à la charge de la plateforme, versé depuis Encaissements)"}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -549,18 +563,25 @@ function AdminIncidentDetail() {
                 onChange={(e) => setRefundAmount(e.target.value)}
               />
             </div>
-            <Select value={refundMethod} onValueChange={(v) => setRefundMethod(v as RefundMethod)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(["Wave", "Orange Money", "Free Money", "Virement"] as RefundMethod[]).map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!base && (
+              <Select
+                value={refundMethod}
+                onValueChange={(v) => setRefundMethod(v as RefundMethod)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["Wave", "Orange Money", "Free Money", "Virement"] as RefundMethod[]).map(
+                    (m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+            )}
             <Textarea
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}

@@ -24,7 +24,7 @@ import {
   safeEqual,
 } from "@/lib/auth/helpers";
 import { authSession } from "@/lib/auth/session.server";
-import { STAFF_ROLE_LABEL, withAccountStore, type AccountStore } from "@/lib/auth/store.server";
+import { withAccountStore, type AccountStore } from "@/lib/auth/store.server";
 import { createSignedToken } from "@/lib/auth/tokens.server";
 import {
   SETUP_STEPS,
@@ -38,6 +38,7 @@ import {
   type TvaSetting,
 } from "./setup-model";
 import { DEFAULT_RULES, minutesOf, normalizeDeliveryHours } from "@/lib/platform-rules";
+import { readLoginSecurity, readMaintenance, type LoginSecurity, type Maintenance } from "./params";
 
 // Assistant de configuration : réservé au super administrateur, contrôlé ici
 // côté serveur. Chaque étape enregistre ses réglages dans la base (table
@@ -70,7 +71,7 @@ async function readSetup(store: AccountStore): Promise<PlatformSetup> {
 export const getSetupFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SetupSnapshot> =>
     withAccountStore(async (store) => {
-      const me = await requireStaff(store, ["super_admin"]);
+      const me = await requireStaff(store, "super_admin");
       const s = await store.getSettings(SETTING_KEYS);
       return {
         demoMode: isDemoMode(),
@@ -109,6 +110,7 @@ export const getSetupFn = createServerFn({ method: "GET" }).handler(
         zone: await store.getPilotZone(),
         categories: await store.listCategories(),
         team: await store.listStaff(),
+        roles: await store.listAdminRoles(),
       };
     }),
 );
@@ -249,7 +251,7 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data: input }): Promise<SaveStepResult> =>
     withAccountStore(async (store) => {
-      const me = await requireStaff(store, ["super_admin"]);
+      const me = await requireStaff(store, "super_admin");
       let notice: string | undefined;
       switch (input.step) {
         case "security": {
@@ -368,9 +370,7 @@ export const saveSetupStepFn = createServerFn({ method: "POST" })
 
 export const sendTwoFaSetupCodeFn = createServerFn({ method: "POST" }).handler(
   async (): Promise<SendCodeResult> =>
-    withAccountStore(async (store) =>
-      sendTwoFaSetupCode(await requireStaff(store, ["super_admin"])),
-    ),
+    withAccountStore(async (store) => sendTwoFaSetupCode(await requireStaff(store, "super_admin"))),
 );
 
 // --- Équipe : invitation par lien signé ----------------------------------------
@@ -380,7 +380,11 @@ export type StaffInvite = {
   email: string;
   firstName: string;
   lastName: string;
+  /** Ancienne colonne : rôle fourni du même nom, sinon « support ». */
   staffRole: "operations" | "finance" | "support";
+  /** Rôle choisi (absent des invitations d'avant les rôles personnalisés). */
+  roleId?: string;
+  roleName?: string;
 };
 
 const INVITE_TTL_MS = 72 * 3_600_000;
@@ -389,7 +393,7 @@ const inviteSchema = z.object({
   firstName: text(2, 60, "Prénom requis"),
   lastName: text(2, 60, "Nom requis"),
   email: z.string().trim().email("Email invalide").max(200),
-  staffRole: z.enum(["operations", "finance", "support"]),
+  roleId: z.string().min(1, "Choisissez un rôle").max(64),
 });
 
 export const createStaffInviteFn = createServerFn({ method: "POST" })
@@ -399,13 +403,35 @@ export const createStaffInviteFn = createServerFn({ method: "POST" })
       data,
     }): Promise<{ ok: true; path: string; emailed: boolean } | { ok: false; message: string }> =>
       withAccountStore(async (store) => {
-        const me = await requireStaff(store, ["super_admin"]);
+        const me = await requireStaff(store, "security.manage_admins");
         const email = normalizeEmail(data.email);
         if (await store.emailTaken(email)) {
           return { ok: false, message: "Un compte existe déjà avec cet email." };
         }
+        const role = (await store.listAdminRoles()).find((r) => r.id === data.roleId);
+        if (!role) return { ok: false, message: "Rôle introuvable." };
+        // Hors super admin : pas d'invitation avec plus de droits que les siens.
+        if (
+          me.staffRole !== "super_admin" &&
+          role.permissions.some((p) => !me.permissions.includes(p))
+        ) {
+          return {
+            ok: false,
+            message: "Vous ne pouvez pas inviter avec un rôle qui a plus de droits que le vôtre.",
+          };
+        }
+        const systemKey = role.systemKey as StaffInvite["staffRole"] | null;
         const token = await createSignedToken<StaffInvite>(
-          { kind: "staff_invite", ...data, email },
+          {
+            kind: "staff_invite",
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email,
+            staffRole:
+              systemKey === "operations" || systemKey === "finance" ? systemKey : "support",
+            roleId: role.id,
+            roleName: role.name,
+          },
           INVITE_TTL_MS,
         );
         await store.audit({
@@ -414,14 +440,14 @@ export const createStaffInviteFn = createServerFn({ method: "POST" })
           action: "Invitation d'un membre de l'équipe",
           targetType: "email",
           targetId: email,
-          after: { role: data.staffRole },
+          after: { role: role.name },
         });
         const path = `/invitation?token=${token}`;
         const emailed = await notify(
           email,
           staffInviteEmail({
             firstName: data.firstName,
-            roleLabel: STAFF_ROLE_LABEL[data.staffRole],
+            roleLabel: role.name,
             inviterName: `${me.firstName} ${me.lastName}`.trim(),
             url: appUrl(path),
           }),
@@ -436,7 +462,7 @@ export const setRegistrationsOpenFn = createServerFn({ method: "POST" })
   .validator((input: { open: boolean }) => ({ open: input.open === true }))
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; message: string }> =>
     withAccountStore(async (store) => {
-      const me = await requireStaff(store, ["super_admin"]);
+      const me = await requireStaff(store, "super_admin");
       const setup = await readSetup(store);
       const { done, total } = setupProgress(setup);
       if (data.open && !publicCodeDeliveryAvailable()) {
@@ -465,6 +491,88 @@ export const setRegistrationsOpenFn = createServerFn({ method: "POST" })
       );
       return { ok: true };
     }),
+  );
+
+// --- Paramètres courants (page Paramètres de l'administration) -----------------
+
+export type PlatformParams = {
+  commissionTiers: CommissionTierSetting[];
+  /** Montant à partir duquel un retrait ou un remboursement demande deux
+   * administrateurs ; null tant que les paiements ne sont pas configurés. */
+  approvalThreshold: number | null;
+  loginSecurity: LoginSecurity;
+  maintenance: Maintenance;
+};
+
+async function readParams(store: AccountStore): Promise<PlatformParams> {
+  const s = await store.getSettings([
+    "commission_tiers",
+    "payment_methods",
+    "login_security",
+    "maintenance",
+  ]);
+  const pm = s.payment_methods as PaymentMethodsSetting | undefined;
+  return {
+    commissionTiers:
+      (s.commission_tiers as CommissionTierSetting[] | undefined) ??
+      (DEFAULT_SETTINGS.commission_tiers as CommissionTierSetting[]),
+    approvalThreshold: pm ? (pm.approvalThreshold ?? 100_000) : null,
+    loginSecurity: readLoginSecurity(s.login_security),
+    maintenance: readMaintenance(s.maintenance),
+  };
+}
+
+export const getPlatformParamsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PlatformParams> =>
+    withAccountStore(async (store) => {
+      await requireStaff(store);
+      return readParams(store);
+    }),
+);
+
+const paramsSchema = z.object({
+  commissionTiers: moneySchema.shape.tiers.optional(),
+  approvalThreshold: z.number().int().min(0).max(100_000_000).optional(),
+  loginSecurity: z
+    .object({
+      maxAttempts: z.number().int().min(1, "Au moins 1 tentative").max(20, "20 tentatives au plus"),
+      lockoutMinutes: z.number().int().min(1, "Au moins 1 minute").max(1440, "24 heures au plus"),
+    })
+    .optional(),
+  maintenance: z
+    .object({ active: z.boolean(), message: text(1, 500, "Message de maintenance requis") })
+    .optional(),
+});
+
+/** Enregistre les paramètres modifiés (permission « Modifier les paramètres »). */
+export const savePlatformParamsFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof paramsSchema>) => parse(paramsSchema, input))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: true; params: PlatformParams } | { ok: false; message: string }> =>
+      withAccountStore(async (store) => {
+        const me = await requireStaff(store, "settings.edit");
+        const values: Record<string, unknown> = {};
+        if (data.commissionTiers) values.commission_tiers = data.commissionTiers;
+        if (data.loginSecurity) values.login_security = data.loginSecurity;
+        if (data.maintenance) values.maintenance = data.maintenance;
+        if (data.approvalThreshold !== undefined) {
+          const { payment_methods } = await store.getSettings(["payment_methods"]);
+          if (!payment_methods) {
+            return {
+              ok: false,
+              message: "Configurez d'abord les moyens de paiement (assistant de configuration).",
+            };
+          }
+          values.payment_methods = {
+            ...(payment_methods as PaymentMethodsSetting),
+            approvalThreshold: data.approvalThreshold,
+          };
+        }
+        await store.setSettings(values, me.id);
+        return { ok: true, params: await readParams(store) };
+      }),
   );
 
 // --- Bandeau de l'administration ---------------------------------------------

@@ -51,12 +51,16 @@ export async function createRefund(
     refundId: refund.id,
     note: input.label,
   });
-  await notifyFinanceStaff(tx, {
-    type: "payment",
-    title: "Remboursement à faire",
-    body: `${reference} · ${formatFCFA(amount)} (${input.label})`,
-    link: "/admin/payments",
-  });
+  await notifyFinanceStaff(
+    tx,
+    {
+      type: "payment",
+      title: "Remboursement à faire",
+      body: `${reference} · ${formatFCFA(amount)} (${input.label})`,
+      link: "/admin/payments",
+    },
+    "refunds.execute",
+  );
   return { id: refund.id, reference };
 }
 

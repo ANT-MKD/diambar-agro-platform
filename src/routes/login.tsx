@@ -90,10 +90,12 @@ function LoginPage() {
     return () => clearTimeout(t);
   }, [resendIn]);
 
-  /** Blocage réglé par l'administration (Paramètres → Sécurité), compté sur
-   * le journal de ce navigateur. Le serveur applique en plus son propre
-   * blocage (5 échecs / 15 min), qui ne dépend pas du navigateur. */
+  /** Démonstration sans base : blocage compté sur le journal de ce
+   * navigateur. Avec la base, le serveur applique les réglages de
+   * l'administration (Paramètres → Sécurité), quel que soit le navigateur. */
   const lockoutMinutesLeft = (targetEmail: string): number => {
+    // Avec la base, seul le serveur décide (réglages lus en base).
+    if (config.database) return 0;
     const cutoff = Date.now() - lockoutMinutes * 60_000;
     const recentFails = logs
       .filter(
@@ -162,7 +164,7 @@ function LoginPage() {
         toast.error("Email ou mot de passe incorrect", {
           description:
             result.remaining <= 2
-              ? `Encore ${result.remaining} essai${result.remaining > 1 ? "s" : ""} avant un blocage de 15 minutes.`
+              ? `Encore ${result.remaining} essai${result.remaining > 1 ? "s" : ""} avant un blocage de ${result.lockoutMinutes} minute${result.lockoutMinutes > 1 ? "s" : ""}.`
               : undefined,
         });
         return;

@@ -6,7 +6,8 @@ import { auditLogs, cities, farmers as farmerTable, settings, users, zones } fro
 import { isDemoMode } from "@/lib/auth/config.server";
 import { sessionAccount } from "@/lib/auth/guard.server";
 import { AttemptLimiter } from "@/lib/auth/helpers";
-import type { AccountRecord, StaffRole } from "@/lib/auth/store.server";
+import type { PermissionKey } from "@/lib/auth/permissions";
+import type { AccountRecord } from "@/lib/auth/store.server";
 import { DbAccountStore } from "@/lib/auth/store-db.server";
 import { formatFCFA } from "@/lib/format";
 import { appUrl, notify } from "@/lib/notify/notify.server";
@@ -60,7 +61,7 @@ import {
 } from "./recurring-db.server";
 import {
   assignDispute,
-  DISPUTE_STAFF,
+  DISPUTE_PERMISSION,
   escalateDispute,
   openDispute,
   replyDispute,
@@ -85,7 +86,7 @@ import {
 import {
   addConversationNote,
   markConversationRead,
-  MESSAGING_STAFF,
+  MESSAGING_PERMISSION,
   sendMessage,
   startConversation,
   updateConversationMeta,
@@ -95,6 +96,7 @@ import {
   createTicket,
   replyTicket,
   setTicketStatus,
+  SUPPORT_PERMISSION,
   ticketFromConversation,
 } from "./support-db.server";
 import { normalizePricing } from "@/lib/delivery-pricing";
@@ -115,7 +117,7 @@ import { loadPeople } from "./people.server";
 import { teamRoleAllows, teamRoleLabel, type TeamCap, type TeamOwnerRole } from "./team";
 import { createReview, replyReview, setReviewHidden, type ReviewInput } from "./reviews-db.server";
 import {
-  MODERATION_STAFF,
+  MODERATION_PERMISSION,
   moderateProduct,
   reportProduct,
   type ModerationAction,
@@ -131,7 +133,7 @@ import {
   inspectReturn,
   replyReturn,
   resolveReturn,
-  RETURN_STAFF,
+  RETURN_PERMISSION,
   scheduleReturnPickup,
 } from "./returns-db.server";
 import {
@@ -145,7 +147,7 @@ import {
 import {
   decideDocRenewal,
   decideVehicleChange,
-  FLEET_STAFF,
+  FLEET_PERMISSION,
   logMaintenance,
   reportVehicleIssue,
   requestVehicleChange,
@@ -160,6 +162,7 @@ import {
   commentIncident,
   createIncident,
   escalateIncident,
+  refundRestaurantForIncident,
   resolveIncident,
 } from "./incidents-db.server";
 import {
@@ -173,6 +176,14 @@ import {
   type Bucket,
 } from "./storage.server";
 import type { ActionResult, MarketSnapshot } from "./types";
+import { readMaintenance } from "@/lib/platform/params";
+import {
+  assignAdminRole,
+  createAdminRole,
+  deleteAdminRole,
+  setAdminTeam,
+  updateAdminRole,
+} from "./admin-roles-db.server";
 
 // Place de marché en base : fonctions appelées par les écrans. Chaque appel
 // vérifie la session (compte actif, bon rôle) avant de toucher aux données.
@@ -192,13 +203,15 @@ type CallContext = { member: { userId: string; name: string; role: string } | nu
 async function withMarket<T>(
   roles: Role[],
   fn: (db: Db, me: AccountRecord, ctx: CallContext) => Promise<T>,
-  access?: StaffRole[] | TeamRule,
+  access?: PermissionKey | TeamRule,
+  opts?: { duringMaintenance?: boolean },
 ): Promise<T | { ok: false; message: string }> {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) return { ok: false, message: "Base de données non configurée." };
   const { db, close } = createDb(url);
-  const staff = Array.isArray(access) ? access : undefined;
-  const rule = Array.isArray(access) ? undefined : access;
+  // Une permission (administration) ou une règle d'équipe (établissements).
+  const permission = typeof access === "string" ? access : undefined;
+  const rule = typeof access === "string" ? undefined : access;
   try {
     const store = new DbAccountStore(db);
     const account = await sessionAccount(store);
@@ -227,7 +240,19 @@ async function withMarket<T>(
     if (!roles.includes(me.role)) {
       return { ok: false, message: "Votre compte ne permet pas cette action." };
     }
-    if (staff && (!me.staffRole || !staff.includes(me.staffRole))) {
+    // Mode maintenance (Paramètres de l'administration) : les portails ne
+    // peuvent plus rien faire, seule l'administration continue.
+    if (me.role !== "admin" && !opts?.duringMaintenance) {
+      const [row] = await db
+        .select({ value: settings.value })
+        .from(settings)
+        .where(eq(settings.key, "maintenance"));
+      const maintenance = readMaintenance(row?.value);
+      if (maintenance.active) {
+        return { ok: false, message: `Plateforme en maintenance. ${maintenance.message}` };
+      }
+    }
+    if (permission && !me.permissions.includes(permission)) {
       return { ok: false, message: "Votre rôle ne permet pas cette action." };
     }
     const result = await fn(db, me, {
@@ -313,6 +338,8 @@ export const getMarketSnapshotFn = createServerFn({ method: "GET" }).handler(
         return readSnapshot(db, { id: me.id, role: me.role }, ctx.member);
       },
       team("read"),
+      // Le portail lit l'état de maintenance pour afficher son message.
+      { duringMaintenance: true },
     );
     if ("ok" in res && res.ok === false) throw new Error(res.message);
     return res as MarketSnapshot;
@@ -555,7 +582,7 @@ export const setOrderStatusFn = createServerFn({ method: "POST" })
     withMarket(
       ["farmer", "restaurant", "admin"],
       async (db, me) => {
-        if (me.role === "admin" && !["super_admin", "operations"].includes(me.staffRole ?? "")) {
+        if (me.role === "admin" && !me.permissions.includes("orders.manage")) {
           return { ok: false as const, message: "Votre rôle ne permet pas cette action." };
         }
         await setOrderStatus(
@@ -702,7 +729,7 @@ export const reassignMissionFn = createServerFn({ method: "POST" })
         await reassignMission(db, me.id, data.missionId, data.driverId);
         return { ok: true as const };
       },
-      ["super_admin", "operations"],
+      "deliveries.reassign",
     ),
   );
 
@@ -724,9 +751,6 @@ export const markNotificationsReadFn = createServerFn({ method: "POST" })
   );
 
 // --- Paiements du pilote ----------------------------------------------------------
-
-/** Rôles admin qui ont la main sur l'argent. */
-const MONEY_STAFF: StaffRole[] = ["super_admin", "finance"];
 
 const declareSchema = z.object({
   checkoutId: id,
@@ -765,7 +789,7 @@ export const confirmPaymentFn = createServerFn({ method: "POST" })
         await confirmPayment(db, me.id, data.paymentId, data.providerRef, data.amountReceived);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "finance.edit",
     ),
   );
 
@@ -784,7 +808,7 @@ export const rejectPaymentFn = createServerFn({ method: "POST" })
         await rejectPayment(db, me.id, data.paymentId, data.reason);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "finance.edit",
     ),
   );
 
@@ -825,7 +849,7 @@ export const payPayoutFn = createServerFn({ method: "POST" })
         await payPayout(db, me.id, data.payoutId, data.providerRef);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "finance.edit",
     ),
   );
 
@@ -843,7 +867,7 @@ export const rejectPayoutFn = createServerFn({ method: "POST" })
         await rejectPayout(db, me.id, data.payoutId, data.reason);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "finance.edit",
     ),
   );
 
@@ -864,7 +888,7 @@ export const payRefundFn = createServerFn({ method: "POST" })
         await payRefund(db, me.id, data.refundId, data);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "refunds.execute",
     ),
   );
 
@@ -882,7 +906,7 @@ export const approvePayoutFn = createServerFn({ method: "POST" })
         await approvePayout(db, me.id, data.payoutId);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "finance.edit",
     ),
   );
 
@@ -897,7 +921,7 @@ export const approveRefundFn = createServerFn({ method: "POST" })
         await approveRefund(db, me.id, data.refundId);
         return { ok: true as const };
       },
-      MONEY_STAFF,
+      "refunds.approve",
     ),
   );
 
@@ -967,7 +991,7 @@ export const quoteDeliveryFn = createServerFn({ method: "POST" })
 // --- Catégories de produits (admin) ---------------------------------------------------
 
 /** Rôles qui tiennent la liste des catégories. */
-const CATALOG_STAFF: StaffRole[] = ["super_admin", "operations"];
+const CATALOG_PERMISSION = "catalog.manage" as const;
 
 export const approveCategoryFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => parse(z.object({ id }), input))
@@ -978,7 +1002,7 @@ export const approveCategoryFn = createServerFn({ method: "POST" })
         await approveCategory(db, me.id, data.id);
         return { ok: true as const };
       },
-      CATALOG_STAFF,
+      CATALOG_PERMISSION,
     ),
   );
 
@@ -993,7 +1017,7 @@ export const renameCategoryFn = createServerFn({ method: "POST" })
         await renameCategory(db, me.id, data.id, data.name);
         return { ok: true as const };
       },
-      CATALOG_STAFF,
+      CATALOG_PERMISSION,
     ),
   );
 
@@ -1008,7 +1032,7 @@ export const mergeCategoryFn = createServerFn({ method: "POST" })
         ok: true as const,
         moved: await mergeCategory(db, me.id, data.fromId, data.intoId),
       }),
-      CATALOG_STAFF,
+      CATALOG_PERMISSION,
     ),
   );
 
@@ -1023,7 +1047,7 @@ export const renameUnitFn = createServerFn({ method: "POST" })
         ok: true as const,
         moved: await renameUnit(db, me.id, data.from, data.to),
       }),
-      CATALOG_STAFF,
+      CATALOG_PERMISSION,
     ),
   );
 
@@ -1264,7 +1288,7 @@ export const disputeStaffActionFn = createServerFn({ method: "POST" })
         } else await escalateDispute(db, me.id, data.id, data.reason ?? "");
         return { ok: true as const };
       },
-      [...DISPUTE_STAFF],
+      DISPUTE_PERMISSION,
     ),
   );
 
@@ -1298,7 +1322,7 @@ export const resolveDisputeFn = createServerFn({ method: "POST" })
         await resolveDispute(db, me.id, disputeId, input);
         return { ok: true as const };
       },
-      [...DISPUTE_STAFF],
+      DISPUTE_PERMISSION,
     ),
   );
 
@@ -1309,13 +1333,58 @@ export type AdminDirectoryResult = ({ ok: true } & AdminDirectory) | { ok: false
 /** Admin : vrais comptes, rôles de l'équipe et journal d'audit. */
 export const getAdminDirectoryFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<AdminDirectoryResult> =>
-    withMarket(["admin"], async (db) => ({ ok: true as const, ...(await readAdminDirectory(db)) })),
+    withMarket(["admin"], async (db, me) => ({
+      ok: true as const,
+      ...(await readAdminDirectory(db, me)),
+    })),
 );
+
+// --- Rôles de l'administration -------------------------------------------------------
+
+const roleInputSchema = z.object({
+  name: z.string().max(80),
+  description: z.string().max(400).default(""),
+  permissions: z.array(z.string().max(60)).max(80),
+});
+const adminRoleActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("create"), role: roleInputSchema }),
+  z.object({ action: z.literal("update"), id, role: roleInputSchema }),
+  z.object({ action: z.literal("delete"), id }),
+  z.object({
+    action: z.literal("assign"),
+    userId: id,
+    roleId: z.union([id, z.literal("super_admin")]),
+  }),
+  z.object({ action: z.literal("team"), userId: id, team: z.string().max(80) }),
+]);
+
+export type AdminRoleActionInput = z.input<typeof adminRoleActionSchema>;
+
+/** Créer, modifier, supprimer un rôle ; donner un rôle ou une équipe. Les
+ * droits sont vérifiés dans chaque opération (voir admin-roles-db). */
+export const adminRoleActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof adminRoleActionSchema>) => parse(adminRoleActionSchema, input))
+  .handler(async ({ data }): Promise<ActionResult> =>
+    withMarket(["admin"], async (db, me) => {
+      if (data.action === "create") await createAdminRole(db, me, data.role);
+      else if (data.action === "update") await updateAdminRole(db, me, data.id, data.role);
+      else if (data.action === "delete") await deleteAdminRole(db, me, data.id);
+      else if (data.action === "assign") {
+        await assignAdminRole(
+          db,
+          me,
+          data.userId,
+          data.roleId === "super_admin" ? { superAdmin: true } : { roleId: data.roleId },
+        );
+      } else await setAdminTeam(db, me, data.userId, data.team);
+      return { ok: true as const };
+    }),
+  );
 
 // --- Tarifs de livraison (admin) -----------------------------------------------------
 
 /** Rôles qui règlent les tarifs et les positions. */
-const PRICING_STAFF: StaffRole[] = ["super_admin", "operations"];
+const PRICING_PERMISSION = "pricing.edit" as const;
 
 export const getDeliverySettingsFn = createServerFn({ method: "GET" }).handler(async () =>
   withMarket(["admin"], async (db) => ({
@@ -1369,7 +1438,7 @@ export const saveDeliveryPricingFn = createServerFn({ method: "POST" })
         });
         return { ok: true as const };
       },
-      PRICING_STAFF,
+      PRICING_PERMISSION,
     ),
   );
 
@@ -1416,7 +1485,7 @@ export const saveDriverPayFn = createServerFn({ method: "POST" })
         });
         return { ok: true as const };
       },
-      PRICING_STAFF,
+      PRICING_PERMISSION,
     ),
   );
 
@@ -1456,7 +1525,7 @@ export const savePlaceCoordsFn = createServerFn({ method: "POST" })
         });
         return { ok: true as const };
       },
-      PRICING_STAFF,
+      PRICING_PERMISSION,
     ),
   );
 
@@ -1493,7 +1562,7 @@ export const saveFarmerDeliveryFn = createServerFn({ method: "POST" })
         });
         return { ok: true as const };
       },
-      PRICING_STAFF,
+      PRICING_PERMISSION,
     ),
   );
 
@@ -1759,7 +1828,7 @@ export const conversationStaffFn = createServerFn({ method: "POST" })
         }
         return { ok: true as const };
       },
-      [...MESSAGING_STAFF],
+      MESSAGING_PERMISSION,
     ),
   );
 
@@ -1841,7 +1910,7 @@ export const ticketStaffFn = createServerFn({ method: "POST" })
         if (data.assigneeId !== undefined) await assignTicket(db, who, data.id, data.assigneeId);
         return { ok: true as const };
       },
-      [...MESSAGING_STAFF],
+      SUPPORT_PERMISSION,
     ),
   );
 
@@ -1864,7 +1933,7 @@ export const ticketFromConversationFn = createServerFn({ method: "POST" })
           data,
         )),
       }),
-      [...MESSAGING_STAFF],
+      SUPPORT_PERMISSION,
     ),
   );
 
@@ -1926,7 +1995,7 @@ export const hideReviewFn = createServerFn({ method: "POST" })
         await setReviewHidden(db, me.id, data.id, data.hidden);
         return { ok: true as const };
       },
-      [...MODERATION_STAFF],
+      MODERATION_PERMISSION,
     ),
   );
 
@@ -1962,13 +2031,16 @@ export const moderateProductFn = createServerFn({ method: "POST" })
     withMarket(
       ["admin"],
       async (db, me) => {
-        if (data.action === "suspend_farmer" && me.staffRole !== "super_admin") {
-          return { ok: false as const, message: "Seul le super admin suspend un compte." };
+        if (data.action === "suspend_farmer" && !me.permissions.includes("users.suspend")) {
+          return {
+            ok: false as const,
+            message: "Votre rôle ne permet pas de suspendre un compte.",
+          };
         }
         await moderateProduct(db, me.id, data.productId, data.action, data.note ?? "");
         return { ok: true as const };
       },
-      [...MODERATION_STAFF],
+      MODERATION_PERMISSION,
     ),
   );
 
@@ -1992,7 +2064,7 @@ export const setAccountStatusFn = createServerFn({ method: "POST" })
         await setAccountStatus(db, me, data.userId, data.status, data.reason ?? "");
         return { ok: true as const };
       },
-      ["super_admin"],
+      "users.suspend",
     ),
   );
 
@@ -2155,7 +2227,7 @@ export const returnStaffFn = createServerFn({ method: "POST" })
         }
         return { ok: true as const };
       },
-      [...RETURN_STAFF],
+      RETURN_PERMISSION,
     ),
   );
 
@@ -2206,23 +2278,30 @@ export const incidentActionFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
       id: string;
-      action: "escalate" | "comment" | "resolve";
+      action: "escalate" | "comment" | "resolve" | "refund_restaurant";
       text?: string;
       awarded?: number;
     }) =>
       parse(
         z.object({
           id,
-          action: z.enum(["escalate", "comment", "resolve"]),
+          action: z.enum(["escalate", "comment", "resolve", "refund_restaurant"]),
           text: z.string().max(1000).optional(),
           awarded: z.number().finite().min(0).max(10_000_000).optional(),
         }),
         input,
       ),
   )
-  .handler(async ({ data }): Promise<ActionResult> =>
+  .handler(async ({ data }): Promise<ActionResult | { ok: true; reference: string }> =>
     withMarket(["driver", "admin"], async (db, me) => {
       const who = { id: me.id, role: me.role };
+      if (data.action === "refund_restaurant") {
+        const refund = await refundRestaurantForIncident(db, who, data.id, {
+          amount: data.awarded ?? 0,
+          reason: data.text,
+        });
+        return { ok: true as const, reference: refund.reference };
+      }
       if (data.action === "escalate") await escalateIncident(db, who, data.id);
       else if (data.action === "comment") await commentIncident(db, who, data.id, data.text ?? "");
       else {
@@ -2387,7 +2466,7 @@ export const fleetDecisionFn = createServerFn({ method: "POST" })
         else await decideVehicleChange(db, who, data.id, data);
         return { ok: true as const };
       },
-      [...FLEET_STAFF],
+      FLEET_PERMISSION,
     ),
   );
 

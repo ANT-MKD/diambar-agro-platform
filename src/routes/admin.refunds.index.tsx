@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, useRouteContext } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import { useMemo, useState } from "react";
 import {
   Banknote,
@@ -90,8 +91,17 @@ export const Route = createFileRoute("/admin/refunds/")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: RefundsPage,
+  component: RefundsRoute,
 });
+
+// Avec la base, les remboursements se suivent et se versent dans Encaissements.
+function RefundsRoute() {
+  return useBaseMode() ? (
+    <Navigate to="/admin/payments" search={{ tab: "refunds" }} replace />
+  ) : (
+    <RefundsPage />
+  );
+}
 
 const TABS: { key: RefundStatus | "all"; label: string }[] = [
   { key: "all", label: "Tous" },

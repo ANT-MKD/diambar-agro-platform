@@ -15,6 +15,7 @@ import { DAKAR_ZONES } from "../lib/platform/setup-model.ts";
 import type { Db } from "./client.server.ts";
 import {
   adminProfiles,
+  adminRoles,
   categories,
   cities,
   driverZones,
@@ -201,12 +202,17 @@ export async function seedDemo(db: Db) {
     return id;
   };
 
+  // Rôles fournis par la migration (Opérations, Finance, Support, Modération).
+  const systemRoles = await db
+    .select({ id: adminRoles.id, key: adminRoles.systemKey })
+    .from(adminRoles);
   await db
     .insert(adminProfiles)
     .values(
       Object.entries(ADMIN_ROLES).map(([email, adminRole]) => ({
         userId: userId(email),
         adminRole,
+        roleId: systemRoles.find((r) => r.key === adminRole)?.id ?? null,
       })),
     )
     .onConflictDoNothing();

@@ -1,3 +1,5 @@
+import type { Maintenance } from "@/lib/platform/params";
+import type { CommissionTierSetting } from "@/lib/platform/setup-model";
 import type {
   AppNotification,
   Conversation,
@@ -248,6 +250,12 @@ export type MarketSnapshot = {
     balance: number;
     available: number;
   };
+  /** Mode maintenance réglé par l'administration (les portails l'affichent). */
+  maintenance?: Maintenance;
+  /** Barème de commissions des producteurs (admin, producteur). */
+  commissionTiers?: CommissionTierSetting[];
+  /** Admin : revenus de tous les producteurs (vente, commission), pour la finance. */
+  platformTransactions?: Transaction[];
   /** Livreur : gains et retraits (grand livre). */
   driverWallet?: DriverWallet;
   /** Admin : ce que Diambar doit à chaque producteur et livreur. */

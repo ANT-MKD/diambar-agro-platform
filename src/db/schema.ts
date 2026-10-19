@@ -277,13 +277,46 @@ export const users = pgTable(
   ],
 );
 
-export const adminProfiles = pgTable("admin_profiles", {
-  userId: uuid("user_id")
-    .primaryKey()
-    .references(() => users.id),
-  adminRole: adminRole("admin_role").notNull(),
-  team: text("team"),
-});
+/** Rôles de l'administration : un nom et un ensemble de permissions (liste
+ * dans src/lib/auth/permissions.ts). Les rôles fournis à l'installation ont
+ * une clé système : modifiables, jamais supprimés. */
+export const adminRoles = pgTable(
+  "admin_roles",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    permissions: text("permissions")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    systemKey: text("system_key"),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("admin_roles_name_key").on(sql`lower(${t.name})`),
+    uniqueIndex("admin_roles_system_key_key").on(t.systemKey),
+    index("admin_roles_created_by_idx").on(t.createdBy),
+    check("admin_roles_name_length", sql`char_length(${t.name}) between 2 and 60`),
+  ],
+);
+
+export const adminProfiles = pgTable(
+  "admin_profiles",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    /** Seul « super_admin » compte encore : il a toutes les permissions. Pour
+     * les autres, les droits viennent du rôle (role_id). */
+    adminRole: adminRole("admin_role").notNull(),
+    roleId: uuid("role_id").references(() => adminRoles.id),
+    team: text("team"),
+  },
+  (t) => [index("admin_profiles_role_idx").on(t.roleId)],
+);
 
 export const files = pgTable(
   "files",

@@ -8,18 +8,16 @@ import {
 import { isDemoMode } from "./config.server";
 import { requireStaff } from "./guard.server";
 import { withAccountStore } from "./store.server";
-import type { AccountRecord, Application, ApplicationDecision, StaffRole } from "./store.server";
+import type { AccountRecord, Application, ApplicationDecision } from "./store.server";
 
 export type { Application, ApplicationDecision };
 
 // Dossiers d'inscription (comptes en attente de validation), lus et décidés
 // côté serveur. Les droits sont vérifiés ici : voir les dossiers = toute
-// l'équipe ; décider = super administrateur ou opérations.
-
-const DECIDERS: StaffRole[] = ["super_admin", "operations"];
+// l'équipe ; décider = permission « Traiter les inscriptions ».
 
 function canDecide(account: AccountRecord): boolean {
-  return !!account.staffRole && DECIDERS.includes(account.staffRole);
+  return account.permissions.includes("validations.decide");
 }
 
 export type ApplicationsPage = {
@@ -69,7 +67,7 @@ export const decideApplicationFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<DecideApplicationResult> =>
     withAccountStore(async (store) => {
-      const me = await requireStaff(store, DECIDERS);
+      const me = await requireStaff(store, "validations.decide");
       const result = await store.decideApplication({
         id: data.id,
         decision: data.decision,

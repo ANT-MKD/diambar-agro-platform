@@ -56,12 +56,16 @@ export async function resolveCategory(tx: Tx, name: string, farmerId: string): P
       sortOrder: 1000 + list.length,
     })
     .returning({ id: categories.id });
-  await notifyOpsStaff(tx, {
-    type: "system",
-    title: "Nouvelle catégorie proposée",
-    body: `« ${clean} », par ${farmer?.farmName || "un producteur"}. À garder, renommer ou fusionner.`,
-    link: "/admin/categories",
-  });
+  await notifyOpsStaff(
+    tx,
+    {
+      type: "system",
+      title: "Nouvelle catégorie proposée",
+      body: `« ${clean} », par ${farmer?.farmName || "un producteur"}. À garder, renommer ou fusionner.`,
+      link: "/admin/categories",
+    },
+    "catalog.manage",
+  );
   return created.id;
 }
 

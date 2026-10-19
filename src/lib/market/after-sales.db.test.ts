@@ -28,6 +28,7 @@ import {
   createIncident,
   escalateIncident,
   readIncidents,
+  refundRestaurantForIncident,
   resolveIncident,
 } from "./incidents-db.server";
 import { acceptMission, confirmOrder, placeOrder } from "./market-db.server";
@@ -430,6 +431,30 @@ describe.skipIf(!adminUrl)("après-vente (base)", () => {
     const [view] = (await readIncidents(db, me(driverId, "driver"))).filter((i) => i.id === inc.id);
     expect(view).toMatchObject({ driverId, severity: "low", status: "open" });
     expect(view.history[0].text).toBe("Incident ouvert par l'équipe");
+
+    // Remboursement du restaurant livré pendant cette course, à la charge de
+    // la plateforme : rejoint les remboursements à verser.
+    await expect(
+      refundRestaurantForIncident(db, me(financeId, "admin"), inc.id, { amount: 1000 }),
+    ).rejects.toThrow(/rôle/);
+    await expect(
+      refundRestaurantForIncident(db, me(adminId, "admin"), inc.id, { amount: 100_000_000 }),
+    ).rejects.toThrow(/remboursable/);
+    const platformBefore = await balance(null);
+    const refund = await refundRestaurantForIncident(db, me(adminId, "admin"), inc.id, {
+      amount: 1200,
+      reason: "Livraison en retard",
+    });
+    const [row] = await db.select().from(refunds).where(eq(refunds.id, refund.id));
+    expect(row).toMatchObject({
+      source: "incident",
+      amount: 1200,
+      bornBy: "platform",
+      status: "pending",
+    });
+    expect(await balance(null)).toBe(platformBefore - 1200);
+    const [after] = (await readIncidents(db, me(adminId, "admin"))).filter((i) => i.id === inc.id);
+    expect(after.history.at(-1)?.text).toMatch(/Remboursement REM-\d+ .* créé pour le restaurant/);
   });
 
   it("modération : signalement, retrait du catalogue, historique", async () => {
@@ -464,7 +489,7 @@ describe.skipIf(!adminUrl)("après-vente (base)", () => {
     expect((await store.findByEmail("agriculteur@diambar.sn"))?.status).toBe("active");
     const finance = (await store.findByEmail("finance.apres@exemple.sn"))!;
     await expect(setAccountStatus(db, finance, farmerId, "suspended")).rejects.toThrow(
-      /super admin/,
+      /ne permet pas/,
     );
     const pending = await db
       .select({ id: users.id })

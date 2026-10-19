@@ -2,6 +2,8 @@
 // administrateur) : étapes et forme des réglages. Partagé par le serveur et
 // les écrans.
 
+import type { AdminRoleChoice, PermissionKey } from "@/lib/auth/permissions";
+
 export const SETUP_STEPS = [
   { key: "security", label: "Sécurité", hint: "Protéger le compte super administrateur" },
   { key: "company", label: "Entreprise", hint: "Nom légal, NINEA, adresse : factures et mentions" },
@@ -84,6 +86,9 @@ export type StaffSummary = {
   email: string;
   name: string;
   staffRole: "super_admin" | "operations" | "finance" | "support" | null;
+  /** Nom du rôle (rôle fourni ou créé par l'équipe). */
+  roleName: string | null;
+  permissions: PermissionKey[];
   status: string;
 };
 
@@ -106,6 +111,8 @@ export type SetupSnapshot = {
   zone: PilotZone | null;
   categories: { name: string; used: boolean }[];
   team: StaffSummary[];
+  /** Rôles proposés à l'invitation. */
+  roles: AdminRoleChoice[];
 };
 
 export function setupProgress(setup: PlatformSetup): { done: number; total: number } {

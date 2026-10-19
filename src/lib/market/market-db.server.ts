@@ -1095,12 +1095,16 @@ export async function reportReception(
         link: `/farmer/orders/${o.id}`,
       });
       if (reference) {
-        await notifyFinanceStaff(tx, {
-          type: "payment",
-          title: "Remboursement à faire",
-          body: `${reference} · ${formatFCFA(cash)} refusés à la réception (${o.reference})`,
-          link: "/admin/payments",
-        });
+        await notifyFinanceStaff(
+          tx,
+          {
+            type: "payment",
+            title: "Remboursement à faire",
+            body: `${reference} · ${formatFCFA(cash)} refusés à la réception (${o.reference})`,
+            link: "/admin/payments",
+          },
+          "refunds.execute",
+        );
       }
     }
     return { refusedAmount: amount };

@@ -19,8 +19,8 @@ export async function setAccountStatus(
   reason = "",
 ) {
   const why = reason.trim().slice(0, 300);
-  if (actor.role !== "admin" || actor.staffRole !== "super_admin") {
-    fail("Seul le super admin change le statut d'un compte.");
+  if (actor.role !== "admin" || !actor.permissions.includes("users.suspend")) {
+    fail("Votre rôle ne permet pas de changer le statut d'un compte.");
   }
   if (userId === actor.id) fail("Vous ne pouvez pas changer le statut de votre propre compte.");
   return db.transaction(async (tx) => {
@@ -35,6 +35,14 @@ export async function setAccountStatus(
         .select({ role: adminProfiles.adminRole })
         .from(adminProfiles)
         .where(eq(adminProfiles.userId, userId));
+      // Un compte de l'administration se gère avec les administrateurs ; un
+      // super admin, seulement par un autre super admin.
+      if (!actor.permissions.includes("security.manage_admins")) {
+        fail("Votre rôle ne permet pas de gérer les comptes de l'administration.");
+      }
+      if (prof?.role === "super_admin" && actor.staffRole !== "super_admin") {
+        fail("Seul un super admin change le statut d'un autre super admin.");
+      }
       if (prof?.role === "super_admin" && status !== "active") {
         const others = await tx
           .select({ id: users.id })

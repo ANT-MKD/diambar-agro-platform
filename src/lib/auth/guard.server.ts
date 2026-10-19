@@ -1,6 +1,7 @@
 import { passwordVersion } from "./accounts.server";
 import { authSession } from "./session.server";
-import type { AccountRecord, AccountStore, StaffRole } from "./store.server";
+import type { PermissionKey } from "./permissions";
+import type { AccountRecord, AccountStore } from "./store.server";
 
 /** Compte de la session en cours, s'il est toujours actif, du bon rôle et
  * que son mot de passe n'a pas changé depuis l'ouverture de la session. */
@@ -37,12 +38,15 @@ export async function requireAccount(store: AccountStore): Promise<AccountRecord
  */
 export async function requireStaff(
   store: AccountStore,
-  allowed?: StaffRole[],
+  need?: PermissionKey | "super_admin",
 ): Promise<AccountRecord> {
   const account = await sessionAccount(store);
   if (!account || account.role !== "admin") throw new Error("Accès réservé à l'administration.");
-  if (allowed && (!account.staffRole || !allowed.includes(account.staffRole))) {
-    throw new Error("Votre rôle ne permet pas cette action.");
-  }
+  const allowed =
+    !need ||
+    (need === "super_admin"
+      ? account.staffRole === "super_admin"
+      : account.permissions.includes(need));
+  if (!allowed) throw new Error("Votre rôle ne permet pas cette action.");
   return account;
 }

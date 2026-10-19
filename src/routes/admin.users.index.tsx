@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { market } from "@/data/market-remote";
 import {
   MoreVertical,
-  Eye,
   Ban,
   CheckCircle2,
   UserCog,
@@ -19,7 +18,6 @@ import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { auditActions, usePlatformUsers, useAdminRoleForEmail, can } from "@/data/admin-store";
-import { impersonationActions } from "@/data/impersonation";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import {
@@ -252,21 +250,6 @@ function AdminUsers() {
                         <Link to="/admin/users/$userId" params={{ userId: u.id }}>
                           Voir le profil
                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          impersonationActions.start(u.id, u.name, u.role);
-                          auditActions.log({
-                            action: "Impersonation démarrée",
-                            target: u.name,
-                            module: "security",
-                            level: "critical",
-                          });
-                          toast.success(`Vous naviguez en tant que ${u.name}`);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Voir en tant que
                       </DropdownMenuItem>
                       {canSuspend &&
                         (u.status === "active" ? (

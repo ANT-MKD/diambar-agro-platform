@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
-  adminProfiles,
   conversations,
   missions,
   orders,
@@ -16,8 +15,17 @@ import type {
   TicketRole,
   TicketStatus,
 } from "@/data/support";
-import { audit, fail, nextNumber, notifyUser, type Q, type Tx } from "./market-common.server";
-import { isMessagingStaff, linkConversationTicket, MESSAGING_STAFF } from "./messaging-db.server";
+import {
+  audit,
+  fail,
+  hasPermission,
+  nextNumber,
+  notifyUser,
+  staffWithPermission,
+  type Q,
+  type Tx,
+} from "./market-common.server";
+import { linkConversationTicket } from "./messaging-db.server";
 import { loadPeople } from "./people.server";
 
 // Support : demandes d'aide des restaurants, producteurs et livreurs, suivies
@@ -42,14 +50,16 @@ const PORTAL: Record<Exclude<Role, "admin">, string> = {
   driver: "/driver/settings/help",
 };
 
+/** Permission de l'équipe qui répond aux demandes de support. */
+export const SUPPORT_PERMISSION = "support.respond" as const;
+
+function isSupportStaff(q: Q, userId: string): Promise<boolean> {
+  return hasPermission(q, userId, SUPPORT_PERMISSION);
+}
+
 async function notifySupportStaff(q: Q, n: { title: string; body: string }) {
-  const staff = await q
-    .select({ id: users.id })
-    .from(adminProfiles)
-    .innerJoin(users, eq(users.id, adminProfiles.userId))
-    .where(and(eq(users.status, "active"), inArray(adminProfiles.adminRole, [...MESSAGING_STAFF])));
-  for (const s of staff) {
-    await notifyUser(q, s.id, { type: "system", ...n, link: "/admin/support" });
+  for (const id of await staffWithPermission(q, SUPPORT_PERMISSION)) {
+    await notifyUser(q, id, { type: "system", ...n, link: "/admin/support" });
   }
 }
 
@@ -157,7 +167,7 @@ async function loadTicket(q: Q, me: Me, id: string) {
   const [t] = await q.select().from(supportTickets).where(eq(supportTickets.id, id));
   if (!t) fail("Demande introuvable.");
   if (me.role === "admin") {
-    if (!(await isMessagingStaff(q, me.id))) fail("Votre rôle ne permet pas le support.");
+    if (!(await isSupportStaff(q, me.id))) fail("Votre rôle ne permet pas le support.");
     return { t, staff: true };
   }
   if (t.userId !== me.id) fail("Demande introuvable.");
@@ -239,7 +249,7 @@ export async function assignTicket(db: Db, me: Me, id: string, assigneeId: strin
   return db.transaction(async (tx) => {
     const { t, staff } = await loadTicket(tx, me, id);
     if (!staff) fail("Réservé à l'équipe.");
-    if (assigneeId && !(await isMessagingStaff(tx, assigneeId))) {
+    if (assigneeId && !(await isSupportStaff(tx, assigneeId))) {
       fail("Cette personne ne traite pas le support.");
     }
     await tx
@@ -264,7 +274,7 @@ export async function ticketFromConversation(
   conversationId: string,
   input: { subject: string; category: TicketCategory },
 ): Promise<{ id: string; reference: string }> {
-  if (!(await isMessagingStaff(db, me.id))) fail("Votre rôle ne permet pas le support.");
+  if (!(await isSupportStaff(db, me.id))) fail("Votre rôle ne permet pas le support.");
   return db.transaction(async (tx) => {
     const [c] = await tx.select().from(conversations).where(eq(conversations.id, conversationId));
     if (!c) fail("Conversation introuvable.");
@@ -290,7 +300,7 @@ export async function ticketFromConversation(
 /** Demandes telles que les écrans les affichent : les siennes, ou toutes
  * pour l'équipe. */
 export async function readTickets(q: Q, me: Me): Promise<SupportTicket[]> {
-  const staff = me.role === "admin" && (await isMessagingStaff(q, me.id));
+  const staff = me.role === "admin" && (await isSupportStaff(q, me.id));
   if (me.role === "admin" && !staff) return [];
   const rows = await q
     .select({ t: supportTickets, role: users.role, orderRef: orders.reference })

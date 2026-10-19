@@ -5,10 +5,9 @@ import { useMarketMode } from "./market-mode";
 // donc masqués des menus et remplacés par un message tant qu'ils ne sont pas
 // reliés au serveur.
 
-export const DEMO_ONLY_PREFIXES = [
-  // Administration
-  "/admin/refunds",
-];
+// Tous les écrans sont aujourd'hui reliés à la base : la liste est vide, le
+// mécanisme reste pour un futur écran de démonstration.
+export const DEMO_ONLY_PREFIXES: string[] = [];
 
 export function isDemoOnlyPath(path: string): boolean {
   return DEMO_ONLY_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));

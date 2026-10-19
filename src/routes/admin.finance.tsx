@@ -34,7 +34,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
-import { payouts } from "@/data/admin-mocks";
+import { payouts as demoPayouts, type Payout } from "@/data/admin-mocks";
+import { useBaseMode } from "@/data/demo-only";
+import { useAdminPayouts, useAdminRefunds } from "@/data/payments-store";
+import type { AdminPayout, AdminRefund } from "@/lib/market/payment-view";
 import { auditActions, useCommissionTiers, useAdminRoleForEmail, can } from "@/data/admin-store";
 import {
   useOrders,
@@ -44,7 +47,7 @@ import {
   withdrawalActions,
   driverWalletActions,
 } from "@/data/store";
-import { useRefunds } from "@/data/finance";
+import { useRefunds, type Refund } from "@/data/finance";
 import {
   commissionForOrder,
   commissionForAmount,
@@ -85,6 +88,47 @@ const METHOD_COLOR: Record<string, string> = {
 
 const LONG_PENDING_MS = 24 * 3600_000;
 
+// Avec la base : retraits et remboursements réels, dans la forme des écrans.
+const PAYOUT_STATUS: Record<AdminPayout["status"], Payout["status"] | null> = {
+  requested: "En cours",
+  processing: "En cours",
+  paid: "Payé",
+  failed: "Échec",
+  cancelled: null,
+};
+const toPayout = (p: AdminPayout): Payout[] => {
+  const status = PAYOUT_STATUS[p.status];
+  return status
+    ? [
+        {
+          id: p.id,
+          reference: p.reference,
+          beneficiary: p.name,
+          role: p.role,
+          amount: p.amount,
+          method: p.method,
+          status,
+          date: (p.paidAt ?? p.createdAt).slice(0, 10),
+        },
+      ]
+    : [];
+};
+const toRefund = (r: AdminRefund): Refund => ({
+  id: r.id,
+  reference: r.reference,
+  source: r.source,
+  orderRef: r.orderReference,
+  bornBy: r.bornBy,
+  requester: r.restaurantName,
+  amount: r.amount,
+  method: r.method === "Espèces" || !r.method ? "Wave" : r.method,
+  reason: r.reason ?? "",
+  status: r.status,
+  createdAt: r.createdAt,
+  attemptCount: 0,
+  history: [],
+});
+
 function AdminFinance() {
   const { user } = useRouteContext({ from: "/admin" });
   const role = useAdminRoleForEmail(user.email);
@@ -92,7 +136,18 @@ function AdminFinance() {
   const orders = useOrders();
   const tiers = useCommissionTiers();
   const recorded = useRecordedCommissions();
-  const refunds = useRefunds();
+  const base = useBaseMode();
+  const demoRefunds = useRefunds();
+  const serverRefunds = useAdminRefunds();
+  const serverPayouts = useAdminPayouts();
+  const refunds = useMemo(
+    () => (base ? serverRefunds.map(toRefund) : demoRefunds),
+    [base, serverRefunds, demoRefunds],
+  );
+  const payouts = useMemo(
+    () => (base ? serverPayouts.flatMap(toPayout) : demoPayouts),
+    [base, serverPayouts],
+  );
   const transactions = useTransactions();
   const withdrawals = useWithdrawals();
   const driverWallet = useDriverWallet();
@@ -152,7 +207,7 @@ function AdminFinance() {
   // retraits agriculteur/livreur bloqués. Ancré sur la donnée la plus
   // récente du jeu de démo plutôt que l'horloge système.
   const refNowRefunds =
-    refunds.length > 0
+    !base && refunds.length > 0
       ? Math.max(...refunds.map((r) => new Date(r.createdAt).getTime()))
       : Date.now();
   const failedRefunds = refunds.filter((r) => r.status === "failed");
@@ -164,11 +219,21 @@ function AdminFinance() {
   const stuckDriverWithdrawals = driverWallet.transactions.filter(
     (t) => t.kind === "withdrawal" && t.status === "En attente",
   );
+  // Avec la base : retraits demandés depuis plus de 24 h, à verser.
+  const pendingServerPayouts = serverPayouts.filter(
+    (p) => p.status === "requested" || p.status === "processing",
+  );
+  const latePayouts = base
+    ? pendingServerPayouts.filter(
+        (p) => Date.now() - new Date(p.createdAt).getTime() > LONG_PENDING_MS,
+      )
+    : [];
   const anomaliesCount =
     failedRefunds.length +
     longPendingRefunds.length +
     stuckFarmerWithdrawals.length +
-    stuckDriverWithdrawals.length;
+    stuckDriverWithdrawals.length +
+    latePayouts.length;
 
   // Chaque producteur a son propre palier de commission (barème dégressif
   // réel de /admin/settings) selon son volume livré cumulé — le graphique
@@ -598,6 +663,16 @@ function AdminFinance() {
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                 </Link>
               ))}
+              {latePayouts.length > 0 && (
+                <Link
+                  to="/admin/payments"
+                  search={{ tab: "payouts" }}
+                  className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs hover:bg-amber-500/10"
+                >
+                  <span>⚠ {latePayouts.length} retrait(s) demandé(s) depuis plus de 24h</span>
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+              )}
               {stuckFarmerWithdrawals.length > 0 && (
                 <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs">
                   <span>
@@ -667,89 +742,120 @@ function AdminFinance() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="glass rounded-2xl p-5 space-y-3">
-          <h2 className="font-semibold">Versements en attente de confirmation</h2>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Retraits réels de l'agriculteur et du livreur connectés à cette démo.
-          </p>
-          {stuckFarmerWithdrawals.length === 0 && stuckDriverWithdrawals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun versement en attente.</p>
-          ) : (
-            <>
-              {stuckFarmerWithdrawals.map((w) => (
-                <div key={w.id} className="rounded-xl border border-border p-3 space-y-2">
+        {base ? (
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <h2 className="font-semibold">Retraits à verser</h2>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Demandés par les producteurs et livreurs ; ils se versent depuis Encaissements.
+            </p>
+            {pendingServerPayouts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun retrait en attente.</p>
+            ) : (
+              pendingServerPayouts.slice(0, 6).map((p) => (
+                <div key={p.id} className="rounded-xl border border-border p-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{w.reference} · producteur</span>
-                    <span className="text-muted-foreground">{relativeTime(w.date)}</span>
+                    <span className="font-medium">
+                      {p.reference} · {p.name}
+                    </span>
+                    <span className="text-muted-foreground">{relativeTime(p.createdAt)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {formatFCFA(w.amount - w.fee)} net · {w.method}
+                    {formatFCFA(p.amount)} · {p.method}
                   </div>
-                  {canEditFinance && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => completeFarmerWithdrawal(w.id, w.reference)}
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Marquer effectué
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-destructive"
-                        onClick={() => failFarmerWithdrawal(w.id, w.reference)}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        Marquer en échec
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              ))}
-              {stuckDriverWithdrawals.map((t) => (
-                <div key={t.id} className="rounded-xl border border-border p-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{t.label} · livreur</span>
-                    <span className="text-muted-foreground">{relativeTime(t.at)}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatFCFA(Math.abs(t.amount))} · {t.method}
-                  </div>
-                  {canEditFinance && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => completeDriverWithdrawal(t.id, t.label)}
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Marquer effectué
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-destructive"
-                        onClick={() => failDriverWithdrawal(t.id, t.label)}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                        Marquer en échec
-                      </Button>
+              ))
+            )}
+            <Button asChild size="sm" variant="outline">
+              <Link to="/admin/payments" search={{ tab: "payouts" }}>
+                Ouvrir les retraits à verser
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="glass rounded-2xl p-5 space-y-3">
+            <h2 className="font-semibold">Versements en attente de confirmation</h2>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Retraits réels de l'agriculteur et du livreur connectés à cette démo.
+            </p>
+            {stuckFarmerWithdrawals.length === 0 && stuckDriverWithdrawals.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun versement en attente.</p>
+            ) : (
+              <>
+                {stuckFarmerWithdrawals.map((w) => (
+                  <div key={w.id} className="rounded-xl border border-border p-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{w.reference} · producteur</span>
+                      <span className="text-muted-foreground">{relativeTime(w.date)}</span>
                     </div>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
+                    <div className="text-xs text-muted-foreground">
+                      {formatFCFA(w.amount - w.fee)} net · {w.method}
+                    </div>
+                    {canEditFinance && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => completeFarmerWithdrawal(w.id, w.reference)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Marquer effectué
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-destructive"
+                          onClick={() => failFarmerWithdrawal(w.id, w.reference)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Marquer en échec
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {stuckDriverWithdrawals.map((t) => (
+                  <div key={t.id} className="rounded-xl border border-border p-3 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{t.label} · livreur</span>
+                      <span className="text-muted-foreground">{relativeTime(t.at)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatFCFA(Math.abs(t.amount))} · {t.method}
+                    </div>
+                    {canEditFinance && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => completeDriverWithdrawal(t.id, t.label)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Marquer effectué
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-destructive"
+                          onClick={() => failDriverWithdrawal(t.id, t.label)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Marquer en échec
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
         <div className="glass rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <div className="font-semibold text-sm">Versements partenaires</div>
             <p className="text-xs text-muted-foreground">
-              Aperçu multi-bénéficiaires (données de synthèse, distinctes des retraits réels
-              ci-contre)
+              {base
+                ? "Retraits demandés par les producteurs et livreurs"
+                : "Aperçu multi-bénéficiaires (données de synthèse, distinctes des retraits réels ci-contre)"}
             </p>
           </div>
           <table className="w-full text-sm">

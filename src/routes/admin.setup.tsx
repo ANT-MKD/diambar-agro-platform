@@ -870,19 +870,12 @@ function CatalogStep({ snapshot, save, saving }: StepProps) {
 
 // --- 8. Équipe -------------------------------------------------------------------
 
-const ROLE_LABEL: Record<string, string> = {
-  super_admin: "Super administrateur",
-  operations: "Opérations",
-  finance: "Finance",
-  support: "Support",
-};
-
 function TeamStep({ snapshot, save, saving }: StepProps) {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    staffRole: "operations" as "operations" | "finance" | "support",
+    roleId: snapshot.roles[0]?.id ?? "",
   });
   const [link, setLink] = useState<{ url: string; name: string; emailed: boolean } | null>(null);
   const [inviting, setInviting] = useState(false);
@@ -902,7 +895,7 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
         name: form.firstName,
         emailed: res.emailed,
       });
-      setForm({ firstName: "", lastName: "", email: "", staffRole: form.staffRole });
+      setForm({ firstName: "", lastName: "", email: "", roleId: form.roleId });
     } catch (err) {
       toast.error(err instanceof Error && err.message ? err.message : "Invitation impossible.");
     } finally {
@@ -920,7 +913,7 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
               <span className="font-medium">{m.name}</span>
               <span className="text-muted-foreground">{m.email}</span>
               <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                {m.staffRole ? ROLE_LABEL[m.staffRole] : "Sans rôle"}
+                {m.roleName ?? "Sans rôle"}
               </span>
             </li>
           ))}
@@ -943,15 +936,15 @@ function TeamStep({ snapshot, save, saving }: StepProps) {
             {(id) => (
               <select
                 id={id}
-                value={form.staffRole}
-                onChange={(e) =>
-                  setForm({ ...form, staffRole: e.target.value as typeof form.staffRole })
-                }
+                value={form.roleId}
+                onChange={(e) => setForm({ ...form, roleId: e.target.value })}
                 className={fieldClass}
               >
-                <option value="operations">Opérations : validations, livraisons, litiges</option>
-                <option value="finance">Finance : paiements, remboursements, versements</option>
-                <option value="support">Support : messages et réclamations</option>
+                {snapshot.roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.description ? `${r.name} : ${r.description}` : r.name}
+                  </option>
+                ))}
               </select>
             )}
           </Field>

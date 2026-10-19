@@ -525,9 +525,9 @@ export const refundSettings = {
 };
 
 // Rôle admin — défini ici (couche données) plutôt que dans admin-store.ts
-// pour que les deux fichiers puissent le référencer sans cycle d'import.
-export type AdminRoleName =
-  "Super Administrateur" | "Finance" | "Opérations" | "Support" | "Modération";
+// pour que les deux fichiers puissent le référencer sans cycle d'import. Avec
+// la base, l'équipe crée ses propres rôles : c'est un nom libre.
+export type AdminRoleName = string;
 
 export const ADMIN_ROLE_NAMES: AdminRoleName[] = [
   "Super Administrateur",
@@ -559,19 +559,6 @@ export const refundApprovalTiers: RefundApprovalTier[] = [
   },
 ];
 
-// Équipes : simple regroupement plat (pas de hiérarchie), distinct du rôle —
-// un utilisateur appartient à une équipe ET a un rôle. Peuplées uniquement
-// avec les comptes admin réels qui existent (u13/u14/u15) ; Support et
-// Modération n'ont pas encore de compte de démo, donc pas d'équipe fictive
-// pour eux.
-export type Team = { id: string; name: string; memberIds: string[] };
-
-export const teams: Team[] = [
-  { id: "team1", name: "Direction", memberIds: ["u13"] },
-  { id: "team2", name: "Finance", memberIds: ["u14"] },
-  { id: "team3", name: "Opérations", memberIds: ["u15"] },
-];
-
 // Source unique des villes desservies par la plateforme : alimente à la
 // fois la tarification livraison (admin) et les listes déroulantes "Ville"
 // des formulaires d'inscription/profil (agriculteur, restaurant). Avant,
@@ -591,7 +578,7 @@ export type Payout = {
   beneficiary: string;
   role: Role;
   amount: number;
-  method: "Wave" | "Orange Money" | "Free Money" | "Virement";
+  method: "Wave" | "Orange Money" | "Free Money" | "Virement" | "Espèces";
   status: "Payé" | "En cours" | "Échec";
   date: string;
 };

@@ -254,12 +254,16 @@ export async function updateFarm(db: Db, me: Me, patch: FarmPatch) {
       if (set.pickupAddress !== before.pickupAddress && before.lat != null) {
         set.lat = null;
         set.lng = null;
-        await notifyOpsStaff(tx, {
-          type: "system",
-          title: "Adresse de collecte modifiée",
-          body: `${before.farmName} : « ${set.pickupAddress} ». Replacez sa position dans Tarifs de livraison.`,
-          link: "/admin/delivery-pricing",
-        });
+        await notifyOpsStaff(
+          tx,
+          {
+            type: "system",
+            title: "Adresse de collecte modifiée",
+            body: `${before.farmName} : « ${set.pickupAddress} ». Replacez sa position dans Tarifs de livraison.`,
+            link: "/admin/delivery-pricing",
+          },
+          "users.edit",
+        );
       }
     }
     if (patch.areaHa !== undefined) {
@@ -311,12 +315,16 @@ export async function updateDriver(db: Db, me: Me, patch: { address?: string }) 
 export async function requestAccountDeletion(db: Db, me: Me, reason: string) {
   const [u] = await db.select().from(users).where(eq(users.id, me.id));
   if (!u) fail("Compte introuvable.");
-  await notifyOpsStaff(db, {
-    type: "system",
-    title: "Demande de suppression de compte",
-    body: `${u.firstName} ${u.lastName} (${u.email})${reason.trim() ? ` : ${reason.trim().slice(0, 200)}` : ""}`,
-    link: `/admin/users/${me.id}`,
-  });
+  await notifyOpsStaff(
+    db,
+    {
+      type: "system",
+      title: "Demande de suppression de compte",
+      body: `${u.firstName} ${u.lastName} (${u.email})${reason.trim() ? ` : ${reason.trim().slice(0, 200)}` : ""}`,
+      link: `/admin/users/${me.id}`,
+    },
+    "users.suspend",
+  );
   await audit(db, {
     actorId: me.id,
     action: "Suppression du compte demandée",

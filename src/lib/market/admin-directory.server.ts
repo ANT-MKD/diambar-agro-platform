@@ -1,7 +1,8 @@
-import { desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   adminProfiles,
+  adminRoles,
   auditLogs,
   cities,
   missions,
@@ -11,8 +12,11 @@ import {
   teamMembers,
 } from "@/db/schema";
 import { loadPeople } from "./people.server";
+import { accessOf } from "@/lib/auth/access";
+import { auditModulesAllowed, type AdminRoleView } from "@/lib/auth/permissions";
+import type { AccountRecord } from "@/lib/auth/store.server";
+import { readAdminRoles } from "./admin-roles-db.server";
 import type {
-  AdminRoleName,
   AuditChange,
   AuditLevel,
   AuditLog,
@@ -26,16 +30,15 @@ import type {
 
 export type AdminDirectory = {
   users: PlatformUser[];
-  /** Rôle d'équipe de chaque administrateur, par identifiant de compte. */
-  staffRoles: Record<string, AdminRoleName>;
+  /** Nom du rôle de chaque administrateur, par identifiant de compte. */
+  staffRoles: Record<string, string>;
+  /** Rôle attribué (identifiant, ou « super_admin »), par compte. */
+  staffRoleIds: Record<string, string>;
+  /** Équipe (regroupement libre) de chaque administrateur. */
+  staffTeams: Record<string, string>;
+  /** Rôles de l'administration et leurs permissions. */
+  roles: AdminRoleView[];
   logs: AuditLog[];
-};
-
-const ROLE_NAME: Record<string, AdminRoleName> = {
-  super_admin: "Super Administrateur",
-  finance: "Finance",
-  operations: "Opérations",
-  support: "Support",
 };
 
 const MODULES = new Set<AuditModule>([
@@ -77,7 +80,7 @@ function changesOf(before: unknown, after: unknown): AuditChange[] | undefined {
   return out.length ? out : undefined;
 }
 
-export async function readAdminDirectory(db: Db): Promise<AdminDirectory> {
+export async function readAdminDirectory(db: Db, me: AccountRecord): Promise<AdminDirectory> {
   const rows = await db
     .select({
       id: users.id,
@@ -170,15 +173,64 @@ export async function readAdminDirectory(db: Db): Promise<AdminDirectory> {
   }));
 
   const staff = await db
-    .select({ userId: adminProfiles.userId, role: adminProfiles.adminRole })
-    .from(adminProfiles);
-  const staffRoles: Record<string, AdminRoleName> = {};
-  for (const s of staff) staffRoles[s.userId] = ROLE_NAME[s.role] ?? "Support";
+    .select({
+      userId: adminProfiles.userId,
+      staffRole: adminProfiles.adminRole,
+      team: adminProfiles.team,
+      roleId: adminRoles.id,
+      roleName: adminRoles.name,
+      perms: adminRoles.permissions,
+    })
+    .from(adminProfiles)
+    .leftJoin(
+      adminRoles,
+      or(
+        eq(adminRoles.id, adminProfiles.roleId),
+        and(
+          isNull(adminProfiles.roleId),
+          eq(adminRoles.systemKey, sql`${adminProfiles.adminRole}::text`),
+        ),
+      ),
+    );
+  const staffRoles: Record<string, string> = {};
+  const staffRoleIds: Record<string, string> = {};
+  const staffTeams: Record<string, string> = {};
+  for (const s of staff) {
+    staffRoles[s.userId] = accessOf(s.staffRole, s.roleName, s.perms).staffRoleName ?? "—";
+    staffRoleIds[s.userId] = s.staffRole === "super_admin" ? "super_admin" : (s.roleId ?? "");
+    if (s.team) staffTeams[s.userId] = s.team;
+  }
 
-  const logRows = await db.select().from(auditLogs).orderBy(desc(auditLogs.at)).limit(300);
+  // Journal : seulement les modules que le rôle de la personne permet de voir.
+  const modules = auditModulesAllowed(me.permissions);
+  const dbModules = modules.flatMap((m) => (m === "users" ? ["users", "team"] : [m]));
+  const logRows = modules.length
+    ? await db
+        .select()
+        .from(auditLogs)
+        .where(
+          modules.includes("system")
+            ? or(
+                inArray(auditLogs.module, dbModules),
+                sql`${auditLogs.module} not in (${sql.join(
+                  [...MODULES, "team"].map((m) => sql`${m}`),
+                  sql`, `,
+                )})`,
+              )
+            : inArray(auditLogs.module, dbModules),
+        )
+        .orderBy(desc(auditLogs.at))
+        .limit(300)
+    : [];
   const nameById = new Map(rows.map((r) => [r.id, personName(r)]));
   const logs: AuditLog[] = logRows.map((l) => {
-    const module = MODULES.has(l.module as AuditModule) ? (l.module as AuditModule) : "system";
+    // Actions des équipes des établissements : rangées avec les utilisateurs.
+    const module =
+      l.module === "team"
+        ? "users"
+        : MODULES.has(l.module as AuditModule)
+          ? (l.module as AuditModule)
+          : "system";
     const level: AuditLevel =
       l.status === "failed" || l.status === "blocked"
         ? "important"
@@ -202,5 +254,18 @@ export async function readAdminDirectory(db: Db): Promise<AdminDirectory> {
     };
   });
 
-  return { users: userList, staffRoles, logs };
+  return {
+    // Comptes : tous avec « Voir les utilisateurs », sinon seulement l'équipe
+    // d'administration pour qui la gère.
+    users: me.permissions.includes("users.view")
+      ? userList
+      : me.permissions.includes("security.manage_admins")
+        ? userList.filter((u) => u.role === "admin")
+        : [],
+    staffRoles,
+    staffRoleIds,
+    staffTeams,
+    roles: await readAdminRoles(db),
+    logs,
+  };
 }

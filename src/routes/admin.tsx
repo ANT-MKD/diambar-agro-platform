@@ -1,6 +1,6 @@
 import { createFileRoute, Link, redirect, useRouterState } from "@tanstack/react-router";
 import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
-import { useHiddenInBase } from "@/data/demo-only";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
 import {
   Activity,
   FileCheck2,
@@ -40,6 +40,7 @@ import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
 import {
   SessionStaffContext,
+  setSessionRolePermissions,
   useAdminNotifications,
   useAdminRoleForEmail,
   useValidations,
@@ -85,9 +86,14 @@ function AdminLayout() {
   const fallbackRole = useAdminRoleForEmail(user.email);
   // Rôle d'équipe lu par le serveur (base) : il décide des menus et actions.
   const adminRole = user.adminRole ?? fallbackRole;
+  // Permissions de la session (base) : disponibles avant même l'annuaire.
+  if (user.adminRole && user.adminPermissions) {
+    setSessionRolePermissions(user.adminRole, user.adminPermissions);
+  }
   const path = useRouterState({ select: (s) => s.location.pathname });
   // Avec la base, les écrans encore en démonstration ne sont pas proposés.
   const hiddenInBase = useHiddenInBase();
+  const remote = useBaseMode();
   const [open, setOpen] = useState(false);
   const validations = useValidations();
   const disputes = useAllDisputes();
@@ -114,9 +120,12 @@ function AdminLayout() {
     useAdminPayments().filter((p) => p.state === "declared" || p.state === "collected").length +
     useAdminPayouts().filter((p) => p.status === "requested" || p.status === "processing").length +
     useAdminRefunds().filter((r) => r.status === "pending" || r.status === "approved").length;
-  const refundsToHandle = refunds.filter(
-    (r) => r.status === "pending" || r.status === "failed",
+  const serverRefundsToPay = useAdminRefunds().filter(
+    (r) => r.status === "pending" || r.status === "approved",
   ).length;
+  const refundsToHandle = remote
+    ? serverRefundsToPay
+    : refunds.filter((r) => r.status === "pending" || r.status === "failed").length;
   const pendingReturns = returns.filter(
     (r) => r.status === "pending" || (r.pickup?.status === "received" && !r.inspection),
   ).length;
@@ -166,7 +175,7 @@ function AdminLayout() {
           label: "Catégories",
           icon: Tags,
           badge: proposedCategories,
-          permission: "validations.decide",
+          permission: "catalog.manage",
         },
       ],
     },
@@ -232,14 +241,14 @@ function AdminLayout() {
           label: "Tarifs de livraison",
           icon: MapPinned,
           badge: 0,
-          permission: "deliveries.reassign",
+          permission: "pricing.edit",
         },
         {
           to: "/admin/documents",
           label: "Documents livreurs",
           icon: FileCheck2,
           badge: pendingDocs,
-          permission: "deliveries.view",
+          permission: "drivers.verify",
         },
         {
           to: "/admin/incidents",

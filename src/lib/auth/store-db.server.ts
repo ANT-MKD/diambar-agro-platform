@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   adminProfiles,
+  adminRoles,
   auditLogs,
   categories,
   cities,
@@ -15,6 +16,8 @@ import {
   zones,
 } from "@/db/schema";
 import type { PilotZone, StaffSummary } from "@/lib/platform/setup-model";
+import { accessOf } from "./access";
+import { cleanPermissions, type AdminRoleChoice } from "./permissions";
 import type { RegisterDetails } from "./session.server";
 import type {
   AccountRecord,
@@ -43,9 +46,21 @@ const accountColumns = {
   phone: users.phone,
   twoFaEnabled: users.twoFaEnabled,
   staffRole: adminProfiles.adminRole,
+  roleName: adminRoles.name,
+  rolePermissions: adminRoles.permissions,
   lastLoginAt: users.lastLoginAt,
   passwordChangedAt: users.passwordChangedAt,
 };
+
+type AccountRow = Omit<AccountRecord, "staffRoleName" | "permissions"> & {
+  roleName: string | null;
+  rolePermissions: string[] | null;
+};
+
+/** Compte avec son rôle d'administration résolu (nom et permissions). */
+function toRecord({ roleName, rolePermissions, ...row }: AccountRow): AccountRecord {
+  return { ...row, ...accessOf(row.staffRole, roleName, rolePermissions) };
+}
 
 /** Violation d'unicité PostgreSQL (email ou téléphone déjà pris entre-temps). */
 function uniqueViolation(err: unknown): string | null {
@@ -71,21 +86,32 @@ export class DbAccountStore implements AccountStore {
     return this.db
       .select(accountColumns)
       .from(users)
-      .leftJoin(adminProfiles, eq(adminProfiles.userId, users.id));
+      .leftJoin(adminProfiles, eq(adminProfiles.userId, users.id))
+      .leftJoin(
+        adminRoles,
+        // Rôle choisi, ou à défaut le rôle fourni qui porte le même nom système.
+        or(
+          eq(adminRoles.id, adminProfiles.roleId),
+          and(
+            isNull(adminProfiles.roleId),
+            eq(adminRoles.systemKey, sql`${adminProfiles.adminRole}::text`),
+          ),
+        ),
+      );
   }
 
   async findByEmail(email: string): Promise<AccountRecord | null> {
     const [row] = await this.accounts()
       .where(and(eq(users.email, email), isNull(users.deletedAt)))
       .limit(1);
-    return row ?? null;
+    return row ? toRecord(row) : null;
   }
 
   async findById(id: string): Promise<AccountRecord | null> {
     const [row] = await this.accounts()
       .where(and(eq(users.id, id), isNull(users.deletedAt)))
       .limit(1);
-    return row ?? null;
+    return row ? toRecord(row) : null;
   }
 
   async emailTaken(email: string): Promise<boolean> {
@@ -558,16 +584,35 @@ export class DbAccountStore implements AccountStore {
     });
   }
 
+  async listAdminRoles(): Promise<AdminRoleChoice[]> {
+    const rows = await this.db
+      .select()
+      .from(adminRoles)
+      .orderBy(adminRoles.createdAt, adminRoles.name);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      systemKey: r.systemKey,
+      permissions: cleanPermissions(r.permissions),
+    }));
+  }
+
   async listStaff(): Promise<StaffSummary[]> {
     const rows = await this.accounts()
       .where(and(eq(users.role, "admin"), isNull(users.deletedAt)))
       .orderBy(users.createdAt);
-    return rows.map((r) => ({
-      email: r.email,
-      name: `${r.firstName} ${r.lastName}`.trim(),
-      staffRole: r.staffRole,
-      status: r.status,
-    }));
+    return rows.map((r) => {
+      const account = toRecord(r);
+      return {
+        email: r.email,
+        name: `${r.firstName} ${r.lastName}`.trim(),
+        staffRole: r.staffRole,
+        roleName: account.staffRoleName,
+        permissions: account.permissions,
+        status: r.status,
+      };
+    });
   }
 
   async createStaffMember(input: NewStaffMember): Promise<CreateStaffResult> {
@@ -585,7 +630,17 @@ export class DbAccountStore implements AccountStore {
             status: "active",
           })
           .returning({ id: users.id });
-        await tx.insert(adminProfiles).values({ userId: user.id, adminRole: input.staffRole });
+        // Rôle choisi à l'invitation, s'il existe toujours.
+        const [role] =
+          input.roleId && /^[0-9a-f-]{36}$/i.test(input.roleId)
+            ? await tx
+                .select({ id: adminRoles.id })
+                .from(adminRoles)
+                .where(eq(adminRoles.id, input.roleId))
+            : [];
+        await tx
+          .insert(adminProfiles)
+          .values({ userId: user.id, adminRole: input.staffRole, roleId: role?.id ?? null });
         await tx.insert(auditLogs).values({
           actorId: user.id,
           module: "security",

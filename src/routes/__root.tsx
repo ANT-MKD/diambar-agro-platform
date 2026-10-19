@@ -11,7 +11,6 @@ import {
 import { MotionConfig } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner";
 import { getPublicInfoFn } from "@/lib/public-info";
 import { DEFAULT_PUBLIC_INFO, type PublicInfo } from "@/lib/public-info-model";
@@ -171,7 +170,6 @@ function RootComponent() {
           qui l'ont activé, sans avoir à auditer chaque motion.div. */}
       <MotionConfig reducedMotion="user">
         <ThemeProvider forcedTheme={isPublicPath(pathname) ? "light" : undefined}>
-          <ImpersonationBanner />
           <Outlet />
           <Toaster richColors position="top-right" />
           <CookieConsentBanner />

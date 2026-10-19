@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useHiddenInBase } from "@/data/demo-only";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
 import { useMemo } from "react";
 import {
   Users,
@@ -48,6 +48,7 @@ import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { useSupportTickets } from "@/data/support";
 import { useOrders, useMissions } from "@/data/store";
 import { payouts } from "@/data/admin-mocks";
+import { useAdminPayouts, useAdminRefunds } from "@/data/payments-store";
 import { drivers, farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
 import { useRecordedCommissions } from "@/data/store";
@@ -109,11 +110,19 @@ function AdminDashboard() {
     pendingIncidents.length +
     pendingModeration.length;
 
-  const pendingPayouts = payouts.filter((p) => p.status !== "Payé");
+  // Avec la base : retraits et remboursements réellement à verser.
+  const base = useBaseMode();
+  const serverPayouts = useAdminPayouts();
+  const serverRefunds = useAdminRefunds();
+  const pendingPayouts = base
+    ? serverPayouts.filter((p) => p.status === "requested" || p.status === "processing")
+    : payouts.filter((p) => p.status !== "Payé");
   const pendingPayoutsTotal = pendingPayouts.reduce((s, p) => s + p.amount, 0);
-  const pendingRefundsTotal = refunds
-    .filter((r) => r.status === "pending")
-    .reduce((s, r) => s + r.amount, 0);
+  const pendingRefundsTotal = base
+    ? serverRefunds
+        .filter((r) => r.status === "pending" || r.status === "approved")
+        .reduce((s, r) => s + r.amount, 0)
+    : refunds.filter((r) => r.status === "pending").reduce((s, r) => s + r.amount, 0);
 
   // Les commandes de démo ne couvrent que 2 jours réels : on ancre "aujourd'hui"
   // sur le jour de la commande la plus récente (comme le fait déjà le portail

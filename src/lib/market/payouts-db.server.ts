@@ -60,12 +60,16 @@ export async function approveRefund(db: Db, adminId: string, refundId: string): 
       .update(refunds)
       .set({ status: "approved", approvedBy: adminId })
       .where(eq(refunds.id, r.id));
-    await notifyFinanceStaff(tx, {
-      type: "payment",
-      title: "Remboursement validé, à envoyer",
-      body: `${r.reference} · ${formatFCFA(r.amount)} : un autre administrateur doit l'envoyer`,
-      link: "/admin/payments",
-    });
+    await notifyFinanceStaff(
+      tx,
+      {
+        type: "payment",
+        title: "Remboursement validé, à envoyer",
+        body: `${r.reference} · ${formatFCFA(r.amount)} : un autre administrateur doit l'envoyer`,
+        link: "/admin/payments",
+      },
+      "refunds.execute",
+    );
     await audit(tx, {
       actorId: adminId,
       action: "Remboursement validé (1/2)",

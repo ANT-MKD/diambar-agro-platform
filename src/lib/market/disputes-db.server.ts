@@ -2,7 +2,6 @@ import { issueCreditNote } from "./credit-notes-db.server";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
-  adminProfiles,
   disputeAttachments,
   disputeEvents,
   disputeMessages,
@@ -17,10 +16,12 @@ import {
 import { formatFCFA } from "@/lib/format";
 import {
   fail,
+  hasPermission,
   nextNumber,
   notifyFinanceStaff,
   notifyOpsStaff,
   notifyUser,
+  staffWithPermission,
   type Q,
   type Tx,
 } from "./market-common.server";
@@ -37,8 +38,8 @@ export type Party = "restaurant" | "farmer" | "driver" | "platform";
 export type Outcome = "refund" | "partial" | "credit" | "goodwill" | "rejected";
 type Me = { id: string; role: "restaurant" | "farmer" | "driver" | "admin" };
 
-/** Équipe qui instruit et tranche les litiges. */
-export const DISPUTE_STAFF = ["super_admin", "operations", "support"] as const;
+/** Permission de l'équipe qui instruit et tranche les litiges. */
+export const DISPUTE_PERMISSION = "disputes.decide" as const;
 
 const SLA_HOURS = { high: 24, medium: 48, low: 72 } as const;
 const PARTY_LABEL: Record<Party, string> = {
@@ -103,12 +104,8 @@ const portalOf = (role: Party) =>
         ? "driver"
         : null;
 
-async function isDisputeStaff(q: Q, userId: string): Promise<boolean> {
-  const [p] = await q
-    .select({ role: adminProfiles.adminRole })
-    .from(adminProfiles)
-    .where(eq(adminProfiles.userId, userId));
-  return !!p && (DISPUTE_STAFF as readonly string[]).includes(p.role);
+function isDisputeStaff(q: Q, userId: string): Promise<boolean> {
+  return hasPermission(q, userId, DISPUTE_PERMISSION);
 }
 
 /** Ouvre un litige : seulement sur une commande (restaurant, producteur) ou
@@ -238,12 +235,16 @@ export async function openDispute(
         link: `/${portal}/disputes/${d.id}`,
       });
     }
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: "Nouveau litige",
-      body: `${reference} · ${PARTY_LABEL[opener]} contre ${PARTY_LABEL[input.againstRole]} · ${o.reference}`,
-      link: `/admin/disputes/${d.id}`,
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: "Nouveau litige",
+        body: `${reference} · ${PARTY_LABEL[opener]} contre ${PARTY_LABEL[input.againstRole]} · ${o.reference}`,
+        link: `/admin/disputes/${d.id}`,
+      },
+      "disputes.decide",
+    );
     return { id: d.id, reference };
   });
 }
@@ -311,12 +312,16 @@ export async function replyDispute(
       });
     }
     if (!staff) {
-      await notifyOpsStaff(tx, {
-        type: "system",
-        title: `Nouveau message · ${d.reference}`,
-        body: text.slice(0, 140),
-        link: `/admin/disputes/${d.id}`,
-      });
+      await notifyOpsStaff(
+        tx,
+        {
+          type: "system",
+          title: `Nouveau message · ${d.reference}`,
+          body: text.slice(0, 140),
+          link: `/admin/disputes/${d.id}`,
+        },
+        "disputes.decide",
+      );
     }
   });
 }
@@ -419,12 +424,16 @@ export async function requestEscalation(db: Db, me: Me, id: string) {
     const { d } = await loadForParticipant(tx, me, id);
     if (d.status === "resolved" || d.status === "rejected") fail("Ce litige est clos.");
     await addEvent(tx, id, me.id, "Escalade demandée par une partie");
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: `Escalade demandée · ${d.reference}`,
-      body: "Une partie demande que le dossier soit traité en priorité.",
-      link: `/admin/disputes/${id}`,
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: `Escalade demandée · ${d.reference}`,
+        body: "Une partie demande que le dossier soit traité en priorité.",
+        link: `/admin/disputes/${id}`,
+      },
+      "disputes.decide",
+    );
   });
 }
 
@@ -536,12 +545,16 @@ export async function resolveDispute(
           refundId,
           missionId: m?.id,
         });
-        await notifyFinanceStaff(tx, {
-          type: "payment",
-          title: "Remboursement à faire",
-          body: `${reference} · ${formatFCFA(granted)} accordés (litige ${d.reference})`,
-          link: "/admin/payments",
-        });
+        await notifyFinanceStaff(
+          tx,
+          {
+            type: "payment",
+            title: "Remboursement à faire",
+            body: `${reference} · ${formatFCFA(granted)} accordés (litige ${d.reference})`,
+            link: "/admin/payments",
+          },
+          "refunds.execute",
+        );
       } else {
         // Producteur ou livreur indemnisé sur son solde.
         const opener = d.openedByRole as "farmer" | "driver";
@@ -621,10 +634,11 @@ export async function resolveDispute(
 
 /** Membres de l'équipe à qui confier un litige. */
 export async function disputeStaff(q: Q): Promise<{ id: string; name: string }[]> {
+  const ids = await staffWithPermission(q, DISPUTE_PERMISSION);
+  if (ids.length === 0) return [];
   const rows = await q
     .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
-    .from(adminProfiles)
-    .innerJoin(users, eq(users.id, adminProfiles.userId))
-    .where(and(eq(users.status, "active"), inArray(adminProfiles.adminRole, [...DISPUTE_STAFF])));
+    .from(users)
+    .where(inArray(users.id, ids));
   return rows.map((r) => ({ id: r.id, name: `${r.firstName} ${r.lastName}`.trim() || "Équipe" }));
 }

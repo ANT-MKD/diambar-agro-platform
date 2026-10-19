@@ -49,9 +49,15 @@ export class AttemptLimiter {
   private readonly failures = new Map<string, number[]>();
 
   constructor(
-    private readonly max: number,
-    private readonly windowMs: number,
+    private max: number,
+    private windowMs: number,
   ) {}
+
+  /** Nouveaux réglages (Paramètres → Sécurité de l'administration). */
+  configure(max: number, windowMs: number) {
+    this.max = max;
+    this.windowMs = windowMs;
+  }
 
   private recent(key: string, now: number): number[] {
     const list = (this.failures.get(key) ?? []).filter((t) => now - t < this.windowMs);

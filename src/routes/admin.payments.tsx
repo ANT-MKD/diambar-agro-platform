@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
   Banknote,
@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAdminRoleForEmail } from "@/data/admin-store";
+import { can, useAdminRoleForEmail } from "@/data/admin-store";
 import { market } from "@/data/market-remote";
 import { useMarketMode } from "@/data/market-mode";
 import {
@@ -49,8 +49,15 @@ import {
 import { downloadCsv } from "@/lib/export";
 import { cn } from "@/lib/utils";
 
+const TAB_KEYS = ["check", "cash", "payouts", "refunds", "unpaid", "balances", "history"] as const;
+
 export const Route = createFileRoute("/admin/payments")({
   head: () => ({ meta: [{ title: "Encaissements — Admin Diambar" }] }),
+  // Onglet ouvert depuis un lien (« Remboursements », « Retraits à verser »).
+  validateSearch: (search: Record<string, unknown>): { tab?: (typeof TAB_KEYS)[number] } =>
+    TAB_KEYS.includes(search.tab as (typeof TAB_KEYS)[number])
+      ? { tab: search.tab as (typeof TAB_KEYS)[number] }
+      : {},
   component: PaymentsPage,
 });
 
@@ -98,13 +105,19 @@ function PaymentsPage() {
   const { remote } = useMarketMode();
   const { user } = useRouteContext({ from: "/admin" });
   const role = useAdminRoleForEmail(user.email);
-  const canHandle = role === "Super Administrateur" || role === "Finance";
+  // Mêmes permissions que celles vérifiées par le serveur.
+  const canHandle = can(role, "finance.edit");
+  const canRefund = can(role, "refunds.approve") || can(role, "refunds.execute");
   const payments = useAdminPayments();
   const payouts = useAdminPayouts();
   const refunds = useAdminRefunds();
   const accounts = useAdminAccounts();
   const merchant = useMerchantNumbers();
-  const [tab, setTab] = useState<Tab>("check");
+  const { tab: initialTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(initialTab ?? "check");
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
   const [search, setSearch] = useState("");
   const [confirming, setConfirming] = useState<AdminPayment | null>(null);
   const [rejecting, setRejecting] = useState<AdminPayment | null>(null);
@@ -266,7 +279,7 @@ function PaymentsPage() {
       {tab === "payouts" ? (
         <PayoutsTab payouts={payouts} canHandle={canHandle} search={search} />
       ) : tab === "refunds" ? (
-        <RefundsTab refunds={refunds} canHandle={canHandle} search={search} />
+        <RefundsTab refunds={refunds} canHandle={canRefund} search={search} />
       ) : tab === "balances" ? (
         <BalancesTab search={search} />
       ) : list.length === 0 ? (

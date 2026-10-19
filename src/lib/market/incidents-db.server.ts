@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sum } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   files,
@@ -7,6 +7,8 @@ import {
   incidents,
   ledgerEntries,
   missions,
+  orders,
+  refunds,
 } from "@/db/schema";
 import type { Incident, IncidentSeverity, IncidentType } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
@@ -18,11 +20,12 @@ import {
   nextNumber,
   notifyOpsStaff,
   notifyUser,
-  requireStaffRole,
-  staffRoleOf,
+  hasPermission,
+  requirePermission,
   type Q,
 } from "./market-common.server";
 import { loadPeople } from "./people.server";
+import { createRefund } from "./refunds-db.server";
 
 // Incidents de course : le livreur signale ce qui a gêné une de ses courses et
 // peut demander une indemnité (attente, panne…). L'équipe la verse sur son
@@ -30,8 +33,8 @@ import { loadPeople } from "./people.server";
 
 type Me = { id: string; role: "restaurant" | "farmer" | "driver" | "admin" };
 
-/** Équipe qui traite les incidents. */
-export const INCIDENT_STAFF = ["super_admin", "operations"] as const;
+/** Permission de l'équipe qui traite les incidents. */
+export const INCIDENT_PERMISSION = "incidents.decide" as const;
 
 // Gravité fixée par le type, comme à l'écran.
 const SEVERITY: Record<IncidentType, IncidentSeverity> = {
@@ -81,10 +84,10 @@ export async function createIncident(
   return db.transaction(async (tx) => {
     const [m] = await tx.select().from(missions).where(eq(missions.id, input.missionId));
     if (me.role === "admin") {
-      await requireStaffRole(
+      await requirePermission(
         tx,
         me.id,
-        INCIDENT_STAFF,
+        INCIDENT_PERMISSION,
         "Votre rôle ne permet pas de traiter les incidents.",
       );
       if (!m) fail("Course introuvable.");
@@ -133,12 +136,16 @@ export async function createIncident(
         link: `/driver/incidents/${inc.id}`,
       });
     }
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: severity === "critical" ? "Incident critique" : "Incident de course",
-      body: `${reference} · ${m.reference} · ${TYPE_LABEL[input.type]}`,
-      link: `/admin/incidents/${inc.id}`,
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: severity === "critical" ? "Incident critique" : "Incident de course",
+        body: `${reference} · ${m.reference} · ${TYPE_LABEL[input.type]}`,
+        link: `/admin/incidents/${inc.id}`,
+      },
+      "incidents.decide",
+    );
     return { id: inc.id, reference };
   });
 }
@@ -147,10 +154,10 @@ async function loadFor(q: Q, me: Me, id: string) {
   const [i] = await q.select().from(incidents).where(eq(incidents.id, id));
   if (!i) fail("Incident introuvable.");
   if (me.role === "admin") {
-    await requireStaffRole(
+    await requirePermission(
       q,
       me.id,
-      INCIDENT_STAFF,
+      INCIDENT_PERMISSION,
       "Votre rôle ne permet pas de traiter les incidents.",
     );
     return { i, staff: true };
@@ -169,12 +176,16 @@ export async function escalateIncident(db: Db, me: Me, id: string) {
       .set({ status: "escalated", updatedAt: new Date() })
       .where(eq(incidents.id, i.id));
     await event(tx, i.id, me.id, "Escaladé au support");
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: "Incident escaladé",
-      body: `${i.reference} : le livreur demande une réponse prioritaire`,
-      link: `/admin/incidents/${i.id}`,
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: "Incident escaladé",
+        body: `${i.reference} : le livreur demande une réponse prioritaire`,
+        link: `/admin/incidents/${i.id}`,
+      },
+      "incidents.decide",
+    );
   });
 }
 
@@ -197,6 +208,79 @@ export async function commentIncident(db: Db, me: Me, id: string, text: string) 
 }
 
 /** Clôture : indemnité versée sur le solde du livreur (0 = refusée). */
+/** Rembourse le restaurant livré pendant la course de l'incident (à la charge
+ * de la plateforme) : le dossier rejoint les remboursements à verser. */
+export async function refundRestaurantForIncident(
+  db: Db,
+  me: Me,
+  id: string,
+  input: { amount: number; reason?: string },
+): Promise<{ id: string; reference: string }> {
+  const amount = Math.round(input.amount || 0);
+  if (!(amount > 0)) fail("Indiquez un montant valide.");
+  return db.transaction(async (tx) => {
+    const { i } = await loadFor(tx, me, id);
+    if (me.role !== "admin") fail("Seule l'équipe rembourse un restaurant.");
+    const [o] = await tx
+      .select({
+        id: orders.id,
+        reference: orders.reference,
+        restaurantId: orders.restaurantId,
+        subtotal: orders.subtotal,
+        deliveryFee: orders.deliveryFee,
+        discount: orders.discount,
+      })
+      .from(missions)
+      .innerJoin(orders, eq(orders.id, missions.orderId))
+      .where(eq(missions.id, i.missionId))
+      .for("update", { of: orders });
+    if (!o) fail("Commande de la course introuvable.");
+    const [{ already }] = await tx
+      .select({ already: sum(refunds.amount).mapWith(Number) })
+      .from(refunds)
+      .where(and(eq(refunds.orderId, o.id), ne(refunds.status, "rejected")));
+    const left = o.subtotal + o.deliveryFee - o.discount - (already ?? 0);
+    if (amount > left) {
+      fail(
+        `Pas plus que ce qui reste remboursable sur ${o.reference} (${formatFCFA(Math.max(0, left))}).`,
+      );
+    }
+    const reason = input.reason?.trim().slice(0, 300) || `Incident ${i.reference}`;
+    const refund = await createRefund(tx, {
+      orderId: o.id,
+      source: "incident",
+      amount,
+      bornBy: "platform",
+      liableUserId: null,
+      missionId: i.missionId,
+      reason,
+      createdBy: me.id,
+      label: `Incident ${i.reference}`,
+    });
+    await event(
+      tx,
+      i.id,
+      me.id,
+      `Remboursement ${refund.reference} (${formatFCFA(amount)}) créé pour le restaurant`,
+    );
+    await audit(tx, {
+      actorId: me.id,
+      module: "incidents",
+      action: `Remboursement du restaurant (${refund.reference})`,
+      targetType: "incident",
+      targetId: i.id,
+      after: { amount, refund: refund.reference },
+    });
+    await notifyUser(tx, o.restaurantId, {
+      type: "payment",
+      title: "Remboursement en cours",
+      body: `${formatFCFA(amount)} sur ${o.reference} suite à un incident de livraison.`,
+      link: `/restaurant/orders/${o.id}`,
+    });
+    return refund;
+  });
+}
+
 export async function resolveIncident(
   db: Db,
   me: Me,
@@ -277,8 +361,7 @@ export async function resolveIncident(
 export async function readIncidents(q: Q, me: Me): Promise<Incident[]> {
   if (me.role !== "driver" && me.role !== "admin") return [];
   if (me.role === "admin") {
-    const role = await staffRoleOf(q, me.id);
-    if (!role || !(INCIDENT_STAFF as readonly string[]).includes(role)) return [];
+    if (!(await hasPermission(q, me.id, INCIDENT_PERMISSION))) return [];
   }
   const rows = await q
     .select({ i: incidents, missionRef: missions.reference })

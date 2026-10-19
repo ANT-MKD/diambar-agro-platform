@@ -6,7 +6,6 @@ import {
   moderationQueue as seedModeration,
   refundSettings as seedRefundSettings,
   refundApprovalTiers as seedRefundApprovalTiers,
-  teams as seedTeams,
   type PlatformUser,
   type PlatformUserStatus,
   type ValidationRequest,
@@ -18,7 +17,6 @@ import {
   type ModerationItem,
   type AdminRoleName,
   type RefundApprovalTier,
-  type Team,
   ADMIN_ROLE_NAMES,
   AUDIT_MODULE_LABEL,
 } from "./admin-mocks";
@@ -34,6 +32,14 @@ import { products, farmers, type AppNotification } from "./mocks";
 import { createStore } from "./persist";
 import { isMarketRemote } from "./market-mode";
 import { tiersStore, zonesStore, useCommissionTiers, useDeliveryZones } from "./platform-settings";
+import {
+  auditModulesAllowed,
+  PERMISSION_KEYS,
+  SUPER_ADMIN_LABEL,
+  SYSTEM_ROLES,
+  type AdminRoleView,
+  type PermissionKey,
+} from "@/lib/auth/permissions";
 
 export { useCommissionTiers, useDeliveryZones };
 
@@ -132,106 +138,37 @@ export const adminUserActions = {
 export { ADMIN_ROLE_NAMES };
 export type { AdminRoleName };
 
-// Clés de permission granulaires par module — remplace l'ancienne matrice
-// cosmétique (4 catégories Voir/Modifier) qui ne configurait que
-// l'affichage de la page Administrateurs. Chaque clé est vérifiée à la fois
-// pour l'affichage ET pour bloquer l'appel de l'action du store
-// correspondante (pas seulement un bouton caché).
-export type PermissionKey =
-  | "users.view"
-  | "users.edit"
-  | "users.suspend"
-  | "validations.decide"
-  | "moderation.decide"
-  | "orders.view"
-  | "deliveries.view"
-  | "deliveries.reassign"
-  | "incidents.decide"
-  | "disputes.decide"
-  | "support.respond"
-  | "returns.decide"
-  | "refunds.view"
-  | "refunds.approve"
-  | "refunds.execute"
-  | "finance.view"
-  | "finance.edit"
-  | "messages.view"
-  | "settings.edit"
-  | "security.manage_admins"
-  | "security.manage_roles"
-  | "audit.view"
-  | "audit.export";
+export type { PermissionKey };
 
-const ALL_PERMISSIONS: PermissionKey[] = [
-  "users.view",
-  "users.edit",
-  "users.suspend",
-  "validations.decide",
-  "moderation.decide",
-  "orders.view",
-  "deliveries.view",
-  "deliveries.reassign",
-  "incidents.decide",
-  "disputes.decide",
-  "support.respond",
-  "returns.decide",
-  "refunds.view",
-  "refunds.approve",
-  "refunds.execute",
-  "finance.view",
-  "finance.edit",
-  "messages.view",
-  "settings.edit",
-  "security.manage_admins",
-  "security.manage_roles",
-  "audit.view",
-  "audit.export",
-];
-
-// Distinct de AUDIT_MODULE_ACCESS (qui ne fait que scoper la lecture du
-// journal d'audit) : ceci autorise ou non l'exécution d'une action.
-export const ROLE_PERMISSIONS: Record<AdminRoleName, PermissionKey[]> = {
-  "Super Administrateur": ALL_PERMISSIONS,
-  Finance: [
-    "users.view",
-    "orders.view",
-    "refunds.view",
-    "refunds.approve",
-    "refunds.execute",
-    "finance.view",
-    "finance.edit",
-    "audit.view",
-    "audit.export",
-  ],
-  Opérations: [
-    "users.view",
-    "users.edit",
-    "validations.decide",
-    // Pas de rôle « Modération » distinct en base : les opérations modèrent.
-    "moderation.decide",
-    "orders.view",
-    "deliveries.view",
-    "deliveries.reassign",
-    "incidents.decide",
-    "disputes.decide",
-    "support.respond",
-    "returns.decide",
-    "audit.view",
-  ],
-  Support: [
-    "users.view",
-    "orders.view",
-    "support.respond",
-    "disputes.decide",
-    "returns.decide",
-    "messages.view",
-    "audit.view",
-  ],
-  Modération: ["users.view", "moderation.decide", "audit.view"],
+// Démonstration sans base : la matrice des rôles fournis à l'installation.
+export const ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> = {
+  [SUPER_ADMIN_LABEL]: PERMISSION_KEYS,
+  ...Object.fromEntries(Object.values(SYSTEM_ROLES).map((r) => [r.name, r.permissions])),
 };
 
-export function can(role: AdminRoleName, key: PermissionKey): boolean {
-  return ROLE_PERMISSIONS[role].includes(key);
+// Avec la base : permissions de chaque rôle lues dans l'annuaire (rôles fournis
+// et rôles créés par l'équipe), et celles du rôle de la session en attendant.
+// Le serveur les vérifie de toute façon à chaque action.
+let directoryRoles: Record<string, readonly PermissionKey[]> = {};
+let sessionRole: { name: string; permissions: readonly PermissionKey[] } | null = null;
+
+/** Rôle et permissions de la session, lus par le serveur (mise en page admin). */
+export function setSessionRolePermissions(name: string, permissions: readonly PermissionKey[]) {
+  sessionRole = { name, permissions };
+}
+
+export function permissionsOfRole(role: string): readonly PermissionKey[] {
+  if (role === SUPER_ADMIN_LABEL) return PERMISSION_KEYS;
+  return (
+    directoryRoles[role] ??
+    (sessionRole?.name === role ? sessionRole.permissions : undefined) ??
+    ROLE_PERMISSIONS[role] ??
+    []
+  );
+}
+
+export function can(role: string, key: PermissionKey): boolean {
+  return permissionsOfRole(role).includes(key);
 }
 
 /** Résout can() directement depuis l'email de session — évite de refaire
@@ -268,30 +205,10 @@ export const adminRoleActions = {
   },
 };
 
-// Rôles admin donnant accès réel (pas cosmétique) à un périmètre du journal
-// d'audit — "all" pour le super administrateur, sinon la liste exacte des
-// modules que ce rôle peut consulter. Un module absent de la liste
-// n'apparaît ni dans les filtres ni dans les résultats pour ce rôle.
-export const AUDIT_MODULE_ACCESS: Record<AdminRoleName, AuditModule[] | "all"> = {
-  "Super Administrateur": "all",
-  Finance: ["finance", "refunds", "orders"],
-  Opérations: [
-    "users",
-    "validations",
-    "orders",
-    "deliveries",
-    "incidents",
-    "disputes",
-    "support",
-    "returns",
-  ],
-  Support: ["support", "disputes", "returns", "users", "messages"],
-  Modération: ["moderation", "users"],
-};
-
-export function auditModulesFor(role: AdminRoleName): AuditModule[] {
-  const access = AUDIT_MODULE_ACCESS[role];
-  return access === "all" ? (Object.keys(AUDIT_MODULE_LABEL) as AuditModule[]) : access;
+/** Modules du journal d'audit visibles pour ce rôle (super admin : tous). */
+export function auditModulesFor(role: string): AuditModule[] {
+  if (role === SUPER_ADMIN_LABEL) return Object.keys(AUDIT_MODULE_LABEL) as AuditModule[];
+  return auditModulesAllowed(permissionsOfRole(role)) as AuditModule[];
 }
 
 /** Résout le rôle admin réel de l'utilisateur connecté, à partir de son
@@ -314,41 +231,6 @@ export function useAdminRoleForEmail(email: string): AdminRoleName {
   if (!match) return "Support";
   return roles[match.id] ?? "Support";
 }
-
-const teamsStore = createStore<Team[]>(seedTeams, "diambar:admin-teams");
-
-export function useTeams(): Team[] {
-  return useSyncExternalStore(teamsStore.subscribe, teamsStore.get, teamsStore.get);
-}
-
-export const teamActions = {
-  create: (name: string) => {
-    const team: Team = { id: `team_${Date.now()}`, name, memberIds: [] };
-    teamsStore.set((arr) => [...arr, team]);
-    auditActions.log({ action: "Équipe créée", target: name, module: "security" });
-    return team;
-  },
-  rename: (id: string, name: string) => {
-    teamsStore.set((arr) => arr.map((t) => (t.id === id ? { ...t, name } : t)));
-  },
-  addMember: (id: string, userId: string) => {
-    teamsStore.set((arr) =>
-      arr.map((t) =>
-        t.id === id && !t.memberIds.includes(userId)
-          ? { ...t, memberIds: [...t.memberIds, userId] }
-          : t,
-      ),
-    );
-  },
-  removeMember: (id: string, userId: string) => {
-    teamsStore.set((arr) =>
-      arr.map((t) =>
-        t.id === id ? { ...t, memberIds: t.memberIds.filter((m) => m !== userId) } : t,
-      ),
-    );
-  },
-  remove: (id: string) => teamsStore.set((arr) => arr.filter((t) => t.id !== id)),
-};
 
 const refundApprovalTiersStore = createStore<RefundApprovalTier[]>(
   seedRefundApprovalTiers,
@@ -379,47 +261,6 @@ export function canApproveRefundAmount(
 ): boolean {
   if (role === "Super Administrateur") return true;
   return refundTierFor(amount, tiers).requiredRole === role;
-}
-
-// Périmètre géographique optionnel par compte admin — limité aux villes
-// réellement présentes sur les fiches utilisateur (PlatformUser.city), pas
-// à une taxonomie de régions administratives inventée. Absent ou vide =
-// aucune restriction (accès à toutes les villes).
-const adminScopeStore = createStore<Record<string, string[]>>(
-  { u15: ["Dakar", "Thiès"] },
-  "diambar:admin-scope",
-);
-
-export function useAdminScopes(): Record<string, string[]> {
-  return useSyncExternalStore(adminScopeStore.subscribe, adminScopeStore.get, adminScopeStore.get);
-}
-
-export function useAdminScope(userId: string): string[] {
-  return useAdminScopes()[userId] ?? [];
-}
-
-export const adminScopeActions = {
-  setScope: (userId: string, cities: string[], actor: string) => {
-    adminScopeStore.set((s) => ({ ...s, [userId]: cities }));
-    auditActions.log({
-      action: "Périmètre admin modifié",
-      target: actor,
-      module: "security",
-      level: "important",
-      changes: [{ field: "Villes autorisées", before: "—", after: cities.join(", ") || "Toutes" }],
-    });
-  },
-};
-
-/** true si l'utilisateur `city` est dans le périmètre de l'admin `email` —
- * périmètre vide = pas de restriction. */
-export function useIsInAdminScope(email: string, city: string | undefined): boolean {
-  const users = usePlatformUsers();
-  const scopes = useAdminScopes();
-  const match = users.find((u) => u.email === email);
-  const scope = match ? (scopes[match.id] ?? []) : [];
-  if (scope.length === 0) return true;
-  return city ? scope.includes(city) : false;
 }
 
 function notifyApplicant(type: ValidationRequest["type"], title: string, body: string) {
@@ -765,6 +606,11 @@ export function useMaintenanceMode() {
   );
 }
 
+/** Mode maintenance lu en base (snapshot) : il décide de l'affichage des portails. */
+export function replaceMaintenance(m: { active: boolean; message: string }) {
+  maintenanceStore.replace(m);
+}
+
 export const maintenanceActions = {
   setActive: (active: boolean, actor: string) => {
     maintenanceStore.set((s) => ({ ...s, active }));
@@ -977,11 +823,37 @@ export const adminNotifActions = {
 export function applyAdminDirectory(dir: {
   users: PlatformUser[];
   staffRoles: Record<string, AdminRoleName>;
+  staffRoleIds: Record<string, string>;
+  staffTeams: Record<string, string>;
+  roles: AdminRoleView[];
   logs: AuditLog[];
 }) {
+  directoryRoles = Object.fromEntries(dir.roles.map((r) => [r.name, r.permissions]));
+  rolesStore.replace(dir.roles);
+  staffRoleIdsStore.replace(dir.staffRoleIds);
+  staffTeamsStore.replace(dir.staffTeams);
   usersStore.replace(dir.users);
   adminRolesStore.replace(dir.staffRoles);
   logsStore.replace(dir.logs);
+}
+
+// Rôles de l'administration (base) : liste, rôle attribué et équipe de chacun.
+const rolesStore = createStore<AdminRoleView[]>([]);
+const staffRoleIdsStore = createStore<Record<string, string>>({});
+const staffTeamsStore = createStore<Record<string, string>>({});
+
+export function useAdminRoleList(): AdminRoleView[] {
+  return useSyncExternalStore(rolesStore.subscribe, rolesStore.get, rolesStore.get);
+}
+export function useStaffRoleIds(): Record<string, string> {
+  return useSyncExternalStore(
+    staffRoleIdsStore.subscribe,
+    staffRoleIdsStore.get,
+    staffRoleIdsStore.get,
+  );
+}
+export function useStaffTeams(): Record<string, string> {
+  return useSyncExternalStore(staffTeamsStore.subscribe, staffTeamsStore.get, staffTeamsStore.get);
 }
 
 /** Produits signalés, lus sur le serveur. */
@@ -995,6 +867,4 @@ export function clearAdminDemoData() {
   logsStore.replace([]);
   validationsStore.replace([]);
   moderationStore.replace([]);
-  teamsStore.replace([]);
-  adminScopeStore.replace({});
 }

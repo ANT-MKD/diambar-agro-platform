@@ -109,6 +109,7 @@ import {
   returnStaffFn,
   createIncidentFn,
   incidentActionFn,
+  adminRoleActionFn,
   vehicleActionFn,
   vehiclePhotoFn,
   reportVehicleIssueFn,
@@ -162,6 +163,7 @@ export type RecurringCreate = {
   shortagePreference: "partial" | "cancel";
   instructions?: string;
 };
+import type { AdminRoleActionInput } from "@/lib/market/functions";
 import type { OrderActor } from "@/lib/order-lifecycle";
 import type { StatementView } from "@/lib/market/documents-view";
 import type { DeliveryPricing, FarmerPlaceRow, PlaceRow } from "@/lib/delivery-pricing";
@@ -199,6 +201,7 @@ import {
   clearAdminDemoData,
   moderationActions,
   replaceAdminServerNotifications,
+  replaceMaintenance,
   replaceModeration,
 } from "./admin-store";
 import type { PlatformUserStatus } from "./admin-mocks";
@@ -244,6 +247,7 @@ async function load(): Promise<void> {
   if (snap.fleet) replaceDriverFleet(snap.fleet);
   if (snap.book) replaceRestaurantBook(snap.book);
   replaceTeam(snap);
+  if (snap.maintenance) replaceMaintenance(snap.maintenance);
   if (snap.me.role === "admin") {
     replaceModeration(snap.moderation ?? []);
     replaceFleetQueue(snap.fleetQueue ?? { renewals: [], changeRequests: [] });
@@ -1000,6 +1004,24 @@ export const market = {
     }
     incidentActions.addComment(id, text);
     return { ok: true };
+  },
+
+  /** Rôles de l'administration (base) : créer, modifier, supprimer, attribuer. */
+  async adminRoleAction(input: AdminRoleActionInput): Promise<Result> {
+    return remote(() => adminRoleActionFn({ data: input }));
+  },
+
+  /** Rembourse le restaurant de la course (base) : retourne la référence. */
+  async refundRestaurantForIncident(
+    id: string,
+    amount: number,
+    reason: string,
+  ): Promise<Result<{ reference?: string }>> {
+    return remote(() =>
+      incidentActionFn({
+        data: { id, action: "refund_restaurant", awarded: amount, text: reason },
+      }),
+    );
   },
 
   async resolveIncident(

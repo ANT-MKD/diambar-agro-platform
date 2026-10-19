@@ -206,12 +206,16 @@ export async function refundOverpayment(tx: Tx, checkoutId: string, p: PaymentRo
       body: `${reference} : ${formatFCFA(extra)} vous seront renvoyés pour ${o.reference}`,
       link: `/restaurant/orders/${o.id}`,
     });
-    await notifyFinanceStaff(tx, {
-      type: "payment",
-      title: "Remboursement à faire",
-      body: `${reference} · ${formatFCFA(extra)} à renvoyer (${o.reference})`,
-      link: "/admin/payments",
-    });
+    await notifyFinanceStaff(
+      tx,
+      {
+        type: "payment",
+        title: "Remboursement à faire",
+        body: `${reference} · ${formatFCFA(extra)} à renvoyer (${o.reference})`,
+        link: "/admin/payments",
+      },
+      "refunds.execute",
+    );
   }
 }
 

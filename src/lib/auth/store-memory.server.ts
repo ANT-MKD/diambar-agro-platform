@@ -20,6 +20,8 @@ import type {
   StaffRole,
   SecurityEvent,
 } from "./store.server";
+import { accessOf } from "./access";
+import { SYSTEM_ROLES, type AdminRoleChoice } from "./permissions";
 
 // Annuaire en mémoire, réservé au mode démo sans base de données : comptes de
 // démonstration + inscriptions faites depuis le démarrage du serveur. Rien
@@ -33,6 +35,12 @@ const LABEL_TO_STAFF: Record<string, StaffRole> = {
 };
 
 type MemoryAccount = AccountRecord & { city: string | null };
+
+/** Sans base, les droits sont ceux des rôles fournis. */
+const staffOf = (staffRole: StaffRole | null) => ({
+  staffRole,
+  ...accessOf(staffRole, null, null),
+});
 
 function splitName(name: string): { firstName: string; lastName: string } {
   const [firstName, ...rest] = name.trim().split(/\s+/);
@@ -81,7 +89,7 @@ class MemoryAccountStore implements AccountStore {
         ...splitName(demo.name),
         phone: record ? normalizeSenegalPhone(record.phone) : null,
         twoFaEnabled: !!demo.twoFaEnabled,
-        staffRole: demo.role === "admin" ? (LABEL_TO_STAFF[demo.label ?? ""] ?? null) : null,
+        ...staffOf(demo.role === "admin" ? (LABEL_TO_STAFF[demo.label ?? ""] ?? null) : null),
         lastLoginAt: null,
         passwordChangedAt: null,
         city: record?.city ?? null,
@@ -133,7 +141,7 @@ class MemoryAccountStore implements AccountStore {
       lastName: input.lastName,
       phone: input.phone,
       twoFaEnabled: false,
-      staffRole: null,
+      ...staffOf(null),
       lastLoginAt: null,
       passwordChangedAt: null,
       city: input.city,
@@ -255,6 +263,16 @@ class MemoryAccountStore implements AccountStore {
     if (account) account.twoFaEnabled = enabled;
   }
 
+  async listAdminRoles(): Promise<AdminRoleChoice[]> {
+    return Object.entries(SYSTEM_ROLES).map(([key, r]) => ({
+      id: key,
+      name: r.name,
+      description: r.description,
+      systemKey: key,
+      permissions: [...r.permissions],
+    }));
+  }
+
   async listStaff(): Promise<StaffSummary[]> {
     return this.accounts
       .filter((a) => a.role === "admin")
@@ -262,6 +280,8 @@ class MemoryAccountStore implements AccountStore {
         email: a.email,
         name: `${a.firstName} ${a.lastName}`.trim(),
         staffRole: a.staffRole,
+        roleName: a.staffRoleName,
+        permissions: a.permissions,
         status: a.status,
       }));
   }
@@ -279,7 +299,7 @@ class MemoryAccountStore implements AccountStore {
       lastName: input.lastName,
       phone: input.phone,
       twoFaEnabled: false,
-      staffRole: input.staffRole,
+      ...staffOf(input.staffRole),
       lastLoginAt: null,
       passwordChangedAt: null,
       city: null,

@@ -34,8 +34,8 @@ import {
   nextNumber,
   notifyOpsStaff,
   notifyUser,
-  requireStaffRole,
-  staffRoleOf,
+  hasPermission,
+  requirePermission,
   type Q,
   type Tx,
 } from "./market-common.server";
@@ -49,7 +49,7 @@ import { loadPeople } from "./people.server";
 type Me = { id: string; role: "restaurant" | "farmer" | "driver" | "admin" };
 
 /** Équipe qui valide documents et véhicules. */
-export const FLEET_STAFF = ["super_admin", "operations"] as const;
+export const FLEET_PERMISSION = "drivers.verify" as const;
 
 type DbVehicleType = (typeof vehicles.$inferSelect)["type"];
 const TYPE_TO_DB: Record<DriverVehicle["type"], DbVehicleType> = {
@@ -220,12 +220,16 @@ export async function reportVehicleIssue(
     }
     await refreshCondition(tx, v.id);
     if (input.severity === "high") {
-      await notifyOpsStaff(tx, {
-        type: "system",
-        title: "Problème véhicule grave",
-        body: `${reference} : ${description.slice(0, 100)}`,
-        link: "/admin/operations",
-      });
+      await notifyOpsStaff(
+        tx,
+        {
+          type: "system",
+          title: "Problème véhicule grave",
+          body: `${reference} : ${description.slice(0, 100)}`,
+          link: "/admin/operations",
+        },
+        "drivers.verify",
+      );
     }
     return { id: issue.id, reference };
   });
@@ -236,7 +240,7 @@ export async function resolveVehicleIssue(db: Db, me: Me, id: string) {
     const [i] = await tx.select().from(vehicleIssues).where(eq(vehicleIssues.id, id));
     if (!i) fail("Problème introuvable.");
     if (me.role === "admin") {
-      await requireStaffRole(tx, me.id, FLEET_STAFF);
+      await requirePermission(tx, me.id, FLEET_PERMISSION);
     } else if (i.driverId !== me.id) {
       fail("Problème introuvable.");
     }
@@ -308,12 +312,16 @@ export async function requestVehicleChange(
     for (const f of await storeFiles(tx, me.id, docs)) {
       await tx.insert(vehicleChangeFiles).values({ requestId: r.id, ...f });
     }
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: "Changement de véhicule à valider",
-      body: `${reference} : ${nv.type} ${nv.plate.trim().toUpperCase()}`,
-      link: "/admin/documents",
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: "Changement de véhicule à valider",
+        body: `${reference} : ${nv.type} ${nv.plate.trim().toUpperCase()}`,
+        link: "/admin/documents",
+      },
+      "drivers.verify",
+    );
     return { id: r.id, reference };
   });
 }
@@ -328,7 +336,7 @@ export async function decideVehicleChange(
   const note = input.note?.trim().slice(0, 300) ?? "";
   if (!input.approve && note.length < 5) fail("Indiquez le motif du refus.");
   return db.transaction(async (tx) => {
-    await requireStaffRole(tx, me.id, FLEET_STAFF);
+    await requirePermission(tx, me.id, FLEET_PERMISSION);
     const [r] = await tx
       .select()
       .from(vehicleChangeRequests)
@@ -426,12 +434,16 @@ export async function submitDocRenewal(
     for (const f of await storeFiles(tx, me.id, photos)) {
       await tx.insert(docRenewalFiles).values({ renewalId: r.id, ...f });
     }
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: "Document livreur à vérifier",
-      body: `${input.doc === "insurance" ? "Assurance" : "Contrôle technique"} jusqu'au ${expiry.toLocaleDateString("fr-FR")}`,
-      link: "/admin/documents",
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: "Document livreur à vérifier",
+        body: `${input.doc === "insurance" ? "Assurance" : "Contrôle technique"} jusqu'au ${expiry.toLocaleDateString("fr-FR")}`,
+        link: "/admin/documents",
+      },
+      "drivers.verify",
+    );
     return { id: r.id };
   });
 }
@@ -445,7 +457,7 @@ export async function decideDocRenewal(
   const note = input.note?.trim().slice(0, 300) ?? "";
   if (!input.approve && note.length < 5) fail("Indiquez le motif du refus.");
   return db.transaction(async (tx) => {
-    await requireStaffRole(tx, me.id, FLEET_STAFF);
+    await requirePermission(tx, me.id, FLEET_PERMISSION);
     const [r] = await tx.select().from(docRenewals).where(eq(docRenewals.id, id)).for("update");
     if (!r) fail("Document introuvable.");
     if (r.status !== "pending") fail("Ce document a déjà été traité.");
@@ -777,8 +789,7 @@ export async function readFleetQueue(
   q: Q,
   adminId: string,
 ): Promise<{ renewals: DocRenewalView[]; changeRequests: ChangeRequestView[] }> {
-  const role = await staffRoleOf(q, adminId);
-  if (!role || !(FLEET_STAFF as readonly string[]).includes(role)) {
+  if (!(await hasPermission(q, adminId, FLEET_PERMISSION))) {
     return { renewals: [], changeRequests: [] };
   }
   const [renewalRows, changeRows] = await Promise.all([

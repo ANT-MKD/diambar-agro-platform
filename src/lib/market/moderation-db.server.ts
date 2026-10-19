@@ -20,7 +20,7 @@ import { publicUrl } from "./storage.server";
 // catalogue ou suspend le producteur. Chaque décision reste dans l'historique
 // du produit et au journal d'audit.
 
-export const MODERATION_STAFF = ["super_admin", "operations"] as const;
+export const MODERATION_PERMISSION = "moderation.decide" as const;
 
 export async function reportProduct(db: Db, reporterId: string, productId: string, reason: string) {
   const why = reason.trim().slice(0, 300);
@@ -40,12 +40,16 @@ export async function reportProduct(db: Db, reporterId: string, productId: strin
       );
     if (already) fail("Vous avez déjà signalé ce produit : l'équipe l'examine.");
     await tx.insert(productReports).values({ productId, reporterId, reason: why });
-    await notifyOpsStaff(tx, {
-      type: "system",
-      title: "Produit signalé",
-      body: `${p.name} : ${why.slice(0, 100)}`,
-      link: `/admin/moderation`,
-    });
+    await notifyOpsStaff(
+      tx,
+      {
+        type: "system",
+        title: "Produit signalé",
+        body: `${p.name} : ${why.slice(0, 100)}`,
+        link: `/admin/moderation`,
+      },
+      "moderation.decide",
+    );
   });
 }
 

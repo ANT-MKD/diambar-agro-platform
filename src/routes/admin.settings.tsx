@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
@@ -14,6 +14,13 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
+import { useBaseMode } from "@/data/demo-only";
+import { refreshMarket } from "@/data/market-remote";
+import {
+  getPlatformParamsFn,
+  savePlatformParamsFn,
+  type PlatformParams,
+} from "@/lib/platform/setup";
 import { StatCard } from "@/components/admin/stat-card";
 import { SecurityPanel } from "@/components/common/security-panel";
 import { Button } from "@/components/ui/button";
@@ -31,7 +38,8 @@ import {
   loginSecurityActions,
   useMaintenanceMode,
   maintenanceActions,
-  useTeams,
+  useStaffTeams,
+  useAdminRoleList,
   usePlatformUsers,
   useAdminRoleForEmail,
   useAuditLogs,
@@ -69,6 +77,44 @@ function AdminSettings() {
   const role = useAdminRoleForEmail(user.email);
   const canEdit = can(role, "settings.edit");
   const [tab, setTab] = useState<TabKey>("overview");
+  // Avec la base : les paramètres sont lus et enregistrés sur le serveur.
+  const base = useBaseMode();
+  const [params, setParams] = useState<PlatformParams | null>(null);
+  useEffect(() => {
+    if (!base) return;
+    getPlatformParamsFn()
+      .then(setParams)
+      .catch(() => toast.error("Paramètres indisponibles pour le moment."));
+  }, [base]);
+  // Enregistrements l'un après l'autre, chacun construit au moment de partir
+  // avec l'état voulu le plus récent : deux changements rapprochés (message
+  // puis interrupteur) ne s'écrasent pas.
+  const queue = useRef<Promise<boolean>>(Promise.resolve(true));
+  const save = (patch: ParamsPatch | (() => ParamsPatch), done: string) => {
+    const run = async () => {
+      try {
+        const res = await savePlatformParamsFn({
+          data: typeof patch === "function" ? patch() : patch,
+        });
+        if (!res.ok) {
+          toast.error(res.message);
+          return false;
+        }
+        setParams(res.params);
+        void refreshMarket();
+        toast.success(done);
+        return true;
+      } catch (err) {
+        toast.error(
+          err instanceof Error && err.message ? err.message : "Enregistrement impossible.",
+        );
+        return false;
+      }
+    };
+    queue.current = queue.current.then(run, run);
+    return queue.current;
+  };
+  const server = base ? { params, save } : null;
 
   return (
     <div className="space-y-6">
@@ -103,10 +149,17 @@ function AdminSettings() {
       </div>
 
       {tab === "overview" && <OverviewTab onNavigate={setTab} />}
-      {tab === "platform" && <PlatformTab canEdit={canEdit} actorName={user.name} />}
-      {tab === "security" && <SecurityTab canEdit={canEdit} />}
+      {tab === "platform" &&
+        (server ? (
+          <PlatformTabBase canEdit={canEdit} {...server} />
+        ) : (
+          <PlatformTab canEdit={canEdit} actorName={user.name} />
+        ))}
+      {tab === "security" && <SecurityTab canEdit={canEdit} server={server} />}
       {tab === "roles" && <RolesTab />}
-      {tab === "maintenance" && <MaintenanceTab canEdit={canEdit} actorName={user.name} />}
+      {tab === "maintenance" && (
+        <MaintenanceTab canEdit={canEdit} actorName={user.name} server={server} />
+      )}
     </div>
   );
 }
@@ -160,9 +213,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
           <div className="mt-3 font-semibold flex items-center gap-1.5">
             Rôles & équipes <ArrowRight className="h-3.5 w-3.5" />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Permissions par rôle, périmètre géographique, équipes.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Rôles et leurs permissions, équipes.</p>
         </button>
         <Link
           to="/admin/users/admins"
@@ -173,7 +224,7 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
             Administrateurs <ArrowRight className="h-3.5 w-3.5" />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Comptes admin, rôle et périmètre de chacun.
+            Comptes admin, rôle et équipe de chacun.
           </p>
         </Link>
         <Link
@@ -216,6 +267,176 @@ function OverviewTab({ onNavigate }: { onNavigate: (tab: TabKey) => void }) {
           className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           Voir le journal complet <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+type ParamsPatch = Parameters<typeof savePlatformParamsFn>[0]["data"];
+type ServerParams = {
+  params: PlatformParams | null;
+  save: (patch: ParamsPatch | (() => ParamsPatch), done: string) => Promise<boolean>;
+};
+
+/** Onglet Plateforme avec la base : règles d'argent réellement appliquées. */
+function PlatformTabBase({ canEdit, params, save }: { canEdit: boolean } & ServerParams) {
+  const [tiers, setTiers] = useState(params?.commissionTiers ?? []);
+  const [threshold, setThreshold] = useState(String(params?.approvalThreshold ?? ""));
+  useEffect(() => {
+    if (!params) return;
+    setTiers(params.commissionTiers);
+    setThreshold(String(params.approvalThreshold ?? ""));
+  }, [params]);
+  if (!params) {
+    return <div className="glass rounded-2xl p-5 text-sm text-muted-foreground">Chargement…</div>;
+  }
+  const setTier = (i: number, patch: Partial<(typeof tiers)[number]>) =>
+    setTiers((list) => list.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  const num = (v: string) => (v.trim() === "" ? null : Number(v));
+
+  return (
+    <div className="space-y-6">
+      <div className="glass rounded-2xl p-5">
+        <h2 className="font-semibold">Barème de commissions</h2>
+        <p className="text-xs text-muted-foreground">
+          Taux dégressif appliqué au volume livré du producteur dans le mois. Il s'applique aux
+          prochaines livraisons.
+        </p>
+        <div className="mt-4 space-y-3">
+          {tiers.map((t, i) => (
+            <div
+              key={i}
+              className="flex flex-wrap items-end gap-3 rounded-xl border border-border p-3"
+              data-testid="commission-tier"
+            >
+              <label className="flex-1 min-w-36 text-[11px] text-muted-foreground">
+                Palier
+                <input
+                  value={t.label}
+                  disabled={!canEdit}
+                  onChange={(e) => setTier(i, { label: e.target.value })}
+                  className="mt-1 w-full h-9 rounded-xl border border-border bg-background px-3 text-sm text-foreground disabled:opacity-50"
+                />
+              </label>
+              <label className="text-[11px] text-muted-foreground">
+                De (FCFA)
+                <input
+                  type="number"
+                  min={0}
+                  value={t.min}
+                  disabled={!canEdit}
+                  onChange={(e) => setTier(i, { min: Number(e.target.value) })}
+                  className="mt-1 block w-32 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right text-foreground disabled:opacity-50"
+                />
+              </label>
+              <label className="text-[11px] text-muted-foreground">
+                À (vide = sans plafond)
+                <input
+                  type="number"
+                  min={0}
+                  value={t.max ?? ""}
+                  disabled={!canEdit}
+                  onChange={(e) => setTier(i, { max: num(e.target.value) })}
+                  className="mt-1 block w-32 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right text-foreground disabled:opacity-50"
+                />
+              </label>
+              <label className="text-[11px] text-muted-foreground">
+                Taux (%)
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={0.5}
+                  value={t.rate}
+                  aria-label={`Taux du palier ${t.label}`}
+                  disabled={!canEdit}
+                  onChange={(e) => setTier(i, { rate: Number(e.target.value) })}
+                  className="mt-1 block w-24 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right text-foreground disabled:opacity-50"
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+        {canEdit && (
+          <Button
+            className="mt-4"
+            onClick={() =>
+              void save({ commissionTiers: tiers }, "Barème de commissions enregistré")
+            }
+          >
+            Enregistrer le barème
+          </Button>
+        )}
+      </div>
+
+      <div className="glass rounded-2xl p-5">
+        <h2 className="font-semibold">Double validation</h2>
+        <p className="text-xs text-muted-foreground">
+          À partir de ce montant, un retrait ou un remboursement doit être validé par un premier
+          administrateur puis versé par un second.
+        </p>
+        {params.approvalThreshold === null ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Configurez d'abord les moyens de paiement dans l'
+            <Link to="/admin/setup" className="text-primary hover:underline">
+              assistant de configuration
+            </Link>
+            .
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              step={5000}
+              value={threshold}
+              aria-label="Seuil de double validation"
+              disabled={!canEdit}
+              onChange={(e) => setThreshold(e.target.value)}
+              className="w-40 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right disabled:opacity-50"
+            />
+            <span className="text-sm text-muted-foreground">FCFA (0 = jamais)</span>
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void save(
+                    { approvalThreshold: Math.max(0, Math.round(Number(threshold) || 0)) },
+                    "Seuil de double validation enregistré",
+                  )
+                }
+              >
+                Enregistrer
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link
+          to="/admin/delivery-pricing"
+          className="glass rounded-2xl p-5 hover:bg-accent/40 transition block"
+        >
+          <div className="font-semibold flex items-center gap-1.5">
+            Villes, quartiers et tarifs de livraison <ArrowRight className="h-3.5 w-3.5" />
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Frais par distance, paie et commission des livreurs, lieux localisés.
+          </p>
+        </Link>
+        <Link
+          to="/admin/setup"
+          className="glass rounded-2xl p-5 hover:bg-accent/40 transition block"
+        >
+          <div className="font-semibold flex items-center gap-1.5">
+            Assistant de configuration <ArrowRight className="h-3.5 w-3.5" />
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Entreprise, horaires et délais, moyens de paiement, TVA (super administrateur).
+          </p>
         </Link>
       </div>
     </div>
@@ -426,8 +647,25 @@ function PlatformTab({ canEdit, actorName }: { canEdit: boolean; actorName: stri
   );
 }
 
-function SecurityTab({ canEdit }: { canEdit: boolean }) {
-  const { maxAttempts, lockoutMinutes } = useLoginSecurity();
+function SecurityTab({ canEdit, server }: { canEdit: boolean; server: ServerParams | null }) {
+  const local = useLoginSecurity();
+  const current = server?.params?.loginSecurity ?? local;
+  const { maxAttempts, lockoutMinutes } = current;
+  // Réglage voulu : les deux champs peuvent changer coup sur coup.
+  const wanted = useRef(current);
+  useEffect(() => {
+    wanted.current = { maxAttempts, lockoutMinutes };
+  }, [maxAttempts, lockoutMinutes]);
+  const setRule = (patch: Partial<typeof local>) => {
+    if (!server) {
+      if (patch.maxAttempts !== undefined) loginSecurityActions.setMaxAttempts(patch.maxAttempts);
+      if (patch.lockoutMinutes !== undefined)
+        loginSecurityActions.setLockoutMinutes(patch.lockoutMinutes);
+      return;
+    }
+    wanted.current = { ...wanted.current, ...patch };
+    void server.save(() => ({ loginSecurity: wanted.current }), "Blocage de connexion mis à jour");
+  };
 
   return (
     <div className="space-y-6">
@@ -452,9 +690,14 @@ function SecurityTab({ canEdit }: { canEdit: boolean }) {
               type="number"
               min={1}
               max={20}
-              value={maxAttempts}
-              disabled={!canEdit}
-              onChange={(e) => loginSecurityActions.setMaxAttempts(Number(e.target.value))}
+              key={`max-${maxAttempts}`}
+              defaultValue={maxAttempts}
+              aria-label="Tentatives autorisées"
+              disabled={!canEdit || (!!server && !server.params)}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isInteger(v) && v !== maxAttempts) setRule({ maxAttempts: v });
+              }}
               className="w-20 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right disabled:opacity-50"
             />
           </div>
@@ -464,9 +707,14 @@ function SecurityTab({ canEdit }: { canEdit: boolean }) {
               type="number"
               min={1}
               max={1440}
-              value={lockoutMinutes}
-              disabled={!canEdit}
-              onChange={(e) => loginSecurityActions.setLockoutMinutes(Number(e.target.value))}
+              key={`lock-${lockoutMinutes}`}
+              defaultValue={lockoutMinutes}
+              aria-label="Durée du blocage"
+              disabled={!canEdit || (!!server && !server.params)}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isInteger(v) && v !== lockoutMinutes) setRule({ lockoutMinutes: v });
+              }}
               className="w-20 h-9 rounded-xl border border-border bg-background px-3 text-sm text-right disabled:opacity-50"
             />
             <span className="text-sm text-muted-foreground">min</span>
@@ -477,7 +725,8 @@ function SecurityTab({ canEdit }: { canEdit: boolean }) {
       <div className="glass rounded-2xl p-5">
         <h2 className="font-semibold">Rôle admin</h2>
         <p className="text-xs text-muted-foreground">
-          Chaque rôle admin a des permissions et un périmètre réels — configurez-les depuis{" "}
+          Chaque rôle admin a des permissions réelles, vérifiées par le serveur — configurez-les
+          depuis{" "}
           <Link to="/admin/users/roles" className="text-primary hover:underline">
             Rôles & équipes
           </Link>
@@ -489,7 +738,8 @@ function SecurityTab({ canEdit }: { canEdit: boolean }) {
 }
 
 function RolesTab() {
-  const teams = useTeams();
+  const teams = new Set(Object.values(useStaffTeams()));
+  const roles = useAdminRoleList();
   const admins = usePlatformUsers().filter((u) => u.role === "admin");
 
   return (
@@ -498,9 +748,9 @@ function RolesTab() {
         <div>
           <h2 className="font-semibold">Rôles, permissions & équipes</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Matrice des permissions par rôle, périmètre géographique par administrateur,
-            {teams.length} équipe{teams.length > 1 ? "s" : ""} ({admins.length} administrateur
-            {admins.length > 1 ? "s" : ""}).
+            {roles.length + 1} rôles (dont super administrateur), {teams.size} équipe
+            {teams.size > 1 ? "s" : ""}, {admins.length} administrateur
+            {admins.length > 1 ? "s" : ""}.
           </p>
         </div>
         <Button asChild size="sm" className="gap-2">
@@ -513,9 +763,26 @@ function RolesTab() {
   );
 }
 
-function MaintenanceTab({ canEdit, actorName }: { canEdit: boolean; actorName: string }) {
-  const maintenance = useMaintenanceMode();
+function MaintenanceTab({
+  canEdit,
+  actorName,
+  server,
+}: {
+  canEdit: boolean;
+  actorName: string;
+  server: ServerParams | null;
+}) {
+  const local = useMaintenanceMode();
+  const maintenance = server?.params?.maintenance ?? local;
   const [message, setMessage] = useState(maintenance.message);
+  useEffect(() => setMessage(maintenance.message), [maintenance.message]);
+  const ready = !server || !!server.params;
+  // État voulu (interrupteur et message) : le message enregistré en quittant
+  // le champ ne doit pas annuler l'interrupteur actionné juste après.
+  const wanted = useRef(maintenance);
+  useEffect(() => {
+    wanted.current = { active: maintenance.active, message: maintenance.message };
+  }, [maintenance.active, maintenance.message]);
 
   return (
     <div className="space-y-6">
@@ -533,8 +800,20 @@ function MaintenanceTab({ canEdit, actorName }: { canEdit: boolean; actorName: s
           </div>
           <Switch
             checked={maintenance.active}
-            disabled={!canEdit}
+            disabled={!canEdit || !ready}
+            aria-label="Mode maintenance"
             onCheckedChange={(checked) => {
+              if (server) {
+                wanted.current = {
+                  active: checked,
+                  message: message.trim() || wanted.current.message,
+                };
+                void server.save(
+                  () => ({ maintenance: wanted.current }),
+                  checked ? "Mode maintenance activé" : "Mode maintenance désactivé",
+                );
+                return;
+              }
               maintenanceActions.setActive(checked, actorName);
               toast.success(checked ? "Mode maintenance activé" : "Mode maintenance désactivé");
             }}
@@ -552,13 +831,21 @@ function MaintenanceTab({ canEdit, actorName }: { canEdit: boolean; actorName: s
           </label>
           <Textarea
             value={message}
-            disabled={!canEdit}
+            disabled={!canEdit || !ready}
+            aria-label="Message de maintenance"
             onChange={(e) => setMessage(e.target.value)}
             onBlur={() => {
-              if (message.trim() && message !== maintenance.message) {
-                maintenanceActions.setMessage(message.trim());
-                toast.success("Message de maintenance mis à jour");
+              if (!message.trim() || message.trim() === wanted.current.message) return;
+              if (server) {
+                wanted.current = { ...wanted.current, message: message.trim() };
+                void server.save(
+                  () => ({ maintenance: wanted.current }),
+                  "Message de maintenance mis à jour",
+                );
+                return;
               }
+              maintenanceActions.setMessage(message.trim());
+              toast.success("Message de maintenance mis à jour");
             }}
           />
         </div>

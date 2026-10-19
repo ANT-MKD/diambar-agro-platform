@@ -1,5 +1,6 @@
 import type { Role } from "@/data/mocks";
 import type { AdminRoleName } from "@/data/admin-mocks";
+import type { AdminRoleChoice, PermissionKey } from "./permissions";
 import { createDb } from "@/db/client.server";
 import { explainDbError } from "@/db/errors.server";
 import { isDemoMode } from "./config.server";
@@ -37,8 +38,13 @@ export type AccountRecord = {
   lastName: string;
   phone: string | null;
   twoFaEnabled: boolean;
-  /** Rôle dans l'équipe, pour les comptes administrateurs. */
+  /** Rôle dans l'équipe, pour les comptes administrateurs (« super_admin » a
+   * tous les droits ; pour les autres, ce sont ceux du rôle). */
   staffRole: StaffRole | null;
+  /** Nom du rôle d'administration (fourni ou créé par l'équipe). */
+  staffRoleName: string | null;
+  /** Permissions effectives du compte (vide hors administration). */
+  permissions: PermissionKey[];
   lastLoginAt: Date | null;
   passwordChangedAt: Date | null;
 };
@@ -113,6 +119,8 @@ export type NewStaffMember = {
   firstName: string;
   lastName: string;
   staffRole: StaffRole;
+  /** Rôle d'administration choisi à l'invitation (rôle fourni ou créé). */
+  roleId?: string | null;
   /** Installation : email déjà vérifié par code, double authentification choisie. */
   emailVerified?: boolean;
   twoFaEnabled?: boolean;
@@ -148,6 +156,8 @@ export interface AccountStore {
   /** Premier super administrateur (page d'installation). Refusé, de façon
    * sûre même en cas de doubles clics simultanés, si un super admin existe. */
   createFirstSuperAdmin(input: Omit<NewStaffMember, "staffRole">): Promise<CreateStaffResult>;
+  /** Rôles de l'administration (fournis et créés), pour inviter avec un rôle. */
+  listAdminRoles(): Promise<AdminRoleChoice[]>;
   // --- Réglages de la plateforme (assistant de configuration) ---------------
   getSettings(keys: string[]): Promise<Record<string, unknown>>;
   setSettings(values: Record<string, unknown>, actorId: string): Promise<void>;

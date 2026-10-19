@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { DEFAULT_LOGIN_SECURITY, readLoginSecurity } from "@/lib/platform/params";
 import { redirect } from "@tanstack/react-router";
 import { compare, hash } from "bcryptjs";
 import { z } from "zod";
@@ -48,8 +49,8 @@ export type { CurrentUser, PublicDemoAccount };
 // Le blocage ne dépend pas du navigateur : changer de navigateur ou vider ses
 // données ne remet pas les compteurs à zéro. (Compteurs en mémoire de
 // l'instance : un compteur partagé entre instances reste à faire.)
-const MAX_LOGIN_FAILURES = 5;
-const LOGIN_WINDOW_MS = 15 * 60_000;
+const MAX_LOGIN_FAILURES = DEFAULT_LOGIN_SECURITY.maxAttempts;
+const LOGIN_WINDOW_MS = DEFAULT_LOGIN_SECURITY.lockoutMinutes * 60_000;
 const MAX_CODE_ATTEMPTS = 5;
 const CODE_TTL_2FA_MS = 5 * 60_000;
 const CODE_TTL_REGISTER_MS = 10 * 60_000;
@@ -142,7 +143,7 @@ export type LoginResult =
   | { kind: "success"; user: CurrentUser }
   | { kind: "needs_two_fa"; email: string; devCode?: string; resendInSeconds: number }
   | { kind: "blocked"; reason: "pending" | "suspended" | "rejected"; note?: string }
-  | { kind: "invalid"; remaining: number }
+  | { kind: "invalid"; remaining: number; lockoutMinutes: number }
   | { kind: "locked"; minutes: number }
   | { kind: "unavailable"; message: string };
 
@@ -227,12 +228,15 @@ export const loginFn = createServerFn({ method: "POST" })
     if (input.password.length > 128) throw new Error("Mot de passe trop long");
     return { ...input, email: normalizeEmail(input.email) };
   })
-  .handler(async ({ data }): Promise<LoginResult> => {
-    // Vérifié avant le mot de passe : un bon mot de passe ne lève pas le blocage.
-    const minutes = loginLimiter.lockedMinutes(data.email);
-    if (minutes > 0) return { kind: "locked", minutes };
-
-    return withAccountStore(async (store) => {
+  .handler(async ({ data }): Promise<LoginResult> =>
+    withAccountStore(async (store) => {
+      // Blocage réglé par l'administration (Paramètres → Sécurité).
+      const { login_security } = await store.getSettings(["login_security"]);
+      const rules = readLoginSecurity(login_security);
+      loginLimiter.configure(rules.maxAttempts, rules.lockoutMinutes * 60_000);
+      // Vérifié avant le mot de passe : un bon mot de passe ne lève pas le blocage.
+      const minutes = loginLimiter.lockedMinutes(data.email);
+      if (minutes > 0) return { kind: "locked", minutes };
       const account = await store.findByEmail(data.email);
       const matches = await compare(data.password, account?.passwordHash ?? DUMMY_HASH);
       if (!account || !matches) {
@@ -249,12 +253,16 @@ export const loginFn = createServerFn({ method: "POST" })
         }
         const lockedNow = loginLimiter.lockedMinutes(data.email);
         if (lockedNow > 0) return { kind: "locked", minutes: lockedNow };
-        return { kind: "invalid", remaining: loginLimiter.remaining(data.email) };
+        return {
+          kind: "invalid",
+          remaining: loginLimiter.remaining(data.email),
+          lockoutMinutes: rules.lockoutMinutes,
+        };
       }
       loginLimiter.reset(data.email);
       return startSession(store, account, data.rememberMe ?? false);
-    });
-  });
+    }),
+  );
 
 /** Connexion en un clic, réservée aux comptes de démonstration et au mode démo :
  * les mots de passe de démo ne quittent jamais le serveur. */
@@ -697,11 +705,7 @@ export const registerVerifyFn = createServerFn({ method: "POST" })
     });
     await Promise.all(
       team
-        .filter(
-          (m) =>
-            m.status === "active" &&
-            (m.staffRole === "super_admin" || m.staffRole === "operations"),
-        )
+        .filter((m) => m.status === "active" && m.permissions.includes("validations.decide"))
         .map((m) => notify(m.email, alert)),
     );
     return { ok: true, firstName: pending.firstName };

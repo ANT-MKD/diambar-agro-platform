@@ -1,6 +1,8 @@
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
-import { adminProfiles, auditLogs, notifications, users } from "@/db/schema";
+import { adminProfiles, adminRoles, auditLogs, notifications, users } from "@/db/schema";
+import { accessOf } from "@/lib/auth/access";
+import type { PermissionKey } from "@/lib/auth/permissions";
 
 // Outils partagés par les opérations de la place de marché (commandes,
 // missions, paiements) : erreurs montrées telles quelles, notifications,
@@ -59,46 +61,89 @@ export async function notifyUser(q: Q, userId: string, n: NotificationInput) {
   await q.insert(notifications).values({ userId, ...n });
 }
 
-/** Prévient les administrateurs actifs qui ont la main sur l'argent. */
-export async function notifyFinanceStaff(q: Q, n: NotificationInput) {
-  const staff = await q
-    .select({ id: users.id })
-    .from(adminProfiles)
-    .innerJoin(users, eq(users.id, adminProfiles.userId))
-    .where(
-      and(eq(users.status, "active"), inArray(adminProfiles.adminRole, ["super_admin", "finance"])),
-    );
-  for (const s of staff) await notifyUser(q, s.id, n);
-}
+/** Rôle d'un profil admin : celui choisi, ou à défaut le rôle fourni qui
+ * porte le même nom système. */
+const roleOfProfile = or(
+  eq(adminRoles.id, adminProfiles.roleId),
+  and(
+    isNull(adminProfiles.roleId),
+    eq(adminRoles.systemKey, sql`${adminProfiles.adminRole}::text`),
+  ),
+);
 
-/** Prévient les administrateurs des opérations (super admin, opérations). */
-export async function notifyOpsStaff(q: Q, n: NotificationInput) {
-  const staff = await q
+/** Administrateurs actifs qui ont cette permission (super admin compris). */
+export async function staffWithPermission(q: Q, permission: PermissionKey): Promise<string[]> {
+  const rows = await q
     .select({ id: users.id })
     .from(adminProfiles)
     .innerJoin(users, eq(users.id, adminProfiles.userId))
+    .leftJoin(adminRoles, roleOfProfile)
     .where(
       and(
         eq(users.status, "active"),
-        inArray(adminProfiles.adminRole, ["super_admin", "operations"]),
+        or(
+          eq(adminProfiles.adminRole, "super_admin"),
+          sql`${permission} = any(${adminRoles.permissions})`,
+        ),
       ),
     );
-  for (const s of staff) await notifyUser(q, s.id, n);
+  return rows.map((r) => r.id);
+}
+
+/** Permissions effectives d'un compte admin (vide pour les autres comptes). */
+export async function permissionsOf(q: Q, userId: string): Promise<PermissionKey[]> {
+  const [p] = await q
+    .select({
+      staffRole: adminProfiles.adminRole,
+      roleName: adminRoles.name,
+      perms: adminRoles.permissions,
+    })
+    .from(adminProfiles)
+    .leftJoin(adminRoles, roleOfProfile)
+    .where(eq(adminProfiles.userId, userId));
+  return p ? accessOf(p.staffRole, p.roleName, p.perms).permissions : [];
+}
+
+export async function hasPermission(q: Q, userId: string, permission: PermissionKey) {
+  return (await permissionsOf(q, userId)).includes(permission);
+}
+
+export async function requirePermission(
+  q: Q,
+  userId: string,
+  permission: PermissionKey,
+  message = "Votre rôle ne permet pas cette action.",
+) {
+  if (!(await hasPermission(q, userId, permission))) fail(message);
+}
+
+/** Prévient les administrateurs actifs qui ont la main sur l'argent. */
+export async function notifyFinanceStaff(
+  q: Q,
+  n: NotificationInput,
+  permission: PermissionKey = "finance.edit",
+) {
+  for (const id of await staffWithPermission(q, permission)) await notifyUser(q, id, n);
+}
+
+/** Prévient les administrateurs chargés de ce sujet (par défaut : les
+ * opérations, qui gèrent les commandes). */
+export async function notifyOpsStaff(
+  q: Q,
+  n: NotificationInput,
+  permission: PermissionKey = "orders.manage",
+) {
+  for (const id of await staffWithPermission(q, permission)) await notifyUser(q, id, n);
 }
 
 /** Prévient les administrateurs des opérations, une seule fois par jour
  * pour le même message. */
-export async function notifyOpsStaffOnce(q: Q, n: NotificationInput) {
-  const staff = await q
-    .select({ id: users.id })
-    .from(adminProfiles)
-    .innerJoin(users, eq(users.id, adminProfiles.userId))
-    .where(
-      and(
-        eq(users.status, "active"),
-        inArray(adminProfiles.adminRole, ["super_admin", "operations"]),
-      ),
-    );
+export async function notifyOpsStaffOnce(
+  q: Q,
+  n: NotificationInput,
+  permission: PermissionKey = "pricing.edit",
+) {
+  const staff = (await staffWithPermission(q, permission)).map((id) => ({ id }));
   const since = new Date(Date.now() - 24 * 3600_000);
   for (const s of staff) {
     const [already] = await q
@@ -140,24 +185,4 @@ export async function audit(
     before: entry.before ?? null,
     after: entry.after ?? null,
   });
-}
-
-/** Rôle d'équipe d'un compte admin (null pour les autres comptes). */
-export async function staffRoleOf(q: Q, userId: string) {
-  const [p] = await q
-    .select({ role: adminProfiles.adminRole })
-    .from(adminProfiles)
-    .where(eq(adminProfiles.userId, userId));
-  return p?.role ?? null;
-}
-
-export async function requireStaffRole(
-  q: Q,
-  userId: string,
-  roles: readonly string[],
-  message = "Votre rôle ne permet pas cette action.",
-) {
-  const role = await staffRoleOf(q, userId);
-  if (!role || !roles.includes(role)) fail(message);
-  return role;
 }

@@ -6,8 +6,7 @@ import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge } from "@/components/admin/admin-badge";
 import { formatFCFA } from "@/lib/format";
 import { usePlatformUsers } from "@/data/admin-store";
-import { useOrders } from "@/data/store";
-import { products } from "@/data/mocks";
+import { useOrders, useProducts } from "@/data/store";
 import { findFarmerRecord } from "@/lib/user-links";
 
 export const Route = createFileRoute("/admin/users/farmers")({
@@ -22,6 +21,8 @@ export const Route = createFileRoute("/admin/users/farmers")({
 });
 
 function AdminFarmers() {
+  // Produits réels (base) ou de démonstration, selon le mode.
+  const products = useProducts();
   const users = usePlatformUsers().filter((u) => u.role === "farmer");
   const orders = useOrders();
   const [q, setQ] = useState("");

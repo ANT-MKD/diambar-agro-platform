@@ -91,6 +91,7 @@ import {
   getDeliveryZones,
   useDeliveryZones,
   zonesStore,
+  replaceCommissionTiers,
 } from "./platform-settings";
 import type { MarketAccount, MarketSnapshot } from "@/lib/market/types";
 import type { ChangeRequestView, DriverFleetView } from "@/lib/market/fleet-view";
@@ -3090,6 +3091,8 @@ export function replaceMarketData(s: MarketSnapshot) {
     transactionsStore.replace(s.wallet.transactions);
     withdrawalsStore.replace(s.wallet.withdrawals);
   }
+  if (s.platformTransactions) transactionsStore.replace(s.platformTransactions);
+  if (s.commissionTiers) replaceCommissionTiers(s.commissionTiers);
   if (s.driverWallet) driverWalletStore.replace(s.driverWallet);
   const notifs =
     s.me.role === "farmer"

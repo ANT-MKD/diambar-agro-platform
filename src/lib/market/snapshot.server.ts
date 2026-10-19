@@ -10,8 +10,11 @@ import { readTickets } from "./support-db.server";
 import { readReviews } from "./reviews-db.server";
 import { readReturns } from "./returns-db.server";
 import { readIncidents } from "./incidents-db.server";
-import { MODERATION_STAFF, readModeration } from "./moderation-db.server";
-import { staffRoleOf } from "./market-common.server";
+import { MODERATION_PERMISSION, readModeration } from "./moderation-db.server";
+import { hasPermission, permissionsOf } from "./market-common.server";
+import { readMaintenance } from "@/lib/platform/params";
+import type { CommissionTierSetting } from "@/lib/platform/setup-model";
+import { DEFAULT_SETTINGS } from "@/db/seed";
 import { readDriverFleet, readFleetQueue } from "./fleet-db.server";
 import { readRestaurantBook } from "./restaurant-book-db.server";
 import { readTeam } from "./team-db.server";
@@ -228,6 +231,85 @@ export async function readZones(db: Db): Promise<MarketZone[]> {
 }
 
 type Viewer = { id: string; role: Role };
+
+type FarmerLedgerRow = {
+  id: string;
+  kind: string;
+  amount: number;
+  orderId: string | null;
+  refundId: string | null;
+  note: string | null;
+  createdAt: Date;
+  orderRef: string | null;
+  restaurantId: string | null;
+  checkoutId: string | null;
+};
+
+/** Écritures d'un ou plusieurs producteurs (les plus récentes d'abord) en
+ * lignes de revenus : une par commande livrée (vente − commission), une par
+ * remboursement repris et une par ajustement de litige. */
+function farmerTransactions<R extends FarmerLedgerRow>(
+  entries: R[],
+  methodOfCheckout: Map<string, PaymentMethod>,
+  farmerOf: (e: R) => string,
+): Transaction[] {
+  const groups = new Map<string, Transaction>();
+  for (const e of [...entries].reverse()) {
+    // Indemnité ou retenue de litige : une ligne à part, avec son motif.
+    const disputeLine = !!e.note && /Litige /.test(e.note);
+    if (
+      !e.orderId ||
+      (e.kind !== "sale" &&
+        e.kind !== "commission" &&
+        e.kind !== "refund_adjustment" &&
+        !(e.kind === "adjustment" && disputeLine))
+    )
+      continue;
+    const key = disputeLine ? `lt_${e.id}` : e.refundId ? `rf_${e.refundId}` : `tx_${e.orderId}`;
+    const t =
+      groups.get(key) ??
+      ({
+        id: key,
+        date: iso(e.createdAt)!.slice(0, 10),
+        orderRef: e.orderRef ?? "",
+        restaurantId: e.restaurantId ?? "",
+        farmerId: farmerOf(e),
+        gross: 0,
+        commission: 0,
+        net: 0,
+        method: (e.checkoutId && methodOfCheckout.get(e.checkoutId)) || "Wave",
+        status: "Payé",
+        kind: e.refundId || disputeLine ? "refund_adjustment" : "delivery",
+        ...(disputeLine ? { note: e.note ?? undefined } : {}),
+      } satisfies Transaction);
+    if (e.kind === "commission") t.commission += -e.amount;
+    else t.gross += e.amount;
+    t.net = t.gross - t.commission;
+    groups.set(key, t);
+  }
+  return [...groups.values()].reverse();
+}
+
+/** Maintenance (tous les portails) et barème de commissions (admin, producteur). */
+async function platformParamsPart(
+  db: Db,
+  role: string,
+): Promise<Pick<MarketSnapshot, "maintenance" | "commissionTiers">> {
+  const rows = await db
+    .select()
+    .from(settings)
+    .where(inArray(settings.key, ["maintenance", "commission_tiers"]));
+  const value = (key: string) => rows.find((r) => r.key === key)?.value;
+  const tiers = value("commission_tiers") as CommissionTierSetting[] | undefined;
+  return {
+    maintenance: readMaintenance(value("maintenance")),
+    ...(role === "admin" || role === "farmer"
+      ? {
+          commissionTiers: tiers ?? (DEFAULT_SETTINGS.commission_tiers as CommissionTierSetting[]),
+        }
+      : {}),
+  };
+}
 
 export async function readSnapshot(
   db: Db,
@@ -820,6 +902,14 @@ export async function readSnapshot(
     cash: "Espèces",
     transfer: "Wave",
   };
+  const methodOfCheckout = new Map(
+    checkoutRows.map((c) => [
+      c.id,
+      PAYMENT_METHOD_LABEL[
+        paymentByCheckout.get(c.id)?.method ?? (c.paymentMode === "cash" ? "cash" : "wave")
+      ] ?? "Wave",
+    ]),
+  );
   if (me.role === "farmer" || me.role === "driver") {
     const entries = await db
       .select({
@@ -848,57 +938,9 @@ export async function readSnapshot(
       .orderBy(desc(payouts.createdAt));
     const balances = await readBalances(db, [me.id]);
     const bal = balances.get(me.id)!;
-    const methodOfCheckout = new Map(
-      checkoutRows.map((c) => [
-        c.id,
-        PAYMENT_METHOD_LABEL[
-          paymentByCheckout.get(c.id)?.method ?? (c.paymentMode === "cash" ? "cash" : "wave")
-        ] ?? "Wave",
-      ]),
-    );
     if (me.role === "farmer") {
-      // Une ligne par commande livrée (vente − commission) et une par refus
-      // à la réception (montants repris, négatifs).
-      const groups = new Map<string, Transaction>();
-      for (const e of [...entries].reverse()) {
-        // Indemnité ou retenue de litige : une ligne à part, avec son motif.
-        const disputeLine = !!e.note && /Litige /.test(e.note);
-        if (
-          !e.orderId ||
-          (e.kind !== "sale" &&
-            e.kind !== "commission" &&
-            e.kind !== "refund_adjustment" &&
-            !(e.kind === "adjustment" && disputeLine))
-        )
-          continue;
-        const key = disputeLine
-          ? `lt_${e.id}`
-          : e.refundId
-            ? `rf_${e.refundId}`
-            : `tx_${e.orderId}`;
-        const t =
-          groups.get(key) ??
-          ({
-            id: key,
-            date: iso(e.createdAt)!.slice(0, 10),
-            orderRef: e.orderRef ?? "",
-            restaurantId: e.restaurantId ?? "",
-            farmerId: me.id,
-            gross: 0,
-            commission: 0,
-            net: 0,
-            method: (e.checkoutId && methodOfCheckout.get(e.checkoutId)) || "Wave",
-            status: "Payé",
-            kind: e.refundId || disputeLine ? "refund_adjustment" : "delivery",
-            ...(disputeLine ? { note: e.note ?? undefined } : {}),
-          } satisfies Transaction);
-        if (e.kind === "commission") t.commission += -e.amount;
-        else t.gross += e.amount;
-        t.net = t.gross - t.commission;
-        groups.set(key, t);
-      }
       farmerWallet = {
-        transactions: [...groups.values()].reverse(),
+        transactions: farmerTransactions(entries, methodOfCheckout, () => me.id),
         withdrawals: myPayouts.map((w): Withdrawal => ({
           id: w.id,
           farmerId: me.id,
@@ -971,9 +1013,39 @@ export async function readSnapshot(
     }
   }
 
+  // Données d'argent de l'administration : seulement si le rôle les permet.
+  const adminPerms = me.role === "admin" ? await permissionsOf(db, me.id) : [];
+  const seesFinance = adminPerms.includes("finance.view");
+  const seesRefunds = seesFinance || adminPerms.includes("refunds.view");
+
+  // --- Revenus de tous les producteurs (page Finance de l'admin) -------------------
+  let platformTransactions: Transaction[] | undefined;
+  if (seesFinance) {
+    const entries = await db
+      .select({
+        id: ledgerEntries.id,
+        userId: ledgerEntries.userId,
+        kind: ledgerEntries.kind,
+        amount: ledgerEntries.amount,
+        orderId: ledgerEntries.orderId,
+        refundId: ledgerEntries.refundId,
+        note: ledgerEntries.note,
+        createdAt: ledgerEntries.createdAt,
+        orderRef: orders.reference,
+        restaurantId: orders.restaurantId,
+        checkoutId: orders.checkoutId,
+      })
+      .from(ledgerEntries)
+      .innerJoin(orders, eq(orders.id, ledgerEntries.orderId))
+      .where(eq(ledgerEntries.account, "farmer"))
+      .orderBy(desc(ledgerEntries.createdAt))
+      .limit(5000);
+    platformTransactions = farmerTransactions(entries, methodOfCheckout, (e) => e.userId ?? "");
+  }
+
   // --- Comptes à verser (admin) ----------------------------------------------------
   let accounts: AdminAccount[] | undefined;
-  if (me.role === "admin") {
+  if (seesFinance) {
     const holders = await db
       .selectDistinct({ userId: ledgerEntries.userId })
       .from(ledgerEntries)
@@ -1007,7 +1079,7 @@ export async function readSnapshot(
   // --- Versements et remboursements (admin) --------------------------------------------
   let adminPayouts: AdminPayout[] | undefined;
   let adminRefunds: AdminRefund[] | undefined;
-  if (me.role === "admin") {
+  if (seesRefunds) {
     const payoutRows = await db
       .select({
         p: payouts,
@@ -1085,7 +1157,7 @@ export async function readSnapshot(
 
   // --- Paiements (admin) ------------------------------------------------------------
   let adminPayments: AdminPayment[] | undefined;
-  if (me.role === "admin") {
+  if (seesFinance) {
     const confirmerIds = [
       ...new Set(paymentRows.flatMap((p) => (p.confirmedBy ? [p.confirmedBy] : []))),
     ];
@@ -1272,8 +1344,7 @@ export async function readSnapshot(
     fleetQueue:
       me.role === "admin" ? await readFleetQueue(db, me.id) : { renewals: [], changeRequests: [] },
     moderation:
-      me.role === "admin" &&
-      (MODERATION_STAFF as readonly string[]).includes((await staffRoleOf(db, me.id)) ?? "")
+      me.role === "admin" && (await hasPermission(db, me.id, MODERATION_PERMISSION))
         ? await readModeration(db)
         : [],
     products: productList,
@@ -1301,9 +1372,11 @@ export async function readSnapshot(
     payments: adminPayments,
     invoices: invoiceList,
     wallet: farmerWallet,
+    platformTransactions,
+    ...(await platformParamsPart(db, me.role)),
     driverWallet,
     accounts,
-    payouts: adminPayouts,
+    payouts: seesFinance ? adminPayouts : undefined,
     refunds: adminRefunds,
     restaurant: myRestaurant
       ? {

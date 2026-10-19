@@ -8,8 +8,8 @@ import { authSession } from "./session.server";
 import { STAFF_ROLE_LABEL, withAccountStore } from "./store.server";
 import { verifySignedToken } from "./tokens.server";
 
-// Invitation d'un membre de l'équipe : lien signé (72 h) créé par le super
-// administrateur. Le lien ne sert qu'une fois : dès que le compte existe, il
+// Invitation d'un membre de l'équipe : lien signé (72 h) créé par un
+// administrateur qui gère les administrateurs, avec le rôle choisi. Le lien ne sert qu'une fois : dès que le compte existe, il
 // est refusé.
 
 export type InvitationInfo =
@@ -33,7 +33,7 @@ export const getInvitationFn = createServerFn({ method: "GET" })
       firstName: invite.firstName,
       lastName: invite.lastName,
       email: invite.email,
-      roleLabel: STAFF_ROLE_LABEL[invite.staffRole],
+      roleLabel: invite.roleName ?? STAFF_ROLE_LABEL[invite.staffRole],
     };
   });
 
@@ -70,6 +70,7 @@ export const acceptInvitationFn = createServerFn({ method: "POST" })
           firstName: invite.firstName,
           lastName: invite.lastName,
           staffRole: invite.staffRole,
+          roleId: invite.roleId ?? null,
         });
         if (!result.ok) {
           return {
