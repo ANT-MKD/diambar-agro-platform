@@ -203,6 +203,11 @@ export type MarketSnapshot = {
     favorites: string[];
     budget: import("@/data/budget").BudgetState | null;
   } | null;
+  /** Membre d'équipe connecté (rôle et droits), ou null pour le titulaire. */
+  team: import("./team").TeamSession | null;
+  /** Titulaire : membres de son équipe et leurs dernières actions. */
+  teamMembers: import("./team").TeamMemberView[];
+  teamActivity: import("./team").TeamActivity[];
   /** Équipe : documents et changements de véhicule à vérifier. */
   fleetQueue: { renewals: DocRenewalView[]; changeRequests: ChangeRequestView[] };
   products: Product[];

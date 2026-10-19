@@ -14,6 +14,9 @@ import { MODERATION_STAFF, readModeration } from "./moderation-db.server";
 import { staffRoleOf } from "./market-common.server";
 import { readDriverFleet, readFleetQueue } from "./fleet-db.server";
 import { readRestaurantBook } from "./restaurant-book-db.server";
+import { readTeam } from "./team-db.server";
+import { loadPeople } from "./people.server";
+import { TEAM_ROLES, teamRoleLabel, type TeamCap, type TeamOwnerRole } from "./team";
 import {
   categories,
   checkouts,
@@ -226,7 +229,11 @@ export async function readZones(db: Db): Promise<MarketZone[]> {
 
 type Viewer = { id: string; role: Role };
 
-export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> {
+export async function readSnapshot(
+  db: Db,
+  me: Viewer,
+  member: { userId: string; name: string; role: string } | null = null,
+): Promise<MarketSnapshot> {
   const [rules, zoneList] = await Promise.all([readRules(db), readZones(db)]);
   // Ville de chaque quartier, pour situer producteurs et restaurants.
   const zoneCityRows = await db
@@ -1261,6 +1268,7 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     incidents: await readIncidents(db, me),
     fleet: me.role === "driver" ? await readDriverFleet(db, me.id) : null,
     book: me.role === "restaurant" ? await readRestaurantBook(db, me.id) : null,
+    ...(await teamPart(db, me, member)),
     fleetQueue:
       me.role === "admin" ? await readFleetQueue(db, me.id) : { renewals: [], changeRequests: [] },
     moderation:
@@ -1307,4 +1315,40 @@ export async function readSnapshot(db: Db, me: Viewer): Promise<MarketSnapshot> 
     notifications: notificationList,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/** Équipe : le titulaire voit ses membres et leurs actions ; un membre voit
+ * son rôle et ce qu'il peut faire. */
+async function teamPart(
+  db: Db,
+  me: Viewer,
+  member: { userId: string; name: string; role: string } | null,
+): Promise<Pick<MarketSnapshot, "team" | "teamMembers" | "teamActivity">> {
+  if (me.role !== "restaurant" && me.role !== "farmer") {
+    return { team: null, teamMembers: [], teamActivity: [] };
+  }
+  const ownerRole = me.role as TeamOwnerRole;
+  if (member) {
+    const people = await loadPeopleNames(db, [me.id]);
+    const caps =
+      (TEAM_ROLES[ownerRole] as Record<string, { caps: TeamCap[] }>)[member.role]?.caps ?? [];
+    return {
+      team: {
+        memberName: member.name,
+        role: member.role,
+        roleLabel: teamRoleLabel(ownerRole, member.role),
+        ownerName: people.get(me.id) ?? "",
+        caps,
+      },
+      teamMembers: [],
+      teamActivity: [],
+    };
+  }
+  const t = await readTeam(db, { id: me.id, role: ownerRole });
+  return { team: null, teamMembers: t.members, teamActivity: t.activity };
+}
+
+async function loadPeopleNames(db: Db, ids: string[]) {
+  const people = await loadPeople(db, ids);
+  return new Map([...people].map(([id, p]) => [id, p.name]));
 }

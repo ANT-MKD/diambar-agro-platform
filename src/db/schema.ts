@@ -2001,3 +2001,39 @@ export const productFavorites = pgTable(
     index("product_favorites_product_idx").on(t.productId),
   ],
 );
+
+// --- Équipes des établissements --------------------------------------------------------
+// Le titulaire d'un compte restaurant ou producteur invite des membres par
+// e-mail. Chacun a son propre compte (connexion, mot de passe) et agit sur
+// l'espace du titulaire dans la limite de son rôle ; ses actions sont tracées
+// à son nom.
+
+export const teamMemberStatus = pgEnum("team_member_status", ["invited", "active", "revoked"]);
+
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: id(),
+    /** Compte titulaire (restaurant ou producteur). */
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id),
+    /** Compte du membre, créé quand il accepte l'invitation. */
+    userId: uuid("user_id").references(() => users.id),
+    email: text("email").notNull(),
+    /** Rôle dans l'équipe (acheteur, chef, comptable, gérant, stock, lecture seule…). */
+    role: text("role").notNull(),
+    status: teamMemberStatus("status").notNull().default("invited"),
+    invitedBy: uuid("invited_by").references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("team_members_owner_idx").on(t.ownerId),
+    uniqueIndex("team_members_user_key").on(t.userId),
+    index("team_members_invited_by_idx").on(t.invitedBy),
+    check("team_members_email_lowercase", sql`${t.email} = lower(${t.email})`),
+  ],
+);

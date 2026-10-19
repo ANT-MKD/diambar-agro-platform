@@ -319,6 +319,30 @@ export function staffInviteEmail(p: {
   );
 }
 
+export function teamInviteEmail(p: {
+  ownerName: string;
+  roleLabel: string;
+  inviterName: string;
+  url: string;
+}): EmailContent {
+  return email(
+    "invitation-etablissement",
+    `Invitation à rejoindre ${p.ownerName} sur Diambar Agro`,
+    `Rejoignez l'équipe de ${p.ownerName}`,
+    [
+      {
+        kind: "p",
+        text: `${p.inviterName} vous invite à rejoindre l'espace de ${p.ownerName} sur Diambar Agro avec le rôle « ${p.roleLabel} ».`,
+      },
+      { kind: "button", label: "Créer mon compte", url: p.url },
+      {
+        kind: "small",
+        text: "Ce lien personnel est valable 7 jours et ne sert qu'une fois. Si vous ne connaissez pas cet établissement, ignorez ce message.",
+      },
+    ],
+  );
+}
+
 // --- Commandes ----------------------------------------------------------------------
 
 export function newOrderFarmerEmail(p: {

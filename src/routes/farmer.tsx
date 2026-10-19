@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { TeamMemberBanner } from "@/components/common/team-member-banner";
 import { useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
@@ -238,6 +239,7 @@ function FarmerLayout() {
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
+          <TeamMemberBanner />
           <DemoOnlyOutlet home="/farmer/dashboard" />
         </main>
         <CommandPalette scope="farmer" />

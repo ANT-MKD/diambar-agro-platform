@@ -94,6 +94,7 @@ import {
 } from "./platform-settings";
 import type { MarketAccount, MarketSnapshot } from "@/lib/market/types";
 import type { ChangeRequestView, DriverFleetView } from "@/lib/market/fleet-view";
+import type { TeamActivity, TeamMemberView, TeamSession } from "@/lib/market/team";
 import { markNotificationsReadFn } from "@/lib/market/functions";
 import { getMarketMode, isMarketRemote, useMarketMode } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
@@ -210,6 +211,9 @@ export function useMyAccount(): MarketAccount | null {
  * (mode base), sinon ceux de la session. */
 export function useIdentity(user: { name: string; avatar: string }) {
   const a = useMyAccount();
+  const team = useTeamBase().session;
+  // Membre d'une équipe : son propre nom, pas celui du titulaire.
+  if (team) return { name: team.memberName || user.name, avatar: user.avatar };
   if (!a) return user;
   return {
     name: `${a.firstName} ${a.lastName}`.trim() || user.name,
@@ -1315,6 +1319,26 @@ export const driverOnlineActions = {
   toggle: () => driverOnlineStore.set((v) => !v),
   set: (v: boolean) => driverOnlineStore.set(v),
 };
+
+/** Mode base : équipe de l'établissement (titulaire) ou rôle du membre connecté. */
+type TeamState = {
+  members: TeamMemberView[];
+  activity: TeamActivity[];
+  session: TeamSession | null;
+};
+const teamBaseStore = createStore<TeamState>({ members: [], activity: [], session: null });
+
+export function useTeamBase(): TeamState {
+  return useSyncExternalStore(teamBaseStore.subscribe, teamBaseStore.get, teamBaseStore.get);
+}
+
+export function replaceTeam(s: Pick<MarketSnapshot, "team" | "teamMembers" | "teamActivity">) {
+  teamBaseStore.replace({
+    members: s.teamMembers ?? [],
+    activity: s.teamActivity ?? [],
+    session: s.team ?? null,
+  });
+}
 
 /** Mode base (restaurant) : fournisseurs, produits favoris et budget lus sur le serveur. */
 export function replaceRestaurantBook(book: NonNullable<MarketSnapshot["book"]>) {

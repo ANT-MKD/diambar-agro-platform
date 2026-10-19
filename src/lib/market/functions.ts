@@ -10,7 +10,7 @@ import type { AccountRecord, StaffRole } from "@/lib/auth/store.server";
 import { DbAccountStore } from "@/lib/auth/store-db.server";
 import { formatFCFA } from "@/lib/format";
 import { appUrl, notify } from "@/lib/notify/notify.server";
-import { newOrderFarmerEmail } from "@/lib/notify/templates";
+import { newOrderFarmerEmail, teamInviteEmail } from "@/lib/notify/templates";
 import {
   acceptMission,
   addDeliveryProof,
@@ -100,6 +100,19 @@ import {
 import { normalizePricing } from "@/lib/delivery-pricing";
 import type { StatementView } from "./documents-view";
 import { readSnapshot } from "./snapshot.server";
+import {
+  INVITE_TTL_MS,
+  inviteMember,
+  recordTeamAction,
+  removeMember,
+  renewInvite,
+  setMemberRole,
+  teamContextFor,
+  type TeamContext,
+} from "./team-db.server";
+import { createSignedToken } from "@/lib/auth/tokens.server";
+import { loadPeople } from "./people.server";
+import { teamRoleAllows, teamRoleLabel, type TeamCap, type TeamOwnerRole } from "./team";
 import { createReview, replyReview, setReviewHidden, type ReviewInput } from "./reviews-db.server";
 import {
   MODERATION_STAFF,
@@ -168,24 +181,77 @@ import type { ActionResult, MarketSnapshot } from "./types";
 
 type Role = AccountRecord["role"];
 
+/** Ce qu'un membre d'équipe doit pouvoir faire pour cette action, et son
+ * libellé dans le journal (« read » : rien n'est tracé). */
+type TeamRule = { cap: TeamCap; label?: string };
+const team = (cap: TeamCap, label?: string): TeamRule => ({ cap, label });
+
+/** Membre d'équipe à l'origine de l'appel (null pour le titulaire). */
+type CallContext = { member: { userId: string; name: string; role: string } | null };
+
 async function withMarket<T>(
   roles: Role[],
-  fn: (db: Db, me: AccountRecord) => Promise<T>,
-  staff?: StaffRole[],
+  fn: (db: Db, me: AccountRecord, ctx: CallContext) => Promise<T>,
+  access?: StaffRole[] | TeamRule,
 ): Promise<T | { ok: false; message: string }> {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) return { ok: false, message: "Base de données non configurée." };
   const { db, close } = createDb(url);
+  const staff = Array.isArray(access) ? access : undefined;
+  const rule = Array.isArray(access) ? undefined : access;
   try {
-    const me = await sessionAccount(new DbAccountStore(db));
-    if (!me) return { ok: false, message: "Session expirée : reconnectez-vous." };
+    const store = new DbAccountStore(db);
+    const account = await sessionAccount(store);
+    if (!account) return { ok: false, message: "Session expirée : reconnectez-vous." };
+    // Membre d'une équipe : il agit sur l'espace du titulaire, dans la limite
+    // de son rôle (refus par défaut si l'action n'est pas prévue pour lui).
+    let me = account;
+    let member: TeamContext | null = null;
+    if (account.role === "restaurant" || account.role === "farmer") {
+      member = await teamContextFor(db, account.id);
+      if (member) {
+        const owner = await store.findById(member.ownerId);
+        if (!owner || owner.status !== "active") {
+          return { ok: false, message: "Cet établissement n'est plus actif sur Diambar." };
+        }
+        const ownerRole = owner.role as TeamOwnerRole;
+        if (!rule || !teamRoleAllows(ownerRole, member.role, rule.cap)) {
+          return {
+            ok: false,
+            message: `Votre rôle dans l'équipe (${teamRoleLabel(ownerRole, member.role)}) ne permet pas cette action.`,
+          };
+        }
+        me = owner;
+      }
+    }
     if (!roles.includes(me.role)) {
       return { ok: false, message: "Votre compte ne permet pas cette action." };
     }
     if (staff && (!me.staffRole || !staff.includes(me.staffRole))) {
       return { ok: false, message: "Votre rôle ne permet pas cette action." };
     }
-    return await fn(db, me);
+    const result = await fn(db, me, {
+      member: member
+        ? {
+            userId: account.id,
+            name: `${account.firstName} ${account.lastName}`.trim(),
+            role: member.role,
+          }
+        : null,
+    });
+    if (
+      member &&
+      rule &&
+      rule.cap !== "read" &&
+      (result as { ok?: boolean } | null)?.ok !== false
+    ) {
+      await recordTeamAction(db, {
+        memberUserId: account.id,
+        ownerId: me.id,
+        action: rule.label ?? "Action de l'équipe",
+      }).catch(() => undefined);
+    }
+    return result;
   } catch (err) {
     if (err instanceof MarketError) return { ok: false, message: err.message };
     console.error("[marché]", err);
@@ -240,10 +306,14 @@ async function sweepUnpaid(db: Db) {
 export const getMarketSnapshotFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<MarketSnapshot | null> => {
     if (!process.env.DATABASE_URL?.trim()) return null;
-    const res = await withMarket(["farmer", "restaurant", "driver", "admin"], async (db, me) => {
-      await sweepUnpaid(db);
-      return readSnapshot(db, { id: me.id, role: me.role });
-    });
+    const res = await withMarket(
+      ["farmer", "restaurant", "driver", "admin"],
+      async (db, me, ctx) => {
+        await sweepUnpaid(db);
+        return readSnapshot(db, { id: me.id, role: me.role }, ctx.member);
+      },
+      team("read"),
+    );
     if ("ok" in res && res.ok === false) throw new Error(res.message);
     return res as MarketSnapshot;
   },
@@ -276,21 +346,32 @@ const productSchema = z.object({
 export const saveProductFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof productSchema>) => parse(productSchema, input))
   .handler(async ({ data }): Promise<{ ok: true; id: string } | { ok: false; message: string }> =>
-    withMarket(["farmer"], async (db, me) => ({
-      ok: true as const,
-      id: await saveProduct(db, me.id, { ...data, availableFrom: data.availableFrom || undefined }),
-    })),
+    withMarket(
+      ["farmer"],
+      async (db, me) => ({
+        ok: true as const,
+        id: await saveProduct(db, me.id, {
+          ...data,
+          availableFrom: data.availableFrom || undefined,
+        }),
+      }),
+      team("catalog", "Produit enregistré"),
+    ),
   );
 
 export const removeProductFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => parse(z.object({ id }), input))
   .handler(
     async ({ data }): Promise<{ ok: true; removed: boolean } | { ok: false; message: string }> =>
-      withMarket(["farmer"], async (db, me) => {
-        const res = await removeProduct(db, me.id, data.id);
-        if (res.photoKeys.length) await removeObjects(res.photoKeys);
-        return { ok: true as const, removed: res.removed };
-      }),
+      withMarket(
+        ["farmer"],
+        async (db, me) => {
+          const res = await removeProduct(db, me.id, data.id);
+          if (res.photoKeys.length) await removeObjects(res.photoKeys);
+          return { ok: true as const, removed: res.removed };
+        },
+        team("catalog", "Produit retiré du catalogue"),
+      ),
   );
 
 const stockSchema = z.object({
@@ -302,10 +383,14 @@ const stockSchema = z.object({
 export const moveStockFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof stockSchema>) => parse(stockSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer"], async (db, me) => {
-      await moveStock(db, me.id, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer"],
+      async (db, me) => {
+        await moveStock(db, me.id, data);
+        return { ok: true as const };
+      },
+      team("stock", "Mouvement de stock"),
+    ),
   );
 
 // --- Fichiers -------------------------------------------------------------------------
@@ -342,16 +427,20 @@ const photoSchema = z.object({
 export const uploadProductPhotoFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof photoSchema>) => parse(photoSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer"], async (db, me) => {
-      const file = await storeImage(BUCKETS.public, `${me.id}/${data.productId}`, data.dataUrl);
-      try {
-        await addProductPhoto(db, me.id, { productId: data.productId, ...file });
-      } catch (err) {
-        await removeObjects([file.storageKey]);
-        throw err;
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer"],
+      async (db, me) => {
+        const file = await storeImage(BUCKETS.public, `${me.id}/${data.productId}`, data.dataUrl);
+        try {
+          await addProductPhoto(db, me.id, { productId: data.productId, ...file });
+        } catch (err) {
+          await removeObjects([file.storageKey]);
+          throw err;
+        }
+        return { ok: true as const };
+      },
+      team("catalog", "Photo de produit ajoutée"),
+    ),
   );
 
 const proofSchema = z.object({
@@ -409,45 +498,49 @@ export type PlaceOrderResult =
 export const placeOrderFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof orderSchema>) => parse(orderSchema, input))
   .handler(async ({ data }): Promise<PlaceOrderResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      // Le stock des paniers non payés à temps est d'abord remis en vente.
-      await sweepUnpaid(db);
-      const placed = await placeOrder(db, me.id, data);
-      // Chaque producteur est prévenu par email (en plus de l'application).
-      const farmerRows = await db
-        .select({ id: users.id, email: users.email, firstName: users.firstName })
-        .from(users)
-        .where(
-          inArray(
-            users.id,
-            placed.orders.map((o) => o.farmerId),
-          ),
-        );
-      await Promise.all(
-        placed.orders.map((o) => {
-          const f = farmerRows.find((x) => x.id === o.farmerId);
-          if (!f) return null;
-          return notify(
-            f.email,
-            newOrderFarmerEmail({
-              firstName: f.firstName,
-              reference: o.reference,
-              amount: formatFCFA(o.subtotal),
-              slot: data.slotLabel,
-              url: appUrl(`/farmer/orders/${o.id}`),
-            }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        // Le stock des paniers non payés à temps est d'abord remis en vente.
+        await sweepUnpaid(db);
+        const placed = await placeOrder(db, me.id, data);
+        // Chaque producteur est prévenu par email (en plus de l'application).
+        const farmerRows = await db
+          .select({ id: users.id, email: users.email, firstName: users.firstName })
+          .from(users)
+          .where(
+            inArray(
+              users.id,
+              placed.orders.map((o) => o.farmerId),
+            ),
           );
-        }),
-      );
-      return {
-        ok: true as const,
-        checkoutId: placed.checkoutId,
-        checkoutReference: placed.checkoutReference,
-        total: placed.total,
-        creditApplied: placed.creditApplied,
-        orders: placed.orders.map(({ id: orderId, reference }) => ({ id: orderId, reference })),
-      };
-    }),
+        await Promise.all(
+          placed.orders.map((o) => {
+            const f = farmerRows.find((x) => x.id === o.farmerId);
+            if (!f) return null;
+            return notify(
+              f.email,
+              newOrderFarmerEmail({
+                firstName: f.firstName,
+                reference: o.reference,
+                amount: formatFCFA(o.subtotal),
+                slot: data.slotLabel,
+                url: appUrl(`/farmer/orders/${o.id}`),
+              }),
+            );
+          }),
+        );
+        return {
+          ok: true as const,
+          checkoutId: placed.checkoutId,
+          checkoutReference: placed.checkoutReference,
+          total: placed.total,
+          creditApplied: placed.creditApplied,
+          orders: placed.orders.map(({ id: orderId, reference }) => ({ id: orderId, reference })),
+        };
+      },
+      team("order", "Commande passée"),
+    ),
   );
 
 const statusSchema = z.object({
@@ -459,19 +552,23 @@ const statusSchema = z.object({
 export const setOrderStatusFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof statusSchema>) => parse(statusSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer", "restaurant", "admin"], async (db, me) => {
-      if (me.role === "admin" && !["super_admin", "operations"].includes(me.staffRole ?? "")) {
-        return { ok: false as const, message: "Votre rôle ne permet pas cette action." };
-      }
-      await setOrderStatus(
-        db,
-        { id: me.id, actor: me.role as "farmer" | "restaurant" | "admin" },
-        data.orderId,
-        data.status,
-        data.note,
-      );
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer", "restaurant", "admin"],
+      async (db, me) => {
+        if (me.role === "admin" && !["super_admin", "operations"].includes(me.staffRole ?? "")) {
+          return { ok: false as const, message: "Votre rôle ne permet pas cette action." };
+        }
+        await setOrderStatus(
+          db,
+          { id: me.id, actor: me.role as "farmer" | "restaurant" | "admin" },
+          data.orderId,
+          data.status,
+          data.note,
+        );
+        return { ok: true as const };
+      },
+      team("order", "Statut de commande changé"),
+    ),
   );
 
 const confirmSchema = z.object({
@@ -487,10 +584,14 @@ export const confirmOrderFn = createServerFn({ method: "POST" })
     }): Promise<
       { ok: true; outcome: "confirmed" | "adjusted" | "cancelled" } | { ok: false; message: string }
     > =>
-      withMarket(["farmer"], async (db, me) => ({
-        ok: true as const,
-        ...(await confirmOrder(db, me.id, data.orderId, data.available)),
-      })),
+      withMarket(
+        ["farmer"],
+        async (db, me) => ({
+          ok: true as const,
+          ...(await confirmOrder(db, me.id, data.orderId, data.available)),
+        }),
+        team("order", "Commande confirmée"),
+      ),
   );
 
 const receptionSchema = z.object({
@@ -510,10 +611,14 @@ const receptionSchema = z.object({
 export const reportReceptionFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof receptionSchema>) => parse(receptionSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await reportReception(db, me.id, data.orderId, { lines: data.lines, note: data.note });
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await reportReception(db, me.id, data.orderId, { lines: data.lines, note: data.note });
+        return { ok: true as const };
+      },
+      team("reception", "Réception contrôlée"),
+    ),
   );
 
 // --- Missions -------------------------------------------------------------------------
@@ -608,10 +713,14 @@ export const markNotificationsReadFn = createServerFn({ method: "POST" })
     parse(z.object({ ids: z.union([z.literal("all"), z.array(id).max(200)]) }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer", "restaurant", "driver", "admin"], async (db, me) => {
-      await markNotificationsRead(db, me.id, data.ids);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer", "restaurant", "driver", "admin"],
+      async (db, me) => {
+        await markNotificationsRead(db, me.id, data.ids);
+        return { ok: true as const };
+      },
+      team("read"),
+    ),
   );
 
 // --- Paiements du pilote ----------------------------------------------------------
@@ -629,10 +738,14 @@ const declareSchema = z.object({
 export const declarePaymentFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof declareSchema>) => parse(declareSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await declarePayment(db, me.id, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await declarePayment(db, me.id, data);
+        return { ok: true as const };
+      },
+      team("pay", "Paiement déclaré"),
+    ),
   );
 
 const confirmPaymentSchema = z.object({
@@ -687,10 +800,14 @@ const payoutRequestSchema = z.object({
 export const requestPayoutFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof payoutRequestSchema>) => parse(payoutRequestSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer", "driver"], async (db, me) => {
-      await requestPayout(db, me.id, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer", "driver"],
+      async (db, me) => {
+        await requestPayout(db, me.id, data);
+        return { ok: true as const };
+      },
+      team("payout", "Retrait demandé"),
+    ),
   );
 
 const payPayoutSchema = z.object({
@@ -797,10 +914,14 @@ export const getStatementFn = createServerFn({ method: "GET" })
     async ({
       data,
     }): Promise<{ ok: true; statement: StatementView } | { ok: false; message: string }> =>
-      withMarket(["farmer", "driver"], async (db, me) => ({
-        ok: true as const,
-        statement: await readStatement(db, me.id, data.month),
-      })),
+      withMarket(
+        ["farmer", "driver"],
+        async (db, me) => ({
+          ok: true as const,
+          statement: await readStatement(db, me.id, data.month),
+        }),
+        team("read"),
+      ),
   );
 
 // --- Devis de livraison ----------------------------------------------------------------
@@ -833,10 +954,14 @@ export type DeliveryQuoteResult =
 export const quoteDeliveryFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof quoteSchema>) => parse(quoteSchema, input))
   .handler(async ({ data }): Promise<DeliveryQuoteResult> =>
-    withMarket(["restaurant"], async (db, me) => ({
-      ok: true as const,
-      ...(await quoteCheckoutDelivery(db, me.id, data)),
-    })),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => ({
+        ok: true as const,
+        ...(await quoteCheckoutDelivery(db, me.id, data)),
+      }),
+      team("read"),
+    ),
   );
 
 // --- Catégories de produits (admin) ---------------------------------------------------
@@ -944,10 +1069,14 @@ const recurringSchema = z.object({
 export const createRecurringFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof recurringSchema>) => parse(recurringSchema, input))
   .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
-    withMarket(["restaurant"], async (db, me) => ({
-      ok: true as const,
-      id: await createRecurringOrder(db, me.id, data),
-    })),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => ({
+        ok: true as const,
+        id: await createRecurringOrder(db, me.id, data),
+      }),
+      team("order", "Commande récurrente créée"),
+    ),
   );
 
 const recurringPatchSchema = z.object({
@@ -963,10 +1092,14 @@ const recurringPatchSchema = z.object({
 export const updateRecurringFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof recurringPatchSchema>) => parse(recurringPatchSchema, input))
   .handler(async ({ data: { id: recurringId, ...patch } }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await updateRecurringOrder(db, me.id, recurringId, patch);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await updateRecurringOrder(db, me.id, recurringId, patch);
+        return { ok: true as const };
+      },
+      team("order", "Commande récurrente modifiée"),
+    ),
   );
 
 const recurringActionSchema = z.object({
@@ -979,27 +1112,31 @@ const recurringActionSchema = z.object({
 export const recurringActionFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof recurringActionSchema>) => parse(recurringActionSchema, input))
   .handler(async ({ data }): Promise<ActionResult & { outcome?: string }> =>
-    withMarket(["restaurant"], async (db, me) => {
-      switch (data.action) {
-        case "pause":
-          await pauseRecurringOrder(db, me.id, data.id, data.reason ?? "", data.pausedUntil);
-          return { ok: true as const };
-        case "resume":
-          await resumeRecurringOrder(db, me.id, data.id);
-          return { ok: true as const };
-        case "cancel":
-          await cancelRecurringOrder(db, me.id, data.id);
-          return { ok: true as const };
-        case "skip_next":
-          await skipNextRecurringDelivery(db, me.id, data.id, data.reason ?? "");
-          return { ok: true as const };
-        default:
-          return {
-            ok: true as const,
-            outcome: await resolveRecurringPending(db, me.id, data.id, data.action),
-          };
-      }
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        switch (data.action) {
+          case "pause":
+            await pauseRecurringOrder(db, me.id, data.id, data.reason ?? "", data.pausedUntil);
+            return { ok: true as const };
+          case "resume":
+            await resumeRecurringOrder(db, me.id, data.id);
+            return { ok: true as const };
+          case "cancel":
+            await cancelRecurringOrder(db, me.id, data.id);
+            return { ok: true as const };
+          case "skip_next":
+            await skipNextRecurringDelivery(db, me.id, data.id, data.reason ?? "");
+            return { ok: true as const };
+          default:
+            return {
+              ok: true as const,
+              outcome: await resolveRecurringPending(db, me.id, data.id, data.action),
+            };
+        }
+      },
+      team("order", "Commande récurrente mise à jour"),
+    ),
   );
 
 const overrideSchema = z.object({ id, items: recurringItems });
@@ -1007,10 +1144,14 @@ const overrideSchema = z.object({ id, items: recurringItems });
 export const overrideNextRecurringFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof overrideSchema>) => parse(overrideSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await overrideNextRecurringDelivery(db, me.id, data.id, data.items);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await overrideNextRecurringDelivery(db, me.id, data.id, data.items);
+        return { ok: true as const };
+      },
+      team("order", "Prochaine livraison récurrente modifiée"),
+    ),
   );
 
 // --- Litiges ------------------------------------------------------------------------------
@@ -1058,16 +1199,20 @@ const openDisputeSchema = z.object({
 export const openDisputeFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof openDisputeSchema>) => parse(openDisputeSchema, input))
   .handler(async ({ data: { files, ...input } }): Promise<ActionResult & { id?: string }> =>
-    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
-      const stored = await storeDisputeFiles(files);
-      try {
-        const d = await openDispute(db, { id: me.id, role: me.role }, input, stored);
-        return { ok: true as const, id: d.id };
-      } catch (err) {
-        await removeObjects(stored.map((f) => f.storageKey));
-        throw err;
-      }
-    }),
+    withMarket(
+      ["restaurant", "farmer", "driver"],
+      async (db, me) => {
+        const stored = await storeDisputeFiles(files);
+        try {
+          const d = await openDispute(db, { id: me.id, role: me.role }, input, stored);
+          return { ok: true as const, id: d.id };
+        } catch (err) {
+          await removeObjects(stored.map((f) => f.storageKey));
+          throw err;
+        }
+      },
+      team("aftersales", "Litige ouvert"),
+    ),
   );
 
 const replyDisputeSchema = z.object({
@@ -1080,16 +1225,20 @@ const replyDisputeSchema = z.object({
 export const replyDisputeFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof replyDisputeSchema>) => parse(replyDisputeSchema, input))
   .handler(async ({ data: { files, id: disputeId, ...input } }): Promise<ActionResult> =>
-    withMarket(["restaurant", "farmer", "driver", "admin"], async (db, me) => {
-      const stored = await storeDisputeFiles(files);
-      try {
-        await replyDispute(db, { id: me.id, role: me.role }, disputeId, input, stored);
-      } catch (err) {
-        await removeObjects(stored.map((f) => f.storageKey));
-        throw err;
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant", "farmer", "driver", "admin"],
+      async (db, me) => {
+        const stored = await storeDisputeFiles(files);
+        try {
+          await replyDispute(db, { id: me.id, role: me.role }, disputeId, input, stored);
+        } catch (err) {
+          await removeObjects(stored.map((f) => f.storageKey));
+          throw err;
+        }
+        return { ok: true as const };
+      },
+      team("aftersales", "Message sur un litige"),
+    ),
   );
 
 const disputeStaffSchema = z.object({
@@ -1122,10 +1271,14 @@ export const disputeStaffActionFn = createServerFn({ method: "POST" })
 export const requestDisputeEscalationFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => parse(z.object({ id }), input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
-      await requestEscalation(db, { id: me.id, role: me.role }, data.id);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant", "farmer", "driver"],
+      async (db, me) => {
+        await requestEscalation(db, { id: me.id, role: me.role }, data.id);
+        return { ok: true as const };
+      },
+      team("aftersales", "Escalade de litige demandée"),
+    ),
   );
 
 const resolveDisputeSchema = z.object({
@@ -1362,10 +1515,14 @@ export const updateAccountFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(PROFILE_ROLES, async (db, me) => {
-      await updateAccount(db, { id: me.id, role: me.role }, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      PROFILE_ROLES,
+      async (db, me) => {
+        await updateAccount(db, { id: me.id, role: me.role }, data);
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 /** Photo de profil : image envoyée (réduite par le navigateur), ou null pour
@@ -1375,23 +1532,27 @@ export const updateAvatarFn = createServerFn({ method: "POST" })
     parse(z.object({ dataUrl: z.string().max(3_000_000).nullable() }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(PROFILE_ROLES, async (db, me) => {
-      const stored = data.dataUrl
-        ? await storeImage(BUCKETS.public, "profils", data.dataUrl)
-        : null;
-      try {
-        const previous = await setAvatar(
-          db,
-          { id: me.id, role: me.role },
-          stored?.storageKey ?? null,
-        );
-        if (previous) await removeObjects([previous]).catch(() => undefined);
-      } catch (err) {
-        if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
-        throw err;
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      PROFILE_ROLES,
+      async (db, me) => {
+        const stored = data.dataUrl
+          ? await storeImage(BUCKETS.public, "profils", data.dataUrl)
+          : null;
+        try {
+          const previous = await setAvatar(
+            db,
+            { id: me.id, role: me.role },
+            stored?.storageKey ?? null,
+          );
+          if (previous) await removeObjects([previous]).catch(() => undefined);
+        } catch (err) {
+          if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
+          throw err;
+        }
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 export const updatePreferencesFn = createServerFn({ method: "POST" })
@@ -1412,10 +1573,14 @@ export const updatePreferencesFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(PROFILE_ROLES, async (db, me) => {
-      await updatePreferences(db, { id: me.id, role: me.role }, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      PROFILE_ROLES,
+      async (db, me) => {
+        await updatePreferences(db, { id: me.id, role: me.role }, data);
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 const slotSchema = z.object({ open: z.boolean(), from: shortText(5), to: shortText(5) });
@@ -1438,10 +1603,14 @@ export const updateRestaurantFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await updateRestaurant(db, { id: me.id, role: "restaurant" }, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await updateRestaurant(db, { id: me.id, role: "restaurant" }, data);
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 export const updateFarmFn = createServerFn({ method: "POST" })
@@ -1460,10 +1629,14 @@ export const updateFarmFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer"], async (db, me) => {
-      await updateFarm(db, { id: me.id, role: "farmer" }, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer"],
+      async (db, me) => {
+        await updateFarm(db, { id: me.id, role: "farmer" }, data);
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 export const updateDriverFn = createServerFn({ method: "POST" })
@@ -1480,10 +1653,14 @@ export const updateDriverFn = createServerFn({ method: "POST" })
 export const requestAccountDeletionFn = createServerFn({ method: "POST" })
   .validator((input: { reason: string }) => parse(z.object({ reason: shortText(500) }), input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant", "farmer", "driver"], async (db, me) => {
-      await requestAccountDeletion(db, { id: me.id, role: me.role }, data.reason);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant", "farmer", "driver"],
+      async (db, me) => {
+        await requestAccountDeletion(db, { id: me.id, role: me.role }, data.reason);
+        return { ok: true as const };
+      },
+      team("settings"),
+    ),
   );
 
 // --- Messagerie ------------------------------------------------------------------------
@@ -1498,10 +1675,14 @@ export const startConversationFn = createServerFn({ method: "POST" })
     parse(z.object({ farmerId: id.optional(), restaurantId: id.optional() }), input),
   )
   .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
-    withMarket(["restaurant", "farmer", "driver"], async (db, me) => ({
-      ok: true as const,
-      id: await startConversation(db, { id: me.id, role: me.role }, data),
-    })),
+    withMarket(
+      ["restaurant", "farmer", "driver"],
+      async (db, me) => ({
+        ok: true as const,
+        id: await startConversation(db, { id: me.id, role: me.role }, data),
+      }),
+      team("messages", "Conversation ouverte"),
+    ),
   );
 
 export const sendMessageFn = createServerFn({ method: "POST" })
@@ -1509,33 +1690,41 @@ export const sendMessageFn = createServerFn({ method: "POST" })
     parse(z.object({ id, text: z.string().max(4000), file: messageFile }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(ALL_ROLES, async (db, me) => {
-      const stored = data.file
-        ? {
-            ...(await storeImage(BUCKETS.private, "messages", data.file.dataUrl)),
-            name: data.file.name,
-          }
-        : undefined;
-      try {
-        await sendMessage(db, { id: me.id, role: me.role }, data.id, {
-          text: data.text,
-          file: stored,
-        });
-      } catch (err) {
-        if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
-        throw err;
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      ALL_ROLES,
+      async (db, me) => {
+        const stored = data.file
+          ? {
+              ...(await storeImage(BUCKETS.private, "messages", data.file.dataUrl)),
+              name: data.file.name,
+            }
+          : undefined;
+        try {
+          await sendMessage(db, { id: me.id, role: me.role }, data.id, {
+            text: data.text,
+            file: stored,
+          });
+        } catch (err) {
+          if (stored) await removeObjects([stored.storageKey]).catch(() => undefined);
+          throw err;
+        }
+        return { ok: true as const };
+      },
+      team("messages", "Message envoyé"),
+    ),
   );
 
 export const markConversationReadFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => parse(z.object({ id }), input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(ALL_ROLES, async (db, me) => {
-      await markConversationRead(db, { id: me.id, role: me.role }, data.id);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ALL_ROLES,
+      async (db, me) => {
+        await markConversationRead(db, { id: me.id, role: me.role }, data.id);
+        return { ok: true as const };
+      },
+      team("read"),
+    ),
   );
 
 export const conversationStaffFn = createServerFn({ method: "POST" })
@@ -1606,10 +1795,14 @@ export const createTicketFn = createServerFn({ method: "POST" })
       ),
   )
   .handler(async ({ data }): Promise<ActionResult & { id?: string; reference?: string }> =>
-    withMarket(["restaurant", "farmer", "driver"], async (db, me) => ({
-      ok: true as const,
-      ...(await createTicket(db, { id: me.id, role: me.role }, data)),
-    })),
+    withMarket(
+      ["restaurant", "farmer", "driver"],
+      async (db, me) => ({
+        ok: true as const,
+        ...(await createTicket(db, { id: me.id, role: me.role }, data)),
+      }),
+      team("messages", "Demande d'aide envoyée"),
+    ),
   );
 
 export const replyTicketFn = createServerFn({ method: "POST" })
@@ -1617,10 +1810,14 @@ export const replyTicketFn = createServerFn({ method: "POST" })
     parse(z.object({ id, text: z.string().max(5000), internal: z.boolean().optional() }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(ALL_ROLES, async (db, me) => {
-      await replyTicket(db, { id: me.id, role: me.role }, data.id, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ALL_ROLES,
+      async (db, me) => {
+        await replyTicket(db, { id: me.id, role: me.role }, data.id, data);
+        return { ok: true as const };
+      },
+      team("messages", "Réponse au support"),
+    ),
   );
 
 export const ticketStaffFn = createServerFn({ method: "POST" })
@@ -1693,10 +1890,14 @@ export const createReviewFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
-    withMarket(["restaurant"], async (db, me) => ({
-      ok: true as const,
-      id: await createReview(db, { id: me.id, role: me.role }, data),
-    })),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => ({
+        ok: true as const,
+        id: await createReview(db, { id: me.id, role: me.role }, data),
+      }),
+      team("aftersales", "Avis publié"),
+    ),
   );
 
 export const replyReviewFn = createServerFn({ method: "POST" })
@@ -1704,10 +1905,14 @@ export const replyReviewFn = createServerFn({ method: "POST" })
     parse(z.object({ id, text: z.string().max(1000) }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer"], async (db, me) => {
-      await replyReview(db, { id: me.id, role: me.role }, data.id, data.text);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer"],
+      async (db, me) => {
+        await replyReview(db, { id: me.id, role: me.role }, data.id, data.text);
+        return { ok: true as const };
+      },
+      team("aftersales", "Réponse à un avis"),
+    ),
   );
 
 export const hideReviewFn = createServerFn({ method: "POST" })
@@ -1732,10 +1937,14 @@ export const reportProductFn = createServerFn({ method: "POST" })
     parse(z.object({ productId: id, reason: z.string().max(300) }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await reportProduct(db, me.id, data.productId, data.reason);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await reportProduct(db, me.id, data.productId, data.reason);
+        return { ok: true as const };
+      },
+      team("aftersales", "Produit signalé"),
+    ),
   );
 
 export const moderateProductFn = createServerFn({ method: "POST" })
@@ -1807,18 +2016,22 @@ export const createReturnFn = createServerFn({ method: "POST" })
     async ({
       data: { files, ...input },
     }): Promise<ActionResult & { id?: string; reference?: string }> =>
-      withMarket(["restaurant"], async (db, me) => {
-        const stored = await storeDisputeFiles(files, "retours");
-        try {
-          return {
-            ok: true as const,
-            ...(await createReturn(db, { id: me.id, role: me.role }, input, stored)),
-          };
-        } catch (err) {
-          await removeObjects(stored.map((f) => f.storageKey));
-          throw err;
-        }
-      }),
+      withMarket(
+        ["restaurant"],
+        async (db, me) => {
+          const stored = await storeDisputeFiles(files, "retours");
+          try {
+            return {
+              ok: true as const,
+              ...(await createReturn(db, { id: me.id, role: me.role }, input, stored)),
+            };
+          } catch (err) {
+            await removeObjects(stored.map((f) => f.storageKey));
+            throw err;
+          }
+        },
+        team("aftersales", "Retour déclaré"),
+      ),
   );
 
 const replyReturnSchema = z.object({
@@ -1830,16 +2043,20 @@ const replyReturnSchema = z.object({
 export const replyReturnFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof replyReturnSchema>) => parse(replyReturnSchema, input))
   .handler(async ({ data: { files, ...input } }): Promise<ActionResult> =>
-    withMarket(["restaurant", "farmer", "admin"], async (db, me) => {
-      const stored = await storeDisputeFiles(files, "retours");
-      try {
-        await replyReturn(db, { id: me.id, role: me.role }, input.id, input.text, stored);
-      } catch (err) {
-        await removeObjects(stored.map((f) => f.storageKey));
-        throw err;
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant", "farmer", "admin"],
+      async (db, me) => {
+        const stored = await storeDisputeFiles(files, "retours");
+        try {
+          await replyReturn(db, { id: me.id, role: me.role }, input.id, input.text, stored);
+        } catch (err) {
+          await removeObjects(stored.map((f) => f.storageKey));
+          throw err;
+        }
+        return { ok: true as const };
+      },
+      team("aftersales", "Message sur un retour"),
+    ),
   );
 
 export const decideReturnFn = createServerFn({ method: "POST" })
@@ -1855,19 +2072,27 @@ export const decideReturnFn = createServerFn({ method: "POST" })
     ),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer"], async (db, me) => {
-      await farmerDecideReturn(db, { id: me.id, role: me.role }, data.id, data);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer"],
+      async (db, me) => {
+        await farmerDecideReturn(db, { id: me.id, role: me.role }, data.id, data);
+        return { ok: true as const };
+      },
+      team("aftersales", "Décision sur un retour"),
+    ),
   );
 
 export const creditReturnFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => parse(z.object({ id }), input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["farmer", "admin"], async (db, me) => {
-      await creditReturn(db, { id: me.id, role: me.role }, data.id);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["farmer", "admin"],
+      async (db, me) => {
+        await creditReturn(db, { id: me.id, role: me.role }, data.id);
+        return { ok: true as const };
+      },
+      team("aftersales", "Avoir émis sur un retour"),
+    ),
   );
 
 const returnStaffSchema = z.discriminatedUnion("action", [
@@ -2245,19 +2470,23 @@ const supplierActionSchema = z.discriminatedUnion("action", [
 export const supplierActionFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof supplierActionSchema>) => parse(supplierActionSchema, input))
   .handler(async ({ data }): Promise<ActionResult & { id?: string }> =>
-    withMarket(["restaurant"], async (db, me) => {
-      if (data.action === "create") {
-        const { action: _a, ...input } = data;
-        return { ok: true as const, id: await createSupplier(db, me.id, input) };
-      }
-      if (data.action === "update") {
-        const { action: _a, id: supplierId, ...patch } = data;
-        await updateSupplier(db, me.id, supplierId, patch);
-      } else {
-        await removeSupplier(db, me.id, data.id);
-      }
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        if (data.action === "create") {
+          const { action: _a, ...input } = data;
+          return { ok: true as const, id: await createSupplier(db, me.id, input) };
+        }
+        if (data.action === "update") {
+          const { action: _a, id: supplierId, ...patch } = data;
+          await updateSupplier(db, me.id, supplierId, patch);
+        } else {
+          await removeSupplier(db, me.id, data.id);
+        }
+        return { ok: true as const };
+      },
+      team("suppliers", "Carnet de fournisseurs modifié"),
+    ),
   );
 
 export const favoriteProductFn = createServerFn({ method: "POST" })
@@ -2265,11 +2494,15 @@ export const favoriteProductFn = createServerFn({ method: "POST" })
     parse(z.object({ productId: id.optional(), clear: z.boolean().optional() }), input),
   )
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      if (data.clear) await clearFavoriteProducts(db, me.id);
-      else if (data.productId) await toggleFavoriteProduct(db, me.id, data.productId);
-      return { ok: true as const };
-    }),
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        if (data.clear) await clearFavoriteProducts(db, me.id);
+        else if (data.productId) await toggleFavoriteProduct(db, me.id, data.productId);
+        return { ok: true as const };
+      },
+      team("suppliers", "Produits favoris modifiés"),
+    ),
   );
 
 const budgetSchema = z.object({
@@ -2289,8 +2522,76 @@ const budgetSchema = z.object({
 export const saveBudgetFn = createServerFn({ method: "POST" })
   .validator((input: z.input<typeof budgetSchema>) => parse(budgetSchema, input))
   .handler(async ({ data }): Promise<ActionResult> =>
-    withMarket(["restaurant"], async (db, me) => {
-      await saveBudget(db, me.id, data);
-      return { ok: true as const };
+    withMarket(
+      ["restaurant"],
+      async (db, me) => {
+        await saveBudget(db, me.id, data);
+        return { ok: true as const };
+      },
+      team("budget", "Budget d'achat modifié"),
+    ),
+  );
+
+// --- Équipe de l'établissement (titulaire) ------------------------------------------
+
+export type TeamInvite = { kind: "team_invite"; memberId: string };
+
+async function sendTeamInvite(
+  db: Db,
+  owner: AccountRecord,
+  invite: { memberId: string; email: string; role: string },
+): Promise<{ path: string; emailed: boolean }> {
+  const token = await createSignedToken<TeamInvite>(
+    { kind: "team_invite", memberId: invite.memberId },
+    INVITE_TTL_MS,
+  );
+  const path = `/rejoindre?token=${token}`;
+  const ownerName = (await loadPeople(db, [owner.id])).get(owner.id)?.name ?? "";
+  const emailed = await notify(
+    invite.email,
+    teamInviteEmail({
+      ownerName,
+      roleLabel: teamRoleLabel(owner.role as TeamOwnerRole, invite.role),
+      inviterName: `${owner.firstName} ${owner.lastName}`.trim(),
+      url: appUrl(path),
     }),
+  );
+  return { path, emailed };
+}
+
+const teamActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("invite"),
+    email: z.string().trim().max(200),
+    role: z.string().max(30),
+  }),
+  z.object({ action: z.literal("renew"), id }),
+  z.object({ action: z.literal("role"), id, role: z.string().max(30) }),
+  z.object({ action: z.literal("remove"), id }),
+]);
+
+export const teamActionFn = createServerFn({ method: "POST" })
+  .validator((input: z.input<typeof teamActionSchema>) => parse(teamActionSchema, input))
+  .handler(async ({ data }): Promise<ActionResult & { path?: string; emailed?: boolean }> =>
+    withMarket(
+      ["restaurant", "farmer"],
+      async (db, me) => {
+        const owner = { id: me.id, role: me.role as TeamOwnerRole };
+        if (data.action === "invite") {
+          const m = await inviteMember(db, owner, data);
+          return {
+            ok: true as const,
+            ...(await sendTeamInvite(db, me, { ...m, role: data.role })),
+          };
+        }
+        if (data.action === "renew") {
+          const m = await renewInvite(db, me.id, data.id);
+          return { ok: true as const, ...(await sendTeamInvite(db, me, m)) };
+        }
+        if (data.action === "role") await setMemberRole(db, owner, data.id, data.role);
+        else await removeMember(db, me.id, data.id);
+        return { ok: true as const };
+      },
+      team("team"),
+    ),
   );

@@ -38,6 +38,7 @@ import {
   replaceConversations,
   replaceDriverFleet,
   replaceRestaurantBook,
+  replaceTeam,
   supplierActions,
   wishlistActions,
   replaceFleetQueue,
@@ -119,6 +120,7 @@ import {
   supplierActionFn,
   favoriteProductFn,
   saveBudgetFn,
+  teamActionFn,
   updateAccountFn,
   updateAvatarFn,
   updatePreferencesFn,
@@ -241,6 +243,7 @@ async function load(): Promise<void> {
   });
   if (snap.fleet) replaceDriverFleet(snap.fleet);
   if (snap.book) replaceRestaurantBook(snap.book);
+  replaceTeam(snap);
   if (snap.me.role === "admin") {
     replaceModeration(snap.moderation ?? []);
     replaceFleetQueue(snap.fleetQueue ?? { renewals: [], changeRequests: [] });
@@ -1239,6 +1242,23 @@ export const market = {
   async saveBudget(budget: BudgetState): Promise<Result> {
     if (isMarketRemote()) return remote(() => saveBudgetFn({ data: budget }));
     return { ok: true };
+  },
+
+  // --- Équipe de l'établissement --------------------------------------------------------
+
+  /** Inviter, renvoyer, changer le rôle ou retirer un membre (titulaire). Le
+   * lien d'invitation est renvoyé pour être copié si l'e-mail n'est pas parti. */
+  teamAction(
+    input:
+      | { action: "invite"; email: string; role: string }
+      | { action: "renew"; id: string }
+      | { action: "role"; id: string; role: string }
+      | { action: "remove"; id: string },
+  ): Promise<Result<{ path?: string; emailed?: boolean }>> {
+    return remote(async () => {
+      const res = await teamActionFn({ data: input });
+      return res.ok ? { ok: true as const, path: res.path, emailed: res.emailed } : res;
+    });
   },
 
   // --- Litiges ------------------------------------------------------------------------

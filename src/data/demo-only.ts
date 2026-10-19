@@ -6,10 +6,6 @@ import { useMarketMode } from "./market-mode";
 // reliés au serveur.
 
 export const DEMO_ONLY_PREFIXES = [
-  // Restaurant
-  "/restaurant/settings/team",
-  // Producteur
-  "/farmer/settings/team",
   // Administration
   "/admin/refunds",
 ];

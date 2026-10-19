@@ -28,6 +28,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RejoindreRouteImport } from './routes/rejoindre'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
@@ -284,6 +285,11 @@ const PricingRoute = PricingRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RejoindreRoute = RejoindreRouteImport.update({
+  id: '/rejoindre',
+  path: '/rejoindre',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -1157,6 +1163,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -1340,6 +1347,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -1514,6 +1522,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -1699,6 +1708,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
@@ -1882,6 +1892,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
@@ -2055,6 +2066,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
@@ -2239,6 +2251,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
   RegisterRoute: typeof RegisterRoute
+  RejoindreRoute: typeof RejoindreRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
   BlogSlugRoute: typeof BlogSlugRoute
@@ -2381,6 +2394,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rejoindre': {
+      id: '/rejoindre'
+      path: '/rejoindre'
+      fullPath: '/rejoindre'
+      preLoaderRoute: typeof RejoindreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -4010,6 +4030,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
   RegisterRoute: RegisterRoute,
+  RejoindreRoute: RejoindreRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
   BlogSlugRoute: BlogSlugRoute,

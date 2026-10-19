@@ -1,4 +1,4 @@
-import { desc, eq, isNull, sql } from "drizzle-orm";
+import { desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "@/db/client.server";
 import {
   adminProfiles,
@@ -8,7 +8,9 @@ import {
   orders,
   restaurants,
   users,
+  teamMembers,
 } from "@/db/schema";
+import { loadPeople } from "./people.server";
 import type {
   AdminRoleName,
   AuditChange,
@@ -134,9 +136,25 @@ export async function readAdminDirectory(db: Db): Promise<AdminDirectory> {
 
   const personName = (r: { firstName: string; lastName: string }) =>
     `${r.firstName} ${r.lastName}`.trim();
+  // Comptes des membres d'équipe : rattachés à leur établissement.
+  const memberRows = await db
+    .select({ userId: teamMembers.userId, ownerId: teamMembers.ownerId })
+    .from(teamMembers)
+    .where(isNotNull(teamMembers.userId));
+  const owners = await loadPeople(
+    db,
+    memberRows.map((m) => m.ownerId),
+  );
+  const teamOf = new Map(
+    memberRows.map((m) => [m.userId!, owners.get(m.ownerId)?.name ?? "un établissement"]),
+  );
   const userList: PlatformUser[] = rows.map((r) => ({
     id: r.id,
-    name: r.role === "restaurant" && r.restaurantName ? r.restaurantName : personName(r),
+    name: teamOf.has(r.id)
+      ? `${personName(r)} · équipe de ${teamOf.get(r.id)}`
+      : r.role === "restaurant" && r.restaurantName
+        ? r.restaurantName
+        : personName(r),
     role: r.role,
     email: r.email,
     phone: r.phone ?? "",
