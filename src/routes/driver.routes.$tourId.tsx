@@ -62,7 +62,7 @@ function TourDetail() {
     ? conversations.find((c) => c.restaurantId === nextMission.restaurantId)
     : null;
 
-  const toggleStop = (stop: TourStop) => {
+  const toggleStop = async (stop: TourStop) => {
     if (stop.done) {
       toast.info("Étape déjà validée : elle ne peut pas être annulée.");
       return;
@@ -73,7 +73,7 @@ function TourDetail() {
       return;
     }
     const code = window.prompt("Code d'enlèvement donné par le producteur (4 chiffres) :") ?? "";
-    const result = tourActions.toggleStop(stop, code);
+    const result = await tourActions.toggleStop(stop, code);
     if (!result.ok) toast.error(result.message);
     else toast.success("Marchandise récupérée");
   };

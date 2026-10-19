@@ -4,7 +4,7 @@ import { SettingsShell, type SettingsNavItem } from "@/components/common/setting
 
 export const Route = createFileRoute("/farmer/settings")({ component: SettingsLayout });
 
-export const farmerSettingsNav: SettingsNavItem[] = [
+const farmerSettingsNav: SettingsNavItem[] = [
   { to: "/farmer/settings/profile", label: "Profil", icon: User },
   { to: "/farmer/settings/farm", label: "Exploitation", icon: Sprout },
   { to: "/farmer/settings/payments", label: "Paiements", icon: CreditCard },

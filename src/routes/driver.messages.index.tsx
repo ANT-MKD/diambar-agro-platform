@@ -2,9 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Search, MessageSquare, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
-import { restaurants } from "@/data/mocks";
+import { restaurants, restaurantOf } from "@/data/mocks";
 import { useDriverConversations, useMissions, driverConversationActions } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/messages/")({
   head: () => ({
@@ -32,13 +34,14 @@ export const Route = createFileRoute("/driver/messages/")({
 });
 
 function DriverMessagesList() {
+  const myDriverId = useMyId("driver");
   const convs = useDriverConversations();
   const missions = useMissions();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const enriched = convs.map((c) => ({
     ...c,
-    resto: restaurants.find((r) => r.id === c.restaurantId) ?? restaurants[0],
+    resto: restaurantOf(c.restaurantId, c.restaurantName ?? "Restaurant")!,
   }));
   const filtered = enriched.filter(
     (c) =>
@@ -52,14 +55,24 @@ function DriverMessagesList() {
   // les restaurants de la plateforme.
   const conversedRestaurantIds = new Set(convs.map((c) => c.restaurantId));
   const deliveredRestaurantIds = new Set(
-    missions.filter((m) => m.driverId === "d1").map((m) => m.restaurantId),
+    missions.filter((m) => m.driverId === myDriverId).map((m) => m.restaurantId),
   );
   const startableRestaurants = restaurants.filter(
     (r) => deliveredRestaurantIds.has(r.id) && !conversedRestaurantIds.has(r.id),
   );
 
-  const startConversation = (restaurantId: string) => {
-    const id = driverConversationActions.startOrGet(restaurantId);
+  const startConversation = async (restaurantId: string) => {
+    let id: string;
+    if (market.isRemote()) {
+      const res = await market.startConversation({ restaurantId });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      id = res.id;
+    } else {
+      id = driverConversationActions.startOrGet(restaurantId);
+    }
     toast.success("Nouvelle conversation prête");
     navigate({ to: "/driver/messages/$conversationId", params: { conversationId: id } });
   };
@@ -80,7 +93,7 @@ function DriverMessagesList() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {startableRestaurants.map((r) => (
-                  <DropdownMenuItem key={r.id} onClick={() => startConversation(r.id)}>
+                  <DropdownMenuItem key={r.id} onClick={() => void startConversation(r.id)}>
                     {r.name}
                   </DropdownMenuItem>
                 ))}
@@ -117,7 +130,11 @@ function DriverMessagesList() {
               params={{ conversationId: c.id }}
               className="flex items-center gap-3 p-4 hover:bg-accent/40 transition"
             >
-              <img src={c.resto.avatar} alt="" className="h-11 w-11 rounded-full object-cover" />
+              <img
+                src={c.resto.avatar || undefined}
+                alt=""
+                className="h-11 w-11 rounded-full object-cover"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium text-sm truncate">{c.resto.name}</span>

@@ -1,4 +1,5 @@
 // Mock data centralisée pour DIAMBAR AGRO — sera remplacée par Supabase
+import type { OrderPayment, RefundView } from "@/lib/market/payment-view";
 
 export type Role = "farmer" | "restaurant" | "driver" | "admin";
 
@@ -65,6 +66,17 @@ export const restaurants = [
   },
 ];
 
+/** Restaurant d'un fil de messagerie : l'annuaire, sinon le nom envoyé avec
+ * le fil (mode base, restaurant qui n'a pas encore commandé). */
+export function restaurantOf(
+  id: string,
+  fallbackName?: string,
+): (typeof restaurants)[number] | undefined {
+  const r = restaurants.find((x) => x.id === id);
+  if (r || !fallbackName) return r;
+  return { id, name: fallbackName, city: "", type: "Restaurant", phone: "", avatar: "" };
+}
+
 export const drivers = [
   {
     id: "d1",
@@ -108,7 +120,8 @@ export const driverFleetSeed: Record<
 export type Product = {
   id: string;
   name: string;
-  category: "Légumes" | "Fruits" | "Viande" | "Volaille" | "Céréales" | "Tubercules" | "Épices";
+  /** Nom de la catégorie (liste de l'équipe ou proposée par un producteur). */
+  category: string;
   pricePerKg: number;
   unit: string;
   stock: number;
@@ -271,6 +284,9 @@ export type Order = {
   // Code à 4 chiffres que le producteur donne au livreur à l'enlèvement :
   // prouve que la marchandise a bien été remise à ce livreur.
   pickupCode?: string;
+  // Avec la base : le restaurant n'a pas encore payé (Wave / Orange Money),
+  // le producteur attend avant de préparer.
+  awaitingPayment?: boolean;
 };
 
 export const orders: Order[] = [
@@ -444,49 +460,6 @@ export const testimonials = [
   },
 ];
 
-export const faq = [
-  {
-    q: "Comment m'inscrire sur Diambar Agro ?",
-    a: "Cliquez sur \"Commencer maintenant\", choisissez votre rôle (Agriculteur, Restaurant ou Livreur) et suivez le processus d'onboarding guidé en 4 étapes. L'inscription est gratuite.",
-  },
-  {
-    q: "Quels sont les frais de la plateforme ?",
-    a: "La plateforme prélève une commission de 5% à 15% sur chaque commande selon le volume. Les frais de livraison varient de 1 000 à 5 000 FCFA selon la distance.",
-  },
-  {
-    q: "Comment fonctionnent les paiements ?",
-    a: "Nous acceptons Wave, Orange Money, Free Money et les espèces. Les paiements sont sécurisés et les agriculteurs reçoivent leur argent sous 24h après livraison confirmée.",
-  },
-  {
-    q: "Comment les agriculteurs sont-ils vérifiés ?",
-    a: "Chaque agriculteur soumet une pièce d'identité, une preuve d'exploitation et passe par un appel de vérification avec notre équipe. Le processus prend 24 à 48h.",
-  },
-  {
-    q: "Puis-je suivre ma livraison en temps réel ?",
-    a: "Oui, dès qu'un livreur prend en charge votre commande, vous pouvez suivre sa position GPS en temps réel depuis votre dashboard restaurant.",
-  },
-  {
-    q: "Que se passe-t-il si les produits ne correspondent pas ?",
-    a: "Vous pouvez signaler un problème dans les 2h après livraison. Notre équipe intervient sous 4h et un remboursement ou remplacement est organisé.",
-  },
-  {
-    q: "Est-ce que Diambar Agro couvre toute la région ?",
-    a: "Actuellement nous couvrons Dakar et Thiès. Nous allons étendre à Mbour, Saint-Louis et Ziguinchor d'ici fin 2025.",
-  },
-  {
-    q: "Peut-on passer des commandes récurrentes ?",
-    a: 'Oui. La fonctionnalité "Commande récurrente" permet aux restaurants de programmer des livraisons hebdomadaires automatiques.',
-  },
-  {
-    q: "Comment devenir livreur partenaire ?",
-    a: 'Inscrivez-vous avec le rôle "Livreur", soumettez votre permis de conduire et votre carte d\'identité. Vous pouvez commencer à recevoir des missions sous 48h.',
-  },
-  {
-    q: "Y a-t-il un abonnement ?",
-    a: "Non. L'inscription est gratuite pour tous. Les producteurs paient une commission sur les ventes livrées, les restaurants les frais de livraison de leur zone.",
-  },
-];
-
 export type PaymentMethod = "Wave" | "Orange Money" | "Free Money" | "Espèces";
 export const PAYMENT_METHODS: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 export type Transaction = {
@@ -505,6 +478,8 @@ export type Transaction = {
   // remboursement client dont le producteur est responsable — gross et
   // commission y sont négatifs (montants repris), voir store.ts.
   kind?: "delivery" | "refund_adjustment";
+  // Motif d'un ajustement de litige (« Litige LIT-0001 », « Indemnité Litige … »).
+  note?: string;
 };
 
 export const transactions: Transaction[] = [
@@ -587,6 +562,9 @@ export type ChatAttachment = { name: string; dataUrl: string; mime: string };
 export type Conversation = {
   id: string;
   restaurantId: string;
+  /** Mode base : noms des deux parties (l'annuaire ne les a pas toujours). */
+  restaurantName?: string;
+  farmerName?: string;
   // Un restaurant peut avoir une conversation par fournisseur de son
   // carnet, pas seulement avec un unique producteur codé en dur.
   farmerId: string;
@@ -1149,6 +1127,10 @@ export type RecurringOrderException = {
 };
 
 export type RecurringOrderEventKind =
+  | "created"
+  | "edited"
+  | "ended"
+  | "failed"
   | "generated"
   | "confirmed"
   | "delivered"
@@ -1194,6 +1176,8 @@ export type RecurringOrder = {
   pauseReason?: string;
   pausedUntil?: string;
   nextRunAt: string | null;
+  /** Mode base : prochaine livraison (AAAA-MM-JJ) ; la commande est passée la veille. */
+  nextDeliveryOn?: string;
   generatedOrderIds: string[];
   exceptions: RecurringOrderException[];
   history: RecurringOrderEvent[];
@@ -1403,6 +1387,10 @@ export type RestaurantOrder = {
     refundedAmount: number;
     note?: string;
   };
+  // Avec la base : paiement du pilote (numéro marchand ou espèces) et
+  // remboursements liés à cette commande.
+  payment?: OrderPayment;
+  refunds?: RefundView[];
 };
 
 export const restaurantOrders: RestaurantOrder[] = [
@@ -1617,6 +1605,8 @@ export type Mission = {
   waits?: { stage: "pickup" | "dropoff"; arrivedAt: string; endedAt?: string }[];
   // Consignes de livraison laissées par le restaurant.
   instructions?: string;
+  // Avec la base : espèces à encaisser auprès du restaurant à la remise.
+  cashToCollect?: number;
 };
 
 export type MissionProofPhoto = {
@@ -2152,6 +2142,11 @@ export const driverNotifications: AppNotification[] = [
 export type DriverConversation = {
   id: string;
   restaurantId: string;
+  /** Mode base : le livreur du fil et la course concernée. */
+  restaurantName?: string;
+  driverId?: string;
+  driverName?: string;
+  missionId?: string;
   lastMessage: string;
   lastAt: string;
   unread: number;
@@ -2307,6 +2302,9 @@ export type DriverWallet = {
   pending: number;
   withdrawn: number;
   transactions: DriverTx[];
+  // Avec la base : espèces encaissées chez les restaurants, pas encore
+  // remises à Diambar (retenues sur le solde retirable).
+  cashHeld?: number;
 };
 
 export const driverWallet: DriverWallet = {

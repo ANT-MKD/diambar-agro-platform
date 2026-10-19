@@ -11,27 +11,30 @@ import {
 import { MotionConfig } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { CookieConsentBanner } from "@/components/common/cookie-consent-banner";
+import { getPublicInfoFn } from "@/lib/public-info";
+import { DEFAULT_PUBLIC_INFO, type PublicInfo } from "@/lib/public-info-model";
 
-// Organisation réelle décrite avec les données déjà affichées ailleurs sur
-// le site (footer : email, téléphone, adresse) — aucune URL n'est inventée
-// puisqu'aucun domaine de production fixe n'est configuré (wrangler.jsonc
-// ne déclare pas de route/domaine).
-const ORGANIZATION_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Diambar Agro",
-  description:
-    "Plateforme d'approvisionnement agricole qui connecte agriculteurs, restaurants et livreurs au Sénégal.",
-  email: "contact@diambar-agro.sn",
-  telephone: "+221770000000",
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Dakar",
-    addressCountry: "SN",
-  },
-};
+// Organisation décrite avec les coordonnées saisies dans Paramètres →
+// Entreprise, et seulement celles-là : rien n'est inventé.
+function organizationJsonLd(info: PublicInfo) {
+  const { company } = info;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: company.name,
+    description:
+      "Plateforme d'approvisionnement agricole qui connecte agriculteurs, restaurants et livreurs au Sénégal.",
+    ...(company.email ? { email: company.email } : {}),
+    ...(company.phone ? { telephone: company.phone.replace(/\s/g, "") } : {}),
+    address: {
+      "@type": "PostalAddress",
+      ...(company.address ? { streetAddress: company.address } : {}),
+      addressLocality: "Dakar",
+      addressCountry: "SN",
+    },
+  };
+}
 
 import appCss from "../styles.css?url";
 
@@ -89,7 +92,10 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  // Coordonnées et tarifs du site public : lus une fois par chargement de page.
+  loader: () => getPublicInfoFn().catch(() => DEFAULT_PUBLIC_INFO),
+  staleTime: Infinity,
+  head: ({ loaderData }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -119,6 +125,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(organizationJsonLd(loaderData ?? DEFAULT_PUBLIC_INFO)),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -131,10 +143,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="fr" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
-        />
       </head>
       <body>
         {children}
@@ -162,7 +170,6 @@ function RootComponent() {
           qui l'ont activé, sans avoir à auditer chaque motion.div. */}
       <MotionConfig reducedMotion="user">
         <ThemeProvider forcedTheme={isPublicPath(pathname) ? "light" : undefined}>
-          <ImpersonationBanner />
           <Outlet />
           <Toaster richColors position="top-right" />
           <CookieConsentBanner />

@@ -207,7 +207,11 @@ function OrdersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 min-w-[160px]">
-                    <img src={f?.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+                    <img
+                      src={f?.avatar || undefined}
+                      alt=""
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
                     <div>
                       <div className="text-xs font-medium">{f?.farm}</div>
                       <div className="text-[10px] text-muted-foreground">{f?.city}</div>
@@ -219,8 +223,13 @@ function OrdersPage() {
                     </div>
                     <div className="truncate max-w-[160px]">{preview}</div>
                   </div>
-                  <div className="min-w-[90px]">
+                  <div className="min-w-[90px] space-y-1">
                     <OrderStatusBadge status={o.status} />
+                    {(o.payment?.state === "to_pay" || o.payment?.state === "refused") && (
+                      <span className="block w-fit rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+                        À payer
+                      </span>
+                    )}
                   </div>
                   <div className="font-semibold text-primary min-w-[100px]">
                     {formatFCFA(o.total)}
@@ -316,7 +325,7 @@ function OrdersPage() {
                       >
                         <div className="flex items-center gap-2">
                           <img
-                            src={f?.avatar}
+                            src={f?.avatar || undefined}
                             alt=""
                             className="h-7 w-7 rounded-full object-cover"
                           />

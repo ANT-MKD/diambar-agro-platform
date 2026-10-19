@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { market } from "@/data/market-remote";
+import { nextDeliveryLabel } from "@/lib/recurring-label";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Repeat,
@@ -17,12 +19,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
-import {
-  useRecurringOrders,
-  useRestaurantOrders,
-  useProducts,
-  recurringOrderActions,
-} from "@/data/store";
+import { useRecurringOrders, useRestaurantOrders, useProducts } from "@/data/store";
 import { farmers, type RecurringOrder } from "@/data/mocks";
 import { frequencyLabel, computeNextOccurrence, itemsSubtotal } from "@/lib/recurring-engine";
 import { formatFCFA } from "@/lib/format";
@@ -66,6 +63,12 @@ const STATUS_LABEL: Record<RecurringOrder["status"], string> = {
   problem: "Avec problème",
 };
 
+/** Action sur une récurrence : message de réussite, ou l'erreur du serveur. */
+async function act(p: Promise<{ ok: true } | { ok: false; message: string }>, success: string) {
+  const res = await p;
+  if (res.ok) toast.success(success);
+  else toast.error(res.message);
+}
 function estimateTotal(ro: RecurringOrder, priceOf: (id: string) => number) {
   const subtotal = itemsSubtotal(ro.items, priceOf);
   return subtotal + deliveryFeeFor(ro.deliveryAddress);
@@ -94,7 +97,10 @@ function RecurringDashboard() {
   const recurring = useRecurringOrders();
   const restaurantOrders = useRestaurantOrders();
   const products = useProducts();
-  const priceOf = (id: string) => products.find((p) => p.id === id)?.pricePerKg ?? 0;
+  const priceOf = useCallback(
+    (id: string) => products.find((p) => p.id === id)?.pricePerKg ?? 0,
+    [products],
+  );
   const [tab, setTab] = useState<Tab>("all");
   const [q, setQ] = useState("");
 
@@ -285,18 +291,10 @@ function RecurringDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
                   <div className="flex items-center gap-1.5 text-xs">
                     <Calendar className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-muted-foreground">Prochaine commande :</span>
-                    <b>
-                      {r.nextRunAt
-                        ? new Date(r.nextRunAt).toLocaleString("fr-FR", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </b>
+                    <span className="text-muted-foreground">
+                      {r.nextDeliveryOn ? "Prochaine livraison :" : "Prochaine commande :"}
+                    </span>
+                    <b>{nextDeliveryLabel(r)}</b>
                   </div>
                   <div className="text-xs">
                     <span className="text-muted-foreground">Budget estimé : </span>
@@ -329,10 +327,12 @@ function RecurringDashboard() {
                         </DropdownMenuItem>
                         {r.status === "active" && (
                           <DropdownMenuItem
-                            onClick={() => {
-                              recurringOrderActions.pause(r.id, "Autre");
-                              toast.success("Récurrence mise en pause");
-                            }}
+                            onClick={() =>
+                              void act(
+                                market.recurringAction(r.id, "pause", { reason: "Pause" }),
+                                "Récurrence mise en pause",
+                              )
+                            }
                           >
                             <Pause className="h-3.5 w-3.5 mr-2" />
                             Mettre en pause
@@ -340,36 +340,21 @@ function RecurringDashboard() {
                         )}
                         {r.status === "paused" && (
                           <DropdownMenuItem
-                            onClick={() => {
-                              recurringOrderActions.resume(r.id);
-                              toast.success("Récurrence réactivée");
-                            }}
+                            onClick={() =>
+                              void act(
+                                market.recurringAction(r.id, "resume"),
+                                "Récurrence réactivée",
+                              )
+                            }
                           >
                             <Repeat className="h-3.5 w-3.5 mr-2" />
                             Réactiver
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
-                          onClick={() => {
-                            recurringOrderActions.create({
-                              name: `${r.name} (copie)`,
-                              farmerId: r.farmerId,
-                              items: r.items,
-                              frequency: r.frequency,
-                              intervalDays: r.intervalDays,
-                              daysOfWeek: r.daysOfWeek,
-                              createTime: r.createTime,
-                              deliverySlot: r.deliverySlot,
-                              firstRunAt: new Date().toISOString(),
-                              end: r.end,
-                              rules: r.rules,
-                              deliveryAddress: r.deliveryAddress,
-                              deliveryMode: r.deliveryMode,
-                              instructions: r.instructions,
-                              paymentMethod: r.paymentMethod,
-                            });
-                            toast.success("Commande récurrente dupliquée");
-                          }}
+                          onClick={() =>
+                            void act(market.duplicateRecurring(r), "Commande récurrente dupliquée")
+                          }
                         >
                           <Copy className="h-3.5 w-3.5 mr-2" />
                           Dupliquer
@@ -395,10 +380,12 @@ function RecurringDashboard() {
                           description="Les commandes déjà générées ne sont pas supprimées et restent dans votre historique."
                           destructive
                           confirmLabel="Annuler la récurrence"
-                          onConfirm={() => {
-                            recurringOrderActions.cancel(r.id, "full");
-                            toast.success("Commande récurrente annulée");
-                          }}
+                          onConfirm={() =>
+                            void act(
+                              market.recurringAction(r.id, "cancel"),
+                              "Commande récurrente arrêtée",
+                            )
+                          }
                         />
                       </DropdownMenuContent>
                     </DropdownMenu>

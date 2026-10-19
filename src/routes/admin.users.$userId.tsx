@@ -5,7 +5,6 @@ import {
   Ban,
   CheckCircle2,
   Trash2,
-  Eye,
   ShieldCheck,
   ArrowUpRight,
   ShoppingBag,
@@ -13,6 +12,7 @@ import {
   History,
 } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
@@ -20,7 +20,6 @@ import { DisputeStatusBadge } from "@/components/disputes/dispute-badges";
 import { Button } from "@/components/ui/button";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import {
-  adminUserActions,
   auditActions,
   usePlatformUser,
   useValidations,
@@ -28,10 +27,8 @@ import {
   useAdminRoleForEmail,
   can,
 } from "@/data/admin-store";
-import { impersonationActions } from "@/data/impersonation";
 import { useAllDisputes } from "@/data/disputes";
-import { useOrders, useMissions } from "@/data/store";
-import { products } from "@/data/mocks";
+import { useOrders, useMissions, useProducts } from "@/data/store";
 import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { findFarmerRecord, findRestaurantRecord, findDriverRecord } from "@/lib/user-links";
 import { MISSION_BADGE } from "@/lib/driver-day";
@@ -53,6 +50,8 @@ export const Route = createFileRoute("/admin/users/$userId")({
 const TABS = ["Vue d'ensemble", "Commandes", "Litiges", "Activité"] as const;
 
 function AdminUserDetail() {
+  // Produits réels (base) ou de démonstration, selon le mode.
+  const products = useProducts();
   const { userId } = Route.useParams();
   const { user: currentAdmin } = useRouteContext({ from: "/admin" });
   const currentAdminRole = useAdminRoleForEmail(currentAdmin.email);
@@ -111,30 +110,16 @@ function AdminUserDetail() {
         subtitle={`${user.email} · ${user.phone}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                impersonationActions.start(user.id, user.name, user.role);
-                auditActions.log({
-                  action: "Impersonation démarrée",
-                  target: user.name,
-                  module: "security",
-                  level: "critical",
-                });
-                toast.success(`Vous naviguez en tant que ${user.name}`);
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              Voir en tant que
-            </Button>
             {canSuspend && user.status !== "active" && (
               <Button
                 size="sm"
                 className="gap-2"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "active");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "active");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte réactivé",
                     target: user.name,
@@ -153,8 +138,12 @@ function AdminUserDetail() {
                 size="sm"
                 variant="outline"
                 className="gap-2"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "suspended");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "suspended");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte suspendu",
                     target: user.name,
@@ -176,8 +165,12 @@ function AdminUserDetail() {
                 size="sm"
                 variant="outline"
                 className="gap-2 text-destructive"
-                onClick={() => {
-                  adminUserActions.setStatus(user.id, "rejected");
+                onClick={async () => {
+                  const res = await market.setAccountStatus(user.id, "rejected");
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   auditActions.log({
                     action: "Compte rejeté",
                     target: user.name,
@@ -215,7 +208,11 @@ function AdminUserDetail() {
         <div className="space-y-6">
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="glass rounded-2xl p-5 flex items-center gap-4">
-              <img src={user.avatar} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+              <img
+                src={user.avatar || undefined}
+                alt=""
+                className="h-16 w-16 rounded-2xl object-cover"
+              />
               <div className="space-y-1.5">
                 <RoleBadge role={user.role} />
                 <AdminBadge value={user.status} />

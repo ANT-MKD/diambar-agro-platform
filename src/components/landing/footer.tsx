@@ -1,8 +1,13 @@
 import { Logo } from "@/components/common/logo";
 import { Link } from "@tanstack/react-router";
 import { MessageCircle, Mail, Phone, MapPin } from "lucide-react";
+import { telLink, whatsappLink } from "@/lib/public-info-model";
+import { usePublicInfo } from "./use-public-info";
 
 export function Footer() {
+  const { company } = usePublicInfo();
+  const whatsapp = whatsappLink(company.whatsapp || company.phone);
+  const tel = telLink(company.phone);
   return (
     <footer className="border-t border-border">
       <div className="mx-auto max-w-7xl px-4 py-16">
@@ -13,21 +18,22 @@ export function Footer() {
               Produits frais des producteurs sénégalais, livrés aux restaurants le lendemain. Pilote
               en cours à Dakar.
             </p>
-            <div className="mt-5 flex gap-2">
-              {/* Seul canal réel affiché : le numéro déjà indiqué dans la
-                  colonne Contact, en lien WhatsApp cliquable. Pas de Facebook/
-                  Instagram/LinkedIn tant qu'aucun compte réel n'existe — un
-                  lien "#" ne mène nulle part et ne sert à personne. */}
-              <a
-                href="https://wa.me/221770000000"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Nous écrire sur WhatsApp"
-                className="grid h-9 w-9 place-items-center rounded-xl glass hover:bg-emerald-500/10 hover:text-emerald-500 transition"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </a>
-            </div>
+            {/* Seul canal affiché : le WhatsApp saisi dans Paramètres →
+                Entreprise. Pas de Facebook/Instagram/LinkedIn tant qu'aucun
+                compte réel n'existe. */}
+            {whatsapp && (
+              <div className="mt-5 flex gap-2">
+                <a
+                  href={whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Nous écrire sur WhatsApp"
+                  className="grid h-9 w-9 place-items-center rounded-xl glass hover:bg-emerald-500/10 hover:text-emerald-500 transition"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </a>
+              </div>
+            )}
           </div>
           <div>
             <h4 className="font-semibold mb-4">Plateforme</h4>
@@ -97,27 +103,33 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-emerald-500" />
-                <a href="mailto:contact@diambar-agro.sn" className="hover:text-foreground">
-                  contact@diambar-agro.sn
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-emerald-500" />
-                <a href="tel:+221770000000" className="hover:text-foreground">
-                  +221 77 000 00 00
-                </a>
-              </li>
+              {company.email && (
+                <li className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-emerald-500" />
+                  <a href={`mailto:${company.email}`} className="hover:text-foreground">
+                    {company.email}
+                  </a>
+                </li>
+              )}
+              {tel && (
+                <li className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-emerald-500" />
+                  <a href={tel} className="hover:text-foreground">
+                    {company.phone}
+                  </a>
+                </li>
+              )}
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-emerald-500" />
-                Dakar, Sénégal
+                {company.address || "Dakar, Sénégal"}
               </li>
             </ul>
           </div>
         </div>
         <div className="mt-12 pt-6 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} Diambar Agro · Tous droits réservés</span>
+          <span>
+            © {new Date().getFullYear()} {company.name} · Tous droits réservés
+          </span>
           <span>Fait avec ❤️ au Sénégal 🇸🇳</span>
         </div>
       </div>

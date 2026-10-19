@@ -16,12 +16,13 @@ import { FileDrop } from "./file-drop";
 import {
   DISPUTE_CATEGORIES,
   PARTY_LABEL,
-  disputeActions,
   type DisputeAttachment,
   type DisputeParty,
   type NewDisputeInput,
 } from "@/data/disputes";
 import { formatFCFA } from "@/lib/format";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 
 type Props = {
   openedByRole: DisputeParty;
@@ -49,7 +50,9 @@ export function DisputeForm(p: Props) {
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<DisputeAttachment[]>([]);
 
-  const submit = () => {
+  const base = useBaseMode();
+  const [sending, setSending] = useState(false);
+  const submit = async () => {
     if (!description.trim() || description.trim().length < 20) {
       toast.error("Décrivez le problème (20 caractères minimum)");
       return;
@@ -82,9 +85,15 @@ export function DisputeForm(p: Props) {
       channel: "app",
       attachments: files,
     };
-    const id = disputeActions.open(input);
-    toast.success("Litige ouvert · le support répond selon le SLA affiché");
-    p.onCreated(id);
+    setSending(true);
+    const res = await market.openDispute(input);
+    setSending(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    toast.success("Litige ouvert · l'équipe répond dans le délai affiché");
+    p.onCreated(res.id);
   };
 
   const slaHours = priority === "high" ? 24 : priority === "medium" ? 48 : 72;
@@ -197,14 +206,21 @@ export function DisputeForm(p: Props) {
         onChange={setFiles}
         by={p.openedByName}
         kind="photo"
-        label="Preuves (photos, bon de livraison, capture de paiement)"
+        label={
+          base
+            ? "Photos de preuve (JPEG, PNG)"
+            : "Preuves (photos, bon de livraison, capture de paiement)"
+        }
+        {...(base ? { accept: "image/jpeg,image/png,image/webp", max: 4 } : {})}
       />
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={p.onCancel}>
           Annuler
         </Button>
-        <Button onClick={submit}>Ouvrir le litige</Button>
+        <Button onClick={() => void submit()} disabled={sending}>
+          {sending ? "Envoi…" : "Ouvrir le litige"}
+        </Button>
       </div>
     </div>
   );

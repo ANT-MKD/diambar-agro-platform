@@ -12,12 +12,12 @@ export const Route = createFileRoute("/blog/")({
       {
         name: "description",
         content:
-          "Analyses terrain sur les pertes post-récolte, le coût matière en restauration et la logistique du dernier kilomètre au Sénégal.",
+          "Conseils sur les pertes post-récolte, le coût matière en restauration et la livraison du dernier kilomètre au Sénégal.",
       },
       { property: "og:title", content: "Blog — Diambar Agro" },
       {
         property: "og:description",
-        content: "Analyses terrain sur l'agriculture, la restauration et la logistique au Sénégal.",
+        content: "Conseils sur l'agriculture, la restauration et la livraison au Sénégal.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -34,7 +34,7 @@ function BlogIndex() {
       <PageHero
         eyebrow="Blog"
         title="Le terrain, en clair"
-        subtitle="Ce que nous apprenons des producteurs, des cuisines et des routes du Sénégal."
+        subtitle="Conseils et repères pour les producteurs, les cuisines et la livraison au Sénégal."
       />
       <section className="pb-24">
         <div className="mx-auto max-w-7xl px-4">

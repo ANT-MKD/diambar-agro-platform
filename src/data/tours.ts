@@ -1,8 +1,10 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { haversineKm } from "@/lib/tracking/geo-math";
 import { farmers, restaurants, type Mission } from "./mocks";
-import { getMissionSnapshot, missionActions, useDriverVehicle, useMissions } from "./store";
+import { getMissionSnapshot, useDriverVehicle, useMissions } from "./store";
+import { market } from "./market-remote";
 import { ensureDataVersion } from "./persist";
+import { useMyId } from "./market-mode";
 
 export type TourStop = {
   id: string;
@@ -145,10 +147,11 @@ export function useTours(): Tour[] {
   const missions = useMissions();
   const vehicle = useDriverVehicle();
   const orderMap = useOrderMap();
+  const me = useMyId("driver");
 
   return useMemo(() => {
     const mine = missions.filter(
-      (m) => m.driverId === "d1" && m.status !== "available" && m.status !== "cancelled",
+      (m) => m.driverId === me && m.status !== "available" && m.status !== "cancelled",
     );
     const byDate = new Map<string, Mission[]>();
     for (const m of mine) {
@@ -158,7 +161,9 @@ export function useTours(): Tour[] {
       else byDate.set(day, [m]);
     }
 
-    const vehicleLabel = `${vehicle.type} · ${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`;
+    const vehicleLabel = [vehicle.type, `${vehicle.brand} ${vehicle.model}`.trim(), vehicle.plate]
+      .filter(Boolean)
+      .join(" · ");
 
     return Array.from(byDate.entries())
       .sort(([a], [b]) => b.localeCompare(a))
@@ -194,7 +199,7 @@ export function useTours(): Tour[] {
           payout,
         } satisfies Tour;
       });
-  }, [missions, vehicle, orderMap]);
+  }, [missions, vehicle, orderMap, me]);
 }
 
 export const tourActions = {
@@ -210,7 +215,10 @@ export const tourActions = {
   // Cocher une collecte = enlèvement avec le code du producteur. Les
   // livraisons se confirment sur la fiche de la mission (code du restaurant
   // + photo). On ne décoche jamais une étape validée.
-  toggleStop: (stop: TourStop, code?: string): { ok: true } | { ok: false; message: string } => {
+  toggleStop: async (
+    stop: TourStop,
+    code?: string,
+  ): Promise<{ ok: true } | { ok: false; message: string }> => {
     const mission = getMissionSnapshot(stop.missionId);
     if (!mission) return { ok: false, message: "Mission introuvable." };
     if (stop.kind !== "pickup") {
@@ -219,14 +227,14 @@ export const tourActions = {
     if (mission.status !== "accepted" && mission.status !== "pickup") {
       return { ok: false, message: "Cette collecte ne peut plus être validée." };
     }
-    return missionActions.setStatus(stop.missionId, "loaded", "d1", { code });
+    return market.missionStep(stop.missionId, "loaded", code);
   },
   start: (stops: TourStop[]) => {
     const missionIds = new Set(
       stops.filter((s) => s.kind === "pickup" && !s.done).map((s) => s.missionId),
     );
     missionIds.forEach((id) => {
-      if (getMissionSnapshot(id)?.status === "accepted") missionActions.setStatus(id, "pickup");
+      if (getMissionSnapshot(id)?.status === "accepted") void market.missionStep(id, "pickup");
     });
   },
   optimize: (tourId: string, stops: TourStop[]) => {

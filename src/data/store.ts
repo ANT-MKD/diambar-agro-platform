@@ -30,6 +30,12 @@ import {
   restaurantProfile as seedRestaurantProfile,
   farmers,
   restaurants,
+  missions as demoMissionList,
+  orders as demoOrderList,
+  products as demoProductList,
+  wallets as demoWalletList,
+  suppliers as demoSupplierList,
+  driverProfile,
   type Wallet,
   type FarmerProfile,
   type FarmerFarm,
@@ -78,14 +84,20 @@ import {
 } from "./mocks";
 import { formatFCFA } from "@/lib/format";
 import { cityCoords } from "@/lib/tracking/geo";
-import { haversineKm } from "@/lib/tracking/geo-math";
 import { computeNextOccurrence, applyHolidayShift, itemsSubtotal } from "@/lib/recurring-engine";
+import { tierRateForVolume, driverCommissionForPayout } from "@/lib/commission";
 import {
-  tierRateForVolume,
-  driverCommissionForPayout,
-  DRIVER_COMMISSION_RATE,
-} from "@/lib/commission";
-import { getCommissionTiers, getDeliveryZones, useDeliveryZones } from "./platform-settings";
+  getCommissionTiers,
+  getDeliveryZones,
+  useDeliveryZones,
+  zonesStore,
+  replaceCommissionTiers,
+} from "./platform-settings";
+import type { MarketAccount, MarketSnapshot } from "@/lib/market/types";
+import type { ChangeRequestView, DriverFleetView } from "@/lib/market/fleet-view";
+import type { TeamActivity, TeamMemberView, TeamSession } from "@/lib/market/team";
+import { markNotificationsReadFn } from "@/lib/market/functions";
+import { getMarketMode, isMarketRemote, useMarketMode } from "./market-mode";
 import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
   currentLoadKg,
@@ -97,6 +109,20 @@ import {
   type Eligibility,
 } from "@/lib/mission-eligibility";
 import { createStore } from "./persist";
+import { replaceBudget, resetBudget } from "./budget";
+import { replaceCategories } from "./catalog";
+import { replaceUnits } from "./units";
+import { getRules, replaceRules } from "./rules";
+import { resetSecurityForAccount } from "./security";
+import { payouts as demoPayoutList } from "./admin-mocks";
+import {
+  adminAccountsStore,
+  adminPaymentsStore,
+  adminPayoutsStore,
+  adminRefundsStore,
+  invoicesStore,
+  merchantStore,
+} from "./payments-store";
 import { getRefundsSnapshot, onRefundPaid, refundActions } from "./finance";
 import {
   checkMissionStep,
@@ -106,6 +132,14 @@ import {
 } from "@/lib/order-lifecycle";
 import { minOrderOf, productOrderability } from "@/lib/product-availability";
 import { newTrackingToken } from "@/lib/tracking-id";
+import {
+  lastAddressSegment,
+  MISSION_PAY,
+  missionPayout,
+  routeEstimate,
+  urgencyForSlot,
+  vehicleForWeight,
+} from "@/lib/mission-pay";
 import { budgetActions, useBudget } from "./budget";
 
 const productsStore = createStore<Product[]>(seedProducts, "diambar:products");
@@ -167,6 +201,33 @@ const walletsStore = createStore<Wallet[]>(seedWallets, "diambar:wallets");
 const farmerProfileStore = createStore<FarmerProfile>(seedFarmerProfile, "diambar:farmer-profile");
 const farmerFarmStore = createStore<FarmerFarm>(seedFarmerFarm, "diambar:farmer-farm");
 const paymentPrefsStore = createStore<PaymentPrefs>(seedPaymentPrefs, "diambar:payment-prefs");
+/** Compte connecté tel que renvoyé par le serveur (mode base de données). */
+const accountStore = createStore<MarketAccount | null>(null);
+
+export function useMyAccount(): MarketAccount | null {
+  return useSyncExternalStore(accountStore.subscribe, accountStore.get, accountStore.get);
+}
+
+/** Nom et photo affichés dans l'en-tête : ceux enregistrés sur le serveur
+ * (mode base), sinon ceux de la session. */
+export function useIdentity(user: { name: string; avatar: string }) {
+  const a = useMyAccount();
+  const team = useTeamBase().session;
+  // Membre d'une équipe : son propre nom, pas celui du titulaire.
+  if (team) return { name: team.memberName || user.name, avatar: user.avatar };
+  if (!a) return user;
+  return {
+    name: `${a.firstName} ${a.lastName}`.trim() || user.name,
+    avatar: a.avatarUrl || user.avatar,
+  };
+}
+
+/** « 771234567 » → « 77 123 45 67 ». */
+function formatWallet(nine: string) {
+  return /^\d{9}$/.test(nine)
+    ? `${nine.slice(0, 2)} ${nine.slice(2, 5)} ${nine.slice(5, 7)} ${nine.slice(7)}`
+    : nine;
+}
 const teamStore = createStore<TeamMember[]>(seedTeamMembers, "diambar:team");
 const restaurantTeamStore = createStore<RestaurantTeamMember[]>(
   seedRestaurantTeamMembers,
@@ -187,6 +248,10 @@ const cartStore = createStore<CartLine[]>([], "diambar:cart");
 const wishlistStore = createStore<string[]>([], "diambar:wishlist");
 const conversationsStore = createStore<Conversation[]>(seedConversations, "diambar:conversations");
 const recurringStore = createStore<RecurringOrder[]>(seedRecurring, "diambar:recurring");
+
+export function getProducts(): Product[] {
+  return productsStore.get();
+}
 
 export function useProducts() {
   return useSyncExternalStore(productsStore.subscribe, productsStore.get, productsStore.get);
@@ -332,12 +397,20 @@ export function useDriverConversations() {
 export function useDriverConversation(id: string) {
   return useDriverConversations().find((c) => c.id === id) ?? null;
 }
+/** Statut « en ligne » du livreur : un réglage du navigateur en
+ * démonstration. Avec la base, il n'est pas enregistré : le livreur est
+ * considéré disponible et voit toutes les courses ouvertes. */
 export function useDriverOnline() {
   return useSyncExternalStore(
     driverOnlineStore.subscribe,
     driverOnlineStore.get,
     driverOnlineStore.get,
   );
+}
+
+/** Livreur connecté : son vrai identifiant en mode base, « d1 » en démonstration. */
+export function myDriverId(): string {
+  return getMarketMode().me?.id ?? "d1";
 }
 export function useDriverWallet() {
   return useSyncExternalStore(
@@ -454,7 +527,7 @@ export function useMyMissionEligibility(): (m: Mission) => Eligibility {
   return useMemo(
     () => (m: Mission) =>
       missionEligibility(m, fleet, {
-        currentLoadKg: currentLoadKg(missions, "d1", m.id),
+        currentLoadKg: currentLoadKg(missions, myDriverId(), m.id),
         online,
       }),
     [fleet, missions, online],
@@ -591,6 +664,11 @@ export const vehicleActions = {
   },
 };
 
+/** Réglages du livreur à l'instant (hors rendu React). */
+export function getDriverSettings() {
+  return driverSettingsStore.get();
+}
+
 export function useDriverSettings() {
   return useSyncExternalStore(
     driverSettingsStore.subscribe,
@@ -648,7 +726,7 @@ export function autoAcceptableMissions(
   const { minPayout, maxWeightKg, acceptedUrgencies, acceptedCities } = settings.criteria;
   // Le réglage du livreur ne peut pas dépasser ce que son véhicule supporte.
   const weightLimit = Math.min(maxWeightKg, fleet.capacityKg);
-  let load = currentLoadKg(missions, "d1");
+  let load = currentLoadKg(missions, myDriverId());
   return missions.filter((m) => {
     const fits =
       m.status === "available" &&
@@ -799,10 +877,19 @@ function makeNotifActions(
   // notification mène directement à l'élément concerné.
   linkFor?: (text: string) => string | undefined,
 ) {
+  // Avec la base, la lecture est aussi enregistrée côté serveur.
+  const persistRead = (ids: string[] | "all") => {
+    if (isMarketRemote()) void markNotificationsReadFn({ data: { ids } }).catch(() => undefined);
+  };
   return {
-    markRead: (id: string) =>
-      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n))),
-    markAllRead: () => store.set((arr) => arr.map((n) => ({ ...n, read: true }))),
+    markRead: (id: string) => {
+      store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      persistRead([id]);
+    },
+    markAllRead: () => {
+      store.set((arr) => arr.map((n) => ({ ...n, read: true })));
+      persistRead("all");
+    },
     markUnread: (id: string) =>
       store.set((arr) => arr.map((n) => (n.id === id ? { ...n, read: false } : n))),
     toggleRead: (id: string) =>
@@ -915,7 +1002,8 @@ export const missionActions = {
       // Crédit réel du portefeuille livreur : le montant brut de la mission,
       // puis la commission plateforme déduite séparément (deux écritures
       // liées par la même référence).
-      const commission = driverCommissionForPayout(updated.payout);
+      const rate = getRules().driverPay.commissionRate;
+      const commission = driverCommissionForPayout(updated.payout, rate);
       driverWalletActions.credit(
         `Mission ${updated.reference}`,
         updated.payout,
@@ -923,7 +1011,7 @@ export const missionActions = {
         updated.reference,
       );
       driverWalletActions.credit(
-        `Commission plateforme (${DRIVER_COMMISSION_RATE}%)`,
+        `Commission plateforme (${rate}%)`,
         -commission,
         "commission",
         updated.reference,
@@ -1128,6 +1216,19 @@ export const missionActions = {
   },
 };
 
+/** Mode base : fils lus sur le serveur. */
+export function replaceConversations(list: Conversation[]) {
+  conversationsStore.replace(list);
+}
+export function replaceDriverConversations(list: DriverConversation[]) {
+  driverConvosStore.replace(list);
+}
+/** Compteur de non-lus remis à zéro sans attendre le serveur. */
+export function markConversationReadLocally(id: string) {
+  conversationsStore.set((arr) => arr.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+  driverConvosStore.set((arr) => arr.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
+}
+
 export const driverConversationActions = {
   startOrGet: (restaurantId: string) => {
     const existing = driverConvosStore.get().find((c) => c.restaurantId === restaurantId);
@@ -1220,6 +1321,83 @@ export const driverOnlineActions = {
   set: (v: boolean) => driverOnlineStore.set(v),
 };
 
+/** Mode base : équipe de l'établissement (titulaire) ou rôle du membre connecté. */
+type TeamState = {
+  members: TeamMemberView[];
+  activity: TeamActivity[];
+  session: TeamSession | null;
+};
+const teamBaseStore = createStore<TeamState>({ members: [], activity: [], session: null });
+
+export function useTeamBase(): TeamState {
+  return useSyncExternalStore(teamBaseStore.subscribe, teamBaseStore.get, teamBaseStore.get);
+}
+
+export function replaceTeam(s: Pick<MarketSnapshot, "team" | "teamMembers" | "teamActivity">) {
+  teamBaseStore.replace({
+    members: s.teamMembers ?? [],
+    activity: s.teamActivity ?? [],
+    session: s.team ?? null,
+  });
+}
+
+/** Mode base (restaurant) : fournisseurs, produits favoris et budget lus sur le serveur. */
+export function replaceRestaurantBook(book: NonNullable<MarketSnapshot["book"]>) {
+  suppliersStore.replace(book.suppliers);
+  wishlistStore.replace(book.favorites);
+  replaceBudget(book.budget);
+}
+
+/** Préférences de travail par défaut d'un vrai compte (avant tout réglage). */
+const BASE_WORK_PREFS = {
+  radius: 50,
+  autoAccept: false,
+  criteria: {
+    minPayout: 0,
+    maxWeightKg: 1000,
+    acceptedUrgencies: ["standard", "priority", "express"] as Mission["urgency"][],
+    acceptedCities: [] as string[],
+  },
+};
+
+/** Mode base : véhicule, problèmes, entretiens, documents, disponibilité et
+ * préférences du livreur, lus sur le serveur. */
+export function replaceDriverFleet(f: DriverFleetView) {
+  if (f.vehicle) driverVehicleStore.replace(f.vehicle);
+  vehicleIssuesStore.replace(f.issues);
+  maintenanceHistoryStore.replace(f.maintenance);
+  vehicleChangeRequestsStore.replace(f.changeRequests);
+  docRenewalsStore.replace(f.renewals);
+  driverOnlineStore.replace(f.online);
+  driverSettingsStore.set((s) => ({
+    ...s,
+    ...BASE_WORK_PREFS,
+    ...(f.workPrefs ?? {}),
+    workingHours: f.workingHours ?? s.workingHours,
+    locationSharing: f.locationSharing,
+  }));
+}
+
+const fleetChangesStore = createStore<ChangeRequestView[]>([]);
+
+/** Équipe : changements de véhicule demandés par les livreurs. */
+export function useFleetChangeRequests() {
+  return useSyncExternalStore(
+    fleetChangesStore.subscribe,
+    fleetChangesStore.get,
+    fleetChangesStore.get,
+  );
+}
+
+/** Mode base (équipe) : documents et changements de véhicule à vérifier. */
+export function replaceFleetQueue(q: {
+  renewals: DocRenewal[];
+  changeRequests: ChangeRequestView[];
+}) {
+  docRenewalsStore.replace(q.renewals);
+  fleetChangesStore.replace(q.changeRequests);
+}
+
 // Un fournisseur du carnet lié à un vrai producteur (farmerId) doit afficher
 // ses vraies statistiques de commande, pas des totaux saisis une fois à la
 // création et jamais mis à jour. Sans farmerId (fournisseur hors plateforme),
@@ -1272,31 +1450,7 @@ export const supplierActions = {
   },
 };
 
-function vehicleForWeight(kg: number): Mission["vehicleType"] {
-  if (kg > 80) return "Camion";
-  if (kg > 30) return "Camionnette";
-  return "Moto";
-}
-
-// Rémunération d'une course : une prise en charge fixe, la distance et le
-// poids transporté. Avant, seule la distance comptait (120 FCFA/km) : une
-// course dans la même ville était payée 100 FCFA.
-export const MISSION_PAY = { base: 1000, perKm: 120, perKgOver20: 10, minimum: 1500 };
-
-export function missionPayout(distanceKm: number, weightKg: number): number {
-  const raw =
-    MISSION_PAY.base +
-    distanceKm * MISSION_PAY.perKm +
-    Math.max(0, weightKg - 20) * MISSION_PAY.perKgOver20;
-  return Math.max(MISSION_PAY.minimum, Math.round(raw / 50) * 50);
-}
-
-/** "Le Baobab, Dakar Plateau" -> "Dakar Plateau" (même règle que la
- * résolution de suivi en direct, pour rester cohérent avec elle). */
-function lastAddressSegment(address: string): string {
-  const parts = address.split(",");
-  return parts[parts.length - 1]?.trim() || address;
-}
+export { MISSION_PAY, missionPayout };
 
 /** Frais d'une livraison vers une adresse du restaurant, selon la zone réglée
  * par l'admin (0 si hors zone). */
@@ -1311,7 +1465,10 @@ export function useDeliveryFeeFor(address: string): number {
   return zone ? deliveryFeeForZone(zone) : 0;
 }
 
-export const RECEPTION_WINDOW_MS = 48 * 3600_000;
+/** Délai pour signaler un problème à la réception (réglé par l'admin). */
+export function receptionWindowMs(): number {
+  return getRules().receptionWindowHours * 3600_000;
+}
 
 /** Heure réelle de livraison d'une commande restaurant (dernier passage à
  * « livrée »), ou undefined pour une commande de démo sans historique. */
@@ -1455,7 +1612,7 @@ export const restaurantOrderActions = {
     }
     if (order.reception) return { ok: false, message: "La réception a déjà été contrôlée." };
     const deliveredAt = deliveredAtOf(order);
-    if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS) {
+    if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > receptionWindowMs()) {
       return {
         ok: false,
         message: "Le délai de 48 h après la livraison est dépassé : passez par le support.",
@@ -1792,8 +1949,7 @@ function openMissionForOrder(reference: string) {
   const pickupCoords = cityCoords(farmer.city);
   const dropoffCity = lastAddressSegment(deliveryAddress);
   const dropoffCoords = cityCoords(dropoffCity);
-  const distanceKm = Math.max(1, Math.round(haversineKm(pickupCoords, dropoffCoords)));
-  const estimatedMinutes = Math.max(10, Math.round((distanceKm / 42) * 60));
+  const { distanceKm, estimatedMinutes } = routeEstimate(farmer.city, dropoffCity);
   const weightKg = source.items.reduce((s, i) => s + i.qty, 0);
   missionsStore.set((arr) => [
     {
@@ -1821,18 +1977,13 @@ function openMissionForOrder(reference: string) {
       },
       distanceKm,
       estimatedMinutes,
-      payout: missionPayout(distanceKm, weightKg),
+      payout: missionPayout(distanceKm, weightKg, getRules().driverPay),
       weightKg,
       itemsCount: source.items.length,
       scheduledFor: restoOrder?.slotStart ?? now,
       createdAt: now,
-      vehicleType: vehicleForWeight(weightKg),
-      urgency:
-        restoOrder?.missionUrgency ??
-        (restoOrder?.slotStart &&
-        new Date(restoOrder.slotStart).getTime() - Date.now() < 36 * 3600_000
-          ? "priority"
-          : "standard"),
+      vehicleType: vehicleForWeight(weightKg, getRules().driverPay),
+      urgency: restoOrder?.missionUrgency ?? urgencyForSlot(restoOrder?.slotStart),
       statusHistory: [{ status: "available", at: now }],
       instructions: restoOrder?.instructions,
     },
@@ -2912,3 +3063,289 @@ export const docRenewalActions = {
     }
   },
 };
+
+// --- Données venues du serveur (mode base de données) ------------------------
+
+let profileLoadedFor: string | null = null;
+
+/** Remplace produits, commandes, missions, annuaire, zones et notifications
+ * par ceux du compte connecté, lus dans la base (voir market-remote). */
+export function replaceMarketData(s: MarketSnapshot) {
+  productsStore.replace(s.products);
+  ordersStore.replace(s.orders);
+  restaurantOrdersStore.replace(s.restaurantOrders);
+  missionsStore.replace(s.missions);
+  farmers.splice(0, farmers.length, ...s.directory.farmers);
+  restaurants.splice(0, restaurants.length, ...s.directory.restaurants);
+  driverPool.splice(0, driverPool.length, ...s.directory.drivers);
+  zonesStore.replace(s.zones);
+  merchantStore.replace(s.rules.merchant);
+  adminPaymentsStore.replace(s.payments ?? []);
+  adminAccountsStore.replace(s.accounts ?? []);
+  adminPayoutsStore.replace(s.payouts ?? []);
+  adminRefundsStore.replace(s.refunds ?? []);
+  invoicesStore.replace(s.invoices ?? []);
+  // Comptes tenus par le serveur (grand livre) : revenus et retraits du
+  // producteur, portefeuille du livreur.
+  if (s.wallet) {
+    transactionsStore.replace(s.wallet.transactions);
+    withdrawalsStore.replace(s.wallet.withdrawals);
+  }
+  if (s.platformTransactions) transactionsStore.replace(s.platformTransactions);
+  if (s.commissionTiers) replaceCommissionTiers(s.commissionTiers);
+  if (s.driverWallet) driverWalletStore.replace(s.driverWallet);
+  const notifs =
+    s.me.role === "farmer"
+      ? farmerNotifsStore
+      : s.me.role === "restaurant"
+        ? restoNotifsStore
+        : s.me.role === "driver"
+          ? driverNotifsStore
+          : null;
+  notifs?.replace(s.notifications);
+  if (s.restaurant) {
+    const profile = restaurantProfileStore.get();
+    const methods = s.rules.paymentMethods;
+    // Adresse de l'établissement au premier chargement ; ensuite, celle que
+    // le restaurant a utilisée à sa dernière commande.
+    const first = profileLoadedFor !== s.me.id;
+    profileLoadedFor = s.me.id;
+    restaurantProfileStore.replace({
+      ...profile,
+      displayName: s.restaurant.name,
+      city: s.restaurant.city,
+      deliveryAddress: first ? s.restaurant.address : profile.deliveryAddress,
+      enabledPaymentMethods: methods,
+      paymentMethod: methods.includes(profile.paymentMethod) ? profile.paymentMethod : methods[0],
+    });
+  }
+  applyAccount(s);
+  replaceCategories(s.categories);
+  replaceUnits(s.units ?? []);
+  recurringStore.replace(s.recurringOrders ?? []);
+  replaceRules({
+    cutoffHour: s.rules.cutoffHour,
+    minOrderPerProducer: s.rules.minOrderPerProducer,
+    receptionWindowHours: s.rules.receptionWindowHours,
+    paymentDeadlineHour: s.rules.paymentDeadlineHour,
+    minPayout: s.rules.minPayout,
+    deliveryHours: s.rules.deliveryHours,
+    driverPay: s.rules.driverPay,
+    cities: s.rules.cities,
+    paymentMethods: s.rules.paymentMethods,
+  });
+  // Panier : on retire ce qui n'existe plus au catalogue.
+  const ids = new Set(s.products.map((p) => p.id));
+  const cart = cartStore.get();
+  if (cart.some((l) => !ids.has(l.productId))) {
+    cartStore.set(cart.filter((l) => ids.has(l.productId)));
+  }
+}
+
+// --- Compte réel (mode base de données) ------------------------------------------------
+
+const VEHICLE_TYPE: Record<string, DriverVehicle["type"]> = {
+  moto: "Moto",
+  // Pas de vélo dans les fiches véhicule : le deux-roues le plus proche.
+  velo: "Moto",
+  tricycle: "Tricycle",
+  camionnette: "Camionnette",
+  camion: "Camion",
+};
+
+/** Profils remis à zéro une seule fois par compte et par navigateur : ce que
+ * la personne y saisit ensuite est gardé. */
+const DEMO_RESET_KEY = "diambar:demo-reset-for";
+
+function firstVisitOf(accountId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.localStorage.getItem(DEMO_RESET_KEY) === accountId) return false;
+    window.localStorage.setItem(DEMO_RESET_KEY, accountId);
+  } catch {
+    /* stockage indisponible : on remet à zéro à chaque chargement */
+  }
+  return true;
+}
+
+/** Identité du compte connecté à la place des personnes de démonstration, et
+ * listes de démonstration vidées (ou remplacées par les données du serveur). */
+function applyAccount(s: MarketSnapshot) {
+  const a = s.account;
+  const fullName = `${a.firstName} ${a.lastName}`.trim();
+  demoProductList.splice(0, demoProductList.length, ...s.products);
+  demoMissionList.splice(0, demoMissionList.length, ...s.missions);
+  demoOrderList.splice(0, demoOrderList.length, ...s.orders);
+  demoWalletList.splice(0, demoWalletList.length);
+  demoSupplierList.splice(0, demoSupplierList.length);
+  demoPayoutList.splice(0, demoPayoutList.length);
+  Object.assign(driverProfile, {
+    id: s.me.id,
+    name: fullName,
+    avatar: "",
+    phone: a.phone,
+    email: a.email,
+    city: a.city,
+    rating: 0,
+    totalMissions: s.missions.filter((m) => m.status === "delivered").length,
+    totalDistanceKm: 0,
+    memberSince: a.createdAt.slice(0, 10),
+  });
+
+  const reset = firstVisitOf(s.me.id);
+  if (reset) resetSecurityForAccount(a.createdAt);
+  // Profils : tels qu'enregistrés sur le serveur.
+  accountStore.replace(a);
+  const prefs = a.preferences;
+  if (s.me.role === "farmer") {
+    farmerProfileStore.set((p) => ({
+      ...p,
+      firstName: a.firstName,
+      lastName: a.lastName,
+      email: a.email,
+      phone: a.phone,
+      bio: a.farm?.description ?? "",
+      avatar: a.avatarUrl,
+      lang: a.farm?.lang ?? "fr",
+    }));
+    farmerFarmStore.set((f) => ({
+      ...f,
+      name: a.farm?.name ?? f.name,
+      city: a.farm?.city ?? a.city,
+      address: a.farm?.address ?? f.address,
+      size: a.farm?.areaHa != null ? String(a.farm.areaHa) : "",
+      types: a.farm?.productionTypes ?? [],
+      certification: a.farm?.certification ?? "none",
+    }));
+    paymentPrefsStore.set((p) => ({
+      ...p,
+      primary: prefs.payout.primary === "orange_money" ? "Orange Money" : "Wave",
+    }));
+    walletsStore.set(
+      (
+        [
+          ["Wave", prefs.payout.wave, "#1DB7FF"],
+          ["Orange Money", prefs.payout.orangeMoney, "#FF6F00"],
+        ] as const
+      )
+        .filter(([, phone]) => phone)
+        .map(([method, phone, color]) => ({
+          id: `w-${method}`,
+          method,
+          balance: 0,
+          phone: formatWallet(phone),
+          color,
+        })),
+    );
+    if (reset) teamStore.set([]);
+  } else if (s.me.role === "restaurant") {
+    const r = a.restaurant;
+    restaurantProfileStore.set((p) => ({
+      ...p,
+      displayName: r?.name ?? p.displayName,
+      cuisine: r?.cuisine ?? "",
+      bio: r?.description ?? "",
+      manager: r?.contactName || fullName,
+      capacity: r?.capacity ?? 0,
+      avatarUrl: a.avatarUrl,
+      newsletter: prefs.newsletter,
+      phone: a.phone,
+      email: a.email,
+      city: a.city || p.city,
+      ninea: a.billing?.ninea ?? "",
+      billingEmail: a.billing?.email ?? a.email,
+      paymentTermsDays: r?.paymentTermsDays ?? 0,
+      ...(r?.receptionHours
+        ? {
+            receptionHours: { ...p.receptionHours, ...r.receptionHours } as typeof p.receptionHours,
+          }
+        : {}),
+    }));
+    if (reset) {
+      restaurantTeamStore.set([]);
+      resetBudget();
+    }
+  } else if (s.me.role === "driver") {
+    driverSettingsStore.set((d) => ({
+      ...d,
+      profile: {
+        ...d.profile,
+        address: a.driver?.address ?? "",
+        avatar: a.avatarUrl,
+        name: fullName,
+        phone: a.phone,
+        email: a.email,
+        city: a.city,
+      },
+      // Comptes de retrait enregistrés (Paramètres → Paiements).
+      paymentMethods: (
+        [
+          ["wave", "Wave", prefs.payout.wave],
+          ["orange_money", "Orange Money", prefs.payout.orangeMoney],
+        ] as const
+      )
+        .filter(([, , phone]) => phone)
+        .map(([key, method, phone]) => ({
+          id: `pm-${key}`,
+          method,
+          label: formatWallet(phone),
+          active: prefs.payout.primary === key,
+        })),
+    }));
+    driverVehicleStore.set((v) => ({
+      ...(reset
+        ? {
+            ...v,
+            brand: "",
+            model: "",
+            year: 0,
+            color: "",
+            mileageKm: 0,
+            insuranceExpiry: "",
+            inspectionExpiry: "",
+            photo: "",
+            photos: [],
+            nextMaintenanceAt: undefined,
+            condition: {
+              tires: "good" as const,
+              brakes: "good" as const,
+              battery: "good" as const,
+              oil: "good" as const,
+              lights: "good" as const,
+              body: "good" as const,
+            },
+          }
+        : v),
+      ...(a.vehicle
+        ? {
+            type: VEHICLE_TYPE[a.vehicle.type] ?? v.type,
+            capacityKg: a.vehicle.capacityKg,
+            plate: a.vehicle.plate,
+          }
+        : {}),
+    }));
+    if (reset) {
+      vehicleIssuesStore.set([]);
+      maintenanceHistoryStore.set([]);
+      vehicleChangeRequestsStore.set([]);
+    }
+  }
+}
+
+/** Premier chargement en mode serveur : les données de démonstration qui
+ * n'ont pas encore d'équivalent en base ne sont plus montrées. */
+export function clearDemoCollections() {
+  // Le livreur reçoit son vrai portefeuille ; les autres comptes n'en ont pas.
+  driverWalletStore.replace({ balance: 0, pending: 0, withdrawn: 0, transactions: [] });
+  movementsStore.replace([]);
+  withdrawalsStore.replace([]);
+  transactionsStore.replace([]);
+  suppliersStore.replace([]);
+  conversationsStore.replace([]);
+  driverConvosStore.replace([]);
+  recurringStore.replace([]);
+  productReviewsStore.replace([]);
+  farmerNotifsStore.replace([]);
+  restoNotifsStore.replace([]);
+  driverNotifsStore.replace([]);
+}

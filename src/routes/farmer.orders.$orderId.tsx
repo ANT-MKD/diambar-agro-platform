@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
 import { useOrder, orderActions, useProducts } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useState } from "react";
 import {
   Dialog,
@@ -40,8 +41,8 @@ function OrderDetailPage() {
   const steps: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", "delivered"];
   const idx = steps.indexOf(order.status);
 
-  const next = (s: OrderStatus) => {
-    const result = orderActions.setStatus(order.id, s);
+  const next = async (s: OrderStatus) => {
+    const result = await market.setOrderStatus(order.id, s, "farmer");
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -70,7 +71,7 @@ function OrderDetailPage() {
 
       <div className="flex items-center justify-between glass rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <img src={r?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+          <img src={r?.avatar || undefined} alt="" className="h-12 w-12 rounded-xl object-cover" />
           <div>
             <div className="font-semibold">{r?.name}</div>
             <div className="text-xs text-muted-foreground">
@@ -160,13 +161,25 @@ function OrderDetailPage() {
 
       {d && (
         <div className="glass rounded-2xl p-4 flex items-center gap-3">
-          <img src={d.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+          <img src={d.avatar || undefined} alt="" className="h-10 w-10 rounded-full object-cover" />
           <div className="flex-1">
             <div className="font-medium text-sm">{d.name}</div>
             <div className="text-xs text-muted-foreground">
               {d.vehicle} · ★ {d.rating}
             </div>
           </div>
+        </div>
+      )}
+
+      {order.awaitingPayment && (
+        <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p>
+            <span className="font-semibold">Paiement du restaurant en attente.</span>{" "}
+            {order.status === "pending"
+              ? "Vous pouvez déjà confirmer ce que vous avez, mais ne préparez rien avant la confirmation du paiement : vous serez prévenu."
+              : "Ne préparez rien avant la confirmation du paiement par Diambar : vous serez prévenu, puis un livreur viendra récupérer la commande."}
+          </p>
         </div>
       )}
 
@@ -187,7 +200,12 @@ function OrderDetailPage() {
         )}
         {order.status === "pending" && <AdjustQuantities orderId={order.id} />}
         {order.status === "confirmed" && (
-          <Button onClick={() => next("preparing")} className="gap-1">
+          <Button
+            onClick={() => next("preparing")}
+            className="gap-1"
+            disabled={order.awaitingPayment}
+            title={order.awaitingPayment ? "En attente du paiement du restaurant" : undefined}
+          >
             <Package2 className="h-4 w-4" />
             Commencer la préparation
           </Button>
@@ -240,8 +258,8 @@ function AdjustQuantities({ orderId }: { orderId: string }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
   if (!order) return null;
-  const submit = () => {
-    const result = orderActions.confirmPartial(order.id, qty);
+  const submit = async () => {
+    const result = await market.confirmOrder(order.id, qty);
     if (!result.ok) return toast.error(result.message);
     toast.success("Commande acceptée avec les quantités disponibles");
     setOpen(false);

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   Wallet,
   ArrowUpRight,
@@ -26,10 +27,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDriverWallet, driverWalletActions, useDriverSettings, useMissions } from "@/data/store";
+import {
+  useDriverWallet,
+  driverWalletActions,
+  useDriverSettings,
+  useMissions,
+  useMyAccount,
+} from "@/data/store";
+import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { formatFCFA } from "@/lib/format";
 import { dayKey, addDays, referenceDay, gainsForDay } from "@/lib/driver-day";
 import type { PaymentMethod } from "@/data/mocks";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/wallet")({
   head: () => ({
@@ -53,12 +62,21 @@ const KIND_META: Record<string, { label: string; icon: typeof Wallet; tone: stri
 };
 
 function WalletPage() {
+  const minPayout = useRules().minPayout;
   const wallet = useDriverWallet();
   const settings = useDriverSettings();
   const missions = useMissions();
   const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("Wave");
+  const account = useMyAccount();
+  const payout = account?.preferences.payout;
+  const [method, setMethod] = useState<PaymentMethod>(
+    payout?.primary === "orange_money" ? "Orange Money" : "Wave",
+  );
+  // Numéro qui recevra l'argent : celui enregistré pour ce moyen, sinon le
+  // téléphone du compte.
+  const payoutNumber =
+    (method === "Orange Money" ? payout?.orangeMoney : payout?.wave) || account?.phone || "";
 
   // Les transactions de démo sont figées dans le passé : "maintenant" est
   // ancré sur la dernière mission réelle du livreur, sinon "aujourd'hui" et
@@ -133,11 +151,20 @@ function WalletPage() {
   }, [wallet.transactions]);
   const maxDay = Math.max(1, ...byDay.map((d) => d.amount));
 
-  const submitWithdraw = (e: React.FormEvent) => {
+  const submitWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = Number(amount);
-    if (!value || value < 1000) return toast.error("Montant minimum : 1 000 FCFA");
+    if (!value || value < minPayout)
+      return toast.error(`Montant minimum : ${formatFCFA(minPayout)}`);
     if (value > wallet.balance) return toast.error("Solde insuffisant");
+    if (market.isRemote()) {
+      // Avec la base : la demande part à Diambar, qui verse à la main.
+      const res = await market.requestPayout(value, method);
+      if (!res.ok) return toast.error(res.message);
+      setAmount("");
+      toast.success(`Retrait de ${formatFCFA(value)} demandé · ${method}`);
+      return;
+    }
     driverWalletActions.withdraw(value, method);
     setAmount("");
     toast.success(`Retrait de ${formatFCFA(value)} demandé · ${method}`);
@@ -170,10 +197,17 @@ function WalletPage() {
         title="Mon portefeuille"
         subtitle="Solde, transactions et commissions"
         actions={
-          <Button variant="outline" className="gap-2" onClick={exportCsv}>
-            <Download className="h-4 w-4" />
-            Exporter
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {market.isRemote() && (
+              <Button asChild variant="outline">
+                <Link to="/driver/statement">Relevé mensuel</Link>
+              </Button>
+            )}
+            <Button variant="outline" className="gap-2" onClick={exportCsv}>
+              <Download className="h-4 w-4" />
+              Exporter
+            </Button>
+          </div>
         }
       />
 
@@ -322,6 +356,18 @@ function WalletPage() {
               <ArrowDownLeft className="h-4 w-4 text-primary" />
               Retirer mes gains
             </h3>
+            {wallet.cashHeld ? (
+              <p
+                className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400"
+                data-testid="cash-held"
+              >
+                <span className="font-semibold">
+                  {formatFCFA(wallet.cashHeld)} d'espèces à remettre à Diambar.
+                </span>{" "}
+                Ce montant est retenu sur votre solde jusqu'à la remise. Au-delà du plafond, vous ne
+                pouvez plus accepter de course payée en espèces.
+              </p>
+            ) : null}
             <div className="space-y-1.5">
               <Label htmlFor="amt">Montant (FCFA)</Label>
               <Input
@@ -358,9 +404,11 @@ function WalletPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Wave">Wave · +221 77 888 99 00</SelectItem>
+                  <SelectItem value="Wave">
+                    {market.isRemote() ? "Wave" : "Wave · +221 77 888 99 00"}
+                  </SelectItem>
                   <SelectItem value="Orange Money">Orange Money</SelectItem>
-                  <SelectItem value="Free Money">Free Money</SelectItem>
+                  {!market.isRemote() && <SelectItem value="Free Money">Free Money</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -368,7 +416,9 @@ function WalletPage() {
               Demander le retrait
             </Button>
             <p className="text-[11px] text-muted-foreground">
-              Versement sous 24h · minimum 1 000 FCFA · aucun frais.
+              {market.isRemote()
+                ? `Versé par Diambar sur le ${payoutNumber ? formatSenegalPhone(payoutNumber) : "numéro de votre compte"} · minimum ${formatFCFA(minPayout)} · aucun frais. Numéros modifiables dans Paramètres → Paiements.`
+                : `Versement sous 24h · minimum ${formatFCFA(minPayout)} · aucun frais.`}
             </p>
           </form>
 

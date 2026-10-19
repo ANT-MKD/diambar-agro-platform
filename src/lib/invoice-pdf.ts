@@ -30,6 +30,14 @@ export type InvoiceData = {
   totals: { label: string; amount: number; bold?: boolean }[];
   amountDue: number;
   note?: string;
+  /** Titre du document (« Facture » par défaut ; « Relevé » pour un relevé). */
+  title?: string;
+  /** Lignes d'information sous le titre (remplacent numéro / dates / commande). */
+  infoRows?: [string, string][];
+  /** Intitulés des colonnes du tableau. */
+  columns?: { name: string; qty: string; unitPrice: string; amount: string };
+  /** Pas de ligne « Montant dû » (relevé de compte). */
+  hideAmountDue?: boolean;
 };
 
 function stripAccents(s: string): string {
@@ -117,22 +125,33 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   const H = 842;
   const ML = 56;
   const MR = W - 56;
+  const BOTTOM = 95; // au-dessous : pied de page
   const BLACK: RGB = [0.06, 0.06, 0.08];
   const GRAY: RGB = [0.45, 0.45, 0.5];
   const BRAND: RGB = d.brand?.color ?? [0.13, 0.68, 0.37];
   const brandName = d.brand?.name ?? "DIAMBAR AGRO";
   const tagline = d.brand?.tagline ?? "Logistique alimentaire";
+  const title = d.title ?? "Facture";
+  const cols = d.columns ?? {
+    name: "Designation",
+    qty: "Qte",
+    unitPrice: "Prix unitaire HT",
+    amount: "Montant HT",
+  };
 
-  const ops: string[] = [];
+  // Une liste d'opérations par page ; une page de plus quand le tableau
+  // déborde (relevés de compte avec beaucoup de lignes).
+  const pages: string[][] = [[]];
+  let ops = pages[0];
 
   // ─── Header ────────────────────────────────────────────────────────────
-  drawText(ops, "Facture", ML, H - 100, 40, { bold: true, color: BLACK });
+  drawText(ops, title, ML, H - 100, 40, { bold: true, color: BLACK });
   drawText(ops, brandName, MR, H - 85, 15, { bold: true, color: BRAND, align: "right" });
   drawText(ops, tagline, MR, H - 102, 9, { color: GRAY, align: "right" });
 
   // ─── Info block ─────────────────────────────────────────────────────────
   let y = H - 160;
-  const infoRows: [string, string][] = [
+  const infoRows: [string, string][] = d.infoRows ?? [
     ["Numero de facture", d.number],
     ["Date d'emission", fmtDate(d.issuedAt)],
     ["Date d'echeance", fmtDate(d.dueAt)],
@@ -173,26 +192,46 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   drawText(ops, banner, ML, y, 22, { bold: true, color: BLACK });
 
   // ─── Table header ──────────────────────────────────────────────────────
+  const tableHeader = () => {
+    drawLine(ops, ML, y, MR, y);
+    y -= 18;
+    drawText(ops, cols.name, ML, y, 9, { color: GRAY });
+    drawText(ops, cols.qty, ML + 320, y, 9, { color: GRAY, align: "right" });
+    drawText(ops, cols.unitPrice, ML + 420, y, 9, { color: GRAY, align: "right" });
+    drawText(ops, cols.amount, MR, y, 9, { color: GRAY, align: "right" });
+    y -= 8;
+    drawLine(ops, ML, y, MR, y);
+  };
+  const newPage = () => {
+    ops = [];
+    pages.push(ops);
+    drawText(ops, `${title} - suite`, ML, H - 70, 18, { bold: true, color: BLACK });
+    drawText(ops, d.number, MR, H - 70, 9, { color: GRAY, align: "right" });
+    y = H - 100;
+  };
   y -= 30;
-  drawLine(ops, ML, y, MR, y);
-  y -= 18;
-  drawText(ops, "Designation", ML, y, 9, { color: GRAY });
-  drawText(ops, "Qte", ML + 320, y, 9, { color: GRAY, align: "right" });
-  drawText(ops, "Prix unitaire HT", ML + 420, y, 9, { color: GRAY, align: "right" });
-  drawText(ops, "Montant HT", MR, y, 9, { color: GRAY, align: "right" });
-  y -= 8;
-  drawLine(ops, ML, y, MR, y);
+  tableHeader();
 
   // ─── Rows ──────────────────────────────────────────────────────────────
   for (const it of d.items) {
+    const height = 22 + (it.sub || it.qtyUnit ? 18 : 10);
+    if (y - height < BOTTOM) {
+      newPage();
+      tableHeader();
+    }
     y -= 22;
     drawText(ops, it.name, ML, y, 10, { bold: true, color: BLACK });
     drawText(ops, it.qty, ML + 320, y, 10, { color: BLACK, align: "right" });
-    drawText(ops, `${fmtMoney(it.unitPrice)} FCFA`, ML + 420, y, 10, {
+    if (it.unitPrice) {
+      drawText(ops, `${fmtMoney(it.unitPrice)} FCFA`, ML + 420, y, 10, {
+        color: BLACK,
+        align: "right",
+      });
+    }
+    drawText(ops, `${it.amount < 0 ? "-" : ""}${fmtMoney(Math.abs(it.amount))} FCFA`, MR, y, 10, {
       color: BLACK,
       align: "right",
     });
-    drawText(ops, `${fmtMoney(it.amount)} FCFA`, MR, y, 10, { color: BLACK, align: "right" });
     if (it.qtyUnit) drawText(ops, it.qtyUnit, ML + 320, y - 12, 8, { color: GRAY, align: "right" });
     if (it.sub) drawText(ops, it.sub, ML, y - 12, 8, { color: GRAY });
     y -= it.sub || it.qtyUnit ? 18 : 10;
@@ -200,7 +239,6 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
   }
 
   // ─── Totals (right column) ─────────────────────────────────────────────
-  y -= 25;
   const totals: [string, string, boolean][] = [
     ...d.totals.map(
       (t) =>
@@ -210,34 +248,46 @@ export function buildDiambarInvoice(d: InvoiceData): Blob {
           boolean,
         ],
     ),
-    ["Montant du", `${fmtMoney(d.amountDue)} FCFA`, true],
+    ...(d.hideAmountDue
+      ? []
+      : ([["Montant du", `${fmtMoney(d.amountDue)} FCFA`, true]] as [string, string, boolean][])),
   ];
+  if (y - 25 - totals.length * 20 - 20 < BOTTOM) newPage();
+  y -= 25;
   for (const [k, v, bold] of totals) {
-    drawText(ops, k, ML + 340, y, 10, { color: bold ? BLACK : GRAY, bold });
+    drawText(ops, k, ML + 300, y, 10, { color: bold ? BLACK : GRAY, bold });
     drawText(ops, v, MR, y, 10, { color: BLACK, align: "right", bold });
     y -= 20;
   }
 
   if (d.note) drawText(ops, d.note, ML, y - 10, 8, { color: GRAY });
 
-  // ─── Footer ────────────────────────────────────────────────────────────
-  drawLine(ops, ML, 70, MR, 70);
-  drawText(ops, d.seller.legal, ML, 55, 8, { color: GRAY });
-  drawText(ops, "Page 1 sur 1", MR, 55, 8, { color: GRAY, align: "right" });
+  // ─── Footer (chaque page) ────────────────────────────────────────────────
+  pages.forEach((p, i) => {
+    drawLine(p, ML, 70, MR, 70);
+    drawText(p, d.seller.legal, ML, 55, 8, { color: GRAY });
+    drawText(p, `Page ${i + 1} sur ${pages.length}`, MR, 55, 8, { color: GRAY, align: "right" });
+  });
 
   // ─── Assemble PDF ──────────────────────────────────────────────────────
-  const stream = ops.join("\n");
+  // 1 catalogue, 2 pages, 3-4 polices, puis pour chaque page : page + contenu.
   const objects: string[] = [];
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");
-  objects.push("<< /Type /Pages /Count 1 /Kids [3 0 R] >>");
+  const pageIds = pages.map((_, i) => 5 + i * 2);
   objects.push(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>`,
+    `<< /Type /Pages /Count ${pages.length} /Kids [${pageIds.map((n) => `${n} 0 R`).join(" ")}] >>`,
   );
-  objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
   objects.push(
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
   );
+  pages.forEach((p, i) => {
+    const stream = p.join("\n");
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Contents ${pageIds[i] + 1} 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>`,
+    );
+    objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+  });
 
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];

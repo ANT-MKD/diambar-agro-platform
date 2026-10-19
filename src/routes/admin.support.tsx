@@ -32,7 +32,9 @@ import {
   TICKET_CATEGORY_LABEL,
   type SupportTicket,
 } from "@/data/support";
-import { SUPPORT_AGENTS, useAllDisputes } from "@/data/disputes";
+import { SUPPORT_AGENTS, useAllDisputes, useDisputeStaff } from "@/data/disputes";
+import { useBaseMode } from "@/data/demo-only";
+import { market } from "@/data/market-remote";
 import { useMissions, useOrders } from "@/data/store";
 import { useIncidents } from "@/data/business";
 import { cn } from "@/lib/utils";
@@ -102,7 +104,17 @@ function AdminSupportPage() {
     ? incidents.find((i) => i.missionRef === mission.reference && i.status !== "resolved")
     : undefined;
 
+  const base = useBaseMode();
+  const staff = useDisputeStaff();
+  /** Mode base : le serveur enregistre (et inscrit au journal). */
+  const remoteStatus = async (t: SupportTicket, status: SupportTicket["status"], done: string) => {
+    const res = await market.ticketStaff(t.id, { status });
+    if (res.ok) toast.success(done);
+    else toast.error(res.message);
+  };
+
   const respond = (t: SupportTicket) => {
+    if (base) return void remoteStatus(t, "answered", `${t.reference} marqué comme répondu`);
     supportTicketActions.setStatus(t.id, "answered");
     auditActions.log({
       action: "Ticket support marqué répondu",
@@ -110,9 +122,10 @@ function AdminSupportPage() {
       module: "support",
       changes: [{ field: "Statut", before: t.status, after: "answered" }],
     });
-    toast.success(`${t.id.toUpperCase()} marqué comme répondu`);
+    toast.success(`${t.reference ?? t.id.toUpperCase()} marqué comme répondu`);
   };
   const close = (t: SupportTicket) => {
+    if (base) return void remoteStatus(t, "closed", `${t.reference} fermé`);
     supportTicketActions.setStatus(t.id, "closed");
     auditActions.log({
       action: "Ticket support fermé",
@@ -120,9 +133,10 @@ function AdminSupportPage() {
       module: "support",
       changes: [{ field: "Statut", before: t.status, after: "closed" }],
     });
-    toast.success(`${t.id.toUpperCase()} fermé`);
+    toast.success(`${t.reference ?? t.id.toUpperCase()} fermé`);
   };
   const reopen = (t: SupportTicket) => {
+    if (base) return void remoteStatus(t, "open", `${t.reference} rouvert`);
     supportTicketActions.setStatus(t.id, "open");
     auditActions.log({
       action: "Ticket support rouvert",
@@ -131,11 +145,21 @@ function AdminSupportPage() {
       level: "attention",
       changes: [{ field: "Statut", before: t.status, after: "open" }],
     });
-    toast.success(`${t.id.toUpperCase()} rouvert`);
+    toast.success(`${t.reference ?? t.id.toUpperCase()} rouvert`);
   };
 
-  const sendReply = () => {
+  const sendReply = async () => {
     if (!selected || !reply.trim()) return;
+    if (base) {
+      const res = await market.replyTicket(selected.id, reply.trim(), internalDraft);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(internalDraft ? "Note interne ajoutée" : "Réponse envoyée");
+      setReply("");
+      return;
+    }
     if (internalDraft) {
       supportTicketActions.addInternalNote(selected.id, "Admin Diambar", reply.trim());
       auditActions.log({
@@ -157,6 +181,13 @@ function AdminSupportPage() {
   };
 
   const assign = (t: SupportTicket, agent: string | null) => {
+    if (base) {
+      void market.ticketStaff(t.id, { assigneeId: agent }).then((res) => {
+        if (res.ok) toast.success(agent ? "Demande assignée" : "Demande désassignée");
+        else toast.error(res.message);
+      });
+      return;
+    }
     supportTicketActions.assign(t.id, agent);
     auditActions.log({
       action: agent ? "Ticket assigné" : "Ticket désassigné",
@@ -235,7 +266,8 @@ function AdminSupportPage() {
                 <div>
                   <h2 className="font-display font-bold">{selected.subject}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {selected.id.toUpperCase()} · {TICKET_CATEGORY_LABEL[selected.category]}
+                    {selected.reference ?? selected.id.toUpperCase()} ·{" "}
+                    {TICKET_CATEGORY_LABEL[selected.category]}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -322,7 +354,7 @@ function AdminSupportPage() {
                       size="sm"
                       variant={internalDraft ? "outline" : "default"}
                       className="gap-2"
-                      onClick={sendReply}
+                      onClick={() => void sendReply()}
                       disabled={!reply.trim()}
                     >
                       {internalDraft ? (
@@ -360,7 +392,7 @@ function AdminSupportPage() {
                 <div className="space-y-1 pt-1">
                   <label className="text-xs font-medium text-muted-foreground">Assigné à</label>
                   <Select
-                    value={selected.assignee ?? "none"}
+                    value={(base ? selected.assigneeId : selected.assignee) ?? "none"}
                     onValueChange={(v) => assign(selected, v === "none" ? null : v)}
                   >
                     <SelectTrigger className="h-9">
@@ -368,9 +400,12 @@ function AdminSupportPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Non assigné</SelectItem>
-                      {SUPPORT_AGENTS.map((a) => (
-                        <SelectItem key={a} value={a}>
-                          {a}
+                      {(base
+                        ? staff.map((x) => ({ value: x.id, label: x.name }))
+                        : SUPPORT_AGENTS.map((a) => ({ value: a, label: a }))
+                      ).map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

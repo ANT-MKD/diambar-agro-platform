@@ -19,13 +19,13 @@ import {
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { farmers, products, restaurants } from "@/data/mocks";
 import {
   useSuppliers,
   useRestaurantOrders,
   useAllProductReviews,
-  supplierActions,
   supplierOrderStats,
 } from "@/data/store";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
@@ -33,6 +33,7 @@ import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useMyId } from "@/data/market-mode";
 
 function qualityScore(
   totalOrders: number,
@@ -54,15 +55,6 @@ function qualityScore(
   return { score: base, label, tone };
 }
 
-function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 export const Route = createFileRoute("/restaurant/suppliers/")({
   head: () => ({ meta: [{ title: "Fournisseurs · Restaurant" }] }),
   component: SuppliersList,
@@ -71,8 +63,9 @@ export const Route = createFileRoute("/restaurant/suppliers/")({
 type Tab = "all" | "favorites" | "discover" | "compare";
 
 function SuppliersList() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const allSuppliers = useSuppliers();
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();
@@ -177,20 +170,25 @@ function SuppliersList() {
       .slice(0, 3);
   }, [suppliers, orders, reviews, businessReviews]);
 
-  const addToCarnet = (farmerId: string) => {
+  const addToCarnet = async (farmerId: string) => {
     if (!myRestaurant) return;
     const f = farmers.find((x) => x.id === farmerId);
     if (!f) return;
-    supplierActions.create({
+    // Pas d'adresse e-mail inventée : celle du compte du producteur est reprise.
+    const res = await market.createSupplier({
       restaurantId: myRestaurant.id,
       farmerId: f.id,
       name: f.farm,
       contact: f.name,
       phone: f.phone,
-      email: `contact@${slugify(f.farm)}.sn`,
+      email: "",
       city: f.city,
       favorite: false,
     });
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(`${f.farm} ajouté à votre carnet`);
   };
 
@@ -476,8 +474,14 @@ function SuppliersList() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          supplierActions.toggleSuspend(s.id);
+                        onClick={async () => {
+                          const res = await market.updateSupplier(s.id, {
+                            suspended: !s.suspended,
+                          });
+                          if (!res.ok) {
+                            toast.error(res.message);
+                            return;
+                          }
                           toast.success(
                             s.suspended ? "Fournisseur réactivé" : "Fournisseur suspendu",
                           );
@@ -530,7 +534,7 @@ function SuppliersList() {
                         </button>
                         <div className="flex items-start gap-3">
                           <img
-                            src={f.avatar}
+                            src={f.avatar || undefined}
                             alt=""
                             className="h-14 w-14 rounded-xl object-cover"
                           />
@@ -618,7 +622,7 @@ function SuppliersList() {
                       return (
                         <div key={id} className="glass rounded-2xl p-3 flex items-center gap-3">
                           <img
-                            src={f.avatar}
+                            src={f.avatar || undefined}
                             alt=""
                             className="h-10 w-10 rounded-lg object-cover"
                           />
@@ -665,7 +669,11 @@ function SuppliersList() {
                     className="flex items-center gap-2 hover:bg-accent/40 rounded-lg p-1.5 -m-1.5"
                   >
                     <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
-                    <img src={f?.avatar} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                    <img
+                      src={f?.avatar || undefined}
+                      alt=""
+                      className="h-8 w-8 rounded-lg object-cover"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">{s.name}</div>
                       <div className="text-[10px] text-muted-foreground flex items-center gap-1">

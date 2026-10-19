@@ -1,4 +1,7 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { TeamMemberBanner } from "@/components/common/team-member-banner";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
   Package,
@@ -16,6 +19,7 @@ import {
   Scale,
   RotateCcw,
   LifeBuoy,
+  Star,
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/common/logo";
@@ -23,17 +27,19 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Breadcrumb } from "@/components/farmer/breadcrumb";
 import { CommandPalette } from "@/components/common/command-palette";
 import { LogoutButton } from "@/components/common/logout-button";
-import { useFarmerNotifications, useOrders, useConversations } from "@/data/store";
+import { useFarmerNotifications, useOrders, useConversations, useIdentity } from "@/data/store";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, useMarketPolling } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer")({
-  beforeLoad: () => requireRole("farmer"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("farmer"),
   component: FarmerLayout,
 });
-
-const MY_FARMER_ID = "f1";
 
 const bottomNav = [
   { to: "/farmer/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -43,9 +49,13 @@ const bottomNav = [
 ];
 
 function FarmerLayout() {
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
+  useMarketPolling();
+  const MY_FARMER_ID = useMyId("farmer");
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const [open, setOpen] = useState(false);
   const notifs = useFarmerNotifications();
   const unread = notifs.filter((n) => !n.read).length;
@@ -56,7 +66,7 @@ function FarmerLayout() {
     .filter((c) => c.farmerId === MY_FARMER_ID)
     .reduce((s, c) => s + c.unread, 0);
 
-  const navSections = [
+  const navSectionsAll = [
     {
       label: "NAVIGATION",
       items: [
@@ -66,6 +76,7 @@ function FarmerLayout() {
         { to: "/farmer/stock", label: "Gestion du Stock", icon: Warehouse, badge: 0 },
         { to: "/farmer/orders", label: "Commandes", icon: ShoppingBag, badge: pendingOrders },
         { to: "/farmer/returns", label: "Retours & avoirs", icon: RotateCcw, badge: 0 },
+        { to: "/farmer/reviews", label: "Avis reçus", icon: Star, badge: 0 },
         { to: "/farmer/revenue", label: "Mes Revenus", icon: TrendingUp, badge: 0 },
         { to: "/farmer/analytics", label: "Analytics", icon: BarChart3, badge: 0 },
         { to: "/farmer/messages", label: "Messages", icon: MessageSquare, badge: unreadMessages },
@@ -80,6 +91,11 @@ function FarmerLayout() {
       ],
     },
   ];
+  // Avec la base, les écrans encore en démonstration ne sont pas proposés.
+  const bottomItems = bottomNav.filter((it) => !hiddenInBase(it.to));
+  const navSections = navSectionsAll
+    .map((section) => ({ ...section, items: section.items.filter((it) => !hiddenInBase(it.to)) }))
+    .filter((section) => section.items.length > 0);
 
   if (maintenance.active) {
     return <MaintenanceScreen message={maintenance.message} />;
@@ -124,7 +140,11 @@ function FarmerLayout() {
         </nav>
         <div className="p-3 border-t border-border">
           <div className="glass rounded-xl p-3 flex items-center gap-3">
-            <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img
+              src={user.avatar || undefined}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover"
+            />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
               <div className="text-[11px] text-muted-foreground truncate">Agriculteur</div>
@@ -213,18 +233,22 @@ function FarmerLayout() {
             )}
           </Link>
           <img
-            src={user.avatar}
+            src={user.avatar || undefined}
             alt=""
             className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/40"
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
-          <Outlet />
+          <TeamMemberBanner />
+          <DemoOnlyOutlet home="/farmer/dashboard" />
         </main>
         <CommandPalette scope="farmer" />
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">
-          {bottomNav.map((it) => {
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid h-16"
+          style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}
+        >
+          {bottomItems.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (
               <Link

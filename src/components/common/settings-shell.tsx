@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useHiddenInBase } from "@/data/demo-only";
 import type { LucideIcon } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -23,8 +24,9 @@ export function SettingsShell({
   statusStrip?: ReactNode;
 }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const groups = new Map<string | undefined, SettingsNavItem[]>();
-  for (const it of items) {
+  for (const it of items.filter((x) => !hiddenInBase(x.to))) {
     const arr = groups.get(it.group) ?? [];
     arr.push(it);
     groups.set(it.group, arr);
@@ -81,17 +83,26 @@ export function SettingsCard({
   title: string;
   description?: string;
   children: ReactNode;
-  onSave?: () => boolean | void;
+  /** false : rien n'est enregistré (le message d'erreur est déjà montré).
+   * Peut attendre le serveur. */
+  onSave?: () => boolean | void | Promise<boolean | void>;
   saveLabel?: string;
   footer?: ReactNode;
 }) {
+  const [saving, setSaving] = useState(false);
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        const ok = onSave?.();
-        if (ok === false) return;
-        toast.success("Modifications enregistrées");
+        if (saving) return;
+        setSaving(true);
+        try {
+          const ok = await onSave?.();
+          if (ok === false) return;
+          toast.success("Modifications enregistrées");
+        } finally {
+          setSaving(false);
+        }
       }}
       className="glass rounded-2xl p-6 space-y-5"
     >
@@ -102,7 +113,9 @@ export function SettingsCard({
       <div className="space-y-4">{children}</div>
       <div className="flex justify-end gap-2">
         {footer}
-        <Button type="submit">{saveLabel}</Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Enregistrement…" : saveLabel}
+        </Button>
       </div>
     </form>
   );
@@ -145,7 +158,11 @@ export function ToggleRow({
         <div className="text-sm font-medium">{label}</div>
         {description && <div className="text-xs text-muted-foreground">{description}</div>}
       </div>
-      {children ?? <Switch checked={!!checked} onCheckedChange={(v) => onChange?.(v)} />}
+      {/* Un libellé d'état à côté ne remplace pas l'interrupteur. */}
+      <div className="flex shrink-0 items-center gap-3">
+        {children}
+        <Switch checked={!!checked} onCheckedChange={(v) => onChange?.(v)} />
+      </div>
     </div>
   );
 }

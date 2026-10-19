@@ -4,6 +4,7 @@ import { ArrowLeft, AlertOctagon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useOrder, orderActions } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -51,9 +52,9 @@ function RefusePage() {
       </div>
     );
 
-  const submit = () => {
+  const submit = async () => {
     const note = comment.trim() ? `${reason} : ${comment.trim()}` : reason;
-    const result = orderActions.setStatus(order.id, "cancelled", note);
+    const result = await market.setOrderStatus(order.id, "cancelled", "farmer", note);
     if (!result.ok) {
       toast.error(result.message);
       return;

@@ -586,7 +586,7 @@ function AdminReturns() {
           ) : (
             <div className="space-y-3">
               {filtered.map((r) => {
-                const refund = refunds.find((f) => f.returnId === r.id);
+                const refund = r.refund ?? refunds.find((f) => f.returnId === r.id);
                 const stage = returnStage(r);
                 return (
                   <Link

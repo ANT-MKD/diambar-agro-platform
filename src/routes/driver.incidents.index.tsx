@@ -40,7 +40,6 @@ import { formatFCFA, relativeTime } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import {
   useIncidents,
-  incidentActions,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
   type IncidentType,
@@ -49,7 +48,12 @@ import {
 import { useMissions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import type { DisputeAttachment } from "@/data/disputes";
-import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { callTeam, EMERGENCY_TEXT, sendSos } from "@/lib/sos";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { useBaseMode } from "@/data/demo-only";
+import { useMyId } from "@/data/market-mode";
+import { market } from "@/data/market-remote";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/incidents/")({
   validateSearch: z.object({ missionRef: z.string().optional() }),
@@ -84,6 +88,7 @@ const STATUS_CLASS: Record<IncidentStatus, string> = {
 const PAGE_SIZE = 6;
 
 function IncidentsPage() {
+  const myDriverId = useMyId("driver");
   const { missionRef: prefillMissionRef } = Route.useSearch();
   const incidents = useIncidents();
   const missions = useMissions();
@@ -91,10 +96,10 @@ function IncidentsPage() {
   const recentMissions = useMemo(
     () =>
       missions
-        .filter((m) => m.driverId === "d1")
+        .filter((m) => m.driverId === myDriverId)
         .sort((a, b) => b.scheduledFor.localeCompare(a.scheduledFor))
         .slice(0, 15),
-    [missions],
+    [missions, myDriverId],
   );
 
   const [showOther, setShowOther] = useState(false);
@@ -120,19 +125,31 @@ function IncidentsPage() {
   const resolvedCount = incidents.filter((i) => i.status === "resolved").length;
   const awardedTotal = incidents.reduce((s, i) => s + (i.compensationAwarded ?? 0), 0);
 
-  const submit = () => {
+  const [sending, setSending] = useState(false);
+  const submit = async () => {
     if (!form.missionRef.trim() || !form.description.trim()) {
       toast.error("Mission et description sont obligatoires");
       return;
     }
-    const item = incidentActions.create({
-      missionRef: form.missionRef.trim(),
-      type: form.type,
-      description: form.description.trim(),
-      waitedMinutes: Number(form.waitedMinutes) || 0,
-      compensationRequested: Number(form.compensationRequested) || 0,
-      photos,
-    });
+    if (sending) return;
+    setSending(true);
+    const res = await market.createIncident(
+      {
+        missionId: missions.find((m) => m.reference === form.missionRef.trim())?.id,
+        missionRef: form.missionRef.trim(),
+        type: form.type,
+        description: form.description.trim(),
+        waitedMinutes: Number(form.waitedMinutes) || 0,
+        compensationRequested: Number(form.compensationRequested) || 0,
+        photos,
+      },
+      driverProfile.name,
+    );
+    setSending(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     setForm({
       missionRef: "",
       type: "client_absent",
@@ -141,15 +158,30 @@ function IncidentsPage() {
       compensationRequested: "",
     });
     setPhotos([]);
-    toast.success(`Incident ${item.reference} signalé au support`);
+    toast.success(`Incident ${res.reference} signalé au support`);
   };
 
+  const { company } = usePublicInfo();
+  const base = useBaseMode();
   const sendUrgentTicket = async () => {
-    const id = await sendSos({ fromName: "Oumar Ba", missionRef: form.missionRef || undefined });
-    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
-      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
-    });
-    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
+    // L'alerte crée aussi une demande urgente, en tête de file de l'équipe.
+    if (base) {
+      void market.createTicket({
+        subject: "🚨 SOS livreur — rappel immédiat",
+        message: `Le livreur déclenche une alerte depuis l'application et demande un rappel immédiat.${form.missionRef ? ` Course ${form.missionRef}.` : ""}`,
+        category: "delivery",
+        urgent: true,
+      });
+    } else {
+      await sendSos({ fromName: driverProfile.name, missionRef: form.missionRef || undefined });
+    }
+    if (callTeam(company.phone)) {
+      toast.success("Appel de l'équipe Diambar…", { description: EMERGENCY_TEXT });
+    } else {
+      toast.error("Aucun numéro d'astreinte n'est encore renseigné.", {
+        description: EMERGENCY_TEXT,
+      });
+    }
   };
 
   const filtered = useMemo(() => {
@@ -330,7 +362,7 @@ function IncidentsPage() {
             <FileDrop
               value={photos}
               onChange={setPhotos}
-              by="Oumar Ba"
+              by={driverProfile.name}
               kind="photo"
               label="Preuves (photos)"
               accept="image/*"
@@ -338,7 +370,7 @@ function IncidentsPage() {
             />
           </div>
         </div>
-        <Button className="gap-2" onClick={submit}>
+        <Button className="gap-2" onClick={submit} disabled={sending}>
           <Send className="h-4 w-4" />
           Envoyer le signalement
         </Button>
@@ -504,7 +536,7 @@ function IncidentsPage() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

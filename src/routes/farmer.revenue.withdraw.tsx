@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { type PaymentMethod } from "@/data/mocks";
 import {
@@ -10,13 +11,17 @@ import {
   useWallets,
   usePaymentPrefs,
   useTransactions,
+  useMyAccount,
 } from "@/data/store";
+import { formatSenegalPhone } from "@/lib/auth/helpers";
+
+const phoneLabel = (nine: string) => (/^\d{9}$/.test(nine) ? formatSenegalPhone(nine) : nine);
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const MY_FARMER_ID = "f1";
+import { useMyId } from "@/data/market-mode";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/farmer/revenue/withdraw")({
   head: () => ({ meta: [{ title: "Retirer · Diambar Agro" }] }),
@@ -24,11 +29,27 @@ export const Route = createFileRoute("/farmer/revenue/withdraw")({
 });
 
 function WithdrawPage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
+  // Mode base : numéros enregistrés dans Paramètres, sinon le téléphone du compte.
+  const account = useMyAccount();
+  const remoteWallets = (
+    [
+      ["Wave", account?.preferences.payout.wave, "#1DB7FF"],
+      ["Orange Money", account?.preferences.payout.orangeMoney, "#FF6F00"],
+    ] as const
+  ).map(([m, saved, color]) => ({
+    id: `remote-${m}`,
+    method: m as PaymentMethod,
+    color,
+    phone: saved
+      ? phoneLabel(saved)
+      : `numéro de votre compte${account?.phone ? ` (${phoneLabel(account.phone)})` : ""}`,
+  }));
   const paymentPrefs = usePaymentPrefs();
-  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
+  const transactions = useTransactions().filter((t) => t.farmerId === myFarmerId);
   // Un retrait "En cours" réserve déjà les fonds : seul un retrait en échec
   // les rend disponibles à nouveau.
   const available =
@@ -42,11 +63,30 @@ function WithdrawPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [method, setMethod] = useState<PaymentMethod>(paymentPrefs.primary);
   const [amount, setAmount] = useState(50000);
-  const fee = Math.round(amount * 0.005);
+  const minPayout = useRules().minPayout;
+  // Avec la base, Diambar envoie l'argent depuis son compte marchand : pas de
+  // frais retenus sur le montant.
+  const remoteMode = market.isRemote();
+  const fee = remoteMode ? 0 : Math.round(amount * 0.005);
+  const [sending, setSending] = useState(false);
 
   const STEPS = ["Méthode", "Montant", "Confirmation"];
 
-  const confirm = () => {
+  const confirm = async () => {
+    if (remoteMode) {
+      setSending(true);
+      // Versé sur le numéro du compte (les numéros enregistrés dans le
+      // navigateur peuvent être ceux de la démonstration).
+      const res = await market.requestPayout(amount, method);
+      setSending(false);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success(`Retrait de ${formatFCFA(amount)} demandé : Diambar vous le verse.`);
+      navigate({ to: "/farmer/revenue/withdrawals" });
+      return;
+    }
     withdrawalActions.create({ method, amount });
     toast.success(`Retrait de ${formatFCFA(amount)} initié`);
     navigate({ to: "/farmer/revenue/withdrawals" });
@@ -99,7 +139,7 @@ function WithdrawPage() {
           <div className="space-y-4">
             <h3 className="font-semibold">Choisissez le compte de réception</h3>
             <div className="space-y-2">
-              {wallets.map((w) => (
+              {(remoteMode ? remoteWallets : wallets).map((w) => (
                 <button
                   key={w.id}
                   onClick={() => setMethod(w.method)}
@@ -136,7 +176,7 @@ function WithdrawPage() {
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-                min={5000}
+                min={minPayout}
                 max={Math.max(0, available)}
               />
             </div>
@@ -157,7 +197,9 @@ function WithdrawPage() {
                 <span className="font-semibold">{formatFCFA(amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Frais (0,5%)</span>
+                <span className="text-muted-foreground">
+                  {remoteMode ? "Frais" : "Frais (0,5%)"}
+                </span>
                 <span>-{formatFCFA(fee)}</span>
               </div>
               <div className="flex justify-between font-bold pt-2 border-t border-border">
@@ -171,7 +213,7 @@ function WithdrawPage() {
               </Button>
               <Button
                 onClick={() => setStep(3)}
-                disabled={amount < 5000 || amount > available}
+                disabled={amount < minPayout || amount > available}
                 className="gap-2"
               >
                 Continuer <ChevronRight className="h-4 w-4" />
@@ -186,7 +228,7 @@ function WithdrawPage() {
             <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
               <Row
                 k="Compte"
-                v={`${method} · ${wallets.find((w) => w.method === method)?.phone}`}
+                v={`${method} · ${(remoteMode ? remoteWallets : wallets).find((w) => w.method === method)?.phone ?? ""}`}
               />
               <Row k="Montant brut" v={formatFCFA(amount)} />
               <Row k="Frais" v={`-${formatFCFA(fee)}`} />
@@ -197,7 +239,9 @@ function WithdrawPage() {
               <Button variant="outline" onClick={() => setStep(2)}>
                 Retour
               </Button>
-              <Button onClick={confirm}>Confirmer le retrait</Button>
+              <Button onClick={confirm} disabled={sending}>
+                {sending ? "Envoi…" : "Confirmer le retrait"}
+              </Button>
             </div>
           </div>
         )}

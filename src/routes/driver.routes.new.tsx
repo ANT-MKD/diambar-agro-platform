@@ -11,6 +11,7 @@ import { useTours, tourActions } from "@/data/tours";
 import { useMissions, useDriverVehicle } from "@/data/store";
 import { restaurants, farmers } from "@/data/mocks";
 import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/routes/new")({
   head: () => ({ meta: [{ title: "Préparer ma tournée · Livreur Diambar" }] }),
@@ -25,6 +26,7 @@ const STEPS = [
 ];
 
 function NewTour() {
+  const myDriverId = useMyId("driver");
   const navigate = useNavigate();
   const missions = useMissions();
   const vehicle = useDriverVehicle();
@@ -42,7 +44,8 @@ function NewTour() {
   // préparation de la tournée du jour déjà réelle, plutôt que de simuler
   // une sélection arbitraire de missions qui n'existe pas dans le modèle.
   const includedMissions = missions.filter(
-    (m) => m.driverId === "d1" && m.status === "accepted" && m.scheduledFor.slice(0, 10) === today,
+    (m) =>
+      m.driverId === myDriverId && m.status === "accepted" && m.scheduledFor.slice(0, 10) === today,
   );
 
   if (!tour || includedMissions.length === 0) {

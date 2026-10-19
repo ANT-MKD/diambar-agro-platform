@@ -12,8 +12,13 @@ import {
 import { SupportTicketForm } from "@/components/support/support-ticket-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supportTicketActions } from "@/data/support";
-import { EMERGENCY_NUMBERS, sendSos, SUPPORT_HOTLINE } from "@/lib/sos";
+import { supportTicketActions, useSupportTickets } from "@/data/support";
+import { SupportTicketList } from "@/components/support/support-ticket-list";
+import { market } from "@/data/market-remote";
+import { callTeam, EMERGENCY_TEXT, sendSos } from "@/lib/sos";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings/help")({
   head: () => ({ meta: [{ title: "Aide & support · Paramètres livreur" }] }),
@@ -28,7 +33,7 @@ const FAQ = [
   },
   {
     q: "Comment fonctionne mon portefeuille ?",
-    a: "Chaque mission livrée crédite votre portefeuille. Le virement vers votre moyen de paiement principal se fait selon la fréquence choisie dans Paiements (quotidien, hebdomadaire ou manuel).",
+    a: "Chaque course livrée crédite votre portefeuille. Depuis Portefeuille, demandez un retrait vers Wave ou Orange Money : l'équipe Diambar vous le verse.",
     to: "/driver/wallet",
   },
   {
@@ -55,18 +60,39 @@ const FAQ = [
 
 function HelpSettings() {
   const [q, setQ] = useState("");
+  const hiddenInBase = useHiddenInBase();
   const [supportOpen, setSupportOpen] = useState(false);
+  const tickets = useSupportTickets();
   const filtered = useMemo(
-    () => FAQ.filter((f) => f.q.toLowerCase().includes(q.toLowerCase())),
-    [q],
+    () =>
+      FAQ.filter((f) => f.q.toLowerCase().includes(q.toLowerCase())).filter(
+        (f) => !hiddenInBase(f.to),
+      ),
+    [q, hiddenInBase],
   );
 
+  const { company } = usePublicInfo();
+  const base = useBaseMode();
   const sendUrgent = async () => {
-    const id = await sendSos({ fromName: "Oumar Ba" });
-    toast.success(`Alerte ${id.toUpperCase()} envoyée — l'équipe vous rappelle immédiatement`, {
-      description: `Si vous êtes en danger : police ${EMERGENCY_NUMBERS.police}, pompiers ${EMERGENCY_NUMBERS.pompiers}.`,
-    });
-    window.location.href = `tel:${SUPPORT_HOTLINE.replace(/\s/g, "")}`;
+    // L'alerte crée aussi une demande urgente, en tête de file de l'équipe.
+    if (base) {
+      void market.createTicket({
+        subject: "🚨 SOS livreur — rappel immédiat",
+        message:
+          "Le livreur déclenche une alerte depuis l'application et demande un rappel immédiat.",
+        category: "delivery",
+        urgent: true,
+      });
+    } else {
+      await sendSos({ fromName: driverProfile.name });
+    }
+    if (callTeam(company.phone)) {
+      toast.success("Appel de l'équipe Diambar…", { description: EMERGENCY_TEXT });
+    } else {
+      toast.error("Aucun numéro d'astreinte n'est encore renseigné.", {
+        description: EMERGENCY_TEXT,
+      });
+    }
   };
 
   return (
@@ -129,6 +155,13 @@ function HelpSettings() {
         </div>
       </div>
 
+      {base && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Mes demandes</h3>
+          <SupportTicketList tickets={tickets} />
+        </div>
+      )}
+
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
@@ -139,7 +172,7 @@ function HelpSettings() {
           </DialogHeader>
           <SupportTicketForm
             role="driver"
-            fromName="Oumar Ba"
+            fromName={driverProfile.name}
             onCreated={() => setSupportOpen(false)}
           />
         </DialogContent>

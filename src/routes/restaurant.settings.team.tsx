@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useBaseMode } from "@/data/demo-only";
+import { TeamSettingsBase } from "@/components/common/team-settings-base";
 import { UserPlus, Trash2 } from "lucide-react";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
@@ -31,7 +33,7 @@ export const Route = createFileRoute("/restaurant/settings/team")({
       },
     ],
   }),
-  component: RestaurantTeamSettings,
+  component: TeamSettingsPage,
 });
 
 const ROLES: { value: RestaurantTeamMember["role"]; label: string }[] = [
@@ -41,6 +43,10 @@ const ROLES: { value: RestaurantTeamMember["role"]; label: string }[] = [
   { value: "accountant", label: "Comptable" },
   { value: "viewer", label: "Lecture seule" },
 ];
+
+function TeamSettingsPage() {
+  return useBaseMode() ? <TeamSettingsBase ownerRole="restaurant" /> : <RestaurantTeamSettings />;
+}
 
 function RestaurantTeamSettings() {
   const members = useRestaurantTeam();

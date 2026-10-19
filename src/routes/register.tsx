@@ -1,15 +1,27 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useId, useState } from "react";
-import { Sprout, UtensilsCrossed, Truck, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  Sprout,
+  UtensilsCrossed,
+  Truck,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  Clock,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { RoleCard } from "@/components/auth/role-card";
 import { OtpInput } from "@/components/auth/otp-input";
-import { PasswordStrength, passwordScore } from "@/components/auth/password-strength";
+import { PasswordStrength } from "@/components/auth/password-strength";
+import { passwordScore } from "@/lib/password-score";
 import { useCities } from "@/data/admin-store";
 import {
   getAuthConfigFn,
+  getRegistrationConfigFn,
   registerValidateFn,
   registerVerifyFn,
   resendRegistrationCodeFn,
@@ -19,7 +31,6 @@ import {
   normalizeSenegalPhone,
   registerDetailsProblem,
 } from "@/lib/auth/helpers";
-import { DemoNotice } from "@/components/auth/demo-notice";
 import type { RegisterDetails } from "@/lib/auth/session.server";
 
 export const Route = createFileRoute("/register")({
@@ -27,7 +38,13 @@ export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>): { role?: Role } => ({
     role: PUBLIC_ROLES.includes(s.role as Role) ? (s.role as Role) : undefined,
   }),
-  loader: async () => ({ config: await getAuthConfigFn() }),
+  loader: async () => {
+    const [config, registration] = await Promise.all([
+      getAuthConfigFn(),
+      getRegistrationConfigFn(),
+    ]);
+    return { config, registration };
+  },
   head: () => ({ meta: [{ title: "Inscription · Diambar Agro" }] }),
   component: RegisterPage,
 });
@@ -49,9 +66,13 @@ type RegisterForm = {
 
 function RegisterPage() {
   const { role: searchRole } = Route.useSearch();
-  const { config } = Route.useLoaderData();
-  const navigate = useNavigate();
+  const { config, registration } = Route.useLoaderData();
+  const clientCities = useCities();
+  // Avec la base, villes et zones viennent de la configuration de l'admin.
+  const cityOptions = registration.options?.cities ?? clientCities;
+  const zoneOptions = registration.options?.zones ?? clientCities;
   const [step, setStep] = useState(searchRole ? 2 : 1);
+  const [registeredName, setRegisteredName] = useState<string | null>(null);
   const [role, setRole] = useState<Role | "">(searchRole ?? "");
   const [form, setForm] = useState({
     firstName: "",
@@ -60,7 +81,7 @@ function RegisterPage() {
     phone: "",
     password: "",
     confirm: "",
-    city: "Dakar",
+    city: cityOptions.includes("Dakar") ? "Dakar" : (cityOptions[0] ?? ""),
     acceptTerms: false,
   });
   const [details, setDetails] = useState<RegisterDetails>({});
@@ -139,7 +160,7 @@ function RegisterPage() {
       setOtp("");
       setResendIn(res.resendInSeconds);
       toast.info("Code de vérification envoyé", {
-        description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+        description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
       });
       next();
     } catch (err) {
@@ -156,7 +177,7 @@ function RegisterPage() {
         setOtp("");
         setResendIn(res.resendInSeconds);
         toast.info("Nouveau code envoyé", {
-          description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+          description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
         });
       } else if (res.waitSeconds) {
         setResendIn(res.waitSeconds);
@@ -184,8 +205,7 @@ function RegisterPage() {
         if (res.restart) setStep(2);
         return;
       }
-      toast.success("Compte créé !");
-      navigate({ to: "/onboarding", search: { role: role || "farmer" } });
+      setRegisteredName(res.firstName);
     } catch {
       toast.error(NETWORK_ERROR);
     } finally {
@@ -193,18 +213,42 @@ function RegisterPage() {
     }
   };
 
+  if (!registration.open) {
+    return (
+      <AuthSplitLayout>
+        <RegistrationsClosed />
+      </AuthSplitLayout>
+    );
+  }
+
+  if (registeredName !== null) {
+    return (
+      <AuthSplitLayout>
+        <PendingReview firstName={registeredName} role={(role || "farmer") as Role} />
+      </AuthSplitLayout>
+    );
+  }
+
   return (
     <AuthSplitLayout>
       <div>
-        {config.demoMode && <DemoNotice />}
         <Stepper step={step} />
         {step === 1 && <Step1 role={role} setRole={(r) => setRole(r)} onNext={next} />}
-        {step === 2 && <Step2 form={form} setForm={setForm} onNext={submitStep2} onBack={back} />}
+        {step === 2 && (
+          <Step2
+            form={form}
+            setForm={setForm}
+            cities={cityOptions}
+            onNext={submitStep2}
+            onBack={back}
+          />
+        )}
         {step === 3 && (
           <Step3
             role={role as Role}
             details={details}
             setDetails={setDetails}
+            zones={zoneOptions}
             onNext={submitStep3}
             onBack={back}
             loading={loading}
@@ -220,13 +264,10 @@ function RegisterPage() {
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
               Retour
             </button>
-            <h1 className="display-xl text-4xl">Vérifiez votre numéro</h1>
+            <h1 className="display-xl text-4xl">Vérifiez votre email</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Code envoyé au{" "}
-              <span className="font-medium text-foreground">
-                +221 {phoneDigits ? formatSenegalPhone(phoneDigits) : form.phone}
-              </span>
-              . Il est valable 10 minutes.
+              Code envoyé à <span className="font-medium text-foreground">{form.email.trim()}</span>
+              . Il est valable 10 minutes. Pas reçu ? Regardez dans les courriers indésirables.
             </p>
             <div className="mt-8">
               <OtpInput value={otp} onChange={setOtp} />
@@ -338,15 +379,16 @@ function Step1({
 function Step2({
   form,
   setForm,
+  cities,
   onNext,
   onBack,
 }: {
   form: RegisterForm;
   setForm: React.Dispatch<React.SetStateAction<RegisterForm>>;
+  cities: string[];
   onNext: (e: React.FormEvent) => void;
   onBack: () => void;
 }) {
-  const cities = useCities();
   const phoneId = useId();
   const cityId = useId();
   const set = <K extends keyof RegisterForm>(k: K, v: RegisterForm[K]) =>
@@ -409,7 +451,7 @@ function Step2({
           />
         </div>
         <p id={`${phoneId}-hint`} className="mt-1 text-[11px] text-muted-foreground">
-          9 chiffres, sans l'indicatif. Le code de vérification sera envoyé à ce numéro.
+          9 chiffres, sans l'indicatif. L'équipe pourra vous appeler pour vérifier votre dossier.
         </p>
       </div>
       <div className="mt-3">
@@ -491,6 +533,7 @@ function Step3({
   role,
   details,
   setDetails,
+  zones,
   onNext,
   onBack,
   loading,
@@ -498,11 +541,11 @@ function Step3({
   role: string;
   details: RegisterDetails;
   setDetails: React.Dispatch<React.SetStateAction<RegisterDetails>>;
+  zones: string[];
   onNext: () => void;
   onBack: () => void;
   loading: boolean;
 }) {
-  const cities = useCities();
   const vehicleId = useId();
   const set = <K extends keyof RegisterDetails>(k: K, v: RegisterDetails[K]) =>
     setDetails((d) => ({ ...d, [k]: v }));
@@ -615,7 +658,7 @@ function Step3({
             />
             <div className="text-sm font-medium">Zones de livraison</div>
             <div className="grid grid-cols-2 gap-2">
-              {cities.map((z) => (
+              {zones.map((z) => (
                 <label
                   key={z}
                   className="rounded-2xl border border-border bg-white px-3 py-2.5 flex items-center gap-2 text-sm cursor-pointer"
@@ -641,6 +684,93 @@ function Step3({
         {loading && <Loader2 className="h-4 w-4 animate-spin" />}
         Continuer <ArrowRight className="h-4 w-4" />
       </button>
+    </div>
+  );
+}
+
+function RegistrationsClosed() {
+  const { pilotCity } = usePublicInfo();
+  return (
+    <div>
+      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-700">
+        <Clock className="h-6 w-6" aria-hidden />
+      </div>
+      <h1 className="mt-5 display-xl text-4xl">Inscriptions bientôt ouvertes</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Nous finalisons le lancement du pilote à {pilotCity}. Les inscriptions des restaurants, des
+        producteurs et des livreurs ouvrent très bientôt.
+      </p>
+      <p className="mt-4 text-sm text-muted-foreground">
+        Pour être prévenu à l'ouverture, écrivez-nous depuis la{" "}
+        <Link to="/contact" className="text-primary font-semibold hover:underline">
+          page contact
+        </Link>
+        .
+      </p>
+      <Link
+        to="/"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
+      >
+        Retour à l'accueil
+      </Link>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Déjà inscrit ?{" "}
+        <Link to="/login" className="text-primary hover:underline font-semibold">
+          Se connecter
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+const REVIEW_STEPS: Record<Role, string> = {
+  farmer: "votre exploitation et les produits que vous proposez",
+  restaurant: "votre établissement et votre adresse de livraison",
+  driver: "votre permis, votre véhicule et vos zones de livraison",
+};
+
+function PendingReview({ firstName, role }: { firstName: string; role: Role }) {
+  return (
+    <div role="status">
+      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-100 text-emerald-700">
+        <ShieldCheck className="h-6 w-6" aria-hidden />
+      </div>
+      <h1 className="mt-5 display-xl text-4xl">Merci {firstName}, votre compte est créé</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Avant d'ouvrir votre espace, notre équipe vérifie {REVIEW_STEPS[role]}. Cela prend en
+        général moins de 48 heures ouvrées.
+      </p>
+      <ol className="mt-6 space-y-3 text-sm">
+        <li className="flex gap-3">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+            1
+          </span>
+          <span>Adresse email vérifiée.</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500 text-white text-xs font-bold">
+            2
+          </span>
+          <span>Vérification de votre dossier par l'équipe Diambar Agro (en cours).</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground text-xs font-bold">
+            3
+          </span>
+          <span>
+            Une fois le compte validé, connectez-vous avec votre email et votre mot de passe.
+          </span>
+        </li>
+      </ol>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Si l'équipe a besoin d'une précision, elle vous contactera au numéro que vous avez donné.
+      </p>
+      <Link
+        to="/"
+        className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
+      >
+        Retour à l'accueil
+      </Link>
     </div>
   );
 }

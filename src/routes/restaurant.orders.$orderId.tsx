@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import {
   ArrowLeft,
   Phone,
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
+import { PaymentPanel } from "@/components/restaurant/payment-panel";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
 import {
@@ -27,6 +29,7 @@ import {
   useProducts,
   useAllProductReviews,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useReviews as useBusinessReviews } from "@/data/business";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, products, drivers, restaurants } from "@/data/mocks";
@@ -43,7 +46,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   deliveredAtOf,
-  RECEPTION_WINDOW_MS,
+  receptionWindowMs,
   restaurantOrderActions,
   cartActions,
   useRestaurantOrder as useROrder,
@@ -54,6 +57,7 @@ import { useState } from "react";
 import { HandoverCode, ProofPhotos } from "@/components/common/handover-code";
 import { whatsappLink } from "@/lib/contact";
 import { publicTrackingId } from "@/lib/tracking-id";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/orders/$orderId")({
   head: () => ({ meta: [{ title: "Suivi commande · Restaurant" }] }),
@@ -61,10 +65,11 @@ export const Route = createFileRoute("/restaurant/orders/$orderId")({
 });
 
 function OrderDetail() {
+  const myRestaurantId = useMyId("restaurant");
   const { orderId } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const order = useRestaurantOrder(orderId);
   const missions = useMissions();
   const allProducts = useProducts();
@@ -76,7 +81,9 @@ function OrderDetail() {
   // affichait toujours "Oumar Ba" (drivers[0]) quelle que soit la commande.
   const mission = missions.find((m) => order && m.orderRef === order.reference);
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
-  const showMap = order?.status === "delivering" && !!driver;
+  // Avec la base, pas de carte : la position affichée serait simulée.
+  const base = useBaseMode();
+  const showMap = !base && order?.status === "delivering" && !!driver;
   const { snapshot } = useLiveTracking({
     trackingId: order?.reference,
     driverName: driver?.name,
@@ -143,26 +150,39 @@ function OrderDetail() {
               Recommander
             </Button>
             <Button asChild variant="outline" className="gap-2">
-              <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
-                <Download className="h-4 w-4" />
-                Télécharger la facture
-              </Link>
+              {base ? (
+                <Link to="/restaurant/invoices">
+                  <Download className="h-4 w-4" />
+                  Factures
+                </Link>
+              ) : (
+                <Link to="/restaurant/invoices/$invoiceId" params={{ invoiceId: order.id }}>
+                  <Download className="h-4 w-4" />
+                  Télécharger la facture
+                </Link>
+              )}
             </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl);
-                toast.success("Lien copié");
-              }}
-            >
-              <Copy className="h-4 w-4" />
-              Copier le lien
-            </Button>
-            <Button className="gap-2" onClick={share}>
-              <Share2 className="h-4 w-4" />
-              Partager le suivi
-            </Button>
+            {/* Lien de suivi public : seulement en démonstration (un visiteur
+                sans compte ne peut pas encore lire la commande en base). */}
+            {!base && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl);
+                  toast.success("Lien copié");
+                }}
+              >
+                <Copy className="h-4 w-4" />
+                Copier le lien
+              </Button>
+            )}
+            {!base && (
+              <Button className="gap-2" onClick={share}>
+                <Share2 className="h-4 w-4" />
+                Partager le suivi
+              </Button>
+            )}
           </>
         }
       />
@@ -207,6 +227,7 @@ function OrderDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <OrderTracker status={order.status} eta={order.eta} />
+          {order.payment && <PaymentPanel payment={order.payment} refunds={order.refunds} />}
           {order.deliveryCode &&
             ["confirmed", "preparing", "delivering"].includes(order.status) && (
               <HandoverCode
@@ -343,7 +364,11 @@ function OrderDetail() {
           <div className="glass rounded-2xl p-4">
             <div className="text-xs font-semibold text-muted-foreground mb-3">PRODUCTEUR</div>
             <div className="flex items-center gap-3">
-              <img src={farmer?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+              <img
+                src={farmer?.avatar || undefined}
+                alt=""
+                className="h-12 w-12 rounded-xl object-cover"
+              />
               <div className="flex-1">
                 <div className="font-semibold text-sm">{farmer?.farm}</div>
                 <div className="text-[11px] text-muted-foreground flex items-center gap-2">
@@ -380,11 +405,18 @@ function OrderDetail() {
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1"
-                  onClick={() => {
-                    const conversationId = conversationActions.startOrGet(
-                      myRestaurant.id,
-                      farmer.id,
-                    );
+                  onClick={async () => {
+                    let conversationId: string;
+                    if (base) {
+                      const res = await market.startConversation({ farmerId: farmer.id });
+                      if (!res.ok) {
+                        toast.error(res.message);
+                        return;
+                      }
+                      conversationId = res.id;
+                    } else {
+                      conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                    }
                     navigate({
                       to: "/restaurant/messages/$conversationId",
                       params: { conversationId },
@@ -403,7 +435,11 @@ function OrderDetail() {
             {driver ? (
               <>
                 <div className="flex items-center gap-3">
-                  <img src={driver.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
+                  <img
+                    src={driver.avatar || undefined}
+                    alt=""
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
                   <div className="flex-1">
                     <div className="font-semibold text-sm">{driver.name}</div>
                     <div className="text-[11px] text-muted-foreground">
@@ -476,13 +512,13 @@ function OrderDetail() {
 function CancelOrderCard({ orderId, reference }: { orderId: string; reference: string }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const submit = () => {
+  const submit = async () => {
     const text = reason.trim();
     if (text.length < 5) {
       toast.error("Indiquez le motif de l'annulation");
       return;
     }
-    const result = restaurantOrderActions.cancel(orderId, text);
+    const result = await market.setOrderStatus(orderId, "cancelled", "restaurant", text);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -567,12 +603,12 @@ function ReceptionCard({ orderId }: { orderId: string }) {
     );
   }
   const deliveredAt = deliveredAtOf(order);
-  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > RECEPTION_WINDOW_MS)
+  if (!deliveredAt || Date.now() - new Date(deliveredAt).getTime() > receptionWindowMs())
     return null;
-  const deadline = new Date(new Date(deliveredAt).getTime() + RECEPTION_WINDOW_MS);
+  const deadline = new Date(new Date(deliveredAt).getTime() + receptionWindowMs());
   const amount = order.items.reduce((s, i) => s + (refused[i.productId] ?? 0) * i.price, 0);
 
-  const submit = (allGood: boolean) => {
+  const submit = async (allGood: boolean) => {
     const lines = allGood
       ? []
       : order.items.map((i) => ({
@@ -580,7 +616,7 @@ function ReceptionCard({ orderId }: { orderId: string }) {
           refusedQty: refused[i.productId] ?? 0,
           reason: reasons[i.productId] ?? RECEPTION_REASONS[0],
         }));
-    const result = restaurantOrderActions.reportReception(order.id, lines);
+    const result = await market.reportReception(order.id, lines);
     if (!result.ok) return toast.error(result.message);
     toast.success(
       allGood || amount === 0

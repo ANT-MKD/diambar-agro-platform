@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { useMemo, useState } from "react";
 import {
   ShoppingBag,
@@ -31,6 +32,8 @@ import {
   Legend,
 } from "recharts";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
+import { getBudget } from "@/data/budget";
 import { BentoKpi } from "@/components/farmer/bento-kpi";
 import { OrderStatusBadge } from "@/components/farmer/status-badge";
 import {
@@ -80,6 +83,7 @@ function monthKey(iso: string) {
 }
 
 function Dashboard() {
+  const hiddenInBase = useHiddenInBase();
   const { user } = useRouteContext({ from: "/restaurant" });
   const navigate = useNavigate();
   const orders = useRestaurantOrders();
@@ -200,7 +204,7 @@ function Dashboard() {
       to: "/restaurant/returns",
       tone: "blue" as const,
     },
-  ].filter((a) => a.count > 0);
+  ].filter((a) => a.count > 0 && !hiddenInBase(a.to));
 
   // Répartition réelle des dépenses par catégorie, calculée depuis les
   // lignes de commandes (comme pour l'Analytics côté producteur).
@@ -239,13 +243,18 @@ function Dashboard() {
 
   const budgetPct = Math.min(100, Math.round((monthSpend / Math.max(1, budget.monthly)) * 100));
 
-  const saveBudget = () => {
+  const saveBudget = async () => {
     const value = Number(budgetInput);
     if (!Number.isFinite(value) || value <= 0) {
       toast.error("Montant invalide");
       return;
     }
     restaurantBudgetActions.setMonthly(value);
+    const res = await market.saveBudget(getBudget());
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Budget mis à jour");
     setBudgetOpen(false);
   };
@@ -517,7 +526,7 @@ function Dashboard() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <img
-                            src={farmer?.avatar}
+                            src={farmer?.avatar || undefined}
                             alt=""
                             className="h-6 w-6 rounded-md object-cover"
                           />
@@ -557,7 +566,11 @@ function Dashboard() {
                   key={s.id}
                   className="flex items-center gap-3 p-2.5 rounded-xl border border-border"
                 >
-                  <img src={f?.avatar} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                  <img
+                    src={f?.avatar || undefined}
+                    alt=""
+                    className="h-10 w-10 rounded-lg object-cover"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{s.name}</div>
                     <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">

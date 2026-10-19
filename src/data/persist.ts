@@ -69,13 +69,29 @@ export function writePersisted(key: string, value: unknown) {
 type Listener = () => void;
 
 export function createStore<T>(initial: T, persistKey?: string) {
-  let state = persistKey ? readPersisted(persistKey, initial) : initial;
+  let key = persistKey;
+  let state = key ? readPersisted(key, initial) : initial;
   const listeners = new Set<Listener>();
   return {
     get: () => state,
     set: (next: T | ((prev: T) => T)) => {
       state = typeof next === "function" ? (next as (p: T) => T)(state) : next;
-      if (persistKey) writePersisted(persistKey, state);
+      if (key) writePersisted(key, state);
+      listeners.forEach((l) => l());
+    },
+    /** Données venues du serveur (mode base de données) : elles remplacent
+     * l'état et ne sont plus gardées dans le navigateur (les données de
+     * démonstration enregistrées sont effacées). */
+    replace: (next: T) => {
+      if (key && typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(key);
+        } catch {
+          /* stockage indisponible */
+        }
+      }
+      key = undefined;
+      state = next;
       listeners.forEach((l) => l());
     },
     subscribe: (l: Listener) => {

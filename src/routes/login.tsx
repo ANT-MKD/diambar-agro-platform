@@ -15,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
 import { OtpInput } from "@/components/auth/otp-input";
-import { DemoNotice } from "@/components/auth/demo-notice";
 import { auditActions, useAuditLogs, useLoginSecurity } from "@/data/admin-store";
 import {
   demoLoginFn,
@@ -79,6 +78,7 @@ function LoginPage() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [blocked, setBlocked] = useState<"pending" | "suspended" | "rejected" | null>(null);
+  const [blockedNote, setBlockedNote] = useState<string | null>(null);
   const [twoFa, setTwoFa] = useState<{ email: string } | null>(null);
   const [code, setCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
@@ -90,10 +90,12 @@ function LoginPage() {
     return () => clearTimeout(t);
   }, [resendIn]);
 
-  /** Blocage réglé par l'administration (Paramètres → Sécurité), compté sur
-   * le journal de ce navigateur. Le serveur applique en plus son propre
-   * blocage (5 échecs / 15 min), qui ne dépend pas du navigateur. */
+  /** Démonstration sans base : blocage compté sur le journal de ce
+   * navigateur. Avec la base, le serveur applique les réglages de
+   * l'administration (Paramètres → Sécurité), quel que soit le navigateur. */
   const lockoutMinutesLeft = (targetEmail: string): number => {
+    // Avec la base, seul le serveur décide (réglages lus en base).
+    if (config.database) return 0;
     const cutoff = Date.now() - lockoutMinutes * 60_000;
     const recentFails = logs
       .filter(
@@ -147,7 +149,7 @@ function LoginPage() {
         setCode("");
         setResendIn(result.resendInSeconds);
         toast.info("Code de vérification envoyé", {
-          description: result.devCode ? `Code démo : ${result.devCode}` : undefined,
+          description: result.devCode ? `Votre code : ${result.devCode}` : undefined,
         });
         return;
       case "invalid":
@@ -162,13 +164,16 @@ function LoginPage() {
         toast.error("Email ou mot de passe incorrect", {
           description:
             result.remaining <= 2
-              ? `Encore ${result.remaining} essai${result.remaining > 1 ? "s" : ""} avant un blocage de 15 minutes.`
+              ? `Encore ${result.remaining} essai${result.remaining > 1 ? "s" : ""} avant un blocage de ${result.lockoutMinutes} minute${result.lockoutMinutes > 1 ? "s" : ""}.`
               : undefined,
         });
         return;
       case "locked":
         logLocked(targetEmail, "Trop d'échecs de connexion (blocage serveur)");
         lockedToast(result.minutes);
+        return;
+      case "unavailable":
+        toast.error(result.message);
         return;
       case "blocked":
         auditActions.log({
@@ -180,6 +185,7 @@ function LoginPage() {
           reason: result.reason,
         });
         setBlocked(result.reason);
+        setBlockedNote(result.note ?? null);
         return;
     }
   };
@@ -270,7 +276,7 @@ function LoginPage() {
         setCode("");
         setResendIn(res.resendInSeconds);
         toast.info("Nouveau code envoyé", {
-          description: res.devCode ? `Code démo : ${res.devCode}` : undefined,
+          description: res.devCode ? `Votre code : ${res.devCode}` : undefined,
         });
       } else if (res.waitSeconds) {
         setResendIn(res.waitSeconds);
@@ -287,13 +293,13 @@ function LoginPage() {
     return (
       <AuthSplitLayout>
         <form onSubmit={submitTwoFa}>
-          {config.demoMode && <DemoNotice />}
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
             <ShieldCheck className="h-7 w-7" aria-hidden />
           </div>
           <h1 className="display-xl mt-4 text-center text-4xl">Vérification en deux étapes</h1>
           <p className="mt-1 text-center text-sm text-muted-foreground">
-            Saisissez le code à 6 chiffres envoyé pour {twoFa.email}. Il est valable 5 minutes.
+            Saisissez le code à 6 chiffres envoyé par email à {twoFa.email}. Il est valable 5
+            minutes.
           </p>
           <div className="mt-8">
             <OtpInput value={code} onChange={setCode} />
@@ -334,15 +340,27 @@ function LoginPage() {
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-destructive/10 text-destructive">
             <copy.icon className="h-8 w-8" aria-hidden />
           </div>
-          <h1 className="display-xl mt-6 text-4xl">{copy.title}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
+          <h1 className="display-xl mt-6 text-4xl">
+            {blockedNote ? "Une précision est demandée" : copy.title}
+          </h1>
+          {blockedNote ? (
+            <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-left text-sm text-amber-900">
+              <p className="font-semibold">Message de l'équipe Diambar Agro :</p>
+              <p className="mt-1 whitespace-pre-line">{blockedNote}</p>
+              <p className="mt-3 text-amber-800">
+                Répondez-nous depuis la page contact : votre dossier sera revu dès réception.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">{copy.body}</p>
+          )}
           <div className="mt-8 space-y-2">
-            {copy.cta && (
+            {(copy.cta || blockedNote) && (
               <Link
                 to="/contact"
                 className="block w-full rounded-full bg-neutral-900 text-white hover:bg-neutral-800 py-3 font-semibold"
               >
-                {copy.cta}
+                {copy.cta ?? "Répondre à l'équipe"}
               </Link>
             )}
             <button
@@ -360,7 +378,6 @@ function LoginPage() {
   return (
     <AuthSplitLayout>
       <div>
-        {config.demoMode && <DemoNotice />}
         <h1 className="display-xl text-5xl">Bon retour.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Connectez-vous à votre espace Diambar Agro
@@ -434,6 +451,32 @@ function LoginPage() {
             Se connecter
           </button>
         </form>
+
+        {config.installationPending && (
+          <Link
+            to="/installation"
+            data-testid="installation-pending"
+            className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-600/30 bg-emerald-50 p-4 text-sm text-emerald-900 hover:bg-emerald-100"
+          >
+            <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden />
+            <span>
+              <span className="block font-semibold">Première utilisation de la plateforme</span>
+              Aucun compte administrateur n'existe encore : créez-le ici.
+            </span>
+          </Link>
+        )}
+
+        {!config.database && (
+          <p
+            role="note"
+            data-testid="no-database"
+            className="mt-6 rounded-xl border border-border bg-muted/50 p-3 text-xs text-muted-foreground"
+          >
+            Aucune base de données reliée : l'application tourne en démonstration, avec des comptes
+            fictifs gardés en mémoire. Pour utiliser votre base, renseignez DATABASE_URL dans le
+            fichier .env, puis redémarrez le serveur.
+          </p>
+        )}
 
         {config.demoMode && config.demoAccounts.length > 0 && (
           <DemoAccountsPanel accounts={config.demoAccounts} onPick={loginAs} />

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { PayoutAccountsBase } from "@/components/common/payout-accounts";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
@@ -30,6 +32,10 @@ export const Route = createFileRoute("/farmer/settings/payments")({
 });
 
 function PaymentSettings() {
+  return useBaseMode() ? <PayoutAccountsBase /> : <DemoPaymentSettings />;
+}
+
+function DemoPaymentSettings() {
   const wallets = useWallets();
   const paymentPrefs = usePaymentPrefs();
   const [form, setForm] = useState(() => ({

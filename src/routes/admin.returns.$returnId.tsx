@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useReturn,
-  returnActions,
   returnStage,
   RETURN_STAGE_LABEL,
   RETURN_REASON_LABEL,
@@ -42,6 +41,8 @@ import { useOrders } from "@/data/store";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { drivers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { market, type Result } from "@/data/market-remote";
+import { useHiddenInBase } from "@/data/demo-only";
 
 export const Route = createFileRoute("/admin/returns/$returnId")({
   head: () => ({
@@ -72,6 +73,7 @@ function AdminReturnDetail() {
   const { user } = useRouteContext({ from: "/admin" });
   const role = useAdminRoleForEmail(user.email);
   const canManageReturns = can(role, "returns.decide");
+  const hiddenInBase = useHiddenInBase();
   const r = useReturn(returnId);
   const refunds = useRefunds();
   const orders = useOrders();
@@ -104,7 +106,7 @@ function AdminReturnDetail() {
   const restaurant = restaurants.find((x) => x.id === r.restaurantId);
   const farmer = farmerForReturn(r);
   const orderedQty = order?.items.find((i) => i.productId === r.productId)?.qty;
-  const refund = refunds.find((f) => f.returnId === r.id);
+  const refund = r.refund ?? refunds.find((f) => f.returnId === r.id);
   const stage = returnStage(r);
   const happyIndex = HAPPY_PATH.findIndex((s) => s.key === stage);
   const canPickup = !r.closedAt && r.status !== "refused" && canManageReturns;
@@ -112,22 +114,34 @@ function AdminReturnDetail() {
   const canRevise =
     !r.closedAt && r.resolution && refund && refund.status !== "paid" && canManageReturns;
 
-  const schedulePickup = () => {
+  const failed = (res: Result) => {
+    if (!res.ok) toast.error(res.message);
+    return !res.ok;
+  };
+
+  const schedulePickup = async () => {
     if (!pickupDate || !pickupDriver) {
       toast.error("Choisissez un livreur et un créneau");
       return;
     }
     const driver = drivers.find((d) => d.id === pickupDriver);
     if (!driver) return;
-    returnActions.adminSchedulePickup(r.id, {
-      driverId: driver.id,
-      driverName: driver.name,
-      scheduledFor: new Date(pickupDate).toISOString(),
-      address:
-        pickupAddress.trim() ||
-        `${restaurant?.name ?? r.restaurantName}, ${restaurant?.city ?? ""}`,
-      actor: user.name,
-    });
+    const res = await market.returnStaff(
+      r.id,
+      {
+        action: "pickup",
+        driverId: driver.id,
+        driverName: driver.name,
+        scheduledFor: new Date(pickupDate).toISOString(),
+        address:
+          pickupAddress.trim() ||
+          (market.isRemote()
+            ? ""
+            : `${restaurant?.name ?? r.restaurantName}, ${restaurant?.city ?? ""}`),
+      },
+      user.name,
+    );
+    if (failed(res)) return;
     auditActions.log({
       action: `Récupération programmée — ${driver.name}`,
       target: r.reference,
@@ -137,12 +151,17 @@ function AdminReturnDetail() {
     toast.success("Récupération programmée");
   };
 
-  const markReceived = () => {
+  const markReceived = async () => {
     if (!receivedCondition.trim()) {
       toast.error("Indiquez l'état constaté à la réception");
       return;
     }
-    returnActions.adminMarkReceived(r.id, receivedCondition.trim(), user.name);
+    const res = await market.returnStaff(
+      r.id,
+      { action: "received", condition: receivedCondition.trim() },
+      user.name,
+    );
+    if (failed(res)) return;
     auditActions.log({
       action: "Produit réceptionné",
       target: r.reference,
@@ -153,16 +172,17 @@ function AdminReturnDetail() {
     toast.success("Produit réceptionné");
   };
 
-  const submitInspection = () => {
+  const submitInspection = async () => {
     if (!inspectionNote.trim()) {
       toast.error("Indiquez une note d'inspection");
       return;
     }
-    returnActions.adminSetInspection(r.id, {
-      conform: inspectionConform === "yes",
-      note: inspectionNote.trim(),
-      inspectedBy: user.name,
-    });
+    const res = await market.returnStaff(
+      r.id,
+      { action: "inspect", conform: inspectionConform === "yes", note: inspectionNote.trim() },
+      user.name,
+    );
+    if (failed(res)) return;
     auditActions.log({
       action: inspectionConform === "yes" ? "Inspection : conforme" : "Inspection : non conforme",
       target: r.reference,
@@ -173,19 +193,24 @@ function AdminReturnDetail() {
     toast.success("Inspection enregistrée");
   };
 
-  const submitDecision = () => {
+  const submitDecision = async () => {
     if (!decisionNote.trim()) {
       toast.error("Une justification est obligatoire");
       return;
     }
     const amount = decisionAmount.trim() ? Number(decisionAmount) : undefined;
-    returnActions.adminResolve(r.id, {
-      type: decisionType,
-      bornBy: decisionBornBy,
-      amount,
-      note: decisionNote.trim(),
-      decidedBy: user.name,
-    });
+    const res = await market.returnStaff(
+      r.id,
+      {
+        action: "resolve",
+        type: decisionType,
+        bornBy: decisionBornBy,
+        amount,
+        note: decisionNote.trim(),
+      },
+      user.name,
+    );
+    if (failed(res)) return;
     auditActions.log({
       action: `Décision retour : ${RETURN_RESOLUTION_LABEL[decisionType]}`,
       target: r.reference,
@@ -199,12 +224,17 @@ function AdminReturnDetail() {
     setDecisionNote("");
   };
 
-  const submitEscalation = () => {
+  const submitEscalation = async () => {
     if (!escalateNote.trim()) {
       toast.error("Indiquez le motif de l'escalade");
       return;
     }
-    returnActions.adminEscalateToDispute(r.id, escalateNote.trim(), user.name);
+    const res = await market.returnStaff(
+      r.id,
+      { action: "escalate", note: escalateNote.trim() },
+      user.name,
+    );
+    if (failed(res)) return;
     auditActions.log({
       action: "Retour escaladé en litige",
       target: r.reference,
@@ -445,8 +475,13 @@ function AdminReturnDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        returnActions.adminMarkPickedUp(r.id);
+                      onClick={async () => {
+                        const res = await market.returnStaff(
+                          r.id,
+                          { action: "picked_up" },
+                          user.name,
+                        );
+                        if (failed(res)) return;
                         auditActions.log({
                           action: "Produit récupéré chez le client",
                           target: r.reference,
@@ -629,12 +664,14 @@ function AdminReturnDetail() {
                 <AdminBadge value={refund.status} label={REFUND_STATUS_LABEL[refund.status]} />
                 <div className="mt-1 text-muted-foreground">{formatFCFA(refund.amount)}</div>
               </div>
-              <Button asChild size="sm" variant="outline" className="w-full gap-2">
-                <Link to="/admin/refunds/$refundId" params={{ refundId: refund.id }}>
-                  Voir le dossier
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-              </Button>
+              {!hiddenInBase("/admin/refunds") && (
+                <Button asChild size="sm" variant="outline" className="w-full gap-2">
+                  <Link to="/admin/refunds/$refundId" params={{ refundId: refund.id }}>
+                    Voir le dossier
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
             </div>
           )}
 
@@ -650,7 +687,7 @@ function AdminReturnDetail() {
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </Button>
-            ) : r.status !== "refused" ? (
+            ) : !r.closedAt && r.status !== "credited" ? (
               !canManageReturns ? (
                 <p className="text-sm text-muted-foreground">
                   Votre rôle ne permet pas d'escalader ce dossier.
@@ -688,8 +725,9 @@ function AdminReturnDetail() {
                 size="sm"
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  returnActions.adminClose(r.id, user.name);
+                onClick={async () => {
+                  const res = await market.returnStaff(r.id, { action: "close" }, user.name);
+                  if (failed(res)) return;
                   auditActions.log({
                     action: "Dossier retour clôturé",
                     target: r.reference,

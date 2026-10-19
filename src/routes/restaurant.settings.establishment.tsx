@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerForm } from "@/hooks/use-server-form";
+import { market } from "@/data/market-remote";
 import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RECEPTION_DAYS, type ReceptionDay, type ReceptionSlot } from "@/data/mocks";
-import { useRestaurantProfile, restaurantProfileActions } from "@/data/store";
+import { useRestaurantProfile, restaurantProfileActions, useMyAccount } from "@/data/store";
 import { useCities } from "@/data/admin-store";
 
 export const Route = createFileRoute("/restaurant/settings/establishment")({
@@ -35,16 +36,21 @@ export const Route = createFileRoute("/restaurant/settings/establishment")({
 
 function EstablishmentSettings() {
   const profile = useRestaurantProfile();
+  const account = useMyAccount();
   const cities = useCities();
-  const [form, setForm] = useState({
-    address: profile.deliveryAddress,
+  // En mode base, l'adresse de l'établissement (et non la dernière adresse de
+  // livraison utilisée au panier).
+  const [form, setForm] = useServerForm({
+    address: account?.restaurant?.address ?? profile.deliveryAddress,
     city: profile.city,
     capacity: String(profile.capacity),
     ninea: profile.ninea,
   });
-  const [slots, setSlots] = useState<Record<ReceptionDay, ReceptionSlot>>(profile.receptionHours);
+  const [slots, setSlots] = useServerForm<Record<ReceptionDay, ReceptionSlot>>(
+    profile.receptionHours,
+  );
 
-  const saveInfo = () => {
+  const saveInfo = async () => {
     const capacity = Number(form.capacity);
     if (!form.address.trim() || form.address.trim().length < 10) {
       toast.error("Adresse trop courte (min 10 caractères)");
@@ -53,6 +59,19 @@ function EstablishmentSettings() {
     if (!Number.isFinite(capacity) || capacity <= 0) {
       toast.error("Capacité invalide");
       return false;
+    }
+    if (market.isRemote()) {
+      const res = await market.saveRestaurant({
+        address: form.address,
+        capacity,
+        ninea: form.ninea,
+      });
+      const res2 = res.ok ? await market.saveAccount({ city: form.city }) : res;
+      if (!res2.ok) {
+        toast.error(res2.message);
+        return false;
+      }
+      return true;
     }
     restaurantProfileActions.update({
       deliveryAddress: form.address,
@@ -63,7 +82,15 @@ function EstablishmentSettings() {
     return true;
   };
 
-  const saveSlots = () => {
+  const saveSlots = async () => {
+    if (market.isRemote()) {
+      const res = await market.saveRestaurant({ receptionHours: slots });
+      if (!res.ok) {
+        toast.error(res.message);
+        return false;
+      }
+      return true;
+    }
     restaurantProfileActions.update({ receptionHours: slots });
     return true;
   };
@@ -111,7 +138,7 @@ function EstablishmentSettings() {
 
       <SettingsCard
         title="Créneaux de réception"
-        description="Heures pendant lesquelles vous pouvez recevoir les livraisons. Ces créneaux alimentent directement le choix proposé à vos producteurs au moment de la commande."
+        description="Heures pendant lesquelles vous pouvez recevoir les livraisons. À la commande, l'heure de livraison proposée par défaut en tient compte (vous pouvez toujours la changer)."
         onSave={saveSlots}
       >
         <div className="space-y-2">

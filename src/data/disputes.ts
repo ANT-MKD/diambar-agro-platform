@@ -79,6 +79,8 @@ export type Dispute = {
   slaDueAt: string;
   escalations: number;
   assignee: string | null;
+  /** Mode base : identifiant du membre de l'équipe assigné. */
+  assigneeId?: string;
   attachments: DisputeAttachment[];
   messages: DisputeMessage[];
   events: DisputeEvent[];
@@ -104,6 +106,8 @@ export type CreditNote = {
   // est alors le solde restant), et le détail de chaque utilisation.
   initialAmount?: number;
   usages?: { orderRef: string; amount: number; at: string }[];
+  /** Motif (décision du litige). */
+  reason?: string;
 };
 
 export const DISPUTE_CATEGORIES: Record<string, { label: string; subs: string[] }> = {
@@ -513,6 +517,11 @@ function nextCreditRef(arr: CreditNote[]) {
   );
   return `AV-${String(max + 1).padStart(4, "0")}`;
 }
+/** Mode base : avoirs tels qu'enregistrés sur le serveur. */
+export function replaceCreditNotes(list: CreditNote[]) {
+  creditsStore.replace(list);
+}
+
 export const creditActions = {
   /** Émet un vrai avoir suite à un retour accepté par le producteur — plus
    * une simple chaîne de texte posée sur le retour, mais une entrée réelle
@@ -1054,4 +1063,30 @@ export function disputeStats(list: Dispute[]) {
     grantedTotal: resolved.reduce((s, d) => s + (d.decision!.grantedAmount || 0), 0),
     byParty: [...byParty.values()].sort((a, b) => b.count - a.count),
   };
+}
+
+/** Mode base de données : les données de démonstration de ce module ne
+ * sont pas montrées (le module passera en base dans un prochain lot). */
+export function clearDisputesDemoData() {
+  disputesStore.replace([]);
+  creditsStore.replace([]);
+}
+
+/** Mode base : les litiges du compte, lus sur le serveur. */
+export function replaceDisputes(list: Dispute[]) {
+  disputesStore.replace(list);
+}
+
+// Équipe à qui confier un litige (mode base ; en démonstration, les agents
+// fictifs de SUPPORT_AGENTS servent d'exemple).
+const disputeStaffStore = createStore<{ id: string; name: string }[]>([]);
+export function replaceDisputeStaff(list: { id: string; name: string }[]) {
+  disputeStaffStore.replace(list);
+}
+export function useDisputeStaff() {
+  return useSyncExternalStore(
+    disputeStaffStore.subscribe,
+    disputeStaffStore.get,
+    disputeStaffStore.get,
+  );
 }

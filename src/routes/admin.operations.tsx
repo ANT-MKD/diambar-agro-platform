@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useHiddenInBase } from "@/data/demo-only";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Clock,
@@ -22,8 +23,12 @@ import {
 import { useAllDisputes } from "@/data/disputes";
 import { useRefunds } from "@/data/finance";
 import { useSupportTickets } from "@/data/support";
-import { computeDailyOps } from "@/lib/daily-ops";
+import { market } from "@/data/market-remote";
+import { useMarketMode } from "@/data/market-mode";
+import { computeDailyOps, deliveryMargins, marginByBracket } from "@/lib/daily-ops";
+import { DEFAULT_DELIVERY_PRICING, type DeliveryPricing } from "@/lib/delivery-pricing";
 import { formatFCFA, relativeTime } from "@/lib/format";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/admin/operations")({
   head: () => ({
@@ -35,9 +40,27 @@ export const Route = createFileRoute("/admin/operations")({
   component: OperationsPage,
 });
 
+/** Barème en vigueur (base) ou barème par défaut (démonstration). */
+function useDeliveryPricing(): DeliveryPricing {
+  const { remote } = useMarketMode();
+  const [pricing, setPricing] = useState(DEFAULT_DELIVERY_PRICING);
+  useEffect(() => {
+    if (!remote) return;
+    let alive = true;
+    void market.deliverySettings().then((res) => {
+      if (alive && res.ok) setPricing(res.pricing);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [remote]);
+  return pricing;
+}
+
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
 function OperationsPage() {
+  const hiddenInBase = useHiddenInBase();
   const [offset, setOffset] = useState(0);
   const day = useMemo(() => {
     const d = new Date();
@@ -53,10 +76,30 @@ function OperationsPage() {
   const tickets = useSupportTickets();
   const docs = useDocRenewals();
 
+  const driverCommissionRate = useRules().driverPay.commissionRate;
   const ops = useMemo(
-    () => computeDailyOps({ day, restaurantOrders, missions, transactions, disputes, refunds }),
-    [day, restaurantOrders, missions, transactions, disputes, refunds],
+    () =>
+      computeDailyOps({
+        day,
+        restaurantOrders,
+        missions,
+        transactions,
+        disputes,
+        refunds,
+        driverCommissionRate,
+      }),
+    [day, restaurantOrders, missions, transactions, disputes, refunds, driverCommissionRate],
   );
+  const pricing = useDeliveryPricing();
+  const margins = useMemo(
+    () => deliveryMargins({ day, restaurantOrders, missions, driverCommissionRate }),
+    [day, restaurantOrders, missions, driverCommissionRate],
+  );
+  const losses = useMemo(
+    () => margins.filter((d) => d.margin < 0).sort((a, b) => a.margin - b.margin),
+    [margins],
+  );
+  const brackets = useMemo(() => marginByBracket(margins, pricing), [margins, pricing]);
 
   // Ce qui doit être traité tout de suite, quel que soit le jour affiché.
   const now = Date.now();
@@ -103,7 +146,7 @@ function OperationsPage() {
             <AlertTriangle className="h-4 w-4 text-destructive" />À traiter maintenant
           </div>
           <ul className="text-sm space-y-1">
-            {urgentTickets.length > 0 && (
+            {urgentTickets.length > 0 && !hiddenInBase("/admin/support") && (
               <li>
                 <Link
                   to="/admin/support"
@@ -128,7 +171,7 @@ function OperationsPage() {
                 </Link>
               </li>
             )}
-            {pendingDocs.length > 0 && (
+            {pendingDocs.length > 0 && !hiddenInBase("/admin/documents") && (
               <li>
                 <Link to="/admin/documents" className="hover:underline">
                   {pendingDocs.length} document(s) livreur à vérifier
@@ -150,7 +193,7 @@ function OperationsPage() {
           label="Ponctualité"
           value={pct(ops.onTimeRate)}
           icon={Clock}
-          hint="Livrées au plus tard 4 h après le début du créneau"
+          hint="Livrées au plus tard 1 h après l'heure choisie par le restaurant"
         />
         <StatCard
           label="Litiges ouverts"
@@ -187,6 +230,120 @@ function OperationsPage() {
               : undefined
           }
         />
+      </div>
+
+      <div className="glass rounded-2xl p-5" data-testid="bracket-margins">
+        <h3 className="font-semibold flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          Marge des livraisons par distance
+        </h3>
+        {brackets.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">Aucune course ce jour-là.</p>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="py-2 pr-3">Tranche</th>
+                  <th className="py-2 pr-3 text-right">Courses</th>
+                  <th className="py-2 pr-3 text-right">Frais payés</th>
+                  <th className="py-2 pr-3 text-right">Coût des courses</th>
+                  <th className="py-2 text-right">Marge</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {brackets.map((b) => (
+                  <tr key={b.label}>
+                    <td className="py-2 pr-3">{b.label}</td>
+                    <td className="py-2 pr-3 text-right">{b.count}</td>
+                    <td className="py-2 pr-3 text-right">{formatFCFA(b.fees)}</td>
+                    <td className="py-2 pr-3 text-right">{formatFCFA(b.costs)}</td>
+                    <td
+                      className={`py-2 text-right font-semibold ${b.margin < 0 ? "text-rose-600" : "text-emerald-600"}`}
+                    >
+                      {formatFCFA(b.margin)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div
+        className={`glass rounded-2xl p-5 ${losses.length ? "border border-rose-500/30" : ""}`}
+        data-testid="loss-deliveries"
+      >
+        <h3 className="font-semibold flex items-center gap-2">
+          <AlertTriangle
+            className={`h-4 w-4 ${losses.length ? "text-rose-600" : "text-muted-foreground"}`}
+          />
+          Livraisons à perte
+        </h3>
+        {losses.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Aucune course de ce jour ne coûte plus que les frais de livraison payés par le
+            restaurant.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm">
+              <span className="font-semibold text-rose-600">
+                {losses.length} course(s) · {formatFCFA(losses.reduce((s, l) => s + l.margin, 0))}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                : la course payée au livreur (commission déduite) dépasse les frais facturés au
+                restaurant. Vérifiez le barème et la position des lieux (
+                <Link to="/admin/delivery-pricing" className="underline">
+                  Tarifs de livraison
+                </Link>
+                ) ou regroupez les commandes d'un même trajet.
+              </span>
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-2 pr-3">Course</th>
+                    <th className="py-2 pr-3">Trajet</th>
+                    <th className="py-2 pr-3 text-right">Distance · poids</th>
+                    <th className="py-2 pr-3 text-right">Frais payés</th>
+                    <th className="py-2 pr-3 text-right">Coût de la course</th>
+                    <th className="py-2 text-right">Écart</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {losses.map((l) => (
+                    <tr key={l.mission.id}>
+                      <td className="py-2 pr-3">
+                        <Link
+                          to="/admin/deliveries/$missionId"
+                          params={{ missionId: l.mission.id }}
+                          className="font-medium hover:underline"
+                        >
+                          {l.mission.reference}
+                        </Link>
+                        <div className="text-xs text-muted-foreground">{l.mission.orderRef}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        {l.mission.pickup.city} → {l.mission.dropoff.city}
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        {l.mission.distanceKm} km · {l.mission.weightKg} kg
+                      </td>
+                      <td className="py-2 pr-3 text-right">{formatFCFA(l.fee)}</td>
+                      <td className="py-2 pr-3 text-right">{formatFCFA(l.cost)}</td>
+                      <td className="py-2 text-right font-semibold text-rose-600">
+                        {formatFCFA(l.margin)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5">

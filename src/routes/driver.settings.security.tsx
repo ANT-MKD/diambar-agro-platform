@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { market } from "@/data/market-remote";
+import { logoutFn } from "@/lib/auth/functions";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Zap, LogOut, Trash2 } from "lucide-react";
 import { SecurityPanel } from "@/components/common/security-panel";
-import { driverOnlineActions } from "@/data/store";
 import { supportTicketActions } from "@/data/support";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings/security")({
   head: () => ({ meta: [{ title: "Sécurité · Paramètres livreur" }] }),
@@ -26,19 +29,39 @@ function SecuritySettings() {
   const navigate = useNavigate();
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const suspendAccount = () => {
-    driverOnlineActions.set(false);
-    setSuspendOpen(false);
-    toast.success("Compte suspendu · vous êtes déconnecté");
+  const base = useBaseMode();
+  const logout = async () => {
+    await logoutFn();
     navigate({ to: "/login" });
   };
 
-  const requestDeletion = () => {
+  // Pause : hors ligne (plus aucune course proposée) puis déconnexion.
+  const suspendAccount = async () => {
+    const res = await market.setOnline(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    setSuspendOpen(false);
+    toast.success("Compte en pause · vous êtes hors ligne et déconnecté");
+    await logout();
+  };
+
+  const requestDeletion = async () => {
+    if (base) {
+      const res = await market.requestAccountDeletion("");
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success("Demande envoyée à l'équipe Diambar");
+      setDeleteOpen(false);
+      return;
+    }
     const ticket = supportTicketActions.create({
       subject: "Demande de suppression de compte",
-      message: "Le livreur Oumar Ba demande la suppression définitive de son compte Diambar Agro.",
-      fromName: "Oumar Ba",
+      message: `Le livreur ${driverProfile.name} demande la suppression définitive de son compte Diambar Agro.`,
+      fromName: driverProfile.name,
       fromRole: "driver",
       category: "account",
     });
@@ -71,11 +94,9 @@ function SecuritySettings() {
             <Trash2 className="h-4 w-4" />
             Demander la suppression du compte
           </Button>
-          <Button variant="outline" asChild className="justify-start gap-2">
-            <Link to="/login">
-              <LogOut className="h-4 w-4" />
-              Se déconnecter
-            </Link>
+          <Button variant="outline" className="justify-start gap-2" onClick={() => void logout()}>
+            <LogOut className="h-4 w-4" />
+            Se déconnecter
           </Button>
         </div>
       </div>
@@ -110,7 +131,10 @@ function SecuritySettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction className="bg-rose-500 hover:bg-rose-600" onClick={requestDeletion}>
+            <AlertDialogAction
+              className="bg-rose-500 hover:bg-rose-600"
+              onClick={() => void requestDeletion()}
+            >
               Envoyer la demande
             </AlertDialogAction>
           </AlertDialogFooter>

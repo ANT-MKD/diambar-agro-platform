@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerForm } from "@/hooks/use-server-form";
+import { market } from "@/data/market-remote";
 import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useCities } from "@/data/admin-store";
 import { useFarmerFarm, farmerFarmActions } from "@/data/store";
+import { useCategoryNames } from "@/data/catalog";
 
 export const Route = createFileRoute("/farmer/settings/farm")({
   head: () => ({
@@ -32,27 +34,18 @@ export const Route = createFileRoute("/farmer/settings/farm")({
   component: FarmSettings,
 });
 
-const PRODUCT_TYPES = [
-  "Légumes",
-  "Fruits",
-  "Volaille",
-  "Viande",
-  "Céréales",
-  "Tubercules",
-  "Épices",
-];
-
 function FarmSettings() {
+  const PRODUCT_TYPES = useCategoryNames();
   const farm = useFarmerFarm();
   const cities = useCities();
-  const [form, setForm] = useState(farm);
+  const [form, setForm] = useServerForm(farm);
   const toggle = (t: string) =>
     setForm({
       ...form,
       types: form.types.includes(t) ? form.types.filter((x) => x !== t) : [...form.types, t],
     });
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) {
       toast.error("Le nom de l'exploitation est obligatoire");
       return false;
@@ -65,6 +58,21 @@ function FarmSettings() {
     if (!Number.isFinite(size) || size <= 0) {
       toast.error("Superficie invalide");
       return false;
+    }
+    if (market.isRemote()) {
+      const res = await market.saveFarm({
+        name: form.name,
+        address: form.address,
+        areaHa: size,
+        certification: form.certification,
+        productionTypes: form.types,
+      });
+      const res2 = res.ok ? await market.saveAccount({ city: form.city }) : res;
+      if (!res2.ok) {
+        toast.error(res2.message);
+        return false;
+      }
+      return true;
     }
     farmerFarmActions.update(form);
     return true;

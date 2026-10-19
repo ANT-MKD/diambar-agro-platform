@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router"
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { ProductForm } from "@/components/farmer/product-form";
-import { useProduct, productActions } from "@/data/store";
+import { useProduct } from "@/data/store";
+import { market } from "@/data/market-remote";
 
 export const Route = createFileRoute("/farmer/products_/$productId/edit")({
   head: () => ({ meta: [{ title: "Modifier produit · Diambar Agro" }] }),
@@ -21,8 +22,12 @@ function EditProductPage() {
       <PageHeader title={`Modifier — ${product.name}`} />
       <ProductForm
         initial={{ ...rest, photos: product.photos?.length ? product.photos : [product.image] }}
-        onSubmit={(d) => {
-          productActions.update(productId, d);
+        onSubmit={async (d) => {
+          const res = await market.saveProductWithPhotos(productId, d);
+          if (!res.ok) {
+            toast.error(res.message);
+            return;
+          }
           toast.success("Produit mis à jour");
           navigate({ to: "/farmer/products/$productId", params: { productId } });
         }}

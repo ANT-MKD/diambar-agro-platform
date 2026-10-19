@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useBaseMode } from "@/data/demo-only";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -16,6 +17,7 @@ import {
   User,
   Building2,
   TriangleAlert,
+  Scale,
   Camera,
   Wallet,
   Undo2,
@@ -42,6 +44,8 @@ import {
   useMyMissionEligibility,
   useDriverSettings,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 import { GpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
@@ -62,6 +66,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { telLink, whatsappLink } from "@/lib/contact";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/missions/$missionId")({
   head: () => ({ meta: [{ title: "Mission · Livreur Diambar" }] }),
@@ -85,6 +90,8 @@ const FLOW: Array<{ status: "accepted" | "pickup" | "loaded" | "delivered"; labe
 ];
 
 function MissionDetail() {
+  const base = useBaseMode();
+  const myDriverId = useMyId("driver");
   const navigate = useNavigate();
   const { missionId } = Route.useParams();
   const mission = useMission(missionId);
@@ -96,11 +103,14 @@ function MissionDetail() {
   const eligibilityFor = useMyMissionEligibility();
   const settings = useDriverSettings();
   const [refuseOpen, setRefuseOpen] = useState(false);
+  const commissionRate = useRules().driverPay.commissionRate;
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawReason, setWithdrawReason] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
   const [proofPhotos, setProofPhotos] = useState<DisputeAttachment[]>([]);
+  const sentProofs = useRef(new Set<string>());
   const [deliveryCode, setDeliveryCode] = useState("");
+  const [cashCollected, setCashCollected] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
   const [pickupCode, setPickupCode] = useState("");
 
@@ -140,51 +150,70 @@ function MissionDetail() {
 
   const eligibility = eligibilityFor(mission);
   // Une mission prise par un autre livreur reste consultable, jamais pilotable.
-  const isMine = mission.driverId === "d1";
-  const accept = () => {
-    const result = missionActions.accept(mission.id);
+  const isMine = mission.driverId === myDriverId;
+  const accept = async () => {
+    const result = await market.acceptMission(mission.id);
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
     toast.success("Mission acceptée");
   };
-  const startPickup = () => {
-    const result = missionActions.setStatus(mission.id, "pickup");
+  const startPickup = async () => {
+    const result = await market.missionStep(mission.id, "pickup");
     if (!result.ok) return toast.error(result.message);
     toast.success("Trajet vers le producteur démarré");
   };
-  const markLoaded = () => {
-    const result = missionActions.setStatus(mission.id, "loaded", "d1", { code: pickupCode });
+  const markLoaded = async () => {
+    const result = await market.missionStep(mission.id, "loaded", pickupCode);
     if (!result.ok) return toast.error(result.message);
     setPickupOpen(false);
     setPickupCode("");
     toast.success("Marchandise chargée · direction restaurant");
   };
-  const markDelivered = () => {
+  const markDelivered = async () => {
     if (proofPhotos.length === 0) {
       toast.error("Ajoutez au moins une photo de la marchandise livrée.");
       return;
     }
-    missionActions.attachProof(mission.id, proofPhotos);
-    const result = missionActions.setStatus(mission.id, "delivered", "d1", {
-      code: deliveryCode,
-    });
+    // Avec la base, chaque photo n'est envoyée qu'une fois (même si le code
+    // saisi était faux au premier essai).
+    const toSend = market.isRemote()
+      ? proofPhotos.filter((ph) => !sentProofs.current.has(ph.id))
+      : proofPhotos;
+    const sent = await market.attachProof(mission.id, toSend, "dropoff");
+    if (!sent.ok) {
+      toast.error(sent.message);
+      return;
+    }
+    toSend.forEach((ph) => sentProofs.current.add(ph.id));
+    if (mission.cashToCollect && !cashCollected) {
+      toast.error(`Confirmez avoir encaissé ${formatFCFA(mission.cashToCollect)} en espèces.`);
+      return;
+    }
+    const result = await market.missionStep(
+      mission.id,
+      "delivered",
+      deliveryCode,
+      mission.cashToCollect ? cashCollected : undefined,
+    );
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
-    toast.success("Livraison confirmée · paiement crédité");
+    toast.success(
+      market.isRemote() ? "Livraison confirmée" : "Livraison confirmée · paiement crédité",
+    );
     setProofOpen(false);
     setTimeout(() => navigate({ to: "/driver/missions" }), 500);
   };
-  const withdraw = () => {
+  const withdraw = async () => {
     const reason = withdrawReason.trim();
     if (reason.length < 5) {
       toast.error("Indiquez la raison du désistement");
       return;
     }
-    const result = missionActions.withdraw(mission.id, reason);
+    const result = await market.withdrawMission(mission.id, reason);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -348,6 +377,14 @@ function MissionDetail() {
                 {mission.instructions}
               </div>
             )}
+            {mission.cashToCollect ? (
+              <div className="mt-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+                <span className="font-semibold">
+                  Espèces à encaisser : {formatFCFA(mission.cashToCollect)}
+                </span>{" "}
+                — le restaurant paie à la livraison. Remettez ensuite cet argent à Diambar.
+              </div>
+            ) : null}
           </div>
 
           {/* Live GPS */}
@@ -486,8 +523,9 @@ function MissionDetail() {
                     <Button
                       variant="outline"
                       className="w-full h-12 gap-2"
-                      onClick={() => {
-                        missionActions.markArrived(mission.id, stage);
+                      onClick={async () => {
+                        const res = await market.markArrived(mission.id, stage);
+                        if (!res.ok) return toast.error(res.message);
                         toast.success("Arrivée enregistrée · l'attente est chronométrée");
                       }}
                     >
@@ -557,7 +595,36 @@ function MissionDetail() {
                 Signaler un incident
               </Link>
             </Button>
-            {conversation ? (
+            {base && (
+              <Button asChild variant="outline" className="w-full justify-start gap-2">
+                <Link to="/driver/missions/$missionId/dispute" params={{ missionId: mission.id }}>
+                  <Scale className="h-4 w-4" />
+                  Ouvrir un litige
+                </Link>
+              </Button>
+            )}
+            {base && !conversation ? (
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={async () => {
+                  const res = await market.startConversation({
+                    restaurantId: mission.restaurantId,
+                  });
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
+                  navigate({
+                    to: "/driver/messages/$conversationId",
+                    params: { conversationId: res.id },
+                  });
+                }}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Contacter le restaurant
+              </Button>
+            ) : conversation ? (
               <Button asChild variant="outline" className="w-full justify-start gap-2">
                 <Link
                   to="/driver/messages/$conversationId"
@@ -675,9 +742,10 @@ function MissionDetail() {
             <DialogTitle>Preuve de livraison</DialogTitle>
             <DialogDescription>
               Demandez au restaurant son code de remise à 4 chiffres et prenez une photo de la
-              marchandise livrée. Vous recevrez immédiatement{" "}
-              {formatFCFA(mission.payout - driverCommissionForPayout(mission.payout))} sur votre
-              portefeuille (commission plateforme déjà déduite).
+              marchandise livrée.{" "}
+              {market.isRemote()
+                ? `Gain de la course : ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout, commissionRate))} (commission plateforme déduite).`
+                : `Vous recevrez immédiatement ${formatFCFA(mission.payout - driverCommissionForPayout(mission.payout, commissionRate))} sur votre portefeuille (commission plateforme déjà déduite).`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1">
@@ -694,6 +762,21 @@ function MissionDetail() {
               className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
             />
           </div>
+          {mission.cashToCollect ? (
+            <label className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-5 w-5 accent-primary"
+                checked={cashCollected}
+                onChange={(e) => setCashCollected(e.target.checked)}
+              />
+              <span>
+                J'ai encaissé{" "}
+                <span className="font-semibold">{formatFCFA(mission.cashToCollect)}</span> en
+                espèces auprès du restaurant.
+              </span>
+            </label>
+          ) : null}
           <FileDrop
             value={proofPhotos}
             onChange={setProofPhotos}

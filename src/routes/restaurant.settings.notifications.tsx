@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { NotificationPrefsBase } from "@/components/common/notification-prefs";
 import { useEffect, useState } from "react";
 import { SettingsCard, ToggleRow } from "@/components/common/settings-shell";
 import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
@@ -95,6 +97,15 @@ const DEFAULT_CHANNELS: Record<string, boolean> = {
 };
 
 function RestaurantNotificationSettings() {
+  // Mode base : seulement les notifications réellement envoyées.
+  return useBaseMode() ? (
+    <NotificationPrefsBase role="restaurant" />
+  ) : (
+    <DemoRestaurantNotificationSettings />
+  );
+}
+
+function DemoRestaurantNotificationSettings() {
   const [events, setEvents] = useState<Record<string, boolean>>(DEFAULT_EVENTS);
   const [channels, setChannels] = useState<Record<string, boolean>>(DEFAULT_CHANNELS);
 

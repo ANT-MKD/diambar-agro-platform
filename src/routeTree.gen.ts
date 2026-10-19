@@ -22,21 +22,28 @@ import { Route as ForFarmersRouteImport } from './routes/for-farmers'
 import { Route as ForRestaurantsRouteImport } from './routes/for-restaurants'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as InstallationRouteImport } from './routes/installation'
+import { Route as InvitationRouteImport } from './routes/invitation'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as RejoindreRouteImport } from './routes/rejoindre'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RestaurantRouteImport } from './routes/restaurant'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
+import { Route as AdminCategoriesRouteImport } from './routes/admin.categories'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminDeliveryPricingRouteImport } from './routes/admin.delivery-pricing'
 import { Route as AdminDocumentsRouteImport } from './routes/admin.documents'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMessagesRouteImport } from './routes/admin.messages'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminOperationsRouteImport } from './routes/admin.operations'
+import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
@@ -45,12 +52,14 @@ import { Route as DriverHistoryRouteImport } from './routes/driver.history'
 import { Route as DriverMessagesRouteImport } from './routes/driver.messages'
 import { Route as DriverNotificationsRouteImport } from './routes/driver.notifications'
 import { Route as DriverSettingsRouteImport } from './routes/driver.settings'
+import { Route as DriverStatementRouteImport } from './routes/driver.statement'
 import { Route as DriverVehicleRouteImport } from './routes/driver.vehicle'
 import { Route as DriverWalletRouteImport } from './routes/driver.wallet'
 import { Route as FarmerAnalyticsRouteImport } from './routes/farmer.analytics'
 import { Route as FarmerDashboardRouteImport } from './routes/farmer.dashboard'
 import { Route as FarmerMessagesRouteImport } from './routes/farmer.messages'
 import { Route as FarmerNotificationsRouteImport } from './routes/farmer.notifications'
+import { Route as FarmerReviewsRouteImport } from './routes/farmer.reviews'
 import { Route as FarmerSettingsRouteImport } from './routes/farmer.settings'
 import { Route as FarmerSupportRouteImport } from './routes/farmer.support'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
@@ -73,6 +82,7 @@ import { Route as AdminDisputesIndexRouteImport } from './routes/admin.disputes.
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin.disputes.$disputeId'
 import { Route as AdminIncidentsIndexRouteImport } from './routes/admin.incidents.index'
 import { Route as AdminIncidentsIncidentIdRouteImport } from './routes/admin.incidents.$incidentId'
+import { Route as AdminInscriptionsApplicationIdRouteImport } from './routes/admin.inscriptions.$applicationId'
 import { Route as AdminModerationIndexRouteImport } from './routes/admin.moderation.index'
 import { Route as AdminModerationItemIdRouteImport } from './routes/admin.moderation.$itemId'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin.orders.index'
@@ -129,6 +139,7 @@ import { Route as FarmerReturnsIndexRouteImport } from './routes/farmer.returns.
 import { Route as FarmerReturnsReturnIdRouteImport } from './routes/farmer.returns.$returnId'
 import { Route as FarmerRevenueIndexRouteImport } from './routes/farmer.revenue.index'
 import { Route as FarmerRevenueTxIdRouteImport } from './routes/farmer.revenue.$txId'
+import { Route as FarmerRevenueStatementRouteImport } from './routes/farmer.revenue.statement'
 import { Route as FarmerRevenueWithdrawRouteImport } from './routes/farmer.revenue.withdraw'
 import { Route as FarmerRevenueWithdrawalsRouteImport } from './routes/farmer.revenue.withdrawals'
 import { Route as FarmerSettingsIndexRouteImport } from './routes/farmer.settings.index'
@@ -246,6 +257,16 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstallationRoute = InstallationRouteImport.update({
+  id: '/installation',
+  path: '/installation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitationRoute = InvitationRouteImport.update({
+  id: '/invitation',
+  path: '/invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -266,6 +287,11 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RejoindreRoute = RejoindreRouteImport.update({
+  id: '/rejoindre',
+  path: '/rejoindre',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -281,9 +307,19 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDeliveryPricingRoute = AdminDeliveryPricingRouteImport.update({
+  id: '/delivery-pricing',
+  path: '/delivery-pricing',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
@@ -316,9 +352,19 @@ const AdminOperationsRoute = AdminOperationsRouteImport.update({
   path: '/operations',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSetupRoute = AdminSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSupportRoute = AdminSupportRouteImport.update({
@@ -361,6 +407,11 @@ const DriverSettingsRoute = DriverSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DriverRoute,
 } as any)
+const DriverStatementRoute = DriverStatementRouteImport.update({
+  id: '/statement',
+  path: '/statement',
+  getParentRoute: () => DriverRoute,
+} as any)
 const DriverVehicleRoute = DriverVehicleRouteImport.update({
   id: '/vehicle',
   path: '/vehicle',
@@ -389,6 +440,11 @@ const FarmerMessagesRoute = FarmerMessagesRouteImport.update({
 const FarmerNotificationsRoute = FarmerNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerReviewsRoute = FarmerReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
   getParentRoute: () => FarmerRoute,
 } as any)
 const FarmerSettingsRoute = FarmerSettingsRouteImport.update({
@@ -501,6 +557,12 @@ const AdminIncidentsIncidentIdRoute =
   AdminIncidentsIncidentIdRouteImport.update({
     id: '/incidents/$incidentId',
     path: '/incidents/$incidentId',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminInscriptionsApplicationIdRoute =
+  AdminInscriptionsApplicationIdRouteImport.update({
+    id: '/inscriptions/$applicationId',
+    path: '/inscriptions/$applicationId',
     getParentRoute: () => AdminRoute,
   } as any)
 const AdminModerationIndexRoute = AdminModerationIndexRouteImport.update({
@@ -791,6 +853,11 @@ const FarmerRevenueIndexRoute = FarmerRevenueIndexRouteImport.update({
 const FarmerRevenueTxIdRoute = FarmerRevenueTxIdRouteImport.update({
   id: '/revenue/$txId',
   path: '/revenue/$txId',
+  getParentRoute: () => FarmerRoute,
+} as any)
+const FarmerRevenueStatementRoute = FarmerRevenueStatementRouteImport.update({
+  id: '/revenue/statement',
+  path: '/revenue/statement',
   getParentRoute: () => FarmerRoute,
 } as any)
 const FarmerRevenueWithdrawRoute = FarmerRevenueWithdrawRouteImport.update({
@@ -1090,21 +1157,28 @@ export interface FileRoutesByFullPath {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
@@ -1112,12 +1186,14 @@ export interface FileRoutesByFullPath {
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRouteWithChildren
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRouteWithChildren
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -1138,6 +1214,7 @@ export interface FileRoutesByFullPath {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1174,6 +1251,7 @@ export interface FileRoutesByFullPath {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1263,29 +1341,38 @@ export interface FileRoutesByTo {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -1301,6 +1388,7 @@ export interface FileRoutesByTo {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1337,6 +1425,7 @@ export interface FileRoutesByTo {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1427,21 +1516,28 @@ export interface FileRoutesById {
   '/for-restaurants': typeof ForRestaurantsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/help': typeof HelpRoute
+  '/installation': typeof InstallationRoute
+  '/invitation': typeof InvitationRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/pricing': typeof PricingRoute
   '/register': typeof RegisterRoute
+  '/rejoindre': typeof RejoindreRoute
   '/reset-password': typeof ResetPasswordRoute
   '/restaurant': typeof RestaurantRouteWithChildren
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/delivery-pricing': typeof AdminDeliveryPricingRoute
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
@@ -1449,12 +1545,14 @@ export interface FileRoutesById {
   '/driver/messages': typeof DriverMessagesRouteWithChildren
   '/driver/notifications': typeof DriverNotificationsRouteWithChildren
   '/driver/settings': typeof DriverSettingsRouteWithChildren
+  '/driver/statement': typeof DriverStatementRoute
   '/driver/vehicle': typeof DriverVehicleRoute
   '/driver/wallet': typeof DriverWalletRoute
   '/farmer/analytics': typeof FarmerAnalyticsRoute
   '/farmer/dashboard': typeof FarmerDashboardRoute
   '/farmer/messages': typeof FarmerMessagesRouteWithChildren
   '/farmer/notifications': typeof FarmerNotificationsRouteWithChildren
+  '/farmer/reviews': typeof FarmerReviewsRoute
   '/farmer/settings': typeof FarmerSettingsRouteWithChildren
   '/farmer/support': typeof FarmerSupportRoute
   '/legal/privacy': typeof LegalPrivacyRoute
@@ -1475,6 +1573,7 @@ export interface FileRoutesById {
   '/admin/deliveries/$missionId': typeof AdminDeliveriesMissionIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/incidents/$incidentId': typeof AdminIncidentsIncidentIdRoute
+  '/admin/inscriptions/$applicationId': typeof AdminInscriptionsApplicationIdRoute
   '/admin/moderation/$itemId': typeof AdminModerationItemIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/refunds/$refundId': typeof AdminRefundsRefundIdRoute
@@ -1511,6 +1610,7 @@ export interface FileRoutesById {
   '/farmer/products/new': typeof FarmerProductsNewRoute
   '/farmer/returns/$returnId': typeof FarmerReturnsReturnIdRoute
   '/farmer/revenue/$txId': typeof FarmerRevenueTxIdRoute
+  '/farmer/revenue/statement': typeof FarmerRevenueStatementRoute
   '/farmer/revenue/withdraw': typeof FarmerRevenueWithdrawRoute
   '/farmer/revenue/withdrawals': typeof FarmerRevenueWithdrawalsRoute
   '/farmer/settings/farm': typeof FarmerSettingsFarmRoute
@@ -1602,21 +1702,28 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
+    | '/admin/categories'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
     | '/admin/operations'
+    | '/admin/payments'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
@@ -1624,12 +1731,14 @@ export interface FileRouteTypes {
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
     | '/farmer/notifications'
+    | '/farmer/reviews'
     | '/farmer/settings'
     | '/farmer/support'
     | '/legal/privacy'
@@ -1650,6 +1759,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -1686,6 +1796,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -1775,29 +1886,38 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
+    | '/admin/categories'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
     | '/admin/operations'
+    | '/admin/payments'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
     | '/farmer/dashboard'
+    | '/farmer/reviews'
     | '/farmer/support'
     | '/legal/privacy'
     | '/legal/terms'
@@ -1813,6 +1933,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -1849,6 +1970,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -1938,21 +2060,28 @@ export interface FileRouteTypes {
     | '/for-restaurants'
     | '/forgot-password'
     | '/help'
+    | '/installation'
+    | '/invitation'
     | '/login'
     | '/onboarding'
     | '/pricing'
     | '/register'
+    | '/rejoindre'
     | '/reset-password'
     | '/restaurant'
     | '/admin/analytics'
+    | '/admin/categories'
     | '/admin/dashboard'
+    | '/admin/delivery-pricing'
     | '/admin/documents'
     | '/admin/finance'
     | '/admin/logs'
     | '/admin/messages'
     | '/admin/notifications'
     | '/admin/operations'
+    | '/admin/payments'
     | '/admin/settings'
+    | '/admin/setup'
     | '/admin/support'
     | '/blog/$slug'
     | '/driver/dashboard'
@@ -1960,12 +2089,14 @@ export interface FileRouteTypes {
     | '/driver/messages'
     | '/driver/notifications'
     | '/driver/settings'
+    | '/driver/statement'
     | '/driver/vehicle'
     | '/driver/wallet'
     | '/farmer/analytics'
     | '/farmer/dashboard'
     | '/farmer/messages'
     | '/farmer/notifications'
+    | '/farmer/reviews'
     | '/farmer/settings'
     | '/farmer/support'
     | '/legal/privacy'
@@ -1986,6 +2117,7 @@ export interface FileRouteTypes {
     | '/admin/deliveries/$missionId'
     | '/admin/disputes/$disputeId'
     | '/admin/incidents/$incidentId'
+    | '/admin/inscriptions/$applicationId'
     | '/admin/moderation/$itemId'
     | '/admin/orders/$orderId'
     | '/admin/refunds/$refundId'
@@ -2022,6 +2154,7 @@ export interface FileRouteTypes {
     | '/farmer/products/new'
     | '/farmer/returns/$returnId'
     | '/farmer/revenue/$txId'
+    | '/farmer/revenue/statement'
     | '/farmer/revenue/withdraw'
     | '/farmer/revenue/withdrawals'
     | '/farmer/settings/farm'
@@ -2112,10 +2245,13 @@ export interface RootRouteChildren {
   ForRestaurantsRoute: typeof ForRestaurantsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HelpRoute: typeof HelpRoute
+  InstallationRoute: typeof InstallationRoute
+  InvitationRoute: typeof InvitationRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PricingRoute: typeof PricingRoute
   RegisterRoute: typeof RegisterRoute
+  RejoindreRoute: typeof RejoindreRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
   BlogSlugRoute: typeof BlogSlugRoute
@@ -2218,6 +2354,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/installation': {
+      id: '/installation'
+      path: '/installation'
+      fullPath: '/installation'
+      preLoaderRoute: typeof InstallationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitation': {
+      id: '/invitation'
+      path: '/invitation'
+      fullPath: '/invitation'
+      preLoaderRoute: typeof InvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -2246,6 +2396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rejoindre': {
+      id: '/rejoindre'
+      path: '/rejoindre'
+      fullPath: '/rejoindre'
+      preLoaderRoute: typeof RejoindreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -2267,11 +2424,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/dashboard': {
       id: '/admin/dashboard'
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/delivery-pricing': {
+      id: '/admin/delivery-pricing'
+      path: '/delivery-pricing'
+      fullPath: '/admin/delivery-pricing'
+      preLoaderRoute: typeof AdminDeliveryPricingRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/documents': {
@@ -2316,11 +2487,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOperationsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/setup': {
+      id: '/admin/setup'
+      path: '/setup'
+      fullPath: '/admin/setup'
+      preLoaderRoute: typeof AdminSetupRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/support': {
@@ -2379,6 +2564,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DriverSettingsRouteImport
       parentRoute: typeof DriverRoute
     }
+    '/driver/statement': {
+      id: '/driver/statement'
+      path: '/statement'
+      fullPath: '/driver/statement'
+      preLoaderRoute: typeof DriverStatementRouteImport
+      parentRoute: typeof DriverRoute
+    }
     '/driver/vehicle': {
       id: '/driver/vehicle'
       path: '/vehicle'
@@ -2419,6 +2611,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/farmer/notifications'
       preLoaderRoute: typeof FarmerNotificationsRouteImport
+      parentRoute: typeof FarmerRoute
+    }
+    '/farmer/reviews': {
+      id: '/farmer/reviews'
+      path: '/reviews'
+      fullPath: '/farmer/reviews'
+      preLoaderRoute: typeof FarmerReviewsRouteImport
       parentRoute: typeof FarmerRoute
     }
     '/farmer/settings': {
@@ -2573,6 +2772,13 @@ declare module '@tanstack/react-router' {
       path: '/incidents/$incidentId'
       fullPath: '/admin/incidents/$incidentId'
       preLoaderRoute: typeof AdminIncidentsIncidentIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inscriptions/$applicationId': {
+      id: '/admin/inscriptions/$applicationId'
+      path: '/inscriptions/$applicationId'
+      fullPath: '/admin/inscriptions/$applicationId'
+      preLoaderRoute: typeof AdminInscriptionsApplicationIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/moderation/': {
@@ -2967,6 +3173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmerRevenueTxIdRouteImport
       parentRoute: typeof FarmerRoute
     }
+    '/farmer/revenue/statement': {
+      id: '/farmer/revenue/statement'
+      path: '/revenue/statement'
+      fullPath: '/farmer/revenue/statement'
+      preLoaderRoute: typeof FarmerRevenueStatementRouteImport
+      parentRoute: typeof FarmerRoute
+    }
     '/farmer/revenue/withdraw': {
       id: '/farmer/revenue/withdraw'
       path: '/revenue/withdraw'
@@ -3329,18 +3542,23 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDeliveryPricingRoute: typeof AdminDeliveryPricingRoute
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminOperationsRoute: typeof AdminOperationsRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminSetupRoute: typeof AdminSetupRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminDeliveriesMissionIdRoute: typeof AdminDeliveriesMissionIdRoute
   AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
   AdminIncidentsIncidentIdRoute: typeof AdminIncidentsIncidentIdRoute
+  AdminInscriptionsApplicationIdRoute: typeof AdminInscriptionsApplicationIdRoute
   AdminModerationItemIdRoute: typeof AdminModerationItemIdRoute
   AdminOrdersOrderIdRoute: typeof AdminOrdersOrderIdRoute
   AdminRefundsRefundIdRoute: typeof AdminRefundsRefundIdRoute
@@ -3365,18 +3583,23 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminCategoriesRoute: AdminCategoriesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDeliveryPricingRoute: AdminDeliveryPricingRoute,
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminOperationsRoute: AdminOperationsRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminSetupRoute: AdminSetupRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminDeliveriesMissionIdRoute: AdminDeliveriesMissionIdRoute,
   AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
   AdminIncidentsIncidentIdRoute: AdminIncidentsIncidentIdRoute,
+  AdminInscriptionsApplicationIdRoute: AdminInscriptionsApplicationIdRoute,
   AdminModerationItemIdRoute: AdminModerationItemIdRoute,
   AdminOrdersOrderIdRoute: AdminOrdersOrderIdRoute,
   AdminRefundsRefundIdRoute: AdminRefundsRefundIdRoute,
@@ -3476,6 +3699,7 @@ interface DriverRouteChildren {
   DriverMessagesRoute: typeof DriverMessagesRouteWithChildren
   DriverNotificationsRoute: typeof DriverNotificationsRouteWithChildren
   DriverSettingsRoute: typeof DriverSettingsRouteWithChildren
+  DriverStatementRoute: typeof DriverStatementRoute
   DriverVehicleRoute: typeof DriverVehicleRoute
   DriverWalletRoute: typeof DriverWalletRoute
   DriverDisputesDisputeIdRoute: typeof DriverDisputesDisputeIdRoute
@@ -3496,6 +3720,7 @@ const DriverRouteChildren: DriverRouteChildren = {
   DriverMessagesRoute: DriverMessagesRouteWithChildren,
   DriverNotificationsRoute: DriverNotificationsRouteWithChildren,
   DriverSettingsRoute: DriverSettingsRouteWithChildren,
+  DriverStatementRoute: DriverStatementRoute,
   DriverVehicleRoute: DriverVehicleRoute,
   DriverWalletRoute: DriverWalletRoute,
   DriverDisputesDisputeIdRoute: DriverDisputesDisputeIdRoute,
@@ -3569,6 +3794,7 @@ interface FarmerRouteChildren {
   FarmerDashboardRoute: typeof FarmerDashboardRoute
   FarmerMessagesRoute: typeof FarmerMessagesRouteWithChildren
   FarmerNotificationsRoute: typeof FarmerNotificationsRouteWithChildren
+  FarmerReviewsRoute: typeof FarmerReviewsRoute
   FarmerSettingsRoute: typeof FarmerSettingsRouteWithChildren
   FarmerSupportRoute: typeof FarmerSupportRoute
   FarmerDisputesDisputeIdRoute: typeof FarmerDisputesDisputeIdRoute
@@ -3578,6 +3804,7 @@ interface FarmerRouteChildren {
   FarmerProductsNewRoute: typeof FarmerProductsNewRoute
   FarmerReturnsReturnIdRoute: typeof FarmerReturnsReturnIdRoute
   FarmerRevenueTxIdRoute: typeof FarmerRevenueTxIdRoute
+  FarmerRevenueStatementRoute: typeof FarmerRevenueStatementRoute
   FarmerRevenueWithdrawRoute: typeof FarmerRevenueWithdrawRoute
   FarmerRevenueWithdrawalsRoute: typeof FarmerRevenueWithdrawalsRoute
   FarmerStockInventoryRoute: typeof FarmerStockInventoryRoute
@@ -3600,6 +3827,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerDashboardRoute: FarmerDashboardRoute,
   FarmerMessagesRoute: FarmerMessagesRouteWithChildren,
   FarmerNotificationsRoute: FarmerNotificationsRouteWithChildren,
+  FarmerReviewsRoute: FarmerReviewsRoute,
   FarmerSettingsRoute: FarmerSettingsRouteWithChildren,
   FarmerSupportRoute: FarmerSupportRoute,
   FarmerDisputesDisputeIdRoute: FarmerDisputesDisputeIdRoute,
@@ -3609,6 +3837,7 @@ const FarmerRouteChildren: FarmerRouteChildren = {
   FarmerProductsNewRoute: FarmerProductsNewRoute,
   FarmerReturnsReturnIdRoute: FarmerReturnsReturnIdRoute,
   FarmerRevenueTxIdRoute: FarmerRevenueTxIdRoute,
+  FarmerRevenueStatementRoute: FarmerRevenueStatementRoute,
   FarmerRevenueWithdrawRoute: FarmerRevenueWithdrawRoute,
   FarmerRevenueWithdrawalsRoute: FarmerRevenueWithdrawalsRoute,
   FarmerStockInventoryRoute: FarmerStockInventoryRoute,
@@ -3795,10 +4024,13 @@ const rootRouteChildren: RootRouteChildren = {
   ForRestaurantsRoute: ForRestaurantsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   HelpRoute: HelpRoute,
+  InstallationRoute: InstallationRoute,
+  InvitationRoute: InvitationRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PricingRoute: PricingRoute,
   RegisterRoute: RegisterRoute,
+  RejoindreRoute: RejoindreRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
   BlogSlugRoute: BlogSlugRoute,

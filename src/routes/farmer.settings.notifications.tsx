@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { NotificationPrefsBase } from "@/components/common/notification-prefs";
 import { SettingsCard, ToggleRow } from "@/components/common/settings-shell";
-import { ChannelMatrix, TriggerRules, usePersisted } from "@/components/common/notification-rules";
+import { ChannelMatrix, TriggerRules } from "@/components/common/notification-rules";
+import { usePersisted } from "@/hooks/use-persisted";
 
 export const Route = createFileRoute("/farmer/settings/notifications")({
   head: () => ({
@@ -81,6 +84,11 @@ const RULES = [
 ] as const;
 
 function NotificationSettings() {
+  // Mode base : seulement les notifications réellement envoyées.
+  return useBaseMode() ? <NotificationPrefsBase role="farmer" /> : <DemoNotificationSettings />;
+}
+
+function DemoNotificationSettings() {
   const [events, setEvents] = usePersisted<Record<string, boolean>>(
     "diambar:notif-settings:farmer-events",
     {

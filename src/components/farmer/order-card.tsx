@@ -14,7 +14,11 @@ export function OrderCard({ order, compact = false }: { order: Order; compact?: 
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <img src={r?.avatar} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0" />
+          <img
+            src={r?.avatar || undefined}
+            alt=""
+            className="h-10 w-10 rounded-xl object-cover shrink-0"
+          />
           <div className="min-w-0">
             <div className="font-semibold text-sm truncate">{r?.name}</div>
             <div className="text-[11px] text-muted-foreground truncate">{order.reference}</div>
@@ -40,6 +44,11 @@ export function OrderCard({ order, compact = false }: { order: Order; compact?: 
         <span className="text-muted-foreground flex items-center gap-1">
           <Clock className="h-3 w-3" />
           {relativeTime(order.createdAt)}
+          {order.awaitingPayment && (
+            <span className="ml-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
+              Paiement attendu
+            </span>
+          )}
         </span>
         <span className="font-display text-base font-bold text-primary">
           {formatFCFA(order.total)}

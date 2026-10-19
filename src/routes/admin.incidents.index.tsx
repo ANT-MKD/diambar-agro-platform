@@ -8,11 +8,11 @@ import { StatCard } from "@/components/admin/stat-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { market } from "@/data/market-remote";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import {
   useIncidents,
-  incidentActions,
   INCIDENT_TYPE_LABEL,
   INCIDENT_STATUS_LABEL,
   INCIDENT_SEVERITY_LABEL,
@@ -112,7 +112,7 @@ function AdminIncidents() {
     setNote("");
   };
 
-  const award = (i: Incident) => {
+  const award = async (i: Incident) => {
     const value = Number(amount);
     if (!Number.isFinite(value) || value < 0) {
       toast.error("Indiquez un montant valide");
@@ -122,7 +122,11 @@ function AdminIncidents() {
       toast.error("Votre rôle ne permet pas de traiter cet incident.");
       return;
     }
-    incidentActions.resolve(i.id, value, note.trim() || undefined, user.name);
+    const res = await market.resolveIncident(i.id, value, note.trim() || undefined, user.name);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: value > 0 ? "Incident indemnisé" : "Incident clôturé sans indemnité",
       target: i.reference,
@@ -140,12 +144,21 @@ function AdminIncidents() {
     cancelAction();
   };
 
-  const reject = (i: Incident) => {
+  const reject = async (i: Incident) => {
     if (!canDecideIncidents) {
       toast.error("Votre rôle ne permet pas de traiter cet incident.");
       return;
     }
-    incidentActions.resolve(i.id, 0, note.trim() || "Demande jugée non fondée", user.name);
+    const res = await market.resolveIncident(
+      i.id,
+      0,
+      note.trim() || "Demande jugée non fondée",
+      user.name,
+    );
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Indemnité refusée",
       target: i.reference,
@@ -242,7 +255,7 @@ function AdminIncidents() {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <Truck className="h-3.5 w-3.5" />
-                      {i.missionRef} · {driver?.name ?? "livreur inconnu"} ·{" "}
+                      {i.missionRef} · {driver?.name ?? i.driverName ?? "livreur inconnu"} ·{" "}
                       {relativeTime(i.createdAt)}
                     </div>
                     <p className="mt-2 text-sm">{i.description}</p>

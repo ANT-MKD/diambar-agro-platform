@@ -19,9 +19,9 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge } from "@/components/admin/admin-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useOrders } from "@/data/store";
+import { useOrders, useProducts } from "@/data/store";
 import { usePlatformUsers, useCommissionTiers } from "@/data/admin-store";
-import { farmers, restaurants, products, type Order } from "@/data/mocks";
+import { farmers, restaurants, type Order } from "@/data/mocks";
 import { commissionForOrder, deliveredVolumeByFarmer } from "@/lib/commission";
 import { formatFCFA } from "@/lib/format";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
@@ -72,6 +72,8 @@ function pctDelta(curr: number, prev: number): number | undefined {
 }
 
 function AdminAnalytics() {
+  // Produits réels (base) ou de démonstration, selon le mode.
+  const products = useProducts();
   const orders = useOrders();
   const users = usePlatformUsers();
   const tiers = useCommissionTiers();
@@ -207,7 +209,7 @@ function AdminAnalytics() {
       })
       .filter((r) => r.orders > 0)
       .sort((a, b) => b.gmv - a.gmv);
-  }, [current, users]);
+  }, [current, users, products]);
 
   return (
     <div className="space-y-6">
@@ -555,7 +557,7 @@ function AdminAnalytics() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <img
-                        src={r.farmer.avatar}
+                        src={r.farmer.avatar || undefined}
                         alt=""
                         className="h-7 w-7 rounded-full object-cover"
                       />

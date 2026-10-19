@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PageHeader } from "@/components/farmer/page-header";
+import { PaymentPanel } from "@/components/restaurant/payment-panel";
 import { PromoCodeField } from "@/components/restaurant/promo-code-field";
 import {
   useCart,
@@ -26,19 +27,29 @@ import {
   useRestaurantOrders,
 } from "@/data/store";
 import { useDeliveryZones } from "@/data/platform-settings";
+import { market } from "@/data/market-remote";
+import { useDeliveryQuote } from "@/data/delivery-quote";
+import { allocate, deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import {
-  allocate,
-  deliveryFeeForZone,
-  MIN_ORDER_PER_PRODUCER,
-  zoneForAddress,
-} from "@/lib/pricing";
-import { useCreditNotesForRestaurant, isCreditExpired, creditActions } from "@/data/disputes";
+  useCreditNotes,
+  useCreditNotesForRestaurant,
+  isCreditExpired,
+  creditActions,
+} from "@/data/disputes";
 import { farmers, restaurants, PAYMENT_METHODS, type PaymentMethod } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
-import { cutoffHint, deliverySlots } from "@/lib/reception-slots";
+import {
+  cutoffHint,
+  defaultTimeFor,
+  deliveryChoice,
+  deliveryDays,
+  deliveryTimeProblem,
+} from "@/lib/delivery-time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMyId } from "@/data/market-mode";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/restaurant/checkout")({
   head: () => ({ meta: [{ title: "Commander · Restaurant" }] }),
@@ -47,13 +58,15 @@ export const Route = createFileRoute("/restaurant/checkout")({
 
 const step1Schema = z.object({
   address: z.string().trim().min(10, "Adresse trop courte (min 10 caractères)"),
-  slot: z.string().min(1, "Choisissez un créneau"),
+  slot: z.string().min(1, "Choisissez le jour et l'heure de livraison"),
 });
 
 function Checkout() {
+  const rules = useRules();
+  const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const cart = useCart();
   const products = useProducts();
@@ -76,17 +89,30 @@ function Checkout() {
   // producteur du panier (chaque producteur a sa propre course).
   const zone = zoneForAddress(zones, profile.city, address);
   const producerCount = new Set(lines.map((l) => l.product.farmerId)).size;
+  // Avec la base : frais selon la distance de chaque producteur, calculés
+  // par le serveur (même calcul qu'à la commande).
+  const remoteMode = market.isRemote();
+  const quoteLines = useMemo(
+    () => cart.map((l) => ({ productId: l.productId, qty: l.qty })),
+    [cart],
+  );
+  const deliveryQuote = useDeliveryQuote(remoteMode, address, quoteLines);
   const feePerDelivery = zone ? deliveryFeeForZone(zone) : 0;
-  const delivery = feePerDelivery * producerCount;
-  const zoneProblem = !zone
-    ? "Cette adresse n'est dans aucune zone desservie par Diambar Agro."
-    : !zone.active
-      ? `La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`
-      : null;
+  const delivery = remoteMode ? (deliveryQuote.quote?.total ?? 0) : feePerDelivery * producerCount;
+  const zoneProblem = remoteMode
+    ? deliveryQuote.error
+    : !zone
+      ? "Cette adresse n'est dans aucune zone desservie par Diambar Agro."
+      : !zone.active
+        ? `La zone ${zone.name} n'est pas encore desservie : commande impossible pour le moment.`
+        : null;
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
 
-  const credits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
+  // Avec la base, le serveur n'envoie que les avoirs de ce restaurant.
+  const ownCredits = useCreditNotesForRestaurant(myRestaurant?.name ?? "");
+  const serverCredits = useCreditNotes();
+  const credits = remoteMode ? serverCredits : ownCredits;
   const availableCredits = credits.filter((c) => c.status === "issued" && !isCreditExpired(c));
   const [appliedCreditId, setAppliedCreditId] = useState<string | null>(null);
   const appliedCredit = availableCredits.find((c) => c.id === appliedCreditId) ?? null;
@@ -109,20 +135,33 @@ function Checkout() {
     creditApplied: number;
     total: number;
   } | null>(null);
-  const availableSlots = useMemo(
-    () => deliverySlots(profile.receptionHours),
-    [profile.receptionHours],
+  // Jour et heure exacte de livraison, choisis par le restaurant.
+  const days = useMemo(
+    () => deliveryDays(new Date(), rules.cutoffHour, profile.receptionHours),
+    [rules.cutoffHour, profile.receptionHours],
   );
   const availableMethods =
     profile.enabledPaymentMethods.length > 0 ? profile.enabledPaymentMethods : PAYMENT_METHODS;
-  const [slot, setSlot] = useState(availableSlots[0]?.label ?? "");
-  const chosenSlot = availableSlots.find((s) => s.label === slot);
+  const [day, setDay] = useState(days[0]?.date ?? "");
+  const chosenDay = days.find((d) => d.date === day);
+  const [time, setTime] = useState(() => defaultTimeFor(days[0], rules.deliveryHours));
+  const chosenSlot = day && time ? deliveryChoice(day, time) : null;
+  const slot = chosenSlot?.label ?? "";
+  const slotProblem = chosenSlot
+    ? deliveryTimeProblem(new Date(chosenSlot.start), new Date(), rules)
+    : "Choisissez le jour et l'heure de livraison";
   const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
   const [instructions, setInstructions] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(
     availableMethods.includes(profile.paymentMethod) ? profile.paymentMethod : availableMethods[0],
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [placing, setPlacing] = useState(false);
+
+  // Avec la base : paiement du panier qui vient d'être passé (étape 3).
+  const placedPayment = remoteMode
+    ? pastOrders.find((o) => o.id === orderIds[0])?.payment
+    : undefined;
 
   const farmerGroups = useMemo(
     () => farmers.filter((f) => lines.some((l) => l.product.farmerId === f.id)),
@@ -144,10 +183,10 @@ function Checkout() {
         .filter((l) => l.product.farmerId === f.id)
         .reduce((s, l) => s + l.product.pricePerKg * l.qty, 0),
     }))
-    .filter((g) => g.amount < MIN_ORDER_PER_PRODUCER);
+    .filter((g) => g.amount < rules.minOrderPerProducer);
   const minimumProblem =
     underMinimum.length > 0
-      ? `Minimum ${formatFCFA(MIN_ORDER_PER_PRODUCER)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
+      ? `Minimum ${formatFCFA(rules.minOrderPerProducer)} de marchandise par producteur : complétez chez ${underMinimum.map((g) => g.name).join(", ")}.`
       : null;
 
   const goStep2 = () => {
@@ -157,6 +196,11 @@ function Checkout() {
     }
     if (zoneProblem) {
       toast.error(zoneProblem);
+      return;
+    }
+    if (slotProblem) {
+      setErrors({ slot: slotProblem });
+      toast.error(slotProblem);
       return;
     }
     const parsed = step1Schema.safeParse({ address, slot });
@@ -173,6 +217,45 @@ function Checkout() {
     setStep(2);
   };
 
+  // Avec la base : le serveur revérifie tout (prix, stock, créneau, zone) et
+  // crée les commandes ; l'écran ne fait qu'afficher le résultat.
+  const placeOnServer = async () => {
+    if (!chosenSlot || slotProblem) {
+      toast.error(slotProblem ?? "Choisissez le jour et l'heure de livraison");
+      return;
+    }
+    setPlacing(true);
+    const res = await market.placeOrder({
+      lines: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+      deliveryAddress: address,
+      slotStart: chosenSlot.start,
+      slotLabel: slot,
+      paymentMethod: method,
+      shortagePreference,
+      instructions: instructions.trim() || undefined,
+      creditNoteId: appliedCredit?.id,
+    });
+    setPlacing(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    setOrderIds(res.orders.map((o) => o.id));
+    // Les montants qui font foi sont ceux du serveur.
+    setConfirmedSummary({
+      count: res.orders.length,
+      subtotal,
+      delivery: res.total + res.creditApplied - subtotal,
+      discount: 0,
+      creditApplied: res.creditApplied,
+      total: res.total,
+    });
+    cartActions.clear();
+    restaurantProfileActions.update({ deliveryAddress: address, paymentMethod: method });
+    toast.success("Commande passée avec succès");
+    setStep(3);
+  };
+
   const confirm = () => {
     if (hasSuspendedSupplier) {
       toast.error("Retirez du panier les produits d'un fournisseur suspendu avant de commander");
@@ -180,6 +263,10 @@ function Checkout() {
     }
     if (zoneProblem || minimumProblem) {
       toast.error(zoneProblem ?? minimumProblem);
+      return;
+    }
+    if (remoteMode) {
+      void placeOnServer();
       return;
     }
     // Le stock a pu baisser depuis l'ajout au panier (autre restaurant,
@@ -269,7 +356,7 @@ function Checkout() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 glass rounded-2xl p-6 space-y-4">
+        <div className="min-w-0 lg:col-span-2 glass rounded-2xl p-6 space-y-4">
           {step === 1 && (
             <>
               <h3 className="font-display text-lg font-bold flex items-center gap-2">
@@ -316,32 +403,67 @@ function Checkout() {
               </div>
               <h3 className="font-display text-lg font-bold flex items-center gap-2 pt-3">
                 <Calendar className="h-5 w-5 text-primary" />
-                Créneau souhaité
+                Livraison souhaitée
               </h3>
-              <p className="text-xs text-muted-foreground">{cutoffHint()}</p>
-              {availableSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aucun créneau de réception n'est configuré. Ouvrez au moins un jour dans{" "}
-                  <Link
-                    to="/restaurant/settings/establishment"
-                    className="text-primary hover:underline"
+              <p className="text-xs text-muted-foreground">
+                {cutoffHint(new Date(), rules.cutoffHour)} Livraisons entre{" "}
+                {rules.deliveryHours.from} et {rules.deliveryHours.to}.
+              </p>
+              <div
+                className="flex gap-2 overflow-x-auto pb-1"
+                role="radiogroup"
+                aria-label="Jour de livraison"
+                data-testid="delivery-days"
+              >
+                {days.map((d) => (
+                  <button
+                    key={d.date}
+                    type="button"
+                    role="radio"
+                    aria-checked={day === d.date}
+                    onClick={() => {
+                      setDay(d.date);
+                      setTime(defaultTimeFor(d, rules.deliveryHours));
+                    }}
+                    className={`shrink-0 rounded-xl border px-3 py-2 text-left text-sm transition ${day === d.date ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
                   >
-                    Paramètres → Établissement
-                  </Link>
-                  .
+                    <span className="block font-medium">{d.label}</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {d.reception
+                        ? `Réception ${d.reception.from}–${d.reception.to}`
+                        : "Fermé d'habitude"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium">Heure de livraison</span>
+                  <Input
+                    type="time"
+                    step={900}
+                    min={rules.deliveryHours.from}
+                    max={rules.deliveryHours.to}
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-36"
+                    aria-label="Heure de livraison"
+                  />
+                </label>
+                {chosenSlot && !slotProblem && (
+                  <p className="pb-2 text-sm text-muted-foreground">
+                    Livraison prévue : <span className="font-medium text-foreground">{slot}</span>
+                  </p>
+                )}
+              </div>
+              {chosenDay && !chosenDay.reception && (
+                <p className="text-xs text-amber-700">
+                  Votre établissement est fermé ce jour-là d'habitude (Paramètres → Établissement) :
+                  vérifiez que quelqu'un pourra réceptionner.
                 </p>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {availableSlots.map((s) => (
-                    <button
-                      key={s.start}
-                      onClick={() => setSlot(s.label)}
-                      className={`text-left p-3 rounded-xl border text-sm transition ${slot === s.label ? "border-primary bg-primary/5" : "border-border hover:bg-accent/30"}`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+              )}
+              {slotProblem && chosenSlot && (
+                <p className="text-xs text-destructive">{slotProblem}</p>
               )}
               {errors.slot && (
                 <p className="text-xs text-destructive flex items-center gap-1">
@@ -410,11 +532,26 @@ function Checkout() {
               <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center mx-auto">
                 <Check className="h-8 w-8" />
               </div>
-              <h3 className="font-display text-2xl font-bold">Commande confirmée 🎉</h3>
+              <h3 className="font-display text-2xl font-bold">
+                {placedPayment?.state === "to_pay"
+                  ? "Commande enregistrée"
+                  : "Commande confirmée 🎉"}
+              </h3>
               <p className="text-sm text-muted-foreground">
                 {confirmedSummary?.count ?? farmerGroups.length} commande(s) envoyée(s) à vos
                 producteurs. Vous recevrez une notification de confirmation.
               </p>
+              {placedPayment && (
+                <div className="mx-auto max-w-lg text-left">
+                  {placedPayment.state === "to_pay" && (
+                    <p className="mb-3 text-center text-sm font-medium">
+                      Dernière étape : payez maintenant pour que vos producteurs préparent la
+                      commande.
+                    </p>
+                  )}
+                  <PaymentPanel payment={placedPayment} />
+                </div>
+              )}
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {orderIds[0] && (
                   <Button
@@ -451,7 +588,7 @@ function Checkout() {
               </div>
             ))}
           </div>
-          {step !== 3 && (
+          {step !== 3 && !remoteMode && (
             <PromoCodeField
               isFirstOrder={isFirstOrder}
               subtotal={subtotal}
@@ -504,17 +641,41 @@ function Checkout() {
               <span className="text-muted-foreground">Sous-total</span>
               <span>{formatFCFA(confirmedSummary?.subtotal ?? subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                Livraison
-                {!confirmedSummary && zone && producerCount > 1
-                  ? ` (${producerCount} × ${formatFCFA(feePerDelivery)})`
-                  : zone && !confirmedSummary
-                    ? ` · zone ${zone.name}`
-                    : ""}
-              </span>
-              <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
-            </div>
+            {remoteMode && !confirmedSummary ? (
+              <div className="space-y-1" data-testid="delivery-quote">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Livraison</span>
+                  <span>
+                    {deliveryQuote.loading && !deliveryQuote.quote
+                      ? "Calcul…"
+                      : formatFCFA(delivery)}
+                  </span>
+                </div>
+                {deliveryQuote.quote?.deliveries.map((d) => (
+                  <div
+                    key={d.farmerId}
+                    className="flex justify-between gap-2 pl-3 text-xs text-muted-foreground"
+                  >
+                    <span>
+                      Depuis {d.origin} ({d.farmName}) · environ {d.distanceKm} km
+                    </span>
+                    <span>{formatFCFA(d.fee)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Livraison
+                  {!confirmedSummary && zone && producerCount > 1
+                    ? ` (${producerCount} × ${formatFCFA(feePerDelivery)})`
+                    : zone && !confirmedSummary
+                      ? ` · zone ${zone.name}`
+                      : ""}
+                </span>
+                <span>{formatFCFA(confirmedSummary?.delivery ?? delivery)}</span>
+              </div>
+            )}
             {(confirmedSummary?.discount ?? promoDiscount) > 0 && (
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                 <span>Remise{!confirmedSummary && promoCode ? ` (${promoCode})` : ""}</span>
@@ -553,8 +714,12 @@ function Checkout() {
                 </Button>
               )}
               {step === 2 && (
-                <Button onClick={confirm} disabled={hasSuspendedSupplier} className="flex-1 gap-1">
-                  Confirmer <Check className="h-4 w-4" />
+                <Button
+                  onClick={confirm}
+                  disabled={hasSuspendedSupplier || placing}
+                  className="flex-1 gap-1"
+                >
+                  {placing ? "Envoi…" : "Confirmer"} <Check className="h-4 w-4" />
                 </Button>
               )}
             </div>

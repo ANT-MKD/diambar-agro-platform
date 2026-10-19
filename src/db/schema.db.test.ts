@@ -62,17 +62,18 @@ describe.skipIf(!adminUrl)("schéma de la base", () => {
     await close?.();
   });
 
-  it("crée les 31 tables du pilote, toutes verrouillées (RLS)", async () => {
+  it("crée les 64 tables du pilote, toutes verrouillées (RLS)", async () => {
     const rows = await db.execute<{ tablename: string; rowsecurity: boolean }>(
       sql`select tablename, rowsecurity from pg_tables where schemaname = 'public'`,
     );
-    expect(rows.length).toBe(31);
+    expect(rows.length).toBe(65);
     expect(rows.filter((r) => !r.rowsecurity).map((r) => r.tablename)).toEqual([]);
   });
 
   it("remplit les référentiels et les comptes de démo", async () => {
     expect((await db.select().from(categories)).length).toBe(7);
-    expect((await db.select().from(settings)).length).toBe(5);
+    // 5 réglages de référence + inscriptions ouvertes et configuration faite (démo)
+    expect((await db.select().from(settings)).length).toBe(8);
     const demoUsers = await db.select().from(users);
     expect(demoUsers.length).toBe(8);
     const farmer = demoUsers.find((u) => u.email === "agriculteur@diambar.sn")!;
@@ -162,6 +163,8 @@ describe.skipIf(!adminUrl)("schéma de la base", () => {
         restaurantId: restaurant.userId,
         farmerId: farmer.userId,
         trackingToken: "jeton-test-0001",
+        pickupCode: "1234",
+        deliveryCode: "5678",
         subtotal: 17_000,
       })
       .returning();

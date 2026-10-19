@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { market } from "@/data/market-remote";
 import { useMemo, useState } from "react";
 import {
   TrendingUp,
@@ -43,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/revenue/")({
   head: () => ({ meta: [{ title: "Revenus · Diambar Agro" }] }),
@@ -67,15 +69,14 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-const MY_FARMER_ID = "f1";
-
 function RevenuePage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const withdrawals = useWithdrawals();
   const wallets = useWallets();
   const paymentPrefs = usePaymentPrefs();
-  const transactions = useTransactions().filter((t) => t.farmerId === MY_FARMER_ID);
+  const transactions = useTransactions().filter((t) => t.farmerId === myFarmerId);
 
   // Le graphique agrège les vraies transactions par jour réel, filtrées aux
   // N derniers jours disponibles (les dates de démo étant fixes, un filtre
@@ -174,6 +175,11 @@ function RevenuePage() {
               <Download className="h-4 w-4" />
               Exporter CSV
             </Button>
+            {market.isRemote() && (
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/farmer/revenue/statement">Relevé mensuel</Link>
+              </Button>
+            )}
             <Button asChild className="gap-2">
               <Link to="/farmer/revenue/withdraw">
                 <Plus className="h-4 w-4" />
@@ -427,7 +433,9 @@ function RevenuePage() {
                   <TableCell className="font-mono text-xs">
                     {t.orderRef}
                     {t.kind === "refund_adjustment" && (
-                      <span className="ml-1.5 text-muted-foreground">(ajustement)</span>
+                      <span className="ml-1.5 text-muted-foreground">
+                        ({t.note ?? "ajustement"})
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">{r?.name}</TableCell>

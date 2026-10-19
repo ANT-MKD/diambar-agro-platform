@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { ArrowRight, ShoppingCart, Trash2, Undo2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
@@ -16,6 +17,10 @@ import { deliveryFeeForZone, zoneForAddress } from "@/lib/pricing";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { useMyId } from "@/data/market-mode";
+import { market } from "@/data/market-remote";
+import { useDeliveryQuote } from "@/data/delivery-quote";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/restaurant/cart")({
   head: () => ({ meta: [{ title: "Panier · Restaurant" }] }),
@@ -23,8 +28,10 @@ export const Route = createFileRoute("/restaurant/cart")({
 });
 
 function CartPage() {
+  const hiddenInBase = useHiddenInBase();
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const suspendedFarmerIds = new Set(
     suppliers
@@ -39,6 +46,13 @@ function CartPage() {
 
   const profile = useRestaurantProfile();
   const zones = useDeliveryZones();
+  // Avec la base : frais selon la distance de chaque producteur (serveur).
+  const remoteMode = market.isRemote();
+  const quoteLines = useMemo(
+    () => cart.map((l) => ({ productId: l.productId, qty: l.qty })),
+    [cart],
+  );
+  const deliveryQuote = useDeliveryQuote(remoteMode, profile.deliveryAddress, quoteLines);
   if (lines.length === 0) {
     return (
       <div className="space-y-6">
@@ -68,7 +82,13 @@ function CartPage() {
   const producerCount = new Set(
     cart.map((l) => products.find((p) => p.id === l.productId)?.farmerId).filter(Boolean),
   ).size;
-  const delivery = zone ? deliveryFeeForZone(zone) * producerCount : 0;
+  const quoteFor = (farmerId: string) =>
+    deliveryQuote.quote?.deliveries.find((d) => d.farmerId === farmerId);
+  const delivery = remoteMode
+    ? (deliveryQuote.quote?.total ?? 0)
+    : zone
+      ? deliveryFeeForZone(zone) * producerCount
+      : 0;
   const total = subtotal + delivery;
   const hasSuspendedSupplier = lines.some((l) => suspendedFarmerIds.has(l.product.farmerId));
 
@@ -100,10 +120,18 @@ function CartPage() {
             return (
               <div key={farmer.id} className="glass rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <img src={farmer.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
+                  <img
+                    src={farmer.avatar || undefined}
+                    alt=""
+                    className="h-10 w-10 rounded-xl object-cover"
+                  />
                   <div className="flex-1">
                     <div className="font-semibold text-sm">{farmer.farm}</div>
-                    <div className="text-[11px] text-muted-foreground">{farmer.city}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {farmer.city}
+                      {quoteFor(farmer.id) &&
+                        ` · livraison environ ${quoteFor(farmer.id)!.distanceKm} km : ${formatFCFA(quoteFor(farmer.id)!.fee)}`}
+                    </div>
                   </div>
                   <span className="text-xs font-semibold text-primary">
                     {formatFCFA(items.reduce((s, l) => s + l.product.pricePerKg * l.qty, 0))}
@@ -173,17 +201,19 @@ function CartPage() {
           <p className="text-[11px] text-muted-foreground text-center">
             Paiement sécurisé via Wave, Orange Money, ou à la livraison.
           </p>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="w-full gap-1.5 text-muted-foreground"
-          >
-            <Link to="/restaurant/returns">
-              <Undo2 className="h-3.5 w-3.5" />
-              Retours & avoirs
-            </Link>
-          </Button>
+          {!hiddenInBase("/restaurant/returns") && (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="w-full gap-1.5 text-muted-foreground"
+            >
+              <Link to="/restaurant/returns">
+                <Undo2 className="h-3.5 w-3.5" />
+                Retours & avoirs
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </div>

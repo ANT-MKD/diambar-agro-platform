@@ -25,3 +25,24 @@ export function useCommissionTiers() {
 export function useDeliveryZones() {
   return useSyncExternalStore(zonesStore.subscribe, zonesStore.get, zonesStore.get);
 }
+
+const fcfa = (n: number) => n.toLocaleString("fr-FR").replace(/\u202f/g, " ");
+
+/** Barème lu en base : même forme que celui de la démonstration. */
+export function replaceCommissionTiers(
+  list: { label: string; rate: number; min: number; max: number | null }[],
+) {
+  tiersStore.replace(
+    list.map((t, i) => ({
+      id: `tier${i + 1}`,
+      label: t.label,
+      range:
+        t.max === null
+          ? `> ${fcfa(t.min - 1 > 0 ? t.min - 1 : t.min)} FCFA / mois`
+          : `${fcfa(t.min)} – ${fcfa(t.max)} FCFA / mois`,
+      rate: t.rate,
+      min: t.min,
+      max: t.max,
+    })),
+  );
+}

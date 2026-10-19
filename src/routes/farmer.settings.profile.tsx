@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useRef } from "react";
+import { useServerForm } from "@/hooks/use-server-form";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 import { toast } from "sonner";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
@@ -36,7 +39,8 @@ const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
 function ProfileSettings() {
   const profile = useFarmerProfile();
-  const [form, setForm] = useState(profile);
+  const base = useBaseMode();
+  const [form, setForm] = useServerForm(profile);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const set = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
 
@@ -54,7 +58,7 @@ function ProfileSettings() {
     reader.readAsDataURL(file);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       toast.error("Le prénom et le nom sont obligatoires");
       return false;
@@ -62,6 +66,30 @@ function ProfileSettings() {
     if (!/^\S+@\S+\.\S+$/.test(form.email)) {
       toast.error("Adresse email invalide");
       return false;
+    }
+    if (market.isRemote()) {
+      if (form.lang === "en") {
+        toast.error("Langues disponibles : français ou wolof");
+        return false;
+      }
+      const steps = [
+        () =>
+          market.saveAccount({
+            firstName: form.firstName,
+            lastName: form.lastName,
+            phone: form.phone,
+          }),
+        () => market.saveFarm({ description: form.bio, lang: form.lang as "fr" | "wo" }),
+        ...(form.avatar !== profile.avatar ? [() => market.saveAvatar(form.avatar || null)] : []),
+      ];
+      for (const step of steps) {
+        const res = await step();
+        if (!res.ok) {
+          toast.error(res.message);
+          return false;
+        }
+      }
+      return true;
     }
     farmerProfileActions.update(form);
     return true;
@@ -75,7 +103,7 @@ function ProfileSettings() {
     >
       <div className="flex items-center gap-4">
         <img
-          src={form.avatar}
+          src={form.avatar || undefined}
           alt="Photo de profil du producteur"
           className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
         />
@@ -110,8 +138,16 @@ function ProfileSettings() {
           <Input value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
         </FieldRow>
       </div>
-      <FieldRow label="Email">
-        <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+      <FieldRow
+        label="Email"
+        hint={base ? "Adresse de connexion : pour la changer, contactez l'équipe." : undefined}
+      >
+        <Input
+          type="email"
+          value={form.email}
+          readOnly={base}
+          onChange={(e) => set("email", e.target.value)}
+        />
       </FieldRow>
       <FieldRow label="Téléphone">
         <div className="flex gap-2">
@@ -129,7 +165,7 @@ function ProfileSettings() {
           <SelectContent>
             <SelectItem value="fr">Français</SelectItem>
             <SelectItem value="wo">Wolof</SelectItem>
-            <SelectItem value="en">English</SelectItem>
+            {!base && <SelectItem value="en">English</SelectItem>}
           </SelectContent>
         </Select>
       </FieldRow>

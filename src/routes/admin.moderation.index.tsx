@@ -94,7 +94,7 @@ function AdminModeration() {
             >
               <div className="relative">
                 <img
-                  src={m.image}
+                  src={m.image || undefined}
                   alt={m.name}
                   loading="lazy"
                   className="h-36 w-full object-cover"

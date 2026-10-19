@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useBaseMode } from "@/data/demo-only";
+import { TeamSettingsBase } from "@/components/common/team-settings-base";
 import { UserPlus, Trash2 } from "lucide-react";
 import { SettingsCard, FieldRow } from "@/components/common/settings-shell";
 import { Input } from "@/components/ui/input";
@@ -28,7 +30,7 @@ export const Route = createFileRoute("/farmer/settings/team")({
       { property: "og:description", content: "Gérez les accès de votre équipe agricole." },
     ],
   }),
-  component: TeamSettings,
+  component: TeamSettingsPage,
 });
 
 const ROLES: { value: TeamMember["role"]; label: string }[] = [
@@ -37,6 +39,10 @@ const ROLES: { value: TeamMember["role"]; label: string }[] = [
   { value: "stock", label: "Responsable stock" },
   { value: "viewer", label: "Lecture seule" },
 ];
+
+function TeamSettingsPage() {
+  return useBaseMode() ? <TeamSettingsBase ownerRole="farmer" /> : <TeamSettings />;
+}
 
 function TeamSettings() {
   const members = useTeam();

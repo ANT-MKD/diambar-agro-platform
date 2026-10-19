@@ -31,13 +31,9 @@ import {
 } from "@/components/ui/select";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { useMission, useOrders, missionActions, useReassignCandidates } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { useAllDisputes } from "@/data/disputes";
-import {
-  useIncidents,
-  incidentActions,
-  INCIDENT_TYPE_LABEL,
-  type IncidentType,
-} from "@/data/business";
+import { useIncidents, INCIDENT_TYPE_LABEL, type IncidentType } from "@/data/business";
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
 import { ProofPhotos } from "@/components/common/handover-code";
@@ -115,7 +111,7 @@ function AdminDeliveryDetail() {
 
   const history = [...(mission.statusHistory ?? [])].sort((a, b) => (a.at < b.at ? -1 : 1));
 
-  const confirmReassign = () => {
+  const confirmReassign = async () => {
     if (!newDriverId) {
       toast.error("Choisissez un livreur");
       return;
@@ -126,7 +122,7 @@ function AdminDeliveryDetail() {
     }
     const newDriver = drivers.find((d) => d.id === newDriverId);
     const oldDriver = driver;
-    const result = missionActions.reassign(mission.id, newDriverId);
+    const result = await market.reassignMission(mission.id, newDriverId);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -149,13 +145,14 @@ function AdminDeliveryDetail() {
     setNewDriverId("");
   };
 
-  const submitIncident = () => {
+  const submitIncident = async () => {
     if (!incidentDesc.trim()) {
       toast.error("Décrivez le problème");
       return;
     }
-    const item = incidentActions.create(
+    const item = await market.createIncident(
       {
+        missionId: mission.id,
         missionRef: mission.reference,
         type: incidentType,
         description: incidentDesc.trim(),
@@ -164,6 +161,10 @@ function AdminDeliveryDetail() {
       },
       user.name,
     );
+    if (!item.ok) {
+      toast.error(item.message);
+      return;
+    }
     auditActions.log({
       action: `Incident créé depuis la livraison (${item.reference})`,
       target: mission.reference,
@@ -453,7 +454,11 @@ function Party({
   return (
     <div className="flex items-center gap-3">
       {avatar ? (
-        <img src={avatar} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0" />
+        <img
+          src={avatar || undefined}
+          alt=""
+          className="h-10 w-10 rounded-xl object-cover shrink-0"
+        />
       ) : (
         <div className="h-10 w-10 rounded-xl bg-muted grid place-items-center text-muted-foreground shrink-0">
           <Truck className="h-4 w-4" />

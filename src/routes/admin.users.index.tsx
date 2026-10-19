@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import {
   MoreVertical,
-  Eye,
   Ban,
   CheckCircle2,
   UserCog,
@@ -17,14 +17,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { StatCard } from "@/components/admin/stat-card";
 import { AdminBadge, RoleBadge } from "@/components/admin/admin-badge";
 import { formatFCFA, relativeTime } from "@/lib/format";
-import {
-  adminUserActions,
-  auditActions,
-  usePlatformUsers,
-  useAdminRoleForEmail,
-  can,
-} from "@/data/admin-store";
-import { impersonationActions } from "@/data/impersonation";
+import { auditActions, usePlatformUsers, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,12 +72,16 @@ function AdminUsers() {
     ? users.filter((u) => u.joinedAt.slice(0, 7) === latestJoin.joinedAt.slice(0, 7)).length
     : 0;
 
-  const suspend = (u: (typeof users)[number], reason?: string) => {
+  const suspend = async (u: (typeof users)[number], reason?: string) => {
     if (!canSuspend) {
       toast.error("Votre rôle ne permet pas de suspendre un compte.");
       return;
     }
-    adminUserActions.setStatus(u.id, "suspended");
+    const res = await market.setAccountStatus(u.id, "suspended", reason);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Compte suspendu",
       target: u.name,
@@ -96,12 +93,16 @@ function AdminUsers() {
     toast.success("Compte suspendu");
   };
 
-  const reactivate = (u: (typeof users)[number]) => {
+  const reactivate = async (u: (typeof users)[number]) => {
     if (!canSuspend) {
       toast.error("Votre rôle ne permet pas de réactiver un compte.");
       return;
     }
-    adminUserActions.setStatus(u.id, "active");
+    const res = await market.setAccountStatus(u.id, "active");
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     auditActions.log({
       action: "Compte réactivé",
       target: u.name,
@@ -213,7 +214,11 @@ function AdminUsers() {
                     params={{ userId: u.id }}
                     className="flex items-center gap-3"
                   >
-                    <img src={u.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+                    <img
+                      src={u.avatar || undefined}
+                      alt=""
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
                     <div className="min-w-0">
                       <div className="font-medium truncate">{u.name}</div>
                       <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
@@ -245,21 +250,6 @@ function AdminUsers() {
                         <Link to="/admin/users/$userId" params={{ userId: u.id }}>
                           Voir le profil
                         </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          impersonationActions.start(u.id, u.name, u.role);
-                          auditActions.log({
-                            action: "Impersonation démarrée",
-                            target: u.name,
-                            module: "security",
-                            level: "critical",
-                          });
-                          toast.success(`Vous naviguez en tant que ${u.name}`);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Voir en tant que
                       </DropdownMenuItem>
                       {canSuspend &&
                         (u.status === "active" ? (

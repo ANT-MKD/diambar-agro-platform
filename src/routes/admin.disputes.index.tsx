@@ -71,7 +71,7 @@ function AdminDisputes() {
           { l: "Remboursé ce mois", v: formatFCFA(stats.refundedThisMonth) },
           {
             l: "Avoirs émis",
-            v: `${credits.length} · ${formatFCFA(credits.reduce((s, c) => s + c.amount, 0))}`,
+            v: `${credits.length} · ${formatFCFA(credits.reduce((s, c) => s + (c.initialAmount ?? c.amount), 0))}`,
           },
         ].map((k) => (
           <div key={k.l} className="glass rounded-2xl p-4">

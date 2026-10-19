@@ -11,9 +11,11 @@ import { eq, inArray } from "drizzle-orm";
 import { commissionTiers, deliveryZones } from "../data/admin-mocks.ts";
 import { demoAccounts } from "../data/demo-accounts.ts";
 import { products as demoProducts } from "../data/mocks.ts";
+import { DAKAR_ZONES } from "../lib/platform/setup-model.ts";
 import type { Db } from "./client.server.ts";
 import {
   adminProfiles,
+  adminRoles,
   categories,
   cities,
   driverZones,
@@ -45,6 +47,8 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   min_order_per_producer: 5000,
   // Délai pour signaler un produit abîmé ou manquant.
   reception_window_hours: 48,
+  // Paiement Wave / Orange Money attendu au plus tard la veille du créneau à 20 h.
+  payment_deadline_hour: 20,
   commission_tiers: commissionTiers.map(({ label, rate, min, max }) => ({ label, rate, min, max })),
   tva: { enabled: false, rate: 18 },
 };
@@ -62,24 +66,6 @@ export async function seedReference(db: Db) {
     .returning({ key: settings.key });
   return { categories: insertedCategories.length, settings: insertedSettings.length };
 }
-
-const DAKAR_ZONES = [
-  "Plateau",
-  "Médina",
-  "Fann – Point E – Amitié",
-  "Mermoz – Sacré-Cœur",
-  "Ouakam",
-  "Ngor",
-  "Almadies",
-  "Yoff",
-  "Grand Yoff",
-  "Parcelles Assainies",
-  "HLM",
-  "Pikine",
-  "Guédiawaye",
-  "Keur Massar",
-  "Rufisque",
-];
 
 type DemoPerson = {
   firstName: string;
@@ -198,6 +184,7 @@ export async function seedDemo(db: Db) {
           status: p.status,
           twoFaEnabled: !!a.twoFaEnabled,
           phoneVerifiedAt: p.status === "pending" ? null : now,
+          emailVerifiedAt: p.status === "pending" ? null : now,
           acceptedTermsAt: now,
           cityId: cityId(p.city),
         };
@@ -215,12 +202,17 @@ export async function seedDemo(db: Db) {
     return id;
   };
 
+  // Rôles fournis par la migration (Opérations, Finance, Support, Modération).
+  const systemRoles = await db
+    .select({ id: adminRoles.id, key: adminRoles.systemKey })
+    .from(adminRoles);
   await db
     .insert(adminProfiles)
     .values(
       Object.entries(ADMIN_ROLES).map(([email, adminRole]) => ({
         userId: userId(email),
         adminRole,
+        roleId: systemRoles.find((r) => r.key === adminRole)?.id ?? null,
       })),
     )
     .onConflictDoNothing();
@@ -267,7 +259,7 @@ export async function seedDemo(db: Db) {
   const driverId = userId("livreur@diambar.sn");
   await db
     .insert(drivers)
-    .values({ userId: driverId, licenseNumber: "SN-2024-8891", isOnline: false })
+    .values({ userId: driverId, licenseNumber: "SN-2024-8891", isOnline: true })
     .onConflictDoNothing();
   await db
     .insert(driverZones)
@@ -320,6 +312,15 @@ export async function seedDemo(db: Db) {
       });
     productCount = (await db.insert(products).values(rows).returning({ id: products.id })).length;
   }
+
+  // Plateforme de démonstration : déjà configurée, inscriptions ouvertes.
+  await db
+    .insert(settings)
+    .values([
+      { key: "registrations_open", value: true },
+      { key: "platform_setup", value: { completedAt: now.toISOString(), demo: true } },
+    ])
+    .onConflictDoNothing();
 
   return {
     cities: cityRows.length,

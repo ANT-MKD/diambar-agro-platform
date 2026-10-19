@@ -4,6 +4,7 @@ import { ArrowLeft, Save, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { useProducts, movementActions, useFarmerProfile } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/stock/inventory")({
   head: () => ({ meta: [{ title: "Inventaire · Diambar Agro" }] }),
@@ -22,27 +24,32 @@ export const Route = createFileRoute("/farmer/stock/inventory")({
 });
 
 function InventoryPage() {
+  const myFarmerId = useMyId("farmer");
   const navigate = useNavigate();
-  const items = useProducts().filter((p) => p.farmerId === "f1");
+  const items = useProducts().filter((p) => p.farmerId === myFarmerId);
   const profile = useFarmerProfile();
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(items.map((p) => [p.id, p.stock])),
   );
 
-  const validate = () => {
+  const validate = async () => {
     let changed = 0;
-    items.forEach((p) => {
+    for (const p of items) {
       if (counts[p.id] !== p.stock) {
-        movementActions.create({
+        const res = await market.moveStock({
           productId: p.id,
           type: "adjust",
           qty: counts[p.id],
           reason: "Inventaire",
           operator: profile.firstName,
         });
+        if (!res.ok) {
+          toast.error(`${p.name} : ${res.message}`);
+          return;
+        }
         changed += 1;
       }
-    });
+    }
     toast.success(
       changed > 0 ? `Inventaire validé · ${changed} écart(s) corrigé(s)` : "Inventaire validé",
     );

@@ -12,13 +12,14 @@ import { useRestaurantOrders, useSuppliers, useMissions } from "@/data/store";
 import { restaurants, drivers } from "@/data/mocks";
 import { relativeTime } from "@/lib/format";
 import type { DisputeAttachment } from "@/data/disputes";
+import { market } from "@/data/market-remote";
 import {
   useReviewsForRestaurant,
-  reviewActions,
   REVIEW_CRITERION_LABEL,
   REVIEW_TAGS,
   type ReviewCriterion,
 } from "@/data/business";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/reviews/new")({
   validateSearch: z.object({ orderId: z.string().optional() }),
@@ -69,10 +70,11 @@ function StaticStars({ value }: { value: number }) {
 }
 
 function NewReview() {
+  const myRestaurantId = useMyId("restaurant");
   const navigate = useNavigate();
   const { orderId: initialOrderId } = Route.useSearch();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const orders = useRestaurantOrders();
   const suppliers = useSuppliers();
   const missions = useMissions();
@@ -91,6 +93,7 @@ function NewReview() {
   const [comment, setComment] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [photos, setPhotos] = useState<DisputeAttachment[]>([]);
+  const [sending, setSending] = useState(false);
 
   const rated = new Set(reviews.map((r) => r.orderRef));
   const toRate = orders.filter((o) => o.status === "delivered" && !rated.has(o.reference));
@@ -148,10 +151,12 @@ function NewReview() {
     );
   }
 
-  const submit = () => {
-    if (!myRestaurant) return;
-    reviewActions.create({
+  const submit = async () => {
+    if (!myRestaurant || sending) return;
+    setSending(true);
+    const res = await market.createReview({
       restaurantId: myRestaurant.id,
+      orderId: order.id,
       orderRef: order.reference,
       supplierId: order.farmerId,
       supplierName: supplierName(order.farmerId),
@@ -161,6 +166,11 @@ function NewReview() {
       tags: tags.length > 0 ? tags : undefined,
       photos: photos.length > 0 ? photos : undefined,
     });
+    setSending(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Merci pour votre évaluation", {
       description: `${supplierName(order.farmerId)} · ${avg.toFixed(1)}/5`,
     });
@@ -266,13 +276,17 @@ function NewReview() {
         {step === 2 && (
           <>
             <h3 className="font-display text-lg font-bold">Photos (facultatif)</h3>
-            <FileDrop
-              value={photos}
-              onChange={setPhotos}
-              by={myRestaurant?.name ?? user.name}
-              kind="photo"
-              label="Ajouter des photos"
-            />
+            {/* Les photos d'avis ne sont pas conservées en base : le litige ou
+                le retour sert à prouver un problème. */}
+            {!market.isRemote() && (
+              <FileDrop
+                value={photos}
+                onChange={setPhotos}
+                by={myRestaurant?.name ?? user.name}
+                kind="photo"
+                label="Ajouter des photos"
+              />
+            )}
           </>
         )}
 
@@ -340,7 +354,7 @@ function NewReview() {
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
-          <Button onClick={submit} className="gap-2">
+          <Button onClick={submit} disabled={sending} className="gap-2">
             <Check className="h-4 w-4" />
             Publier mon évaluation
           </Button>

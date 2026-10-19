@@ -1,18 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { Zap, ZapOff } from "lucide-react";
 import { FieldRow, ToggleRow } from "@/components/common/settings-shell";
 import { WEEKDAYS, WEEKDAY_LABEL, type WeekDay } from "@/data/mocks";
 import {
-  useDriverSettings,
   driverSettingsActions,
+  getDriverSettings,
   useDriverOnline,
-  driverOnlineActions,
+  useDriverSettings,
 } from "@/data/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useRules } from "@/data/rules";
 
 export const Route = createFileRoute("/driver/settings/work")({
   head: () => ({ meta: [{ title: "Travail & disponibilité · Paramètres livreur" }] }),
@@ -25,11 +27,23 @@ const URGENCY_LABEL = {
   express: "Express",
 } as const;
 const URGENCIES = Object.keys(URGENCY_LABEL) as (keyof typeof URGENCY_LABEL)[];
-const CITIES = ["Dakar", "Thiès", "Mbour"];
 
 function WorkSettings() {
+  // Villes ouvertes par Diambar.
+  const CITIES = useRules().cities;
   const settings = useDriverSettings();
   const online = useDriverOnline();
+
+  // L'écran se met à jour tout de suite ; avec la base, le réglage est
+  // ensuite enregistré sur le serveur (à la fin de la saisie pour les champs).
+  const persist = async (patch: Parameters<typeof market.updateWorkSettings>[0]) => {
+    if (!market.isRemote()) return;
+    const res = await market.updateWorkSettings(patch);
+    if (!res.ok) toast.error(res.message);
+  };
+  const saveCriteria = () =>
+    void persist({ workPrefs: { criteria: getDriverSettings().criteria } });
+  const saveHours = () => void persist({ workingHours: getDriverSettings().workingHours });
 
   const toggleUrgency = (u: string) => {
     const list = settings.criteria.acceptedUrgencies;
@@ -38,12 +52,14 @@ function WorkSettings() {
         ? list.filter((x) => x !== u)
         : [...list, u as (typeof list)[number]],
     });
+    saveCriteria();
   };
   const toggleCity = (c: string) => {
     const list = settings.criteria.acceptedCities;
     driverSettingsActions.setCriteria({
       acceptedCities: list.includes(c) ? list.filter((x) => x !== c) : [...list, c],
     });
+    saveCriteria();
   };
 
   return (
@@ -63,8 +79,12 @@ function WorkSettings() {
         <Button
           variant="outline"
           className="gap-2"
-          onClick={() => {
-            driverOnlineActions.toggle();
+          onClick={async () => {
+            const res = await market.setOnline(!online);
+            if (!res.ok) {
+              toast.error(res.message);
+              return;
+            }
             toast.success(online ? "Vous êtes hors ligne" : "Vous êtes en ligne");
           }}
         >
@@ -81,6 +101,7 @@ function WorkSettings() {
           checked={settings.autoAccept}
           onChange={(v) => {
             driverSettingsActions.setWorkPrefs({ autoAccept: v });
+            void persist({ workPrefs: { autoAccept: v } });
             toast.success(
               v ? "Acceptation automatique activée" : "Acceptation automatique désactivée",
             );
@@ -99,6 +120,7 @@ function WorkSettings() {
             <Slider
               value={[settings.radius]}
               onValueChange={([v]) => driverSettingsActions.setWorkPrefs({ radius: v })}
+              onValueCommit={([v]) => void persist({ workPrefs: { radius: v } })}
               min={5}
               max={200}
               step={5}
@@ -114,6 +136,7 @@ function WorkSettings() {
                     minPayout: Number(e.target.value.replace(/\D/g, "")) || 0,
                   })
                 }
+                onBlur={saveCriteria}
               />
             </FieldRow>
             <FieldRow label="Poids maximal (kg)">
@@ -125,6 +148,7 @@ function WorkSettings() {
                     maxWeightKg: Number(e.target.value.replace(/\D/g, "")) || 0,
                   })
                 }
+                onBlur={saveCriteria}
               />
             </FieldRow>
           </div>
@@ -182,7 +206,10 @@ function WorkSettings() {
               >
                 <Switch
                   checked={h.enabled}
-                  onCheckedChange={(v) => driverSettingsActions.setWorkingDay(day, { enabled: v })}
+                  onCheckedChange={(v) => {
+                    driverSettingsActions.setWorkingDay(day, { enabled: v });
+                    saveHours();
+                  }}
                 />
                 <span className="w-24 text-sm font-medium">{WEEKDAY_LABEL[day]}</span>
                 {h.enabled ? (
@@ -193,6 +220,7 @@ function WorkSettings() {
                       onChange={(e) =>
                         driverSettingsActions.setWorkingDay(day, { start: e.target.value })
                       }
+                      onBlur={saveHours}
                       className="w-28"
                     />
                     <span className="text-muted-foreground text-xs">→</span>
@@ -202,6 +230,7 @@ function WorkSettings() {
                       onChange={(e) =>
                         driverSettingsActions.setWorkingDay(day, { end: e.target.value })
                       }
+                      onBlur={saveHours}
                       className="w-28"
                     />
                   </div>

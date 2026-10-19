@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { OrderCard } from "./order-card";
 import { ORDER_LABEL } from "./status-badge";
 import { orderActions } from "@/data/store";
+import { market } from "@/data/market-remote";
 import type { Order, OrderStatus } from "@/data/mocks";
 
 const COLUMNS: { status: OrderStatus; accent: string }[] = [
@@ -31,8 +32,8 @@ export function OrderKanban({ orders }: { orders: Order[] }) {
 
   // Le glisser-déposer suit la même règle que les boutons : uniquement vers
   // l'étape suivante permise au producteur, jamais en arrière.
-  const move = (id: string, to: OrderStatus) => {
-    const result = orderActions.setStatus(id, to);
+  const move = async (id: string, to: OrderStatus) => {
+    const result = await market.setOrderStatus(id, to, "farmer");
     if (!result.ok) toast.error(result.message);
     else toast.success(`Commande passée en « ${ORDER_LABEL[to]} »`);
   };

@@ -22,19 +22,20 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import {
   useSupplier,
   useRestaurantOrders,
   useAllProductReviews,
-  supplierActions,
   supplierOrderStats,
 } from "@/data/store";
 import { farmers, products, restaurants } from "@/data/mocks";
 import { farmerReviewStats, farmerDeliveryEstimate } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
 import { formatFCFA } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId")({
   head: () => ({ meta: [{ title: "Fournisseur · Restaurant" }] }),
@@ -49,9 +50,10 @@ function SupplierLayout() {
 }
 
 function SupplierDetail({ supplierId }: { supplierId: string }) {
+  const myRestaurantId = useMyId("restaurant");
   const nav = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const s = useSupplier(supplierId);
   const orders = useRestaurantOrders();
   const reviews = useAllProductReviews();
@@ -113,8 +115,12 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => {
-                supplierActions.toggleSuspend(s.id);
+              onClick={async () => {
+                const res = await market.updateSupplier(s.id, { suspended: !s.suspended });
+                if (!res.ok) {
+                  toast.error(res.message);
+                  return;
+                }
                 toast.success(s.suspended ? "Fournisseur réactivé" : "Fournisseur suspendu");
               }}
             >
@@ -133,9 +139,13 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
             <Button
               variant="destructive"
               className="gap-2"
-              onClick={() => {
+              onClick={async () => {
                 if (confirm(`Supprimer définitivement ${s.name} ?`)) {
-                  supplierActions.remove(s.id);
+                  const res = await market.removeSupplier(s.id);
+                  if (!res.ok) {
+                    toast.error(res.message);
+                    return;
+                  }
                   toast.success("Fournisseur supprimé");
                   nav({ to: "/restaurant/suppliers" });
                 }
@@ -161,7 +171,10 @@ function SupplierDetail({ supplierId }: { supplierId: string }) {
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-display font-bold text-lg">Informations</h3>
               <button
-                onClick={() => supplierActions.toggleFavorite(s.id)}
+                onClick={async () => {
+                  const res = await market.updateSupplier(s.id, { favorite: !s.favorite });
+                  if (!res.ok) toast.error(res.message);
+                }}
                 className="text-xs flex items-center gap-1 hover:text-rose-500 transition"
               >
                 <Heart className={`h-4 w-4 ${s.favorite ? "fill-rose-500 text-rose-500" : ""}`} />

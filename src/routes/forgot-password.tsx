@@ -3,7 +3,6 @@ import { useId, useState } from "react";
 import { Mail, MailCheck, ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthSplitLayout } from "@/components/auth/split-layout";
-import { DemoNotice } from "@/components/auth/demo-notice";
 import { getAuthConfigFn, requestPasswordResetFn } from "@/lib/auth/functions";
 import { normalizeEmail } from "@/lib/auth/helpers";
 
@@ -39,7 +38,6 @@ function ForgotPage() {
 
   return (
     <AuthSplitLayout>
-      {config.demoMode && <DemoNotice />}
       <Link
         to="/login"
         className="text-sm text-muted-foreground inline-flex items-center gap-1 mb-4 hover:text-foreground"
@@ -92,7 +90,7 @@ function ForgotPage() {
           {devResetLink && (
             <div className="mt-6 rounded-xl border border-dashed border-border p-3 text-left">
               <div className="text-[11px] font-semibold text-muted-foreground">
-                Environnement de démonstration — aucun email réel n'est envoyé
+                Lien pour choisir un nouveau mot de passe
               </div>
               <Link
                 to={devResetLink}

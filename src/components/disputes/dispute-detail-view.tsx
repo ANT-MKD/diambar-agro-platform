@@ -16,12 +16,14 @@ import {
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { DisputeStatusBadge, PriorityBadge, SlaBadge } from "./dispute-badges";
 import { DisputeThread } from "./dispute-thread";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 import {
   DISPUTE_CATEGORIES,
   PARTY_LABEL,
   SUPPORT_AGENTS,
-  disputeActions,
   outcomeLabel,
+  useDisputeStaff,
   slaRemaining,
   type Dispute,
   type DisputeOutcome,
@@ -47,9 +49,23 @@ export function DisputeDetailView({
 }) {
   const [outcome, setOutcome] = useState<DisputeOutcome>("refund");
   const [granted, setGranted] = useState(String(d.claimedAmount));
-  const [liable, setLiable] = useState<DisputeParty>(d.againstRole);
+  const [liable, setLiable] = useState<DisputeParty>(
+    d.againstRole === "restaurant" ? "platform" : d.againstRole,
+  );
   const [reason, setReason] = useState("");
   const closed = d.status === "resolved" || d.status === "rejected";
+  // Mode base : vraie équipe, et pas d'avoir (remboursement ou indemnité au solde).
+  const base = useBaseMode();
+  const staff = useDisputeStaff();
+  const run = async (
+    p: Promise<{ ok: true } | { ok: false; message: string }>,
+    success: string,
+  ) => {
+    const res = await p;
+    if (res.ok) toast.success(success);
+    else toast.error(res.message);
+    return res.ok;
+  };
   const sla = slaRemaining(d);
 
   return (
@@ -207,10 +223,12 @@ export function DisputeDetailView({
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-9 whitespace-normal py-2"
-                  onClick={() => {
-                    disputeActions.setStatus(d.id, "investigating", name);
-                    toast.success("Dossier en instruction");
-                  }}
+                  onClick={() =>
+                    void run(
+                      market.disputeStaffAction(d.id, "investigate", { actor: name }),
+                      "Dossier en instruction",
+                    )
+                  }
                 >
                   Instruire
                 </Button>
@@ -218,15 +236,15 @@ export function DisputeDetailView({
                   variant="outline"
                   size="sm"
                   className="h-auto min-h-9 whitespace-normal py-2"
-                  onClick={() => {
-                    disputeActions.setStatus(
-                      d.id,
-                      "awaiting_response",
-                      name,
-                      `Réponse demandée à ${d.againstName}`,
-                    );
-                    toast.success("Réponse demandée");
-                  }}
+                  onClick={() =>
+                    void run(
+                      market.disputeStaffAction(d.id, "await_response", {
+                        actor: name,
+                        againstName: d.againstName,
+                      }),
+                      "Réponse demandée",
+                    )
+                  }
                 >
                   Demander une réponse
                 </Button>
@@ -234,19 +252,29 @@ export function DisputeDetailView({
               <div className="space-y-1.5">
                 <Label>Assigner à</Label>
                 <Select
-                  value={d.assignee ?? ""}
-                  onValueChange={(v) => {
-                    disputeActions.assign(d.id, v, name);
-                    toast.success("Dossier assigné");
-                  }}
+                  value={(base ? d.assigneeId : d.assignee) ?? ""}
+                  onValueChange={(v) =>
+                    void run(
+                      market.disputeStaffAction(d.id, "assign", {
+                        actor: name,
+                        assignee: base
+                          ? { id: v, name: staff.find((x) => x.id === v)?.name ?? "" }
+                          : { name: v },
+                      }),
+                      "Dossier assigné",
+                    )
+                  }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Choisir un agent" />
+                    <SelectValue placeholder="Choisir un membre de l'équipe" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SUPPORT_AGENTS.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {a}
+                    {(base
+                      ? staff.map((x) => ({ value: x.id, label: x.name }))
+                      : SUPPORT_AGENTS.map((a) => ({ value: a, label: a }))
+                    ).map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -256,10 +284,15 @@ export function DisputeDetailView({
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() => {
-                  disputeActions.escalate(d.id, "Escalade manuelle par le support", name);
-                  toast.success("Dossier escaladé");
-                }}
+                onClick={() =>
+                  void run(
+                    market.disputeStaffAction(d.id, "escalate", {
+                      actor: name,
+                      reason: "Escalade manuelle par le support",
+                    }),
+                    "Dossier escaladé",
+                  )
+                }
               >
                 Escalader (SLA 12h)
               </Button>
@@ -272,7 +305,17 @@ export function DisputeDetailView({
                   </SelectTrigger>
                   <SelectContent>
                     {(
-                      ["refund", "partial", "credit", "goodwill", "rejected"] as DisputeOutcome[]
+                      (base
+                        ? d.openedByRole === "restaurant"
+                          ? ["refund", "partial", "credit", "goodwill", "rejected"]
+                          : ["refund", "partial", "goodwill", "rejected"]
+                        : [
+                            "refund",
+                            "partial",
+                            "credit",
+                            "goodwill",
+                            "rejected",
+                          ]) as DisputeOutcome[]
                     ).map((o) => (
                       <SelectItem key={o} value={o}>
                         {outcomeLabel(o)}
@@ -298,7 +341,11 @@ export function DisputeDetailView({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(["farmer", "driver", "restaurant", "platform"] as DisputeParty[]).map((p) => (
+                    {(
+                      (base
+                        ? ["farmer", "driver", "platform"]
+                        : ["farmer", "driver", "restaurant", "platform"]) as DisputeParty[]
+                    ).map((p) => (
                       <SelectItem key={p} value={p}>
                         {PARTY_LABEL[p]}
                       </SelectItem>
@@ -315,24 +362,33 @@ export function DisputeDetailView({
                   placeholder="Preuves retenues, règle appliquée…"
                 />
               </div>
+              {base && outcome !== "rejected" && (
+                <p className="text-[11px] text-muted-foreground">
+                  {d.openedByRole === "restaurant" && outcome === "credit"
+                    ? "Un avoir est créé : le restaurant le déduit de ses prochaines commandes ; la partie débitée le rend sur son solde."
+                    : d.openedByRole === "restaurant"
+                      ? "Un remboursement est créé (Encaissements), payé comme les autres ; la partie débitée le rend sur son solde."
+                      : "L'indemnité est créditée sur le solde du plaignant et retenue sur celui de la partie débitée."}
+                </p>
+              )}
               <Button
                 className="w-full"
-                onClick={() => {
+                onClick={async () => {
                   if (reason.trim().length < 10) {
                     toast.error("Motivez la décision");
                     return;
                   }
                   const amount = outcome === "rejected" ? 0 : Number(granted) || 0;
-                  disputeActions.resolve(d.id, {
-                    outcome,
-                    grantedAmount: amount,
-                    liableParty: liable,
-                    reason: reason.trim(),
-                    by: name,
-                  });
-                  toast.success(
+                  await run(
+                    market.resolveDispute(d.id, {
+                      outcome,
+                      grantedAmount: amount,
+                      liableParty: liable,
+                      reason: reason.trim(),
+                      by: name,
+                    }),
                     amount > 0
-                      ? `Décision enregistrée · avoir de ${formatFCFA(amount)} émis`
+                      ? `Décision enregistrée · ${formatFCFA(amount)} accordés`
                       : "Réclamation rejetée",
                   );
                 }}

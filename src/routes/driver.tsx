@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
+import { useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
   Truck,
@@ -17,7 +19,7 @@ import {
   Navigation,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/common/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -26,25 +28,27 @@ import { LogoutButton } from "@/components/common/logout-button";
 import {
   useDriverNotifications,
   useDriverOnline,
-  driverOnlineActions,
   useDriverMissions,
   useDriverSettings,
   useDriverConversations,
   missionActions,
   autoAcceptableMissions,
   useMyDriverFleet,
+  useIdentity,
 } from "@/data/store";
 import { driverProfile } from "@/data/mocks";
 import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
-import { requireRole } from "@/lib/auth/functions";
+import { enterPortal, market, useMarketPolling } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver")({
-  beforeLoad: () => requireRole("driver"),
+  // Portail rendu dans le navigateur : ses données (celles du compte
+  // connecté) sont chargées à l'entrée.
+  ssr: false,
+  beforeLoad: () => enterPortal("driver"),
   component: DriverLayout,
 });
-
-const MY_DRIVER_ID = "d1";
 
 const bottomNav = [
   { to: "/driver/dashboard", label: "Accueil", icon: LayoutDashboard },
@@ -55,9 +59,13 @@ const bottomNav = [
 ];
 
 function DriverLayout() {
-  const { user } = Route.useRouteContext();
+  const { user: sessionUser } = Route.useRouteContext();
+  const user = { ...sessionUser, ...useIdentity(sessionUser) };
+  useMarketPolling();
+  const MY_DRIVER_ID = useMyId("driver");
   const maintenance = useMaintenanceMode();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const hiddenInBase = useHiddenInBase();
   const [open, setOpen] = useState(false);
   const notifs = useDriverNotifications();
   const online = useDriverOnline();
@@ -72,19 +80,32 @@ function DriverLayout() {
 
   // Acceptation automatique réelle : dès qu'une mission "disponible" respecte
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
+  // Avec la base, c'est le serveur qui attribue : une course déjà tentée
+  // n'est pas redemandée à chaque rafraîchissement.
+  const attempted = useRef(new Set<string>());
   useEffect(() => {
     if (!online) return;
-    const matches = autoAcceptableMissions(missions, settings, fleet);
-    for (const m of matches) {
-      if (!missionActions.accept(m.id).ok) continue;
-      toast.success(
-        `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
-      );
-    }
+    const matches = autoAcceptableMissions(missions, settings, fleet).filter(
+      (m) => !attempted.current.has(m.id),
+    );
+    if (!matches.length) return;
+    void (async () => {
+      for (const m of matches) {
+        attempted.current.add(m.id);
+        if (!(await market.acceptMission(m.id)).ok) continue;
+        toast.success(
+          `${m.reference} acceptée automatiquement · ${m.payout.toLocaleString("fr-FR")} FCFA`,
+        );
+      }
+    })();
   }, [missions, settings, online, fleet]);
 
-  const toggleOnline = () => {
-    driverOnlineActions.toggle();
+  const toggleOnline = async () => {
+    const res = await market.setOnline(!online);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success(
       online
         ? "Vous êtes hors-ligne · aucune mission ne vous sera proposée"
@@ -92,7 +113,7 @@ function DriverLayout() {
     );
   };
 
-  const navSections = [
+  const navSectionsAll = [
     {
       label: "NAVIGATION",
       items: [
@@ -115,6 +136,11 @@ function DriverLayout() {
       ],
     },
   ];
+  // Avec la base, les écrans encore en démonstration ne sont pas proposés.
+  const bottomItems = bottomNav.filter((it) => !hiddenInBase(it.to));
+  const navSections = navSectionsAll
+    .map((section) => ({ ...section, items: section.items.filter((it) => !hiddenInBase(it.to)) }))
+    .filter((section) => section.items.length > 0);
 
   if (maintenance.active) {
     return <MaintenanceScreen message={maintenance.message} />;
@@ -180,7 +206,11 @@ function DriverLayout() {
 
         <div className="p-3 border-t border-border">
           <div className="glass rounded-xl p-3 flex items-center gap-3">
-            <img src={user.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img
+              src={user.avatar || undefined}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover"
+            />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
               <div className="text-[11px] text-muted-foreground truncate">
@@ -218,6 +248,7 @@ function DriverLayout() {
                 className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`}
               />
             </button>
+
             <nav className="space-y-4">
               {navSections.map((s) => (
                 <div key={s.label} className="space-y-1">
@@ -274,6 +305,7 @@ function DriverLayout() {
             />
             {online ? "En ligne" : "Hors-ligne"}
           </button>
+
           <ThemeToggle />
           <Link
             to="/driver/notifications"
@@ -287,16 +319,19 @@ function DriverLayout() {
             )}
           </Link>
           <img
-            src={user.avatar}
+            src={user.avatar || undefined}
             alt=""
             className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-500/40"
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
-          <Outlet />
+          <DemoOnlyOutlet home="/driver/dashboard" />
         </main>
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid grid-cols-5 h-16">
-          {bottomNav.map((it) => {
+        <nav
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass-strong border-t border-border grid h-16"
+          style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}
+        >
+          {bottomItems.map((it) => {
             const active = path === it.to || path.startsWith(it.to + "/");
             return (
               <Link

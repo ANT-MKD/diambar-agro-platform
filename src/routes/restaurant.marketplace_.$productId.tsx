@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
+import { market } from "@/data/market-remote";
 import {
   ArrowLeft,
   Star,
@@ -10,6 +12,7 @@ import {
   MessageSquare,
   Heart,
   Zap,
+  Flag,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,11 +24,10 @@ import {
   productReviewActions,
   cartActions,
   useWishlist,
-  wishlistActions,
   useSuppliers,
   conversationActions,
 } from "@/data/store";
-import { useReviews as useBusinessReviews } from "@/data/business";
+import { reviewScore, useReviews as useBusinessReviews } from "@/data/business";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { farmers, restaurants } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
@@ -40,6 +42,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { isListed, minOrderOf, productOrderability } from "@/lib/product-availability";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
   head: () => ({ meta: [{ title: "Produit · Marketplace" }] }),
@@ -47,6 +50,8 @@ export const Route = createFileRoute("/restaurant/marketplace_/$productId")({
 });
 
 function ProductDetail() {
+  const hiddenInBase = useHiddenInBase();
+  const myRestaurantId = useMyId("restaurant");
   const { productId } = Route.useParams();
   const { user } = useRouteContext({ from: "/restaurant" });
   const navigate = useNavigate();
@@ -61,6 +66,10 @@ function ProductDetail() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
+  const base = useBaseMode();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   if (!product)
     return (
@@ -73,7 +82,7 @@ function ProductDetail() {
     ? farmerReviewStats(farmer.id, all, allProductReviews, farmer.rating, businessReviews).avgRating
     : null;
   const out = product.stock === 0;
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const supplierRecord = suppliers.find(
     (s) => s.restaurantId === myRestaurant?.id && s.farmerId === product.farmerId,
   );
@@ -112,6 +121,30 @@ function ProductDetail() {
     setReviewOpen(false);
   };
 
+  // Avec la base, les avis portent sur les commandes livrées (par producteur).
+  const farmerReviews = businessReviews.filter((r) => r.supplierId === product.farmerId);
+  const farmerAvg =
+    farmerReviews.length > 0
+      ? farmerReviews.reduce((s, r) => s + reviewScore(r), 0) / farmerReviews.length
+      : null;
+
+  const submitReport = async () => {
+    if (reportReason.trim().length < 5) {
+      toast.error("Expliquez le problème (5 caractères minimum)");
+      return;
+    }
+    setReporting(true);
+    const res = await market.reportProduct(product.id, reportReason.trim());
+    setReporting(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    toast.success("Merci : l'équipe Diambar va examiner ce produit");
+    setReportOpen(false);
+    setReportReason("");
+  };
+
   const orderNow = () => {
     if (supplierSuspended) {
       toast.error("Ce fournisseur est suspendu dans votre carnet");
@@ -136,8 +169,10 @@ function ProductDetail() {
           <button
             aria-label={liked ? "Retirer des favoris" : "Ajouter aux favoris"}
             onClick={() => {
-              wishlistActions.toggle(product.id);
-              toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+              void market.toggleFavorite(product.id).then((res) => {
+                if (res.ok) toast.success(liked ? "Retiré des favoris" : "Ajouté aux favoris");
+                else toast.error(res.message);
+              });
             }}
             className="absolute top-3 right-3 h-10 w-10 grid place-items-center rounded-full bg-background/85 backdrop-blur hover:bg-background transition"
           >
@@ -189,7 +224,11 @@ function ProductDetail() {
           </div>
 
           <div className="glass rounded-xl p-4 flex items-center gap-3">
-            <img src={farmer?.avatar} alt="" className="h-12 w-12 rounded-xl object-cover" />
+            <img
+              src={farmer?.avatar || undefined}
+              alt=""
+              className="h-12 w-12 rounded-xl object-cover"
+            />
             <div className="flex-1">
               <div className="font-semibold text-sm">{farmer?.farm}</div>
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -286,12 +325,22 @@ function ProductDetail() {
             <Button disabled={blocked} onClick={orderNow} className="flex-1 h-12 gap-2 text-base">
               <Zap className="h-5 w-5" /> Commander maintenant
             </Button>
-            {farmer && myRestaurant && (
+            {farmer && myRestaurant && !hiddenInBase("/restaurant/messages") && (
               <Button
                 variant="outline"
                 className="h-12 gap-2"
-                onClick={() => {
-                  const conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                onClick={async () => {
+                  let conversationId: string;
+                  if (base) {
+                    const res = await market.startConversation({ farmerId: farmer.id });
+                    if (!res.ok) {
+                      toast.error(res.message);
+                      return;
+                    }
+                    conversationId = res.id;
+                  } else {
+                    conversationId = conversationActions.startOrGet(myRestaurant.id, farmer.id);
+                  }
                   navigate({
                     to: "/restaurant/messages/$conversationId",
                     params: { conversationId },
@@ -306,54 +355,101 @@ function ProductDetail() {
         </div>
       </div>
 
-      <section className="glass rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="font-display text-xl font-bold">Avis clients</h2>
-          {avg !== null && (
-            <div className="flex items-center gap-2">
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    className={`h-4 w-4 ${s <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
-                  />
-                ))}
-              </div>
-              <span className="font-bold">{avg.toFixed(1)}</span>
-              <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
-            </div>
-          )}
-        </div>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aucun avis pour ce produit pour le moment.
-          </p>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-3">
-            {reviews.map((r) => (
-              <div key={r.id} className="rounded-xl border border-border p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">{r.restaurantName}</span>
-                  <span className="text-[11px] text-muted-foreground">{relativeTime(r.at)}</span>
-                </div>
+      {base ? (
+        <section className="glass rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-display text-xl font-bold">Avis sur ce producteur</h2>
+            {farmerAvg !== null && (
+              <div className="flex items-center gap-2">
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <Star
                       key={s}
-                      className={`h-3.5 w-3.5 ${s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                      className={`h-4 w-4 ${s <= Math.round(farmerAvg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
                     />
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>
+                <span className="font-bold">{farmerAvg.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">
+                  ({farmerReviews.length} commande{farmerReviews.length > 1 ? "s" : ""} notée
+                  {farmerReviews.length > 1 ? "s" : ""})
+                </span>
               </div>
-            ))}
+            )}
           </div>
-        )}
-        <Button variant="outline" size="sm" className="gap-1" onClick={() => setReviewOpen(true)}>
-          <MessageSquare className="h-3.5 w-3.5" />
-          Laisser un avis
-        </Button>
-      </section>
+          <p className="text-sm text-muted-foreground">
+            {farmerAvg === null
+              ? "Aucune commande de ce producteur n'a encore été notée."
+              : "Note moyenne laissée par les restaurants après chaque livraison."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="gap-1">
+              <Link to="/restaurant/reviews/new">
+                <Star className="h-3.5 w-3.5" />
+                Noter une commande livrée
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-muted-foreground"
+              onClick={() => setReportOpen(true)}
+            >
+              <Flag className="h-3.5 w-3.5" />
+              Signaler ce produit
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <section className="glass rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="font-display text-xl font-bold">Avis clients</h2>
+            {avg !== null && (
+              <div className="flex items-center gap-2">
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`h-4 w-4 ${s <= Math.round(avg) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                    />
+                  ))}
+                </div>
+                <span className="font-bold">{avg.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">({reviews.length} avis)</span>
+              </div>
+            )}
+          </div>
+          {reviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aucun avis pour ce produit pour le moment.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-3">
+              {reviews.map((r) => (
+                <div key={r.id} className="rounded-xl border border-border p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">{r.restaurantName}</span>
+                    <span className="text-[11px] text-muted-foreground">{relativeTime(r.at)}</span>
+                  </div>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-3.5 w-3.5 ${s <= r.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setReviewOpen(true)}>
+            <MessageSquare className="h-3.5 w-3.5" />
+            Laisser un avis
+          </Button>
+        </section>
+      )}
 
       {similar.length > 0 && (
         <section className="space-y-4">
@@ -393,6 +489,33 @@ function ProductDetail() {
               Annuler
             </Button>
             <Button onClick={submitReview}>Publier</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Signaler « {product.name} »</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Photo trompeuse, prix incohérent, produit interdit… L'équipe Diambar examine chaque
+            signalement.
+          </p>
+          <Textarea
+            rows={4}
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            maxLength={300}
+            placeholder="Décrivez le problème…"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={submitReport} disabled={reporting}>
+              Envoyer le signalement
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

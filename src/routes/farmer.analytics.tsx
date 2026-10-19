@@ -19,12 +19,13 @@ import {
 import { PageHeader } from "@/components/farmer/page-header";
 import { KpiCard } from "@/components/farmer/kpi-card";
 import { DiambarMapLazy } from "@/components/maps/diambar-map-lazy";
-import { products, restaurants, missions } from "@/data/mocks";
-import { useOrders } from "@/data/store";
+import { restaurants } from "@/data/mocks";
+import { useMissions, useOrders, useProducts } from "@/data/store";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/farmer/analytics")({
   head: () => ({ meta: [{ title: "Analytics · Diambar Agro" }] }),
@@ -41,7 +42,11 @@ const COLORS = [
 ];
 
 function AnalyticsPage() {
-  const orders = useOrders().filter((o) => o.farmerId === "f1");
+  const myFarmerId = useMyId("farmer");
+  const orders = useOrders().filter((o) => o.farmerId === myFarmerId);
+  // Produits et courses du compte (en base : ceux du serveur).
+  const products = useProducts().filter((p) => p.farmerId === myFarmerId);
+  const missions = useMissions();
 
   // Ventes par produit calculées depuis les vraies lignes de commande
   // (remplace l'ancien champ statique product.ordersThisMonth, jamais mis à jour).
@@ -272,7 +277,7 @@ function AnalyticsPage() {
                     {i + 1}
                   </span>
                   <img
-                    src={c.restaurant.avatar}
+                    src={c.restaurant.avatar || undefined}
                     alt=""
                     className="h-9 w-9 rounded-lg object-cover"
                   />

@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/farmer/page-header";
 import { SupplierForm } from "@/components/restaurant/supplier-form";
-import { useSupplier, supplierActions } from "@/data/store";
+import { useSupplier } from "@/data/store";
 import { restaurants } from "@/data/mocks";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/suppliers/$supplierId/edit")({
   head: () => ({ meta: [{ title: "Modifier fournisseur · Restaurant" }] }),
@@ -13,9 +15,10 @@ export const Route = createFileRoute("/restaurant/suppliers/$supplierId/edit")({
 });
 
 function EditSupplier() {
+  const myRestaurantId = useMyId("restaurant");
   const nav = useNavigate();
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const { supplierId } = Route.useParams();
   const s = useSupplier(supplierId);
   if (!s || s.restaurantId !== myRestaurant?.id)
@@ -42,8 +45,12 @@ function EditSupplier() {
       <SupplierForm
         initial={s}
         submitLabel="Enregistrer les modifications"
-        onSubmit={(v) => {
-          supplierActions.update(supplierId, v);
+        onSubmit={async (v) => {
+          const res = await market.updateSupplier(supplierId, v);
+          if (!res.ok) {
+            toast.error(res.message);
+            return;
+          }
           toast.success("Fournisseur mis à jour");
           nav({ to: "/restaurant/suppliers/$supplierId", params: { supplierId } });
         }}

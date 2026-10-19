@@ -5,8 +5,17 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
 import { Button } from "@/components/ui/button";
 import { productActions } from "@/data/store";
+import { market } from "@/data/market-remote";
+import { myId } from "@/data/market-mode";
 import { downloadCsv } from "@/lib/export";
-import { CATEGORIES, SAMPLE_IMAGES } from "@/components/farmer/product-form";
+import { SAMPLE_IMAGES } from "@/components/farmer/product-catalog";
+import { getCategories } from "@/data/catalog";
+import {
+  categoryNameProblem,
+  cleanCategoryName,
+  sameCategory,
+  similarCategories,
+} from "@/lib/category-name";
 import type { Product } from "@/data/mocks";
 
 export const Route = createFileRoute("/farmer/products/import")({
@@ -70,8 +79,19 @@ function parseCsv(text: string): ParsedRow[] {
 
     const errors: string[] = [];
     if (!row.name) errors.push("nom manquant");
-    if (!CATEGORIES.includes(row.category as Product["category"]))
-      errors.push(`catégorie invalide (attendu : ${CATEGORIES.join(", ")})`);
+    // Catégorie existante (même écrite autrement), sinon nouvelle catégorie
+    // proposée ; un nom proche d'une existante est sans doute une faute.
+    const categories = getCategories();
+    const known = sameCategory(row.category, categories);
+    if (known) row.category = known.name;
+    else {
+      const close = similarCategories(row.category, categories, 1, { typosOnly: true })[0];
+      const problem = categoryNameProblem(row.category);
+      if (!row.category.trim()) errors.push("catégorie manquante");
+      else if (close) errors.push(`catégorie inconnue : vouliez-vous dire « ${close.name} » ?`);
+      else if (problem) errors.push(problem);
+      else row.category = cleanCategoryName(row.category);
+    }
     if (!Number.isFinite(Number(row.price)) || Number(row.price) <= 0) errors.push("prix invalide");
     if (!Number.isFinite(Number(row.stock)) || Number(row.stock) < 0) errors.push("stock invalide");
 
@@ -88,7 +108,7 @@ function ImportPage() {
 
   const handleFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      toast.error("Format non pris en charge dans cette démo — utilisez un fichier .csv");
+      toast.error("Format non pris en charge : utilisez un fichier .csv");
       return;
     }
     const reader = new FileReader();
@@ -106,13 +126,14 @@ function ImportPage() {
 
   const validCount = rows.filter((r) => r.errors.length === 0).length;
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     const valid = rows.filter((r) => r.errors.length === 0);
-    valid.forEach((r, i) => {
+    let done = 0;
+    for (const [i, r] of valid.entries()) {
       const stock = Number(r.stock);
-      productActions.create({
+      const res = await market.saveProduct(null, {
         name: r.name,
-        category: r.category as Product["category"],
+        category: r.category,
         pricePerKg: Number(r.price),
         unit: r.unit || "kg",
         stock,
@@ -120,13 +141,17 @@ function ImportPage() {
         sku: r.sku || `SKU-IMP-${Date.now()}-${i}`,
         image: SAMPLE_IMAGES[i % SAMPLE_IMAGES.length],
         status: "active",
-        ordersThisMonth: 0,
-        farmerId: "f1",
+        farmerId: myId("farmer"),
       });
-    });
-    setImported(valid.length);
+      if (!res.ok) {
+        toast.error(`${r.name} : ${res.message}`);
+        continue;
+      }
+      done++;
+    }
+    setImported(done);
     setStep(3);
-    toast.success(`${valid.length} produit(s) importé(s)`);
+    toast.success(`${done} produit(s) importé(s)`);
   };
 
   const downloadTemplate = () => {

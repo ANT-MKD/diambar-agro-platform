@@ -131,9 +131,9 @@ ${itemsHtml ? `<div class="section">${itemsHtml}</div>` : ""}
 
         {tx.kind === "refund_adjustment" && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
-            Un client a été remboursé sur la commande {tx.orderRef} — votre part du montant
-            remboursé a été reprise sur vos revenus, au même taux de commission que la livraison
-            d'origine.
+            {tx.note
+              ? `${tx.note} sur la commande ${tx.orderRef} : ${tx.net < 0 ? "montant retenu sur" : "montant ajouté à"} vos revenus, selon la décision de l'équipe.`
+              : `Un client a été remboursé sur la commande ${tx.orderRef} — votre part du montant remboursé a été reprise sur vos revenus, au même taux de commission que la livraison d'origine.`}
           </div>
         )}
 

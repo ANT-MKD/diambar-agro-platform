@@ -22,6 +22,7 @@ import { restaurants, products, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMyId } from "@/data/market-mode";
 
 const searchSchema = z.object({ q: z.string().optional() });
 
@@ -42,9 +43,13 @@ const TABS: { v: "all" | OrderStatus; label: string }[] = [
 ];
 
 function OrdersPage() {
+  const myFarmerId = useMyId("farmer");
   const { q: initialQ } = Route.useSearch();
   const allOrders = useOrders();
-  const items = useMemo(() => allOrders.filter((o) => o.farmerId === "f1"), [allOrders]);
+  const items = useMemo(
+    () => allOrders.filter((o) => o.farmerId === myFarmerId),
+    [allOrders, myFarmerId],
+  );
   const [tab, setTab] = useState<"all" | OrderStatus>("all");
   const [q, setQ] = useState(initialQ ?? "");
   const [view, setView] = useState<"kanban" | "list">("kanban");
@@ -157,7 +162,11 @@ function OrdersPage() {
                 params={{ orderId: o.id }}
                 className="flex items-center gap-4 p-4 hover:bg-accent transition"
               >
-                <img src={r?.avatar} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                <img
+                  src={r?.avatar || undefined}
+                  alt=""
+                  className="h-11 w-11 rounded-xl object-cover"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{r?.name}</span>

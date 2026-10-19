@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { Role } from "./mocks";
 import { SUPPORT_AGENTS } from "./disputes";
 import { createStore } from "./persist";
+import { isMarketRemote } from "./market-mode";
 
 export type TicketStatus = "open" | "answered" | "closed";
 export type TicketRole = Extract<Role, "farmer" | "restaurant" | "driver">;
@@ -31,6 +32,10 @@ export type SupportTicket = {
   status: TicketStatus;
   createdAt: string;
   messages: TicketMessage[];
+  /** Mode base : référence (TCK-0001), personne assignée, commande. */
+  reference?: string;
+  assigneeId?: string;
+  orderId?: string;
 };
 
 // Priorité déterminée par la catégorie au moment de la création (même
@@ -110,7 +115,9 @@ export function useSupportTickets() {
 }
 
 export function useSupportTicketsFor(fromName: string) {
-  return useSupportTickets().filter((t) => t.fromName === fromName);
+  const all = useSupportTickets();
+  // Mode base : le serveur n'envoie que les demandes de la personne.
+  return isMarketRemote() ? all : all.filter((t) => t.fromName === fromName);
 }
 
 export const supportTicketActions = {
@@ -228,3 +235,14 @@ export const TICKET_CATEGORY_LABEL: Record<TicketCategory, string> = {
   technical: "Technique et bugs",
   other: "Autres",
 };
+
+/** Mode base de données : les données de démonstration de ce module ne
+ * sont pas montrées (le module passera en base dans un prochain lot). */
+export function clearSupportDemoData() {
+  ticketsStore.replace([]);
+}
+
+/** Mode base : demandes lues sur le serveur. */
+export function replaceSupportTickets(list: SupportTicket[]) {
+  ticketsStore.replace(list);
+}

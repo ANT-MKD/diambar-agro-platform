@@ -6,12 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileDrop } from "./file-drop";
 import {
   PARTY_LABEL,
-  disputeActions,
   type Dispute,
   type DisputeAttachment,
   type DisputeParty,
 } from "@/data/disputes";
 import { relativeTime } from "@/lib/format";
+import { market } from "@/data/market-remote";
+import { useBaseMode } from "@/data/demo-only";
 
 const TONE: Record<DisputeParty, string> = {
   restaurant: "bg-amber-500/10 border-amber-500/30",
@@ -36,6 +37,7 @@ export function DisputeThread({
   const [text, setText] = useState("");
   const [internal, setInternal] = useState(false);
   const [files, setFiles] = useState<DisputeAttachment[]>([]);
+  const base = useBaseMode();
 
   const visible = dispute.messages.filter((m) => !m.internal || canPostInternal);
 
@@ -95,19 +97,23 @@ export function DisputeThread({
       {!readOnly && (
         <form
           className="mt-4 space-y-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             if (!text.trim()) {
               toast.error("Message vide");
               return;
             }
-            disputeActions.reply(dispute.id, {
+            const res = await market.replyDispute(dispute.id, {
               role,
               name,
               text: text.trim(),
               internal,
               attachments: files,
             });
+            if (!res.ok) {
+              toast.error(res.message);
+              return;
+            }
             setText("");
             setFiles([]);
             setInternal(false);
@@ -126,6 +132,7 @@ export function DisputeThread({
             by={name}
             label="Joindre une preuve"
             max={3}
+            {...(base ? { accept: "image/jpeg,image/png,image/webp" } : {})}
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             {canPostInternal ? (

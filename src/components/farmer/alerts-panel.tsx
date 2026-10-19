@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Bell, ArrowRight } from "lucide-react";
 import { relativeTime } from "@/lib/format";
-import { NOTIF_ICONS, NOTIF_TONES } from "@/components/common/notification-center";
+import { NOTIF_ICONS, NOTIF_TONES } from "@/components/common/notification-styles";
 import type { AppNotification } from "@/data/mocks";
 
 export function AlertsPanel({

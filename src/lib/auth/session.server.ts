@@ -14,6 +14,17 @@ export type PendingTwoFa = {
   rememberMe: boolean;
 };
 
+/** Activation de la double authentification : un code est envoyé à
+ * l'adresse du compte et doit être saisi, preuve que l'email arrive bien
+ * (sinon la personne ne pourrait plus se connecter). */
+export type PendingTwoFaSetup = {
+  userId: string;
+  code: string;
+  expiresAt: number;
+  sentAt: number;
+  attempts: number;
+};
+
 /** Informations spécifiques au métier (étape 3 de l'inscription) — tous les
  * champs sont optionnels côté type puisqu'ils dépendent du rôle choisi. */
 export type RegisterDetails = {
@@ -33,11 +44,12 @@ export type RegisterDetails = {
 export type PendingRegistration = {
   email: string;
   phone: string;
-  role: Role;
+  role: "farmer" | "restaurant" | "driver";
   firstName: string;
   lastName: string;
   city: string;
-  password: string;
+  /** Déjà haché (bcrypt) : le mot de passe en clair ne reste pas dans le cookie. */
+  passwordHash: string;
   details?: RegisterDetails;
   acceptedTermsAt: string;
   id: string;
@@ -47,11 +59,33 @@ export type PendingRegistration = {
   attempts: number;
 };
 
+/** Installation en cours : identité saisie, code envoyé par email. */
+export type PendingInstall = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  id: string;
+  /** Vide quand aucune vérification par email n'est possible (code
+   * d'installation seul). */
+  code: string;
+  sentAt: number;
+  expiresAt: number;
+  attempts: number;
+  /** Email vérifié (ou code d'installation accepté) : reste le mot de passe. */
+  verifiedAt?: number;
+};
+
 export type AuthSessionData = {
   email?: string;
   role?: Role;
+  /** Empreinte du mot de passe à l'ouverture de la session : si le mot de
+   * passe change, la session n'est plus reconnue. */
+  pv?: string;
   pendingTwoFa?: PendingTwoFa;
   pendingRegistration?: PendingRegistration;
+  pendingTwoFaSetup?: PendingTwoFaSetup;
+  pendingInstall?: PendingInstall;
 };
 
 const MIN_SECRET_LENGTH = 32;

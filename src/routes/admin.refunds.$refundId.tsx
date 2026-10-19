@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, useRouteContext } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -54,8 +55,17 @@ export const Route = createFileRoute("/admin/refunds/$refundId")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: AdminRefundDetail,
+  component: RefundDetailRoute,
 });
+
+// Avec la base, les remboursements se suivent et se versent dans Encaissements.
+function RefundDetailRoute() {
+  return useBaseMode() ? (
+    <Navigate to="/admin/payments" search={{ tab: "refunds" }} replace />
+  ) : (
+    <AdminRefundDetail />
+  );
+}
 
 const STATUS_CLASS: Record<RefundStatus, string> = {
   pending: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",

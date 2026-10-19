@@ -13,17 +13,19 @@ import {
 } from "@/components/ui/dialog";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
-import { DOC_LABEL, docRenewalActions, useDocRenewals, type DocRenewal } from "@/data/store";
+import { DOC_LABEL, myDriverId, useDocRenewals, type DocRenewal } from "@/data/store";
+import { market } from "@/data/market-remote";
 
 /** Envoi d'un document renouvelé (nouvelle échéance + photo) à valider par
  * l'équipe Diambar. */
 export function RenewDocButton({ doc }: { doc: DocRenewal["doc"] }) {
   const pending = useDocRenewals().find(
-    (r) => r.driverId === "d1" && r.doc === doc && r.status === "pending",
+    (r) => r.driverId === myDriverId() && r.doc === doc && r.status === "pending",
   );
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [photos, setPhotos] = useState<DisputeAttachment[]>([]);
+  const [sending, setSending] = useState(false);
   if (pending) {
     return (
       <div className="mt-2 text-[11px] font-medium text-amber-600 dark:text-amber-400">
@@ -31,8 +33,11 @@ export function RenewDocButton({ doc }: { doc: DocRenewal["doc"] }) {
       </div>
     );
   }
-  const submit = () => {
-    const result = docRenewalActions.submit({ doc, newExpiry: date, photos });
+  const submit = async () => {
+    if (sending) return;
+    setSending(true);
+    const result = await market.submitDocRenewal(doc, date, photos);
+    setSending(false);
     if (!result.ok) return toast.error(result.message);
     toast.success("Document envoyé · l'équipe Diambar le vérifie");
     setOpen(false);
@@ -76,14 +81,16 @@ export function RenewDocButton({ doc }: { doc: DocRenewal["doc"] }) {
             by="Vous"
             kind="photo"
             label="Photo du document"
-            accept="image/*,application/pdf"
+            accept={market.isRemote() ? "image/*" : "image/*,application/pdf"}
             max={2}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={submit}>Envoyer</Button>
+            <Button onClick={submit} disabled={sending}>
+              Envoyer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

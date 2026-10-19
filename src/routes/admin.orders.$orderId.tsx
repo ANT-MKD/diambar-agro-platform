@@ -13,12 +13,12 @@ import {
 import { PageHeader } from "@/components/farmer/page-header";
 import { OrderStatusBadge, ORDER_LABEL } from "@/components/farmer/status-badge";
 import { AdminBadge } from "@/components/admin/admin-badge";
-import { useOrder, useOrders, useRestaurantOrders, useMissions } from "@/data/store";
+import { useOrder, useOrders, useRestaurantOrders, useMissions, useProducts } from "@/data/store";
 import { useAllDisputes } from "@/data/disputes";
 import { useIncidents } from "@/data/business";
 import { useCommissionTiers } from "@/data/admin-store";
 import { commissionForOrder, deliveredVolumeByFarmer } from "@/lib/commission";
-import { farmers, restaurants, drivers, products, type OrderStatus } from "@/data/mocks";
+import { farmers, restaurants, drivers, type OrderStatus } from "@/data/mocks";
 import { formatFCFA, relativeTime } from "@/lib/format";
 import { useRecordedCommissions } from "@/data/store";
 
@@ -39,6 +39,8 @@ export const Route = createFileRoute("/admin/orders/$orderId")({
 const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "preparing", "delivering", "delivered"];
 
 function AdminOrderDetail() {
+  // Produits réels (base) ou de démonstration, selon le mode.
+  const products = useProducts();
   const { orderId } = Route.useParams();
   const order = useOrder(orderId);
   const allOrders = useOrders();
@@ -350,7 +352,11 @@ function PartyRow({
   return (
     <div className="flex items-center gap-3">
       {avatar ? (
-        <img src={avatar} alt="" className="h-10 w-10 rounded-xl object-cover shrink-0" />
+        <img
+          src={avatar || undefined}
+          alt=""
+          className="h-10 w-10 rounded-xl object-cover shrink-0"
+        />
       ) : (
         <div className="h-10 w-10 rounded-xl bg-muted grid place-items-center text-muted-foreground shrink-0">
           <Truck className="h-4 w-4" />

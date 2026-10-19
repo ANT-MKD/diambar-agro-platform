@@ -26,7 +26,6 @@ import { PageHeader } from "@/components/farmer/page-header";
 import {
   useDriverMissions,
   useDriverOnline,
-  driverOnlineActions,
   useDriverWallet,
   useDriverVehicle,
   useVehicleIssues,
@@ -35,6 +34,7 @@ import {
   useMyMissionEligibility,
   missionActions,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import { missionEligibility } from "@/lib/mission-eligibility";
 import { useIncidents, INCIDENT_TYPE_LABEL } from "@/data/business";
 import { useSecurity } from "@/data/security";
@@ -52,6 +52,7 @@ import {
 } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/dashboard")({
   head: () => ({ meta: [{ title: "Tableau de bord · Livreur Diambar" }] }),
@@ -85,6 +86,7 @@ function ProgressRing({ pct }: { pct: number }) {
 }
 
 function DriverDashboard() {
+  const myDriverId = useMyId("driver");
   const missions = useDriverMissions();
   const online = useDriverOnline();
   const wallet = useDriverWallet();
@@ -111,11 +113,11 @@ function DriverDashboard() {
   const available = missions.filter((m) => m.status === "available");
   const active = missions.filter(
     (m) =>
-      m.driverId === "d1" &&
+      m.driverId === myDriverId &&
       (m.status === "accepted" || m.status === "pickup" || m.status === "loaded"),
   );
   const nextMission = active[0] ?? null;
-  const delivered = missions.filter((m) => m.driverId === "d1" && m.status === "delivered");
+  const delivered = missions.filter((m) => m.driverId === myDriverId && m.status === "delivered");
   const totalDistance = delivered.reduce((s, m) => s + m.distanceKm, 0);
 
   // Les missions de démo sont figées dans le passé : on ancre "aujourd'hui"
@@ -123,10 +125,10 @@ function DriverDashboard() {
   const { today, yesterday } = useMemo(() => referenceDay(missions), [missions]);
 
   const todaysMissions = missions.filter(
-    (m) => m.driverId === "d1" && dayKey(m.scheduledFor) === today,
+    (m) => m.driverId === myDriverId && dayKey(m.scheduledFor) === today,
   );
   const yesterdaysMissions = missions.filter(
-    (m) => m.driverId === "d1" && dayKey(m.scheduledFor) === yesterday,
+    (m) => m.driverId === myDriverId && dayKey(m.scheduledFor) === yesterday,
   );
   const deliveredToday = todaysMissions.filter((m) => m.status === "delivered");
   const remainingToday = todaysMissions.filter(
@@ -173,10 +175,10 @@ function DriverDashboard() {
           (m) =>
             m.status !== "cancelled" &&
             dayKey(m.scheduledFor) === today &&
-            (m.driverId === "d1" || m.status === "available"),
+            (m.driverId === myDriverId || m.status === "available"),
         )
         .sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor)),
-    [missions, today],
+    [missions, today, myDriverId],
   );
 
   const openIncidents = incidents.filter((i) => i.status !== "resolved").slice(0, 2);
@@ -238,8 +240,8 @@ function DriverDashboard() {
       ? { label: "Livraison", ...m.dropoff }
       : { label: "Collecte", ...m.pickup };
 
-  const acceptMission = (id: string, ref: string) => {
-    const result = missionActions.accept(id);
+  const acceptMission = async (id: string, ref: string) => {
+    const result = await market.acceptMission(id);
     if (!result.ok) {
       toast.error(result.message);
       return;
@@ -259,7 +261,10 @@ function DriverDashboard() {
         actions={
           <Button
             variant={online ? "outline" : "default"}
-            onClick={() => driverOnlineActions.toggle()}
+            onClick={async () => {
+              const res = await market.setOnline(!online);
+              if (!res.ok) toast.error(res.message);
+            }}
             className="gap-2"
           >
             {online ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
@@ -630,46 +635,48 @@ function DriverDashboard() {
 
         {/* Sidebar droite */}
         <div className="space-y-6">
-          {/* Alertes & incidents */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold flex items-center gap-2">
-                <TriangleAlert className="h-4 w-4 text-destructive" />
-                Alertes & incidents
-              </h3>
-              <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
-                Voir tout
-              </Link>
+          <>
+            {/* Alertes & incidents */}
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold flex items-center gap-2">
+                  <TriangleAlert className="h-4 w-4 text-destructive" />
+                  Alertes & incidents
+                </h3>
+                <Link to="/driver/incidents" className="text-xs text-primary hover:underline">
+                  Voir tout
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {openIncidents.map((i) => (
+                  <div
+                    key={i.id}
+                    className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
+                  >
+                    <div className="font-semibold text-amber-700 dark:text-amber-400">
+                      {INCIDENT_TYPE_LABEL[i.type]}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {i.missionRef} · {relativeTime(i.createdAt)}
+                    </div>
+                  </div>
+                ))}
+                {lastPayment && (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
+                    <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      Paiement reçu
+                    </div>
+                    <div className="text-muted-foreground">
+                      + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
+                    </div>
+                  </div>
+                )}
+                {openIncidents.length === 0 && !lastPayment && (
+                  <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              {openIncidents.map((i) => (
-                <div
-                  key={i.id}
-                  className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs"
-                >
-                  <div className="font-semibold text-amber-700 dark:text-amber-400">
-                    {INCIDENT_TYPE_LABEL[i.type]}
-                  </div>
-                  <div className="text-muted-foreground">
-                    {i.missionRef} · {relativeTime(i.createdAt)}
-                  </div>
-                </div>
-              ))}
-              {lastPayment && (
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-                  <div className="font-semibold text-emerald-700 dark:text-emerald-400">
-                    Paiement reçu
-                  </div>
-                  <div className="text-muted-foreground">
-                    + {formatFCFA(lastPayment.amount)} · {relativeTime(lastPayment.at)}
-                  </div>
-                </div>
-              )}
-              {openIncidents.length === 0 && !lastPayment && (
-                <p className="text-xs text-muted-foreground">Aucune alerte pour le moment.</p>
-              )}
-            </div>
-          </div>
+          </>
 
           {/* Portefeuille */}
           <div className="glass rounded-2xl p-5 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10">
@@ -764,33 +771,35 @@ function DriverDashboard() {
             </div>
           )}
 
-          {/* État du véhicule */}
-          <div className="glass rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold flex items-center gap-2">
-                <Car className="h-4 w-4" />
-                État du véhicule
-              </h3>
-              <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
-                Voir les détails
-              </Link>
+          <>
+            {/* État du véhicule */}
+            <div className="glass rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold flex items-center gap-2">
+                  <Car className="h-4 w-4" />
+                  État du véhicule
+                </h3>
+                <Link to="/driver/vehicle" className="text-xs text-primary hover:underline">
+                  Voir les détails
+                </Link>
+              </div>
+              <div className="text-sm font-semibold">
+                {vehicle.brand} {vehicle.model}
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
+              <span
+                className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
+              >
+                {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
+                {vehicleOk ? "Bon état" : "À vérifier"}
+              </span>
+              <div className="mt-3 text-xs text-muted-foreground">
+                {vehicle.nextMaintenanceAt
+                  ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
+                  : "Aucune maintenance programmée"}
+              </div>
             </div>
-            <div className="text-sm font-semibold">
-              {vehicle.brand} {vehicle.model}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">{vehicle.plate}</div>
-            <span
-              className={`inline-flex mt-2 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${vehicleOk ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}
-            >
-              {vehicleOk ? <ShieldCheck className="h-3 w-3" /> : <Wrench className="h-3 w-3" />}
-              {vehicleOk ? "Bon état" : "À vérifier"}
-            </span>
-            <div className="mt-3 text-xs text-muted-foreground">
-              {vehicle.nextMaintenanceAt
-                ? `Prochaine maintenance dans ${daysUntil(vehicle.nextMaintenanceAt)} jour(s)`
-                : "Aucune maintenance programmée"}
-            </div>
-          </div>
+          </>
         </div>
       </div>
     </div>

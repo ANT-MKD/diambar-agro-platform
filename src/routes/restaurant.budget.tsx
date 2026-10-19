@@ -49,7 +49,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatFCFA } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
-import { useBudget, budgetActions } from "@/data/budget";
+import { useBudget, budgetActions, getBudget } from "@/data/budget";
+import { market } from "@/data/market-remote";
 import {
   useRestaurantOrders,
   useProducts,
@@ -61,6 +62,7 @@ import { isInvoiceOverdue } from "@/lib/invoice-data";
 import { itemsSubtotal } from "@/lib/recurring-engine";
 import { CATEGORY_COLOR } from "@/lib/category-colors";
 import type { Product, RestaurantOrder } from "@/data/mocks";
+import { categoryKey } from "@/lib/category-name";
 
 export const Route = createFileRoute("/restaurant/budget")({
   head: () => ({
@@ -82,15 +84,18 @@ export const Route = createFileRoute("/restaurant/budget")({
   component: BudgetPage,
 });
 
-const CATEGORY_MAP: Record<string, string> = {
-  Légumes: "legumes",
-  Fruits: "fruits",
-  Céréales: "cereales",
-  Tubercules: "cereales",
-  Volaille: "proteines",
-  Viande: "proteines",
-  Épices: "autres",
-};
+/** Poste du budget d'une catégorie de produits, y compris celles proposées
+ * par les producteurs (« Champignons » → légumes, « Poissons » → protéines). */
+function budgetBucket(category: string): string {
+  const k = categoryKey(category);
+  if (/viande|volaille|poisson|oeuf|lait|fromage|proteine|fruit de mer|crevette/.test(k))
+    return "proteines";
+  if (/legume|champignon|salade|herbe|maraich|aromat/.test(k)) return "legumes";
+  if (/fruit|agrume|mangue|banane/.test(k)) return "fruits";
+  if (/cereal|tubercule|riz|\bmil\b|mais|farine|manioc|patate|igname|fonio|niebe|arachide/.test(k))
+    return "cereales";
+  return "autres";
+}
 
 function monthKeyOf(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -178,7 +183,7 @@ function BudgetPage() {
         total += o.total;
         o.items.forEach((it) => {
           const p = products.find((x) => x.id === it.productId);
-          const bucket = p ? (CATEGORY_MAP[p.category] ?? "autres") : "autres";
+          const bucket = p ? budgetBucket(p.category) : "autres";
           byCategory[bucket] = (byCategory[bucket] ?? 0) + it.qty * it.price;
           const raw = p?.category ?? "Autres";
           byRawCategory[raw] = (byRawCategory[raw] ?? 0) + it.qty * it.price;
@@ -356,9 +361,17 @@ function BudgetPage() {
     "Budget actuel (référence)": budget.monthly,
   }));
 
-  const saveBudget = () => {
+  // L'écran change tout de suite ; avec la base, le budget est enregistré.
+  const persist = async () => {
+    const res = await market.saveBudget(getBudget());
+    if (!res.ok) toast.error(res.message);
+    return res.ok;
+  };
+
+  const saveBudget = async () => {
     budgetActions.setMonthly(Number(draftMonthly) || 0);
     budgetActions.setThreshold(Number(draftThreshold) || 80);
+    if (!(await persist())) return;
     toast.success("Budget mis à jour");
     setManageOpen(false);
   };
@@ -963,8 +976,11 @@ function BudgetPage() {
                   <Input
                     type="number"
                     defaultValue={c.allocated}
-                    onBlur={(e) => {
-                      budgetActions.setCategory(c.key, Number(e.target.value) || 0);
+                    onBlur={async (e) => {
+                      const value = Number(e.target.value) || 0;
+                      if (value === c.allocated) return;
+                      budgetActions.setCategory(c.key, value);
+                      if (!(await persist())) return;
                       toast.success(`Enveloppe « ${c.label} » mise à jour`);
                     }}
                     className="h-8 max-w-36 text-xs"
@@ -981,10 +997,11 @@ function BudgetPage() {
             <Button
               variant="ghost"
               className="w-full"
-              onClick={() => {
+              onClick={async () => {
                 budgetActions.reset();
                 setDraftMonthly("1200000");
                 setDraftThreshold("80");
+                if (!(await persist())) return;
                 toast.success("Budget réinitialisé");
               }}
             >

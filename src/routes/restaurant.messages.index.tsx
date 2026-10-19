@@ -1,5 +1,5 @@
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
-import { Send, Search, MessageSquare, Paperclip, Plus } from "lucide-react";
+import { Send, Search, MessageSquare, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/farmer/page-header";
@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
+import { market } from "@/data/market-remote";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/messages/")({
   head: () => ({ meta: [{ title: "Messages · Restaurant" }] }),
@@ -29,8 +31,9 @@ export const Route = createFileRoute("/restaurant/messages/")({
 });
 
 function Messages() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const suppliers = useSuppliers();
   const convs = useConversations();
   // Une conversation réelle par fournisseur du carnet — plus un unique
@@ -50,23 +53,47 @@ function Messages() {
       c.lastMessage.toLowerCase().includes(q.toLowerCase()),
   );
 
-  const myCarnet = suppliers.filter((s) => s.restaurantId === myRestaurant?.id && s.farmerId);
+  const remoteMode = market.isRemote();
   const conversedFarmerIds = new Set(enriched.map((c) => c.farmerId));
-  const startableSuppliers = myCarnet.filter((s) => !conversedFarmerIds.has(s.farmerId!));
+  // Mode base : tous les producteurs actifs de l'annuaire ; démo : le carnet.
+  const startableSuppliers = remoteMode
+    ? farmers
+        .filter((f) => !conversedFarmerIds.has(f.id))
+        .map((f) => ({ id: f.id, farmerId: f.id, name: f.farm }))
+    : suppliers
+        .filter((s) => s.restaurantId === myRestaurant?.id && s.farmerId)
+        .filter((s) => !conversedFarmerIds.has(s.farmerId!));
 
   const open = (id: string) => {
     setActiveId(id);
-    conversationActions.markRead(id);
+    if (remoteMode) market.markConversationRead(id);
+    else conversationActions.markRead(id);
   };
-  const startConversation = (farmerId: string) => {
+  const startConversation = async (farmerId: string) => {
     if (!myRestaurant) return;
-    const id = conversationActions.startOrGet(myRestaurant.id, farmerId);
-    setActiveId(id);
+    if (remoteMode) {
+      const res = await market.startConversation({ farmerId });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      setActiveId(res.id);
+    } else {
+      setActiveId(conversationActions.startOrGet(myRestaurant.id, farmerId));
+    }
     toast.success("Nouvelle conversation prête");
   };
-  const send = () => {
+  const send = async () => {
     if (!active || !draft.trim() || !myRestaurant) return;
-    conversationActions.send(active.id, draft.trim(), "restaurant");
+    if (remoteMode) {
+      const res = await market.sendMessage(active.id, draft.trim());
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+    } else {
+      conversationActions.send(active.id, draft.trim(), "restaurant");
+    }
     setDraft("");
   };
 
@@ -86,7 +113,7 @@ function Messages() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {startableSuppliers.map((s) => (
-                  <DropdownMenuItem key={s.id} onClick={() => startConversation(s.farmerId!)}>
+                  <DropdownMenuItem key={s.id} onClick={() => void startConversation(s.farmerId!)}>
                     {s.name}
                   </DropdownMenuItem>
                 ))}
@@ -123,7 +150,7 @@ function Messages() {
                   className={`w-full p-3 flex items-center gap-3 border-b border-border text-left hover:bg-accent transition ${isActive ? "bg-accent" : ""}`}
                 >
                   <img
-                    src={c.farmer.avatar}
+                    src={c.farmer.avatar || undefined}
                     alt=""
                     className="h-10 w-10 rounded-full object-cover"
                   />
@@ -155,7 +182,7 @@ function Messages() {
           <div className="flex flex-col">
             <div className="p-4 border-b border-border flex items-center gap-3">
               <img
-                src={active.farmer.avatar}
+                src={active.farmer.avatar || undefined}
                 alt=""
                 className="h-10 w-10 rounded-full object-cover"
               />
@@ -184,13 +211,10 @@ function Messages() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                send();
+                void send();
               }}
               className="p-3 border-t border-border flex gap-2"
             >
-              <Button type="button" size="icon" variant="outline">
-                <Paperclip className="h-4 w-4" />
-              </Button>
               <Input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -238,7 +262,7 @@ function DriverThreads({ restaurantId, name }: { restaurantId: string; name: str
             size="sm"
             onClick={() => setOpenId(t.id)}
           >
-            Livreur · {relativeTime(t.lastAt)}
+            {t.driverName ?? "Livreur"} · {relativeTime(t.lastAt)}
           </Button>
         ))}
       </div>
@@ -251,7 +275,8 @@ function DriverThreads({ restaurantId, name }: { restaurantId: string; name: str
                 className={`rounded-xl px-3 py-2 text-sm max-w-[85%] ${m.from === "me" ? "bg-muted" : "bg-primary text-primary-foreground ml-auto"}`}
               >
                 <div className="text-[10px] opacity-70">
-                  {m.from === "me" ? "Livreur" : (m.senderName ?? name)} · {relativeTime(m.at)}
+                  {m.from === "me" ? (active.driverName ?? "Livreur") : (m.senderName ?? name)} ·{" "}
+                  {relativeTime(m.at)}
                 </div>
                 {m.text}
               </div>
@@ -262,6 +287,13 @@ function DriverThreads({ restaurantId, name }: { restaurantId: string; name: str
             onSubmit={(e) => {
               e.preventDefault();
               if (!reply.trim()) return;
+              if (market.isRemote()) {
+                void market.sendMessage(active.id, reply.trim()).then((res) => {
+                  if (res.ok) setReply("");
+                  else toast.error(res.message);
+                });
+                return;
+              }
               driverConversationActions.send(active.id, reply.trim(), "them", name);
               setReply("");
             }}

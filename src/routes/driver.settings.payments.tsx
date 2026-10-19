@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useBaseMode } from "@/data/demo-only";
+import { PayoutAccountsBase } from "@/components/common/payout-accounts";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
@@ -34,6 +36,11 @@ const PAYOUT_FREQUENCIES = [
 ] as const;
 
 function PaymentSettings() {
+  // Mode base : numéros de retrait enregistrés ; pas de virement automatique.
+  return useBaseMode() ? <PayoutAccountsBase /> : <DemoPaymentSettings />;
+}
+
+function DemoPaymentSettings() {
   const settings = useDriverSettings();
   const [methodOpen, setMethodOpen] = useState(false);
   const [methodType, setMethodType] = useState<"Wave" | "Orange Money" | "Free Money" | "Espèces">(

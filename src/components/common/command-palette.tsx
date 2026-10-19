@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useHiddenInBase } from "@/data/demo-only";
 import { useNavigate } from "@tanstack/react-router";
 import {
   CommandDialog,
@@ -35,6 +36,7 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
   const orders = useOrders();
   const restoOrders = useRestaurantOrders();
   const suppliers = useSuppliers();
+  const hidden = useHiddenInBase();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -84,10 +86,12 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
               <TrendingUp className="mr-2 h-4 w-4" />
               Revenus
             </CommandItem>
-            <CommandItem onSelect={() => go("/farmer/messages")}>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Messages
-            </CommandItem>
+            {!hidden("/farmer/messages") && (
+              <CommandItem onSelect={() => go("/farmer/messages")}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Messages
+              </CommandItem>
+            )}
             <CommandItem onSelect={() => go("/farmer/notifications")}>
               <Bell className="mr-2 h-4 w-4" />
               Notifications
@@ -117,10 +121,12 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
               <Repeat className="mr-2 h-4 w-4" />
               Récurrentes
             </CommandItem>
-            <CommandItem onSelect={() => go("/restaurant/suppliers")}>
-              <Users className="mr-2 h-4 w-4" />
-              Fournisseurs
-            </CommandItem>
+            {!hidden("/restaurant/suppliers") && (
+              <CommandItem onSelect={() => go("/restaurant/suppliers")}>
+                <Users className="mr-2 h-4 w-4" />
+                Fournisseurs
+              </CommandItem>
+            )}
             <CommandItem onSelect={() => go("/restaurant/invoices")}>
               <FileText className="mr-2 h-4 w-4" />
               Factures
@@ -178,7 +184,7 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
               Nouveau retrait
             </CommandItem>
           )}
-          {showResto && (
+          {showResto && !hidden("/restaurant/suppliers") && (
             <CommandItem onSelect={() => go("/restaurant/suppliers/new")}>
               <Plus className="mr-2 h-4 w-4" />
               Nouveau fournisseur
@@ -237,7 +243,7 @@ export function CommandPalette({ scope = "all" }: { scope?: Scope }) {
           </CommandGroup>
         )}
 
-        {showResto && suppliers.length > 0 && (
+        {showResto && suppliers.length > 0 && !hidden("/restaurant/suppliers") && (
           <CommandGroup heading="Fournisseurs">
             {suppliers.slice(0, 6).map((s) => (
               <CommandItem

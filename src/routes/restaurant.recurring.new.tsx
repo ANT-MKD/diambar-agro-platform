@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useDeliveryQuote } from "@/data/delivery-quote";
+import { useMarketMode } from "@/data/market-mode";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -29,8 +31,8 @@ import {
   useAllProductReviews,
   useRestaurantProfile,
   useRestaurantOrders,
-  recurringOrderActions,
 } from "@/data/store";
+import { market } from "@/data/market-remote";
 import {
   farmers,
   type PaymentMethod,
@@ -40,7 +42,10 @@ import {
   type HolidayRuleAction,
   type RecurringFrequency,
 } from "@/data/mocks";
-import { CATEGORIES } from "@/components/farmer/product-form";
+import { useCategoryNames } from "@/data/catalog";
+import { useRules } from "@/data/rules";
+import { clampTime, firstDeliveryDay } from "@/lib/delivery-time";
+import { minutesOf } from "@/lib/platform-rules";
 import { formatFCFA } from "@/lib/format";
 import { farmerReviewStats } from "@/lib/farmer-stats";
 import { useReviews as useBusinessReviews } from "@/data/business";
@@ -54,7 +59,6 @@ export const Route = createFileRoute("/restaurant/recurring/new")({
 const STEPS = ["Fournisseur", "Produits", "Planification", "Règles", "Livraison"];
 const DAY_LABELS = ["D", "L", "M", "M", "J", "V", "S"];
 const DAY_NAMES = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-const PAY: PaymentMethod[] = ["Wave", "Orange Money", "Free Money", "Espèces"];
 
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
@@ -76,14 +80,22 @@ function NewRecurringOrder() {
   const [items, setItems] = useState<{ productId: string; qty: number }[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [category, setCategory] = useState<string>("Toutes");
+  const categoryNames = useCategoryNames();
 
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("weekly");
   const [intervalDays, setIntervalDays] = useState(1);
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1]);
   const [createTime, setCreateTime] = useState("08:00");
-  const [firstRunAt, setFirstRunAt] = useState(todayISODate());
-  const [deliverySlot, setDeliverySlot] = useState("14:00 – 16:00");
+  const rules = useRules();
+  // Première livraison possible : demain avant l'heure limite, sinon après-demain.
+  const earliestDelivery = new Date(firstDeliveryDay(new Date(), rules.cutoffHour))
+    .toISOString()
+    .slice(0, 10);
+  const [firstRunAt, setFirstRunAt] = useState(earliestDelivery);
+  const deliveryHours = useRules().deliveryHours;
+  const PAY = useRules().paymentMethods;
+  const [deliverySlot, setDeliverySlot] = useState(() => clampTime("09:00", deliveryHours));
   const [endType, setEndType] = useState<"never" | "on_date" | "after_count">("never");
   const [endDate, setEndDate] = useState(todayISODate());
   const [endCount, setEndCount] = useState(24);
@@ -97,9 +109,12 @@ function NewRecurringOrder() {
   const [onNonBusinessDay, setOnNonBusinessDay] = useState<HolidayRuleAction>("day_after");
 
   const [deliveryAddress, setDeliveryAddress] = useState(profile.deliveryAddress);
-  const [deliveryMode, setDeliveryMode] = useState<"standard" | "express">("standard");
+  const [shortagePreference, setShortagePreference] = useState<"partial" | "cancel">("partial");
   const [instructions, setInstructions] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(profile.paymentMethod);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    PAY.includes(profile.paymentMethod) ? profile.paymentMethod : (PAY[0] ?? "Wave"),
+  );
+  const [saving, setSaving] = useState(false);
 
   const farmerStats = useMemo(() => {
     return farmers.map((f) => {
@@ -145,7 +160,14 @@ function NewRecurringOrder() {
     const p = products.find((x) => x.id === i.productId);
     return s + (p?.pricePerKg ?? 0) * i.qty;
   }, 0);
-  const deliveryFee = deliveryFeeFor(deliveryAddress);
+  // Frais de livraison : le vrai devis (distance, poids) avec la base.
+  const { remote } = useMarketMode();
+  const quoteLines = useMemo(
+    () => items.map((i) => ({ productId: i.productId, qty: i.qty })),
+    [items],
+  );
+  const deliveryQuote = useDeliveryQuote(remote, deliveryAddress, quoteLines);
+  const deliveryFee = remote ? (deliveryQuote.quote?.total ?? 0) : deliveryFeeFor(deliveryAddress);
   const total = subtotal + deliveryFee;
 
   const selectedFarmer = farmers.find((f) => f.id === farmerId);
@@ -175,39 +197,50 @@ function NewRecurringOrder() {
 
   const canGoStep1 = !!farmerId;
   const canGoStep2 = items.length > 0;
+  const deliveryTimeOff = !/^\d{2}:\d{2}$/.test(deliverySlot)
+    ? "Choisissez l'heure de livraison."
+    : minutesOf(deliverySlot) < minutesOf(deliveryHours.from) ||
+        minutesOf(deliverySlot) > minutesOf(deliveryHours.to)
+      ? `Les livraisons se font entre ${deliveryHours.from} et ${deliveryHours.to}.`
+      : null;
+  // La commande part la veille, avant l'heure limite (sinon pas de livraison le lendemain).
+  const orderTimeOff = !/^\d{2}:\d{2}$/.test(createTime)
+    ? "Choisissez l'heure de la commande."
+    : minutesOf(createTime) >= rules.cutoffHour * 60
+      ? `La commande doit partir avant ${rules.cutoffHour} h (heure limite).`
+      : null;
+  const firstDateOff =
+    firstRunAt < earliestDelivery
+      ? `Première livraison possible le ${new Date(`${earliestDelivery}T00:00:00Z`).toLocaleDateString("fr-FR", { dateStyle: "long", timeZone: "UTC" })}.`
+      : null;
   const canGoStep3 =
-    daysOfWeek.length > 0 || frequency === "monthly" || frequency === "every_n_days";
+    (daysOfWeek.length > 0 || frequency === "monthly" || frequency === "every_n_days") &&
+    !deliveryTimeOff &&
+    !orderTimeOff &&
+    !firstDateOff;
 
   const toggleDay = (d: number) => {
     setDaysOfWeek((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
   };
 
-  const create = () => {
+  const create = async () => {
     const finalName = name.trim() || `Approvisionnement ${selectedFarmer?.farm ?? ""}`;
-    const finalItems = items.map((i) => ({
-      productId: i.productId,
-      qty: i.qty,
-      referencePrice: products.find((p) => p.id === i.productId)?.pricePerKg ?? 0,
-    }));
-    const first = new Date(firstRunAt);
-    const [h, m] = createTime.split(":").map(Number);
-    first.setHours(h, m, 0, 0);
-
-    recurringOrderActions.create({
+    setSaving(true);
+    const res = await market.createRecurring({
       name: finalName,
       farmerId: farmerId!,
-      items: finalItems,
+      items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
       frequency,
       intervalDays: frequency === "every_n_days" ? intervalDays : undefined,
       daysOfWeek: frequency === "monthly" || frequency === "every_n_days" ? [] : daysOfWeek,
-      createTime,
-      deliverySlot,
-      firstRunAt: first.toISOString(),
+      deliveryTime: deliverySlot,
+      orderTime: createTime,
+      firstDeliveryOn: firstRunAt,
       end:
         endType === "never"
           ? { type: "never" }
           : endType === "on_date"
-            ? { type: "on_date", date: new Date(endDate).toISOString() }
+            ? { type: "on_date", date: endDate }
             : { type: "after_count", count: endCount },
       rules: {
         priceIncreaseThresholdPct: priceThreshold,
@@ -218,10 +251,15 @@ function NewRecurringOrder() {
         onNonBusinessDay,
       },
       deliveryAddress,
-      deliveryMode,
-      instructions: instructions.trim() || undefined,
       paymentMethod,
+      shortagePreference,
+      instructions: instructions.trim() || undefined,
     });
+    setSaving(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
     toast.success("Commande récurrente créée");
     navigate({ to: "/restaurant/recurring" });
   };
@@ -284,7 +322,11 @@ function NewRecurringOrder() {
                   className={`text-left rounded-2xl border p-4 space-y-2 transition ${farmerId === f.id ? "border-primary ring-2 ring-primary/20" : "border-border hover:bg-accent/40"}`}
                 >
                   <div className="flex items-center gap-2">
-                    <img src={f.avatar} alt="" className="h-10 w-10 rounded-xl object-cover" />
+                    <img
+                      src={f.avatar || undefined}
+                      alt=""
+                      className="h-10 w-10 rounded-xl object-cover"
+                    />
                     {farmerId === f.id && (
                       <span className="ml-auto h-5 w-5 rounded-full bg-primary text-primary-foreground grid place-items-center">
                         <Check className="h-3 w-3" />
@@ -335,7 +377,7 @@ function NewRecurringOrder() {
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {["Toutes", ...CATEGORIES].map((c) => (
+                {["Toutes", ...categoryNames].map((c) => (
                   <button
                     key={c}
                     onClick={() => setCategory(c)}
@@ -476,7 +518,7 @@ function NewRecurringOrder() {
 
             {(frequency === "weekly" || frequency === "biweekly" || frequency === "custom") && (
               <div className="space-y-1.5">
-                <Label>Le(s)</Label>
+                <Label>Jours de livraison</Label>
                 <div className="flex gap-1.5">
                   {DAY_LABELS.map((d, i) => (
                     <button
@@ -494,35 +536,47 @@ function NewRecurringOrder() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" /> Heure de création de la commande
+                  <Clock className="h-3.5 w-3.5" /> Commande passée la veille à
                 </Label>
                 <Input
                   type="time"
+                  aria-label="Heure de la commande, la veille"
                   value={createTime}
                   onChange={(e) => setCreateTime(e.target.value)}
                 />
+                {orderTimeOff && <p className="text-[11px] text-destructive">{orderTimeOff}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" /> Date de première commande
+                  <Calendar className="h-3.5 w-3.5" /> Première livraison le
                 </Label>
                 <Input
                   type="date"
+                  aria-label="Première livraison"
+                  min={earliestDelivery}
                   value={firstRunAt}
                   onChange={(e) => setFirstRunAt(e.target.value)}
                 />
+                {firstDateOff && <p className="text-[11px] text-destructive">{firstDateOff}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Créneau de livraison souhaité</Label>
+              <Label htmlFor="recurring-delivery-time">Heure de livraison souhaitée</Label>
               <Input
+                id="recurring-delivery-time"
+                type="time"
+                step={900}
+                min={deliveryHours.from}
+                max={deliveryHours.to}
                 value={deliverySlot}
                 onChange={(e) => setDeliverySlot(e.target.value)}
-                placeholder="14:00 – 16:00"
               />
               <p className="text-[11px] text-muted-foreground">
-                La commande sera créée à {createTime} pour une livraison souhaitée sur ce créneau.
+                Chaque commande est passée automatiquement la veille de la livraison à {createTime},
+                pour une livraison vers {deliverySlot || "…"} (livraisons entre {deliveryHours.from}{" "}
+                et {deliveryHours.to}).
               </p>
+              {deliveryTimeOff && <p className="text-[11px] text-destructive">{deliveryTimeOff}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -703,23 +757,23 @@ function NewRecurringOrder() {
               <Input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Mode de livraison</Label>
+              <Label>Si le producteur n'a pas tout</Label>
               <div className="grid sm:grid-cols-2 gap-2">
                 <button
-                  onClick={() => setDeliveryMode("standard")}
-                  className={`p-3 rounded-xl border text-left text-sm flex items-center gap-2 ${deliveryMode === "standard" ? "border-primary bg-primary/5" : "border-border"}`}
+                  onClick={() => setShortagePreference("partial")}
+                  className={`p-3 rounded-xl border text-left text-sm flex items-center gap-2 ${shortagePreference === "partial" ? "border-primary bg-primary/5" : "border-border"}`}
                 >
-                  <Truck className="h-4 w-4" /> Livraison standard
+                  <Truck className="h-4 w-4" /> Livrer ce qui est disponible
                 </button>
                 <button
-                  onClick={() => setDeliveryMode("express")}
-                  className={`p-3 rounded-xl border text-left text-sm flex items-center gap-2 ${deliveryMode === "express" ? "border-primary bg-primary/5" : "border-border"}`}
+                  onClick={() => setShortagePreference("cancel")}
+                  className={`p-3 rounded-xl border text-left text-sm flex items-center gap-2 ${shortagePreference === "cancel" ? "border-primary bg-primary/5" : "border-border"}`}
                 >
-                  <Zap className="h-4 w-4" /> Livraison express
+                  <Zap className="h-4 w-4" /> Annuler la commande
                 </button>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                La livraison express marque la mission du livreur en priorité.
+                Vous ne payez que ce qui est fourni.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -774,12 +828,15 @@ function NewRecurringOrder() {
                       : `Chaque ${daysOfWeek.map((d) => DAY_NAMES[d]).join(", ")}`}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Première commande : </span>
-                  {new Date(firstRunAt).toLocaleDateString("fr-FR", { dateStyle: "long" })}
+                  <span className="text-muted-foreground">Première livraison : </span>
+                  {new Date(`${firstRunAt}T00:00:00Z`).toLocaleDateString("fr-FR", {
+                    dateStyle: "long",
+                    timeZone: "UTC",
+                  })}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Livraison : </span>
-                  {deliverySlot} · {deliveryMode === "express" ? "Express" : "Standard"}
+                  vers {deliverySlot} · commande passée la veille à {createTime}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Budget maximum : </span>
@@ -819,7 +876,7 @@ function NewRecurringOrder() {
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
-          <Button onClick={create} className="gap-2">
+          <Button onClick={() => void create()} disabled={saving} className="gap-2">
             <Check className="h-4 w-4" />
             Créer la commande récurrente
           </Button>

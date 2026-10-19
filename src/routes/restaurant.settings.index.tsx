@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useHiddenInBase } from "@/data/demo-only";
 import { User, Building2, CreditCard, Shield, Users, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRestaurantProfile, useRestaurantTeam } from "@/data/store";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/restaurant/settings/")({
 });
 
 function SettingsOverview() {
+  const hiddenInBase = useHiddenInBase();
   const profile = useRestaurantProfile();
   const team = useRestaurantTeam();
   const security = useSecurity();
@@ -85,28 +87,30 @@ function SettingsOverview() {
         </div>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {cards.map((c) => (
-          <Link
-            key={c.to}
-            to={c.to}
-            className="glass rounded-2xl p-5 space-y-3 hover:ring-2 hover:ring-primary/30 transition group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                <c.icon className="h-5 w-5" />
+        {cards
+          .filter((c) => !hiddenInBase(c.to))
+          .map((c) => (
+            <Link
+              key={c.to}
+              to={c.to}
+              className="glass rounded-2xl p-5 space-y-3 hover:ring-2 hover:ring-primary/30 transition group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <c.icon className="h-5 w-5" />
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition" />
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition" />
-            </div>
-            <div>
-              <h3 className="font-semibold">{c.title}</h3>
-              {c.lines.map((line) => (
-                <p key={line} className="text-sm text-muted-foreground">
-                  {line}
-                </p>
-              ))}
-            </div>
-          </Link>
-        ))}
+              <div>
+                <h3 className="font-semibold">{c.title}</h3>
+                {c.lines.map((line) => (
+                  <p key={line} className="text-sm text-muted-foreground">
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </Link>
+          ))}
       </div>
     </div>
   );

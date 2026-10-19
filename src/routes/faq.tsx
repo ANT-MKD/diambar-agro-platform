@@ -6,19 +6,25 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { faq } from "@/data/mocks";
-import { pricingFaq } from "@/data/site-content";
+import { generalFaq, pricingFaq } from "@/data/site-content";
+import { usePublicInfo } from "@/components/landing/use-public-info";
+import { DEFAULT_PUBLIC_INFO, type PublicInfo } from "@/lib/public-info-model";
 
-const all = [...faq, ...pricingFaq];
+const allFaq = (info: PublicInfo) => [...generalFaq(info), ...pricingFaq(info)];
+
+/** Informations chargées par la route racine (pour les données SEO). */
+const rootInfo = (matches: { routeId: string; loaderData?: unknown }[]) =>
+  (matches.find((m) => m.routeId === "__root__")?.loaderData as PublicInfo | undefined) ??
+  DEFAULT_PUBLIC_INFO;
 
 export const Route = createFileRoute("/faq")({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { title: "FAQ — Questions fréquentes | Diambar Agro" },
       {
         name: "description",
         content:
-          "Commissions, délais de paiement, livraison, litiges : toutes les réponses sur le fonctionnement de Diambar Agro.",
+          "Commissions, paiements, livraison, réception : toutes les réponses sur le fonctionnement de Diambar Agro.",
       },
       { property: "og:title", content: "FAQ — Questions fréquentes | Diambar Agro" },
       {
@@ -34,7 +40,7 @@ export const Route = createFileRoute("/faq")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: all.map((f) => ({
+          mainEntity: allFaq(rootInfo(matches)).map((f) => ({
             "@type": "Question",
             name: f.q,
             acceptedAnswer: { "@type": "Answer", text: f.a },
@@ -47,6 +53,7 @@ export const Route = createFileRoute("/faq")({
 });
 
 function FaqPage() {
+  const all = allFaq(usePublicInfo());
   return (
     <PublicShell>
       <PageHero

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
 import { useMemo } from "react";
 import {
   Users,
@@ -47,6 +48,7 @@ import { AUDIT_LEVEL_DOT } from "@/data/admin-mocks";
 import { useSupportTickets } from "@/data/support";
 import { useOrders, useMissions } from "@/data/store";
 import { payouts } from "@/data/admin-mocks";
+import { useAdminPayouts, useAdminRefunds } from "@/data/payments-store";
 import { drivers, farmers, restaurants, type MissionStatus } from "@/data/mocks";
 import { ROLE_COLOR, ROLE_LABEL } from "@/lib/role-colors";
 import { useRecordedCommissions } from "@/data/store";
@@ -78,6 +80,7 @@ function pct(current: number, previous: number) {
 }
 
 function AdminDashboard() {
+  const hiddenInBase = useHiddenInBase();
   const users = usePlatformUsers();
   const validations = useValidations();
   const disputes = useAllDisputes();
@@ -107,11 +110,19 @@ function AdminDashboard() {
     pendingIncidents.length +
     pendingModeration.length;
 
-  const pendingPayouts = payouts.filter((p) => p.status !== "Payé");
+  // Avec la base : retraits et remboursements réellement à verser.
+  const base = useBaseMode();
+  const serverPayouts = useAdminPayouts();
+  const serverRefunds = useAdminRefunds();
+  const pendingPayouts = base
+    ? serverPayouts.filter((p) => p.status === "requested" || p.status === "processing")
+    : payouts.filter((p) => p.status !== "Payé");
   const pendingPayoutsTotal = pendingPayouts.reduce((s, p) => s + p.amount, 0);
-  const pendingRefundsTotal = refunds
-    .filter((r) => r.status === "pending")
-    .reduce((s, r) => s + r.amount, 0);
+  const pendingRefundsTotal = base
+    ? serverRefunds
+        .filter((r) => r.status === "pending" || r.status === "approved")
+        .reduce((s, r) => s + r.amount, 0)
+    : refunds.filter((r) => r.status === "pending").reduce((s, r) => s + r.amount, 0);
 
   // Les commandes de démo ne couvrent que 2 jours réels : on ancre "aujourd'hui"
   // sur le jour de la commande la plus récente (comme le fait déjà le portail
@@ -417,7 +428,7 @@ function AdminDashboard() {
                       className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-accent transition"
                     >
                       <img
-                        src={driver?.avatar}
+                        src={driver?.avatar || undefined}
                         alt=""
                         className="h-9 w-9 rounded-full object-cover"
                       />
@@ -448,36 +459,38 @@ function AdminDashboard() {
             <TriangleAlert className="h-4 w-4 text-amber-500" />À traiter maintenant
           </h2>
           <ul className="mt-4 divide-y divide-border">
-            {actionRows.map((row) => (
-              <li key={row.key} className="flex items-center gap-3 py-3">
-                <div
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${row.count > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"}`}
-                >
-                  <row.icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">
-                    {row.count > 0 ? `${row.count} ${row.label.toLowerCase()}` : row.label}
-                  </div>
-                  {row.count > 0 && row.oldest && (
-                    <div className="text-[11px] text-muted-foreground">
-                      Le plus ancien : {relativeTime(row.oldest)}
-                    </div>
-                  )}
-                  {row.count === 0 && (
-                    <div className="text-[11px] text-muted-foreground">Rien en attente</div>
-                  )}
-                </div>
-                {row.count > 0 && (
-                  <Link
-                    to={row.to}
-                    className="shrink-0 text-xs font-semibold text-primary hover:underline"
+            {actionRows
+              .filter((row) => !hiddenInBase(row.to))
+              .map((row) => (
+                <li key={row.key} className="flex items-center gap-3 py-3">
+                  <div
+                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${row.count > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"}`}
                   >
-                    {row.action}
-                  </Link>
-                )}
-              </li>
-            ))}
+                    <row.icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">
+                      {row.count > 0 ? `${row.count} ${row.label.toLowerCase()}` : row.label}
+                    </div>
+                    {row.count > 0 && row.oldest && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Le plus ancien : {relativeTime(row.oldest)}
+                      </div>
+                    )}
+                    {row.count === 0 && (
+                      <div className="text-[11px] text-muted-foreground">Rien en attente</div>
+                    )}
+                  </div>
+                  {row.count > 0 && (
+                    <Link
+                      to={row.to}
+                      className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                    >
+                      {row.action}
+                    </Link>
+                  )}
+                </li>
+              ))}
           </ul>
         </div>
 

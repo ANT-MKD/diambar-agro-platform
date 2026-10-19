@@ -35,6 +35,7 @@ import {
   REVIEW_CRITERION_LABEL,
   type ReviewCriterion,
 } from "@/data/business";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/restaurant/reviews/")({
   head: () => ({
@@ -78,8 +79,9 @@ function monthKeyFromIso(iso: string) {
 }
 
 function ReviewsPage() {
+  const myRestaurantId = useMyId("restaurant");
   const { user } = useRouteContext({ from: "/restaurant" });
-  const myRestaurant = restaurants.find((r) => r.name === user.name);
+  const myRestaurant = restaurants.find((r) => r.id === myRestaurantId);
   const orders = useRestaurantOrders();
   const suppliers = useSuppliers();
   const reviews = useReviewsForRestaurant(myRestaurant?.id ?? "");

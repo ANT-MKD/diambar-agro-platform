@@ -18,7 +18,7 @@ import { driverProfile } from "@/data/mocks";
 
 export const Route = createFileRoute("/driver/settings")({ component: SettingsLayout });
 
-export const driverSettingsNav: SettingsNavItem[] = [
+const driverSettingsNav: SettingsNavItem[] = [
   { to: "/driver/settings/profile", label: "Profil", icon: User, group: "Mon compte" },
   {
     to: "/driver/settings/appearance",

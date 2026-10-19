@@ -1,10 +1,4 @@
-export function passwordScore(p: string): 0 | 1 | 2 | 3 {
-  let s = 0;
-  if (p.length >= 8) s++;
-  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
-  if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) s++;
-  return Math.min(s, 3) as 0 | 1 | 2 | 3;
-}
+import { passwordScore } from "@/lib/password-score";
 
 export function PasswordStrength({ value }: { value: string }) {
   const s = passwordScore(value);

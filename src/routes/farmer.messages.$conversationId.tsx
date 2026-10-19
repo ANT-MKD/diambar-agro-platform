@@ -1,15 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send, Paperclip, Phone, ShoppingBag, X, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { market } from "@/data/market-remote";
 import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { ChatBubble } from "@/components/common/chat-bubble";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { restaurants, type ChatAttachment } from "@/data/mocks";
+import { restaurantOf, type ChatAttachment } from "@/data/mocks";
 import { useConversation, conversationActions } from "@/data/store";
 import { relativeTime } from "@/lib/format";
+import { useMyId } from "@/data/market-mode";
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 
@@ -29,16 +31,20 @@ export const Route = createFileRoute("/farmer/messages/$conversationId")({
 });
 
 // Un seul producteur peut se connecter dans cette démo (Mamadou Diallo, f1).
-const MY_FARMER_ID = "f1";
 
 function FarmerConversation() {
+  const myFarmerId = useMyId("farmer");
   const { conversationId } = Route.useParams();
   const found = useConversation(conversationId);
-  const conv = found && found.farmerId === MY_FARMER_ID ? found : null;
+  const conv = found && found.farmerId === myFarmerId ? found : null;
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const unread = conv?.unread ?? 0;
+  useEffect(() => {
+    if (unread > 0 && market.isRemote()) market.markConversationRead(conversationId);
+  }, [unread, conversationId]);
 
   if (!conv) {
     return (
@@ -58,7 +64,7 @@ function FarmerConversation() {
     );
   }
 
-  const r = restaurants.find((x) => x.id === conv.restaurantId);
+  const r = restaurantOf(conv.restaurantId, conv.restaurantName);
 
   const pickFile = (file: File) => {
     if (file.size > MAX_ATTACHMENT_BYTES) {
@@ -72,9 +78,17 @@ function FarmerConversation() {
     reader.readAsDataURL(file);
   };
 
-  const send = () => {
+  const send = async () => {
     if (!draft.trim() && !attachment) return;
-    conversationActions.send(conv.id, draft.trim(), "farmer", undefined, attachment ?? undefined);
+    if (market.isRemote()) {
+      const res = await market.sendMessage(conv.id, draft.trim(), attachment ?? undefined);
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+    } else {
+      conversationActions.send(conv.id, draft.trim(), "farmer", undefined, attachment ?? undefined);
+    }
     setDraft("");
     setAttachment(null);
   };
@@ -97,7 +111,7 @@ function FarmerConversation() {
       <div className="glass rounded-2xl overflow-hidden flex flex-col h-[640px]">
         <div className="p-4 border-b border-border flex items-center gap-3">
           <img
-            src={r?.avatar}
+            src={r?.avatar || undefined}
             alt={`Logo ${r?.name ?? "restaurant"}`}
             className="h-10 w-10 rounded-full object-cover"
           />
@@ -135,7 +149,7 @@ function FarmerConversation() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            send();
+            void send();
           }}
           className="p-3 border-t border-border space-y-2"
         >
@@ -158,7 +172,9 @@ function FarmerConversation() {
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept="image/*,.pdf,.doc,.docx"
+              accept={
+                market.isRemote() ? "image/jpeg,image/png,image/webp" : "image/*,.pdf,.doc,.docx"
+              }
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) pickFile(file);

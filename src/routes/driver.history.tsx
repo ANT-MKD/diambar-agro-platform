@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/history")({
   head: () => ({ meta: [{ title: "Historique · Livreur Diambar" }] }),
@@ -52,6 +53,7 @@ type Period = "7d" | "30d" | "all";
 const OPEN_DISPUTE_STATUSES = new Set(["open", "investigating", "awaiting_response"]);
 
 function HistoryPage() {
+  const myDriverId = useMyId("driver");
   const all = useMissions();
   const wallet = useDriverWallet();
   const disputes = useAllDisputes();
@@ -59,7 +61,7 @@ function HistoryPage() {
   const [period, setPeriod] = useState<Period>("7d");
   const [tab, setTab] = useState<Tab>("all");
 
-  const mine = all.filter((m) => m.driverId === "d1");
+  const mine = all.filter((m) => m.driverId === myDriverId);
   const disputedMissionIds = useMemo(
     () =>
       new Set(
