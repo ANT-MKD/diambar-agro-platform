@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Crosshair, Satellite, SatelliteDish } from "lucide-react";
+import { useTheme } from "next-themes";
 import { DiambarMap, type MapMarkerConfig, type RouteLayer } from "./diambar-map";
 import { TrackingStepBar } from "./tracking-step-bar";
 import { getMissionTrackFn } from "@/lib/market/functions";
 import { agoLabel, estimateMinutes } from "@/lib/tracking/live-eta";
+import { remainingRoute } from "@/lib/tracking/road-route";
+import { useRoadRoute } from "@/hooks/use-road-route";
 import type { TrackingStep } from "@/lib/tracking/types";
 import type { Mission } from "@/data/mocks";
 import { cn } from "@/lib/utils";
 
 // Carte d'une course avec la position GPS réelle du livreur (données en base).
-// Pas de calcul d'itinéraire : le reste du trajet est tracé à vol d'oiseau et
-// la durée est une estimation (vitesses moyennes en ville et sur route).
+// Avec Mapbox : itinéraire routier jusqu'au prochain arrêt et durée d'après
+// la route. Sinon : reste du trajet à vol d'oiseau et durée estimée
+// (vitesses moyennes en ville et sur route).
 
 export interface MissionLiveMapProps {
   mission: Pick<Mission, "id" | "reference" | "status" | "pickup" | "dropoff" | "driverPosition">;
@@ -88,6 +92,18 @@ export function MissionLiveMap({
   const next = toDropoff ? mission.dropoff : mission.pickup;
   const age = pos ? now - Date.parse(pos.at) : null;
   const fresh = age != null && age < FRESH_MS;
+  const { resolvedTheme } = useTheme();
+  // Itinéraire routier (Mapbox) jusqu'au prochain arrêt, réutilisé tant que
+  // le livreur reste sur la route.
+  const road = useRoadRoute(
+    pos ? { lat: pos.lat, lng: pos.lng } : null,
+    { lat: next.lat, lng: next.lng },
+    !!pos && fresh && !finished,
+  );
+  const ahead = useMemo(
+    () => (road && pos ? remainingRoute(road, { lat: pos.lat, lng: pos.lng }) : null),
+    [road, pos],
+  );
 
   const pLat = mission.pickup.lat;
   const pLng = mission.pickup.lng;
@@ -119,22 +135,30 @@ export function MissionLiveMap({
         lng: pos.lng,
         label: driverName,
         color: "emerald",
-        pulse: true,
         zIndexOffset: 1000,
+        vehicle: { heading: pos.heading },
         description: pos.speedKmh != null ? `${Math.round(pos.speedKmh)} km/h` : "Livreur",
       });
     }
     return list;
     // Les adresses ne changent pas pendant une course : seules les coordonnées comptent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pLat, pLng, dLat, dLng, pos?.lat, pos?.lng, pos?.speedKmh, driverName]);
+  }, [pLat, pLng, dLat, dLng, pos?.lat, pos?.lng, pos?.speedKmh, pos?.heading, driverName]);
 
   const routes = useMemo<RouteLayer[]>(() => {
     const layers: RouteLayer[] = [];
     if (track.length > 1) {
       layers.push({ points: track, color: "#10b981", weight: 5, opacity: 1 });
     }
-    if (pos) {
+    if (pos && ahead) {
+      // Reste du trajet par la route (comme les applications de VTC).
+      layers.push({
+        points: ahead.points,
+        color: resolvedTheme === "light" ? "#1f2937" : "#e2e8f0",
+        weight: 5,
+        opacity: 0.9,
+      });
+    } else if (pos) {
       layers.push({
         points: [
           { lat: pos.lat, lng: pos.lng },
@@ -145,6 +169,8 @@ export function MissionLiveMap({
         opacity: 0.8,
         dashed: true,
       });
+    }
+    if (pos) {
       if (!toDropoff) {
         layers.push({
           points: [
@@ -170,17 +196,27 @@ export function MissionLiveMap({
       });
     }
     return layers;
-  }, [track, pos, next.lat, next.lng, toDropoff, pLat, pLng, dLat, dLng]);
+  }, [track, pos, ahead, resolvedTheme, next.lat, next.lng, toDropoff, pLat, pLng, dLat, dLng]);
 
-  const eta = pos && fresh ? estimateMinutes(pos, next) : null;
+  const eta =
+    pos && fresh
+      ? ahead
+        ? Math.max(1, Math.round(ahead.durationMin))
+        : estimateMinutes(pos, next)
+      : null;
   // Cadrage : le livreur et son prochain arrêt, plus le trajet déjà parcouru
   // pour l'équipe (sinon toute la course).
   const fitTo = useMemo(
     () =>
       pos
-        ? [{ lat: pos.lat, lng: pos.lng }, { lat: next.lat, lng: next.lng }, ...track]
+        ? [
+            { lat: pos.lat, lng: pos.lng },
+            { lat: next.lat, lng: next.lng },
+            ...track,
+            ...(ahead?.points ?? []),
+          ]
         : undefined,
-    [pos, next.lat, next.lng, track],
+    [pos, next.lat, next.lng, track, ahead],
   );
   const waitingText = finished
     ? track.length > 1
@@ -206,7 +242,7 @@ export function MissionLiveMap({
           minHeight={minHeight}
           fitBounds={!follow}
           fitTo={fitTo}
-          fitKey={`${mission.status}|${pos ? 1 : 0}|${track.length > 1 ? 1 : 0}|${refit}`}
+          fitKey={`${mission.status}|${pos ? 1 : 0}|${track.length > 1 ? 1 : 0}|${road ? 1 : 0}|${refit}`}
           maxFitZoom={15}
           followPosition={follow && pos ? [pos.lat, pos.lng] : null}
           accuracyCircle={
@@ -271,8 +307,9 @@ export function MissionLiveMap({
         <TrackingStepBar current={stepOf(mission.status)} />
         {eta != null && (
           <p className="text-[10px] text-muted-foreground">
-            Durée estimée d&apos;après la distance à vol d&apos;oiseau et des vitesses moyennes
-            (ville, route).
+            {ahead
+              ? "Durée estimée d'après l'itinéraire routier et le trafic (Mapbox)."
+              : "Durée estimée d'après la distance à vol d'oiseau et des vitesses moyennes (ville, route)."}
           </p>
         )}
       </div>
@@ -313,7 +350,7 @@ export function FleetLiveMap({
         lng: pos.lng,
         label: driverName(m.driverId),
         color: age < FRESH_MS ? "emerald" : "amber",
-        pulse: age < FRESH_MS,
+        vehicle: { heading: age < FRESH_MS ? pos.heading : null },
         description: `${agoLabel(age)} · ${m.reference}`,
       });
     }
