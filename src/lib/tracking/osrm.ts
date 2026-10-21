@@ -6,7 +6,15 @@ function cacheKey(a: TrackingPoint, b: TrackingPoint): string {
   return `${a.lat.toFixed(4)},${a.lng.toFixed(4)}-${b.lat.toFixed(4)},${b.lng.toFixed(4)}`;
 }
 
-/** Itinéraire routier via OSRM public (démo — self-host en prod) */
+// Démonstration seulement (trajets simulés, sans base de données). Le serveur
+// OSRM public n'accepte pas d'usage commercial : VITE_ROUTING_URL désigne un
+// serveur OSRM à soi si besoin.
+const OSRM_URL = (
+  (import.meta.env as Record<string, string | undefined>).VITE_ROUTING_URL?.trim() ||
+  "https://router.project-osrm.org"
+).replace(/\/+$/, "");
+
+/** Itinéraire routier via OSRM (démonstration). */
 export async function fetchDrivingRoute(
   from: TrackingPoint,
   to: TrackingPoint,
@@ -24,7 +32,7 @@ export async function fetchDrivingRoute(
       return parsed;
     }
 
-    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const url = `${OSRM_URL}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("OSRM error");
     const data = (await res.json()) as {

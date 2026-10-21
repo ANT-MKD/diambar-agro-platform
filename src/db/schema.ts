@@ -26,6 +26,7 @@ import {
   pgSequence,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -432,6 +433,14 @@ export const drivers = pgTable("drivers", {
   workPrefs: jsonb("work_prefs"),
   /** Position partagée avec le restaurant pendant une livraison. */
   locationSharing: boolean("location_sharing").notNull().default(true),
+  /** Dernière position GPS envoyée par le téléphone (en ligne ou en course). */
+  lastLat: doublePrecision("last_lat"),
+  lastLng: doublePrecision("last_lng"),
+  /** Précision en mètres (rayon), cap en degrés, vitesse en km/h. */
+  lastAccuracyM: real("last_accuracy_m"),
+  lastHeading: real("last_heading"),
+  lastSpeedKmh: real("last_speed_kmh"),
+  lastPositionAt: timestamp("last_position_at", { withTimezone: true }),
   updatedAt: updatedAt(),
 });
 
@@ -820,6 +829,22 @@ export const missionEvents = pgTable(
     index("mission_events_mission_idx").on(t.missionId, t.at),
     index("mission_events_actor_idx").on(t.actorId),
   ],
+);
+
+/** Trajet réel d'une course : positions du livreur pendant qu'elle est en cours. */
+export const missionPositions = pgTable(
+  "mission_positions",
+  {
+    id: id(),
+    missionId: uuid("mission_id")
+      .notNull()
+      .references(() => missions.id, { onDelete: "cascade" }),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
+    accuracyM: real("accuracy_m"),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("mission_positions_mission_idx").on(t.missionId, t.at)],
 );
 
 export const deliveryProofs = pgTable(

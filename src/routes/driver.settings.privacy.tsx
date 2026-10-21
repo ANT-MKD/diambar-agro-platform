@@ -25,8 +25,8 @@ function PrivacySettings() {
       <div className="glass rounded-2xl p-5 space-y-4">
         <h3 className="font-semibold">Localisation pendant les missions</h3>
         <ToggleRow
-          label="Partage de localisation"
-          description="Utilisée uniquement pendant une mission active."
+          label="Partage de localisation avec le restaurant"
+          description="Votre position n'est envoyée que pendant une course démarrée. Le restaurant la voit pendant la livraison si ce partage est activé ; l'équipe Diambar la voit pendant la course."
           checked={settings.locationSharing}
           onChange={async (v) => {
             driverSettingsActions.setLocationSharing(v);

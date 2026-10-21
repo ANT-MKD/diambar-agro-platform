@@ -1,0 +1,87 @@
+# Application Android Diambar Agro : compile l'APK à installer sur les
+# téléphones des livreurs. Résultat : onglet Actions › cette exécution ›
+# « Artifacts » › diambar-agro-android (fichier .apk).
+#
+# Réglages facultatifs (Settings › Secrets and variables › Actions) :
+#   Variable CAP_SERVER_URL : adresse du site ouverte par l'application
+#     (sinon celle de capacitor.config.ts).
+#   Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#     ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD : clé de publication (Play Store).
+#     Sans eux, l'APK est signé avec la clé de test du pilote.
+name: Application Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "android/**"
+      - "android-shell/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/android.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Dépendances
+        run: bun install --frozen-lockfile
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Projet Android à jour (configuration, extensions)
+        run: bunx cap sync android
+        env:
+          CAP_SERVER_URL: ${{ vars.CAP_SERVER_URL }}
+
+      - name: Clé de publication (si configurée)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Clé de publication utilisée."
+          else
+            echo "Pas de clé de publication : clé de test du pilote."
+          fi
+
+      - name: Compilation de l'APK
+        working-directory: android
+        env:
+          APP_VERSION_CODE: ${{ github.run_number }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Nom du fichier
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk "out/diambar-agro-${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diambar-agro-android
+          path: out/*.apk
+          retention-days: 30

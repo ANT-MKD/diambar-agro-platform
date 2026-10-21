@@ -52,6 +52,8 @@ import {
 } from "@/lib/driver-day";
 import { Button } from "@/components/ui/button";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { MissionLiveMapLazy } from "@/components/maps/mission-live-map-lazy";
+import { useBaseMode } from "@/data/demo-only";
 import { useMyId } from "@/data/market-mode";
 
 export const Route = createFileRoute("/driver/dashboard")({
@@ -97,6 +99,8 @@ function DriverDashboard() {
   const incidents = useIncidents();
   const driverSettings = useDriverSettings();
   const security = useSecurity();
+  // Avec la base : carte de la position GPS réelle (sinon trajet simulé).
+  const base = useBaseMode();
 
   const grossMissions = wallet.transactions
     .filter((t) => t.kind === "mission")
@@ -499,12 +503,21 @@ function DriverDashboard() {
                   Voir toute la tournée <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
-              <LiveTrackingMapLazy
-                trackingId={nextMission.reference}
-                driverName="Vous"
-                minHeight={240}
-                autoStart={nextMission.status === "pickup" || nextMission.status === "loaded"}
-              />
+              {base ? (
+                <MissionLiveMapLazy
+                  mission={nextMission}
+                  driverName="Vous"
+                  audience="driver"
+                  minHeight={240}
+                />
+              ) : (
+                <LiveTrackingMapLazy
+                  trackingId={nextMission.reference}
+                  driverName="Vous"
+                  minHeight={240}
+                  autoStart={nextMission.status === "pickup" || nextMission.status === "loaded"}
+                />
+              )}
             </div>
           )}
 

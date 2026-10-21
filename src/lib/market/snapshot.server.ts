@@ -75,6 +75,8 @@ import {
   type RefundView,
 } from "./payment-view";
 import { orderDue, readMerchantAccounts } from "./payments-db.server";
+import { farmerOrigin, readPlaces } from "./delivery-db.server";
+import { ACTIVE_MISSION_STATUSES, readDriverPositions } from "./positions-db.server";
 import { readBalances } from "./ledger-db.server";
 import type { InvoiceContent, InvoiceView } from "./documents-view";
 import { paymentDeadline } from "@/lib/payment-deadline";
@@ -415,6 +417,8 @@ export async function readSnapshot(
       farmName: farmers.farmName,
       pickupAddress: farmers.pickupAddress,
       zoneId: farmers.zoneId,
+      lat: farmers.lat,
+      lng: farmers.lng,
       firstName: users.firstName,
       lastName: users.lastName,
       phone: users.phone,
@@ -760,6 +764,18 @@ export async function readSnapshot(
     return m.status === "available" || m.driverId === me.id;
   });
   const missionList: Mission[] = [];
+  // Positions réelles des lieux (réglées dans Tarifs de livraison) et des
+  // livreurs en course.
+  const places = visibleMissions.length ? await readPlaces(db) : null;
+  const positions = await readDriverPositions(db, [
+    ...new Set(
+      visibleMissions.flatMap((m) =>
+        m.driverId && (ACTIVE_MISSION_STATUSES as readonly string[]).includes(m.status)
+          ? [m.driverId]
+          : [],
+      ),
+    ),
+  ]);
   for (const m of visibleMissions) {
     const o = orderById.get(m.orderId);
     if (!o) continue;
@@ -769,8 +785,14 @@ export async function readSnapshot(
     const pickupCity = f ? cityName(f.zoneId, f.pickupAddress) : "";
     const dropoffAddress = c?.deliveryAddress ?? r?.address ?? "";
     const dropoffCity = lastAddressSegment(dropoffAddress);
-    const pickupCoords = cityCoords(pickupCity || "Dakar");
-    const dropoffCoords = cityCoords(dropoffCity || "Dakar");
+    const origin = f && places ? farmerOrigin(f, places) : null;
+    const destination = c?.zoneId && places ? places.byId.get(c.zoneId) : null;
+    const pickupCoords = origin
+      ? { lat: origin.lat, lng: origin.lng }
+      : cityCoords(pickupCity || "Dakar");
+    const dropoffCoords = destination
+      ? { lat: destination.lat, lng: destination.lng }
+      : cityCoords(dropoffCity || "Dakar");
     const weightKg = Number(m.weightKg ?? 0);
     const events = missionEventRows.filter((e) => e.missionId === m.id);
     const history = events
@@ -842,6 +864,25 @@ export async function readSnapshot(
       cashToCollect: (() => {
         const cash = c?.paymentMode === "prepaid" ? undefined : cashPaymentByOrder.get(o.id);
         return cash && cash.status === "pending" && !cash.collectedAt ? orderDue(o) : undefined;
+      })(),
+      driverPosition: (() => {
+        // Seulement pour une course en cours : pas pour une course terminée
+        // du même livreur.
+        const active = (ACTIVE_MISSION_STATUSES as readonly string[]).includes(m.status);
+        const pos = active && m.driverId ? positions.get(m.driverId) : undefined;
+        if (!pos) return undefined;
+        // Le restaurant ne la voit que pendant la livraison, si le livreur
+        // partage sa position (Paramètres › Confidentialité).
+        const allowed =
+          me.role === "admin" ||
+          (me.role === "driver" && m.driverId === me.id) ||
+          (me.role === "restaurant" &&
+            o.restaurantId === me.id &&
+            m.status === "loaded" &&
+            pos.sharing);
+        if (!allowed) return undefined;
+        const { sharing: _sharing, ...shown } = pos;
+        return shown;
       })(),
     });
   }

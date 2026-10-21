@@ -45,6 +45,7 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminSetupRouteImport } from './routes/admin.setup'
 import { Route as AdminSupportRouteImport } from './routes/admin.support'
+import { Route as ApiDriverPositionRouteImport } from './routes/api.driver-position'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as DriverDashboardRouteImport } from './routes/driver.dashboard'
@@ -371,6 +372,11 @@ const AdminSupportRoute = AdminSupportRouteImport.update({
   id: '/support',
   path: '/support',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiDriverPositionRoute = ApiDriverPositionRouteImport.update({
+  id: '/api/driver-position',
+  path: '/api/driver-position',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
@@ -1180,6 +1186,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
+  '/api/driver-position': typeof ApiDriverPositionRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -1364,6 +1371,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
+  '/api/driver-position': typeof ApiDriverPositionRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -1539,6 +1547,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/setup': typeof AdminSetupRoute
   '/admin/support': typeof AdminSupportRoute
+  '/api/driver-position': typeof ApiDriverPositionRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/driver/dashboard': typeof DriverDashboardRoute
   '/driver/history': typeof DriverHistoryRoute
@@ -1725,6 +1734,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/support'
+    | '/api/driver-position'
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
@@ -1909,6 +1919,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/support'
+    | '/api/driver-position'
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
@@ -2083,6 +2094,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/setup'
     | '/admin/support'
+    | '/api/driver-position'
     | '/blog/$slug'
     | '/driver/dashboard'
     | '/driver/history'
@@ -2254,6 +2266,7 @@ export interface RootRouteChildren {
   RejoindreRoute: typeof RejoindreRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RestaurantRoute: typeof RestaurantRouteWithChildren
+  ApiDriverPositionRoute: typeof ApiDriverPositionRoute
   BlogSlugRoute: typeof BlogSlugRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
@@ -2514,6 +2527,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/support'
       preLoaderRoute: typeof AdminSupportRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/driver-position': {
+      id: '/api/driver-position'
+      path: '/api/driver-position'
+      fullPath: '/api/driver-position'
+      preLoaderRoute: typeof ApiDriverPositionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/blog/': {
       id: '/blog/'
@@ -4033,6 +4053,7 @@ const rootRouteChildren: RootRouteChildren = {
   RejoindreRoute: RejoindreRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RestaurantRoute: RestaurantRouteWithChildren,
+  ApiDriverPositionRoute: ApiDriverPositionRoute,
   BlogSlugRoute: BlogSlugRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,

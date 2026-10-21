@@ -15,6 +15,8 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { EmptyState } from "@/components/farmer/empty-state";
 import { StatCard } from "@/components/admin/stat-card";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { FleetLiveMapLazy, MissionLiveMapLazy } from "@/components/maps/mission-live-map-lazy";
+import { useBaseMode } from "@/data/demo-only";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -78,6 +80,8 @@ function AdminDeliveries() {
   const [q, setQ] = useState("");
   const [zone, setZone] = useState("all");
   const [status, setStatus] = useState<"all" | MissionStatus>("all");
+  // Avec la base : positions GPS réelles des livreurs (sinon trajets simulés).
+  const base = useBaseMode();
 
   const refNow = useMemo(() => {
     const relevant = missions.filter((m) => m.status !== "available" && m.status !== "cancelled");
@@ -254,6 +258,14 @@ function AdminDeliveries() {
         </Select>
       </div>
 
+      {base && !selected && active.some((m) => m.driverId) && (
+        <FleetLiveMapLazy
+          missions={active}
+          driverName={(id) => drivers.find((d) => d.id === id)?.name ?? "Livreur"}
+          minHeight={280}
+        />
+      )}
+
       {selected && selectedDriver && (
         <div className="glass rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -273,11 +285,20 @@ function AdminDeliveries() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <LiveTrackingMapLazy
-            trackingId={selected.reference}
-            driverName={selectedDriver.name}
-            minHeight={340}
-          />
+          {base ? (
+            <MissionLiveMapLazy
+              mission={selected}
+              driverName={selectedDriver.name}
+              showTrack
+              minHeight={340}
+            />
+          ) : (
+            <LiveTrackingMapLazy
+              trackingId={selected.reference}
+              driverName={selectedDriver.name}
+              minHeight={340}
+            />
+          )}
         </div>
       )}
 
