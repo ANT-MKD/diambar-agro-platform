@@ -173,16 +173,14 @@ export function MissionLiveMap({
   }, [track, pos, next.lat, next.lng, toDropoff, pLat, pLng, dLat, dLng]);
 
   const eta = pos && fresh ? estimateMinutes(pos, next) : null;
-  // Cadrage : le livreur et son prochain arrêt (sinon toute la course).
+  // Cadrage : le livreur et son prochain arrêt, plus le trajet déjà parcouru
+  // pour l'équipe (sinon toute la course).
   const fitTo = useMemo(
     () =>
       pos
-        ? [
-            { lat: pos.lat, lng: pos.lng },
-            { lat: next.lat, lng: next.lng },
-          ]
+        ? [{ lat: pos.lat, lng: pos.lng }, { lat: next.lat, lng: next.lng }, ...track]
         : undefined,
-    [pos, next.lat, next.lng],
+    [pos, next.lat, next.lng, track],
   );
   const waitingText = finished
     ? track.length > 1
@@ -208,7 +206,7 @@ export function MissionLiveMap({
           minHeight={minHeight}
           fitBounds={!follow}
           fitTo={fitTo}
-          fitKey={`${mission.status}|${pos ? 1 : 0}|${refit}`}
+          fitKey={`${mission.status}|${pos ? 1 : 0}|${track.length > 1 ? 1 : 0}|${refit}`}
           maxFitZoom={15}
           followPosition={follow && pos ? [pos.lat, pos.lng] : null}
           accuracyCircle={
