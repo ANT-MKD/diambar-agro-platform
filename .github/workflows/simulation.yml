@@ -1,0 +1,104 @@
+# Branche temporaire : simulation d'une livraison avec les vraies cartes
+# Mapbox, sur une base de données jetable créée dans le runner (jamais la
+# base en ligne). Captures enregistrées dans captures/ sur cette branche.
+name: Simulation cartes Mapbox (temporaire)
+
+on:
+  push:
+    branches: [tmp/map-tiles]
+
+permissions:
+  contents: write
+
+jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      SIM_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/gps-android
+          path: app
+
+      - name: Jeton Mapbox (secret MAPBOX_TOKEN)
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: |
+          if [ -z "$MAPBOX_TOKEN" ]; then
+            echo "::error::Secret MAPBOX_TOKEN absent (Settings › Secrets and variables › Actions)."
+            exit 1
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Dépendances
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Base jetable (démonstration + livraison en cours)
+        working-directory: app
+        run: cp ../sim/setup.ts .sim-setup.ts && bun .sim-setup.ts
+
+      - name: Compilation avec Mapbox
+        working-directory: app
+        env:
+          NITRO_PRESET: node-server
+          VITE_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: bun run build
+
+      - name: Démarrage du site
+        working-directory: app
+        env:
+          DATABASE_URL: ${{ env.SIM_DATABASE_URL }}
+          SESSION_SECRET: simulation-ci-session-secret-0123456789abcdef
+          DEMO_MODE: "true"
+          PORT: "8090"
+          HOST: 127.0.0.1
+        run: |
+          nohup node .output/server/index.mjs > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:8090/login && break; sleep 1; done
+          curl -sf -o /dev/null http://127.0.0.1:8090/login
+
+      - name: Navigateur
+        working-directory: sim
+        run: |
+          npm init -y > /dev/null
+          npm install --no-save --no-audit --no-fund playwright@1.63.0 postgres@3.4.7
+          npx playwright install --with-deps chromium
+
+      - name: Simulation et captures
+        working-directory: sim
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: node shots.mjs
+
+      - name: Journal du site (en cas d'échec)
+        if: failure()
+        run: tail -80 app/server.log || true
+
+      - name: Enregistrement des captures
+        if: always()
+        run: |
+          [ -d captures ] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add captures
+          git commit -m "Captures de la simulation" && git push
