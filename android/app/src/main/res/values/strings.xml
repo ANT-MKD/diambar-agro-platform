@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Diambar Agro</string>
+    <string name="title_activity_main">Diambar Agro</string>
+    <string name="package_name">sn.diambaragro.app</string>
+    <string name="custom_url_scheme">sn.diambaragro.app</string>
+</resources>
