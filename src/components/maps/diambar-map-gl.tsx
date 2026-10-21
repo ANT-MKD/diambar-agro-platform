@@ -13,11 +13,12 @@ import {
 import { cn } from "@/lib/utils";
 
 // Carte Mapbox (vectorielle) : même interface que la carte Leaflet.
-// `onFail` : jeton refusé, style introuvable ou chargement trop long ; la
-// carte OpenStreetMap prend alors le relais.
+// `onFail` : jeton refusé, style introuvable ou jamais reçu ; la carte
+// OpenStreetMap prend alors le relais. Un affichage simplement lent (réseau
+// mobile, petit téléphone) ne déclenche pas le repli.
 
-/** Au-delà, Mapbox est jugé indisponible (réseau, jeton) : repli OpenStreetMap. */
-const LOAD_TIMEOUT_MS = 12_000;
+/** Style toujours pas reçu après ce délai : Mapbox jugé injoignable. */
+const STYLE_TIMEOUT_MS = 20_000;
 /** Durée du glissement du livreur d'une position à la suivante. */
 const MOVE_MS = 1_200;
 
@@ -107,7 +108,7 @@ export default function DiambarMapGl({
   // Création de la carte (une fois).
   useEffect(() => {
     if (!container.current) return;
-    let loaded = false;
+    let styled = false;
     const map = new mapboxgl.Map({
       container: container.current,
       accessToken: MAPBOX_TOKEN,
@@ -120,19 +121,19 @@ export default function DiambarMapGl({
     mapRef.current = map;
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-left");
     const timer = window.setTimeout(() => {
-      if (!loaded) failRef.current();
-    }, LOAD_TIMEOUT_MS);
-    map.on("load", () => {
-      loaded = true;
+      if (!styled) failRef.current();
+    }, STYLE_TIMEOUT_MS);
+    map.on("style.load", () => {
+      styled = true;
       window.clearTimeout(timer);
-      setReady(true);
     });
+    map.on("load", () => setReady(true));
     map.on("error", (e) => {
-      // Jeton refusé, ou style introuvable avant le chargement → repli.
-      // Une tuile manquante (erreur liée à une source) ne suffit pas.
+      // Jeton refusé, ou style introuvable → repli. Une tuile manquante
+      // (erreur liée à une source) ne suffit pas.
       const status = (e.error as { status?: number } | undefined)?.status;
       const tileError = "sourceId" in e && !!(e as { sourceId?: string }).sourceId;
-      if (status === 401 || status === 403 || (!loaded && !tileError)) failRef.current();
+      if (status === 401 || status === 403 || (!styled && !tileError)) failRef.current();
     });
     const markersMap = placed.current;
     return () => {
