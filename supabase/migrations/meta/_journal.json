@@ -141,6 +141,13 @@
       "when": 1792369567151,
       "tag": "20261019040756_admin_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792538669044,
+      "tag": "20261020232429_driver_positions",
+      "breakpoints": true
     }
   ]
 }

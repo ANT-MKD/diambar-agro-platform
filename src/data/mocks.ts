@@ -1607,6 +1607,16 @@ export type Mission = {
   instructions?: string;
   // Avec la base : espèces à encaisser auprès du restaurant à la remise.
   cashToCollect?: number;
+  /** Avec la base : position GPS réelle du livreur pendant la course
+   * (équipe, livreur lui-même, restaurant pendant la livraison). */
+  driverPosition?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    accuracyM: number | null;
+    speedKmh: number | null;
+    at: string;
+  };
 };
 
 export type MissionProofPhoto = {

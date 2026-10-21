@@ -208,6 +208,11 @@
   animation: marquee 35s linear infinite;
 }
 
+/* Fond OpenStreetMap assombri pour le thème sombre (pas de tuiles sombres dédiées). */
+.map-tiles-dimmed {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88);
+}
+
 /* Marqueurs Leaflet (LiveTrackingMap / DiambarMap) */
 .diambar-marker {
   background: transparent !important;

@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/farmer/page-header";
 import { OrderTracker } from "@/components/restaurant/order-tracker";
 import { PaymentPanel } from "@/components/restaurant/payment-panel";
 import { LiveTrackingMapLazy } from "@/components/maps/live-tracking-map-lazy";
+import { MissionLiveMapLazy } from "@/components/maps/mission-live-map-lazy";
 import { useLiveTracking } from "@/hooks/use-live-tracking";
 import {
   useRestaurantOrder,
@@ -81,9 +82,11 @@ function OrderDetail() {
   // affichait toujours "Oumar Ba" (drivers[0]) quelle que soit la commande.
   const mission = missions.find((m) => order && m.orderRef === order.reference);
   const driver = mission?.driverId ? drivers.find((d) => d.id === mission.driverId) : null;
-  // Avec la base, pas de carte : la position affichée serait simulée.
+  // Démonstration : trajet simulé. Avec la base : position GPS réelle du
+  // livreur pendant la livraison (s'il la partage).
   const base = useBaseMode();
   const showMap = !base && order?.status === "delivering" && !!driver;
+  const showRealMap = base && order?.status === "delivering" && mission?.status === "loaded";
   const { snapshot } = useLiveTracking({
     trackingId: order?.reference,
     driverName: driver?.name,
@@ -214,6 +217,15 @@ function OrderDetail() {
             </Link>
           </div>
         </div>
+      )}
+
+      {showRealMap && mission && (
+        <MissionLiveMapLazy
+          mission={mission}
+          driverName={driver?.name || "Votre livreur"}
+          audience="restaurant"
+          minHeight={340}
+        />
       )}
 
       {showMap && (

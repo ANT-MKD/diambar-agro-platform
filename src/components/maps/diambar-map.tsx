@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { useEffect, useMemo, useRef } from "react";
+import { Circle, MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useTheme } from "next-themes";
@@ -13,6 +13,8 @@ export interface MapMarkerConfig extends TrackingPlace {
   color?: MarkerColor;
   pulse?: boolean;
   description?: string;
+  /** Au-dessus des autres marqueurs (ex. le livreur). */
+  zIndexOffset?: number;
 }
 
 export interface RouteLayer {
@@ -35,14 +37,36 @@ interface DiambarMapProps {
   fitBounds?: boolean;
   /** Suivre ce point à chaque mise à jour (style Yango) */
   followPosition?: [number, number] | null;
+  /** Points à cadrer (par défaut : tous les marqueurs et tracés). */
+  fitTo?: { lat: number; lng: number }[];
+  /** Recadrer seulement quand cette clé change (sinon : à chaque changement de points). */
+  fitKey?: string | number;
+  /** Zoom maximal du cadrage automatique. */
+  maxFitZoom?: number;
+  /** Cercle d'incertitude autour d'un point (mètres). */
+  accuracyCircle?: { lat: number; lng: number; radiusM: number } | null;
 }
 
-function FitBounds({ points }: { points: [number, number][] }) {
+function FitBounds({
+  points,
+  fitKey,
+  maxZoom,
+}: {
+  points: [number, number][];
+  fitKey?: string | number;
+  maxZoom: number;
+}) {
   const map = useMap();
+  const latest = useRef(points);
+  latest.current = points;
+  // Avec `fitKey`, le cadrage n'est refait que quand la clé change (pas à
+  // chaque nouvelle position), pour ne pas défaire le zoom de l'utilisateur.
+  const trigger = fitKey ?? points;
   useEffect(() => {
-    if (points.length < 2) return;
-    map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 13 });
-  }, [map, points]);
+    const pts = latest.current;
+    if (pts.length < 2) return;
+    map.fitBounds(L.latLngBounds(pts), { padding: [48, 48], maxZoom });
+  }, [map, trigger, maxZoom]);
   return null;
 }
 
@@ -73,6 +97,10 @@ export function DiambarMap({
   minHeight = 320,
   fitBounds = true,
   followPosition = null,
+  fitTo,
+  fitKey,
+  maxFitZoom = 13,
+  accuracyCircle = null,
 }: DiambarMapProps) {
   const { resolvedTheme } = useTheme();
   const tile = getTileLayer(resolvedTheme === "light" ? "light" : "dark");
@@ -89,10 +117,11 @@ export function DiambarMap({
   );
 
   const allPoints = useMemo(() => {
+    if (fitTo?.length) return fitTo.map((p) => [p.lat, p.lng] as [number, number]);
     const pts: [number, number][] = markers.map((m) => [m.lat, m.lng]);
     if (followPosition) pts.push(followPosition);
     return [...pts, ...routePositions];
-  }, [markers, routePositions, followPosition]);
+  }, [fitTo, markers, routePositions, followPosition]);
 
   const shouldFitBounds = fitBounds && !followPosition;
 
@@ -108,8 +137,22 @@ export function DiambarMap({
         style={{ minHeight, height: "100%" }}
         scrollWheelZoom
       >
-        <TileLayer attribution={tile.attribution} url={tile.url} />
-        {shouldFitBounds && allPoints.length > 1 && <FitBounds points={allPoints} />}
+        <TileLayer
+          key={`${tile.url}|${tile.dimmed}`}
+          attribution={tile.attribution}
+          url={tile.url}
+          className={tile.dimmed ? "map-tiles-dimmed" : undefined}
+        />
+        {shouldFitBounds && allPoints.length > 1 && (
+          <FitBounds points={allPoints} fitKey={fitKey} maxZoom={maxFitZoom} />
+        )}
+        {accuracyCircle && accuracyCircle.radiusM > 0 && (
+          <Circle
+            center={[accuracyCircle.lat, accuracyCircle.lng]}
+            radius={accuracyCircle.radiusM}
+            pathOptions={{ color: "#059669", weight: 1, fillOpacity: 0.12 }}
+          />
+        )}
         <MapFollow position={followPosition} enabled={!!followPosition} />
 
         {routeLayers.map((layer, i) => {
@@ -135,6 +178,7 @@ export function DiambarMap({
             key={m.id}
             position={[m.lat, m.lng]}
             icon={createMarkerIcon(m.color ?? "emerald", m.pulse)}
+            zIndexOffset={m.zIndexOffset ?? 0}
           >
             <Popup>
               <div className="min-w-[120px] text-sm">

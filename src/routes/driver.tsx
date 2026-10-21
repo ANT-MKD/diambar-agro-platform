@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { DemoOnlyOutlet } from "@/components/common/demo-only-guard";
-import { useHiddenInBase } from "@/data/demo-only";
+import { useBaseMode, useHiddenInBase } from "@/data/demo-only";
 import {
   LayoutDashboard,
   Truck,
@@ -41,6 +41,8 @@ import { useMaintenanceMode } from "@/data/admin-store";
 import { MaintenanceScreen } from "@/components/common/maintenance-screen";
 import { enterPortal, market, useMarketPolling } from "@/data/market-remote";
 import { useMyId } from "@/data/market-mode";
+import { useDeviceGps } from "@/hooks/use-device-gps";
+import { GpsStatusBanner } from "@/components/driver/gps-status-banner";
 
 export const Route = createFileRoute("/driver")({
   // Portail rendu dans le navigateur : ses données (celles du compte
@@ -77,6 +79,13 @@ function DriverLayout() {
     (m) => m.driverId === MY_DRIVER_ID && ["accepted", "pickup", "loaded"].includes(m.status),
   ).length;
   const unreadMessages = useDriverConversations().reduce((s, c) => s + c.unread, 0);
+  // GPS réel (avec la base) : envoyé seulement pendant une course démarrée
+  // (vers la collecte, puis en livraison) ; jamais en dehors.
+  const base = useBaseMode();
+  const startedMissions = missions.filter(
+    (m) => m.driverId === MY_DRIVER_ID && (m.status === "pickup" || m.status === "loaded"),
+  ).length;
+  const gps = useDeviceGps(base && startedMissions > 0);
 
   // Acceptation automatique réelle : dès qu'une mission "disponible" respecte
   // les critères enregistrés dans Paramètres, elle est acceptée pour de bon.
@@ -325,6 +334,7 @@ function DriverLayout() {
           />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8 pb-24 lg:pb-8">
+          {base && <GpsStatusBanner status={gps} retry={gps.retry} />}
           <DemoOnlyOutlet home="/driver/dashboard" />
         </main>
         <nav

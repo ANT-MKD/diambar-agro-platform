@@ -37,6 +37,8 @@ import { useIncidents, INCIDENT_TYPE_LABEL, type IncidentType } from "@/data/bus
 import { auditActions, useAdminRoleForEmail, can } from "@/data/admin-store";
 import { farmers, restaurants, drivers, type MissionStatus } from "@/data/mocks";
 import { ProofPhotos } from "@/components/common/handover-code";
+import { MissionLiveMapLazy } from "@/components/maps/mission-live-map-lazy";
+import { useBaseMode } from "@/data/demo-only";
 
 export const Route = createFileRoute("/admin/deliveries/$missionId")({
   head: () => ({
@@ -77,6 +79,7 @@ function AdminDeliveryDetail() {
   const role = useAdminRoleForEmail(user.email);
   const canReassignDeliveries = can(role, "deliveries.reassign");
   const mission = useMission(missionId);
+  const base = useBaseMode();
   const candidates = useReassignCandidates(mission);
   const orders = useOrders();
   const disputes = useAllDisputes();
@@ -280,6 +283,15 @@ function AdminDeliveryDetail() {
               <span>Prévue {relativeTime(mission.scheduledFor)}</span>
             </div>
           </div>
+
+          {base && mission.driverId && mission.status !== "available" && (
+            <MissionLiveMapLazy
+              mission={mission}
+              driverName={driver?.name ?? "Livreur"}
+              showTrack
+              minHeight={320}
+            />
+          )}
 
           <ProofPhotos photos={mission.proof} />
 

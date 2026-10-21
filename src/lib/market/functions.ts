@@ -34,6 +34,7 @@ import {
   withdrawMission,
 } from "./market-db.server";
 import { declarePayment, rejectPayment } from "./payments-db.server";
+import { readMissionTrack } from "./positions-db.server";
 import {
   approvePayout,
   approveRefund,
@@ -2477,6 +2478,46 @@ export const setDriverOnlineFn = createServerFn({ method: "POST" })
       await setDriverOnline(db, { id: me.id, role: me.role }, data.online);
       return { ok: true as const };
     }),
+  );
+
+// --- Position GPS du livreur ------------------------------------------------------------
+
+/** Durée d'un jeton d'envoi de position : une journée de travail. */
+const GPS_TOKEN_TTL_MS = 12 * 3600_000;
+
+/** Jeton signé qui autorise le téléphone du livreur à envoyer sa position à
+ * /api/driver-position, y compris en arrière-plan (sans cookie de session). */
+export const startGpsSessionFn = createServerFn({ method: "POST" }).handler(
+  async (): Promise<
+    { ok: true; token: string; expiresAt: string } | { ok: false; message: string }
+  > =>
+    withMarket(
+      ["driver"],
+      async (_db, me) => ({
+        ok: true as const,
+        token: await createSignedToken({ kind: "gps", driverId: me.id }, GPS_TOKEN_TTL_MS),
+        expiresAt: new Date(Date.now() + GPS_TOKEN_TTL_MS).toISOString(),
+      }),
+      undefined,
+      { duringMaintenance: true },
+    ),
+);
+
+/** Équipe : trajet réel d'une course (positions envoyées par le livreur). */
+export const getMissionTrackFn = createServerFn({ method: "GET" })
+  .validator((input: { missionId: string }) => parse(z.object({ missionId: id }), input))
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | { ok: true; points: { lat: number; lng: number; at: string }[] }
+      | { ok: false; message: string }
+    > =>
+      withMarket(
+        ["admin"],
+        async (db) => ({ ok: true as const, points: await readMissionTrack(db, data.missionId) }),
+        "deliveries.view",
+      ),
   );
 
 const dayHours = z.object({

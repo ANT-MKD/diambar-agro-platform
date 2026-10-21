@@ -46,7 +46,7 @@ import {
 } from "@/data/store";
 import { market } from "@/data/market-remote";
 import { useMyId } from "@/data/market-mode";
-import { GpsPanel } from "@/components/driver/gps-panel";
+import { GpsPanel, RealGpsPanel } from "@/components/driver/gps-panel";
 import { FileDrop } from "@/components/disputes/file-drop";
 import type { DisputeAttachment } from "@/data/disputes";
 import { farmers, restaurants, type MissionStatus } from "@/data/mocks";
@@ -387,15 +387,21 @@ function MissionDetail() {
             ) : null}
           </div>
 
-          {/* Live GPS */}
-          <GpsPanel
-            trackingId={mission.reference}
-            distanceKm={mission.distanceKm}
-            estimatedMinutes={mission.estimatedMinutes}
-            driverName="Vous"
-            live={mission.status === "pickup" || mission.status === "loaded"}
-            defaultShare={settings.locationSharing}
-          />
+          {/* GPS : réel avec la base, simulé en démonstration */}
+          {base ? (
+            ["accepted", "pickup", "loaded"].includes(mission.status) && (
+              <RealGpsPanel mission={mission} />
+            )
+          ) : (
+            <GpsPanel
+              trackingId={mission.reference}
+              distanceKm={mission.distanceKm}
+              estimatedMinutes={mission.estimatedMinutes}
+              driverName="Vous"
+              live={mission.status === "pickup" || mission.status === "loaded"}
+              defaultShare={settings.locationSharing}
+            />
+          )}
 
           {/* Récap commande */}
           <div className="glass rounded-2xl p-5">
