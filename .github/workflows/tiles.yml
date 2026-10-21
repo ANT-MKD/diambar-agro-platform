@@ -1,0 +1,32 @@
+# Branche temporaire : télécharge quelques tuiles OpenStreetMap de Dakar pour
+# des captures d'écran (le bac à sable de développement n'a pas accès aux
+# serveurs de cartes). Branche supprimée après usage.
+name: Tuiles de carte (temporaire)
+on:
+  push:
+    branches: [tmp/map-tiles]
+permissions:
+  contents: write
+jobs:
+  tiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Téléchargement (avec pause, politique d'usage OSM)
+        run: |
+          while read -r t; do
+            [ -z "$t" ] && continue
+            mkdir -p "tiles/$(dirname "$t")"
+            curl -sSf -A "DiambarAgro-captures/1.0 (+https://github.com/ANT-MKD/diambar-agro-platform)" \
+              -o "tiles/$t.png" "https://tile.openstreetmap.org/$t.png" || echo "échec $t"
+            sleep 0.3
+          done < tiles.txt
+          find tiles -name '*.png' | wc -l
+      - name: Enregistrement sur la branche
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tiles
+          git commit -m "Tuiles OpenStreetMap téléchargées"
+          git push
