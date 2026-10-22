@@ -1271,12 +1271,20 @@ export async function missionStep(
         deliveredWithCode: true,
       });
       // Ce qui revient à chacun est écrit au grand livre.
-      const { farmerCommission } = await recordDelivery(tx, o, {
+      const { farmerCommission, waitPay } = await recordDelivery(tx, o, {
         id: m.id,
         reference: m.reference,
         driverId,
         payout: m.payout,
       });
+      if (waitPay > 0) {
+        await notifyUser(tx, driverId, {
+          type: "payment",
+          title: "Attente payée",
+          body: `${m.reference} : ${formatFCFA(waitPay)} ajoutés à votre solde pour l'attente`,
+          link: "/driver/wallet",
+        });
+      }
       await notifyUser(tx, o.farmerId, {
         type: "payment",
         title: "Commande livrée",

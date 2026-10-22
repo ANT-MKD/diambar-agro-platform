@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import { ledgerEntries, payments, payouts, settings } from "@/db/schema";
+import { ledgerEntries, missionEvents, payments, payouts, settings } from "@/db/schema";
 import { driverCommissionForPayout, tierRateForVolume } from "@/lib/commission";
+import { WAIT_PAY_NOTE, waitCompensation } from "@/lib/mission-eligibility";
 import type { Q, Tx } from "./market-common.server";
 import { readDriverPay } from "./rules-db.server";
 
@@ -12,8 +13,10 @@ import { readDriverPay } from "./rules-db.server";
 // À la livraison d'une commande (le restaurant a payé : compte marchand
 // confirmé, ou espèces encaissées par le livreur) :
 //   producteur : + marchandise livrée, − commission (barème par palier)
-//   livreur    : + prix de la course,  − commission livreur (20 %)
+//   livreur    : + prix de la course,  − commission livreur (taux réglé dans
+//                « Tarifs de livraison »), + attente payée s'il a attendu
 //   plateforme : + les deux commissions + frais de livraison − prix de la course
+//                − attente payée (à la charge de Diambar)
 // La somme des trois est exactement ce que le restaurant a payé.
 
 type Tier = { min: number; max: number | null; rate: number };
@@ -56,21 +59,20 @@ export async function recordDelivery(
   tx: Tx,
   o: { id: string; reference: string; farmerId: string; subtotal: number; deliveryFee: number },
   m: { id: string; reference: string; driverId: string; payout: number },
-): Promise<{ farmerCommission: number; rate: number }> {
+): Promise<{ farmerCommission: number; rate: number; waitPay: number }> {
   const [already] = await tx
     .select({ id: ledgerEntries.id })
     .from(ledgerEntries)
     .where(and(eq(ledgerEntries.orderId, o.id), eq(ledgerEntries.kind, "sale")))
     .limit(1);
-  if (already) return { farmerCommission: 0, rate: 0 };
+  if (already) return { farmerCommission: 0, rate: 0, waitPay: 0 };
   const now = new Date();
   const tiers = await readCommissionTiers(tx);
   const rate = tierRateForVolume(tiers, (await monthVolume(tx, o.farmerId, now)) + o.subtotal);
   const farmerCommission = Math.round((o.subtotal * rate) / 100);
-  const driverCommission = driverCommissionForPayout(
-    m.payout,
-    (await readDriverPay(tx)).commissionRate,
-  );
+  const driverRate = (await readDriverPay(tx)).commissionRate;
+  const driverCommission = driverCommissionForPayout(m.payout, driverRate);
+  const wait = await waitPayForMission(tx, m.id, now);
   const rows: (typeof ledgerEntries.$inferInsert)[] = [
     { account: "farmer", userId: o.farmerId, kind: "sale", amount: o.subtotal, orderId: o.id },
     {
@@ -96,7 +98,7 @@ export async function recordDelivery(
       amount: -driverCommission,
       orderId: o.id,
       missionId: m.id,
-      note: "Commission livreur 20 %",
+      note: `Commission livreur ${driverRate} %`,
     },
     {
       account: "platform",
@@ -121,10 +123,65 @@ export async function recordDelivery(
       orderId: o.id,
       missionId: m.id,
     },
+    // Attente payée : versée au livreur, à la charge de Diambar.
+    {
+      account: "driver",
+      userId: m.driverId,
+      kind: "adjustment",
+      amount: wait.amount,
+      orderId: o.id,
+      missionId: m.id,
+      note: `${WAIT_PAY_NOTE} · ${m.reference} · ${wait.detail}`,
+    },
+    {
+      account: "platform",
+      kind: "adjustment",
+      amount: -wait.amount,
+      orderId: o.id,
+      missionId: m.id,
+      note: `${WAIT_PAY_NOTE} · ${m.reference}`,
+    },
   ];
   // Une écriture à zéro n'apporte rien (et la base les refuse).
   await tx.insert(ledgerEntries).values(rows.filter((r) => r.amount !== 0));
-  return { farmerCommission, rate };
+  return { farmerCommission, rate, waitPay: wait.amount };
+}
+
+/**
+ * Attente payée d'une course : de l'arrivée signalée par le livreur
+ * (« Je suis chez le producteur / le restaurant ») jusqu'au chargement, puis
+ * jusqu'à la livraison. Au-delà de 10 minutes, chaque minute est payée.
+ */
+async function waitPayForMission(
+  tx: Tx,
+  missionId: string,
+  now: Date,
+): Promise<{ amount: number; detail: string }> {
+  const events = await tx
+    .select({ status: missionEvents.status, note: missionEvents.note, at: missionEvents.at })
+    .from(missionEvents)
+    .where(eq(missionEvents.missionId, missionId));
+  const first = (pick: (e: (typeof events)[number]) => boolean) =>
+    events
+      .filter(pick)
+      .map((e) => e.at)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+  let amount = 0;
+  const parts: string[] = [];
+  for (const [stage, end, where] of [
+    ["pickup", "loaded", "chez le producteur"],
+    ["dropoff", "delivered", "au restaurant"],
+  ] as const) {
+    const arrived = first((e) => e.note === `arrivee:${stage}`);
+    if (!arrived) continue;
+    const ended = first((e) => e.status === end) ?? now;
+    const minutes = Math.floor((ended.getTime() - arrived.getTime()) / 60_000);
+    const pay = waitCompensation(minutes);
+    if (pay <= 0) continue;
+    amount += pay;
+    parts.push(`${minutes} min ${where}`);
+  }
+  return { amount, detail: parts.join(", ") };
 }
 
 /** Refus à la réception : le producteur rend ce qui a été refusé, la

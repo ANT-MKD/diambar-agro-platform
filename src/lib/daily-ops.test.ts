@@ -48,7 +48,20 @@ describe("opérations du jour", () => {
       ],
       missions: [
         { id: "m1", orderRef: "CMD-1", status: "delivered", payout: 3000 } as Mission,
-        { id: "m2", orderRef: "CMD-2", status: "delivered", payout: 3000 } as Mission,
+        {
+          id: "m2",
+          orderRef: "CMD-2",
+          status: "delivered",
+          payout: 3000,
+          // 14 min au restaurant : 4 min payées, à la charge de la plateforme.
+          waits: [
+            {
+              stage: "dropoff",
+              arrivedAt: new Date(2026, 8, 30, 9, 0).toISOString(),
+              endedAt: new Date(2026, 8, 30, 9, 14).toISOString(),
+            },
+          ],
+        } as Mission,
       ],
       transactions: [
         { orderRef: "CMD-1", commission: 1500 } as Transaction,
@@ -62,8 +75,10 @@ describe("opérations du jour", () => {
     expect(ops.onTimeRate).toBe(0.5); // CMD-2 livrée 7 h après l'heure choisie
     expect(ops.cashToReconcile).toBe(11000);
     // 3000 commissions + 2000 livraison + 1200 commissions livreur − 6000 courses
-    expect(ops.margin.total).toBe(200);
-    expect(ops.marginPerOrder).toBe(100);
+    // − 200 d'attente payée
+    expect(ops.margin.waitPay).toBe(200);
+    expect(ops.margin.total).toBe(0);
+    expect(ops.marginPerOrder).toBe(0);
   });
 });
 

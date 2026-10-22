@@ -103,7 +103,7 @@ import {
   currentLoadKg,
   fleetForDriver,
   missionEligibility,
-  waitCompensation,
+  waitPayFor,
   withinWorkingHours,
   type DriverFleet,
   type Eligibility,
@@ -1021,11 +1021,7 @@ export const missionActions = {
         title: "Paiement reçu",
         body: `+${formatFCFA(updated.payout - commission)} net (${updated.reference})`,
       });
-      const waitPay = (updated.waits ?? []).reduce((sum, w) => {
-        if (!w.endedAt) return sum;
-        const minutes = (new Date(w.endedAt).getTime() - new Date(w.arrivedAt).getTime()) / 60_000;
-        return sum + waitCompensation(minutes);
-      }, 0);
+      const waitPay = waitPayFor(updated.waits ?? []);
       if (waitPay > 0) {
         driverWalletActions.credit(
           `Indemnité d'attente ${updated.reference}`,
