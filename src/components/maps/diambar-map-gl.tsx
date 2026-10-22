@@ -92,6 +92,7 @@ export default function DiambarMapGl({
   fitKey,
   maxFitZoom = 13,
   accuracyCircle = null,
+  onUserMove,
   onFail,
 }: DiambarMapProps & { onFail: () => void }) {
   const container = useRef<HTMLDivElement>(null);
@@ -104,6 +105,8 @@ export default function DiambarMapGl({
   const standard = isStandardStyle(MAPBOX_STYLE);
   const failRef = useRef(onFail);
   failRef.current = onFail;
+  const userMoveRef = useRef(onUserMove);
+  userMoveRef.current = onUserMove;
 
   // Création de la carte (une fois).
   useEffect(() => {
@@ -128,6 +131,17 @@ export default function DiambarMapGl({
       window.clearTimeout(timer);
     });
     map.on("load", () => setReady(true));
+    // Geste de l'utilisateur (les recadrages automatiques n'ont pas
+    // d'événement d'origine). La molette est écoutée à part : au premier cran
+    // d'une souris, Mapbox démarre le zoom sans événement d'origine.
+    const userMove = (e: object) => {
+      if ((e as { originalEvent?: unknown }).originalEvent) userMoveRef.current?.();
+    };
+    map.on("wheel", () => userMoveRef.current?.());
+    map.on("dragstart", userMove);
+    map.on("zoomstart", userMove);
+    map.on("rotatestart", userMove);
+    map.on("pitchstart", userMove);
     map.on("error", (e) => {
       // Jeton refusé, ou style introuvable → repli. Une tuile manquante
       // (erreur liée à une source) ne suffit pas.
