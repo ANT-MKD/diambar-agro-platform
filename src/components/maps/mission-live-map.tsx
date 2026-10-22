@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Crosshair, Satellite, SatelliteDish } from "lucide-react";
 import { useTheme } from "next-themes";
 import { DiambarMap, type MapMarkerConfig, type RouteLayer } from "./diambar-map";
@@ -23,6 +23,12 @@ export interface MissionLiveMapProps {
   showTrack?: boolean;
   /** Le restaurant ne voit la position que pendant la livraison. */
   audience?: "admin" | "driver" | "restaurant";
+  /**
+   * Suivi automatique (comme les applications de VTC) : la carte recadre le
+   * livreur et son prochain arrêt à chaque position, et zoome à l'approche.
+   * Un geste sur la carte le met en pause ; « Recentrer » le reprend.
+   */
+  autoFollow?: boolean;
   minHeight?: number;
   className?: string;
 }
@@ -79,12 +85,15 @@ export function MissionLiveMap({
   driverName,
   showTrack = false,
   audience = "admin",
+  autoFollow = false,
   minHeight = 360,
   className,
 }: MissionLiveMapProps) {
   const now = useNow(10_000);
   const [follow, setFollow] = useState(false);
   const [refit, setRefit] = useState(0);
+  // Suivi automatique : actif tant que l'utilisateur ne touche pas la carte.
+  const [tracking, setTracking] = useState(true);
   const pos = mission.driverPosition;
   const finished = mission.status === "delivered" || mission.status === "cancelled";
   const track = useMissionTrack(mission.id, showTrack, !finished, pos?.at);
@@ -206,18 +215,27 @@ export function MissionLiveMap({
       : null;
   // Cadrage : le livreur et son prochain arrêt, plus le trajet déjà parcouru
   // pour l'équipe (sinon toute la course).
+  const auto = autoFollow && !!pos;
   const fitTo = useMemo(
     () =>
       pos
         ? [
             { lat: pos.lat, lng: pos.lng },
             { lat: next.lat, lng: next.lng },
-            ...track,
+            ...(autoFollow ? [] : track),
             ...(ahead?.points ?? []),
           ]
         : undefined,
-    [pos, next.lat, next.lng, track, ahead],
+    [pos, next.lat, next.lng, track, ahead, autoFollow],
   );
+  // Suivi automatique : nouveau cadrage à chaque position. En pause, la clé
+  // reste la dernière connue, pour ne pas défaire le geste de l'utilisateur.
+  const baseKey = `${mission.status}|${pos ? 1 : 0}|${track.length > 1 ? 1 : 0}|${road ? 1 : 0}|${refit}`;
+  const lastAutoKey = useRef(baseKey);
+  if (auto && tracking) {
+    lastAutoKey.current = `${baseKey}|${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`;
+  }
+  const fitKey = auto ? lastAutoKey.current : baseKey;
   const waitingText = finished
     ? track.length > 1
       ? "Course terminée · trajet réel enregistré pendant la course."
@@ -240,16 +258,30 @@ export function MissionLiveMap({
           center={pos ? [pos.lat, pos.lng] : [(pLat + dLat) / 2, (pLng + dLng) / 2]}
           zoom={13}
           minHeight={minHeight}
-          fitBounds={!follow}
+          fitBounds={auto || !follow}
           fitTo={fitTo}
-          fitKey={`${mission.status}|${pos ? 1 : 0}|${track.length > 1 ? 1 : 0}|${road ? 1 : 0}|${refit}`}
-          maxFitZoom={15}
-          followPosition={follow && pos ? [pos.lat, pos.lng] : null}
+          fitKey={fitKey}
+          maxFitZoom={auto ? 16 : 15}
+          followPosition={!auto && follow && pos ? [pos.lat, pos.lng] : null}
+          onUserMove={auto && tracking ? () => setTracking(false) : undefined}
           accuracyCircle={
             pos?.accuracyM && fresh ? { lat: pos.lat, lng: pos.lng, radiusM: pos.accuracyM } : null
           }
         />
-        {pos && (
+        {auto && !tracking && (
+          <button
+            type="button"
+            onClick={() => {
+              setTracking(true);
+              setRefit((n) => n + 1);
+            }}
+            className="absolute top-3 right-3 z-10 flex h-10 items-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-semibold shadow-lg"
+          >
+            <Crosshair className="h-4 w-4 text-emerald-600" />
+            Recentrer
+          </button>
+        )}
+        {pos && !auto && (
           <button
             type="button"
             onClick={() => {

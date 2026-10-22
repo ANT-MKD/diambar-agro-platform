@@ -224,6 +224,7 @@ function OrderDetail() {
           mission={mission}
           driverName={driver?.name || "Votre livreur"}
           audience="restaurant"
+          autoFollow
           minHeight={340}
         />
       )}

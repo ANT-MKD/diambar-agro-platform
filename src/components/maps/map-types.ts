@@ -40,6 +40,8 @@ export interface DiambarMapProps {
   maxFitZoom?: number;
   /** Cercle d'incertitude autour d'un point (mètres). */
   accuracyCircle?: { lat: number; lng: number; radiusM: number } | null;
+  /** L'utilisateur a lui-même déplacé ou zoomé la carte (pas un recadrage automatique). */
+  onUserMove?: () => void;
 }
 
 /** Tracés à dessiner : `routes`, sinon l'ancien `route` unique. */

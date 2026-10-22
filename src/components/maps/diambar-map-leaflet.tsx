@@ -33,6 +33,34 @@ function FitBounds({
   return null;
 }
 
+/** Gestes de l'utilisateur (glisser, molette, pincer, double-clic, + / −). */
+function UserMoveWatcher({ onUserMove }: { onUserMove: () => void }) {
+  const map = useMap();
+  const cb = useRef(onUserMove);
+  cb.current = onUserMove;
+  useEffect(() => {
+    const el = map.getContainer();
+    const fire = () => cb.current();
+    const pinch = (e: TouchEvent) => {
+      if (e.touches.length > 1) fire();
+    };
+    const zoomButtons = el.querySelector(".leaflet-control-zoom");
+    map.on("dragstart", fire);
+    el.addEventListener("wheel", fire, { passive: true });
+    el.addEventListener("dblclick", fire);
+    el.addEventListener("touchstart", pinch, { passive: true });
+    zoomButtons?.addEventListener("click", fire);
+    return () => {
+      map.off("dragstart", fire);
+      el.removeEventListener("wheel", fire);
+      el.removeEventListener("dblclick", fire);
+      el.removeEventListener("touchstart", pinch);
+      zoomButtons?.removeEventListener("click", fire);
+    };
+  }, [map]);
+  return null;
+}
+
 function MapFollow({
   position,
   enabled,
@@ -64,6 +92,7 @@ export function DiambarMapLeaflet({
   fitKey,
   maxFitZoom = 13,
   accuracyCircle = null,
+  onUserMove,
 }: DiambarMapProps) {
   const { resolvedTheme } = useTheme();
   const tile = getTileLayer(resolvedTheme === "light" ? "light" : "dark");
@@ -106,6 +135,7 @@ export function DiambarMapLeaflet({
           />
         )}
         <MapFollow position={followPosition} enabled={!!followPosition} />
+        {onUserMove && <UserMoveWatcher onUserMove={onUserMove} />}
 
         {routeLayers.map((layer, i) => {
           const positions = layer.points.map((p) => [p.lat, p.lng] as [number, number]);
