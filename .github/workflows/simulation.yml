@@ -4,6 +4,8 @@
 name: Simulation cartes Mapbox (temporaire)
 
 on:
+  # Relance possible depuis GitHub : Actions › cette simulation › Run workflow.
+  workflow_dispatch:
   push:
     branches: [tmp/map-tiles]
 
