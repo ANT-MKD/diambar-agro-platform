@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { formatFCFA } from "@/lib/format";
 import type { CompanyInfo, TvaSetting } from "@/lib/platform/setup-model";
+import { WAIT_PAY_NOTE } from "@/lib/mission-eligibility";
 import { fail, notifyUser, type Q, type Tx } from "./market-common.server";
 import type { InvoiceContent, StatementView } from "./documents-view";
 
@@ -306,9 +307,10 @@ export async function readStatement(db: Db, userId: string, month: string): Prom
         : (r.missionRef ?? r.orderRef ?? "");
     return {
       at: r.at.toISOString(),
-      // Une écriture de litige se lit par son motif (« Retenue Litige LIT-0001 »).
+      // Une écriture de litige ou d'attente payée se lit par son motif
+      // (« Retenue Litige LIT-0001 », « Attente payée · MIS-0001 · 14 min… »).
       label:
-        r.note && /Litige /.test(r.note)
+        r.note && (/Litige /.test(r.note) || r.note.startsWith(WAIT_PAY_NOTE))
           ? r.note
           : `${KIND_LABEL[r.kind] ?? "Écriture"}${r.note && r.kind !== "payout" ? ` (${r.note})` : ""}`,
       reference: ref.trim(),

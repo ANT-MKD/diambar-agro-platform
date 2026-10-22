@@ -353,8 +353,9 @@ function OperationsPage() {
             [
               ["Commissions producteurs", ops.margin.commissions],
               ["Frais de livraison facturés", ops.margin.deliveryFees],
-              ["Commissions livreurs (20 %)", ops.margin.driverCommissions],
+              [`Commissions livreurs (${driverCommissionRate} %)`, ops.margin.driverCommissions],
               ["Courses payées aux livreurs", -ops.margin.driverPayouts],
+              ["Attente payée aux livreurs", -ops.margin.waitPay],
               ["Promos et avoirs", -ops.margin.discounts],
               ["Remboursements à la charge de la plateforme", -ops.margin.platformRefunds],
             ] as const
