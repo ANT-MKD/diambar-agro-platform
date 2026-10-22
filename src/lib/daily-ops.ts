@@ -1,5 +1,6 @@
 import type { Mission, RestaurantOrder, Transaction } from "@/data/mocks";
 import { DRIVER_COMMISSION_RATE } from "@/lib/commission";
+import { waitPayFor } from "@/lib/mission-eligibility";
 import { bracketLabel, type DeliveryPricing } from "@/lib/delivery-pricing";
 import { orderAmounts } from "@/lib/pricing";
 
@@ -44,6 +45,8 @@ export type DailyOps = {
     deliveryFees: number;
     driverCommissions: number;
     driverPayouts: number;
+    /** Attente payée aux livreurs (à la charge de la plateforme). */
+    waitPay: number;
     discounts: number;
     platformRefunds: number;
     total: number;
@@ -110,6 +113,7 @@ export function computeDailyOps(input: {
     (m) => m.status === "delivered" && refs.has(m.orderRef),
   );
   const driverPayouts = deliveredMissions.reduce((s, m) => s + m.payout, 0);
+  const waitPay = deliveredMissions.reduce((s, m) => s + waitPayFor(m.waits ?? []), 0);
   const driverCommissions = deliveredMissions.reduce(
     (s, m) =>
       s + Math.round(m.payout * ((input.driverCommissionRate ?? DRIVER_COMMISSION_RATE) / 100)),
@@ -128,7 +132,13 @@ export function computeDailyOps(input: {
     .filter((r) => r.status === "paid" && r.bornBy === "platform" && sameDay(r.decidedAt, day))
     .reduce((s, r) => s + r.amount, 0);
   const total =
-    commissions + deliveryFees + driverCommissions - driverPayouts - discounts - platformRefunds;
+    commissions +
+    deliveryFees +
+    driverCommissions -
+    driverPayouts -
+    waitPay -
+    discounts -
+    platformRefunds;
 
   const unassigned = input.missions
     .filter((m) => m.status === "available")
@@ -150,6 +160,7 @@ export function computeDailyOps(input: {
       deliveryFees,
       driverCommissions,
       driverPayouts,
+      waitPay,
       discounts,
       platformRefunds,
       total,
@@ -165,7 +176,7 @@ export type DeliveryMargin = {
   /** Frais de livraison payés par le restaurant pour cette commande. */
   fee: number;
   /** Ce que la course coûte à la plateforme : prix payé au livreur, moins
-   * la commission livreur qu'elle reprend. */
+   * la commission livreur qu'elle reprend, plus l'attente payée. */
   cost: number;
   margin: number;
 };
@@ -191,7 +202,7 @@ export function deliveryMargins(input: {
     if (!order) continue;
     const fee = orderAmounts(order).deliveryFee;
     const rate = input.driverCommissionRate ?? DRIVER_COMMISSION_RATE;
-    const cost = m.payout - Math.round(m.payout * (rate / 100));
+    const cost = m.payout - Math.round(m.payout * (rate / 100)) + waitPayFor(m.waits ?? []);
     out.push({ mission: m, fee, cost, margin: fee - cost });
   }
   return out;

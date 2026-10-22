@@ -5,6 +5,7 @@ import {
   fleetForDriver,
   missionEligibility,
   waitCompensation,
+  waitPayFor,
   withinWorkingHours,
   type DriverFleet,
 } from "./mission-eligibility";
@@ -86,6 +87,17 @@ describe("charge cumulée, hors ligne, attente payée", () => {
     expect(waitCompensation(8)).toBe(0);
     expect(waitCompensation(25)).toBe(15 * 50);
     expect(waitCompensation(500)).toBe(3000);
+  });
+  it("attente d'une course : arrêts terminés seulement, chacun avec son plafond", () => {
+    const t = (min: number) => new Date(Date.UTC(2026, 9, 21, 9, min)).toISOString();
+    expect(
+      waitPayFor([
+        { arrivedAt: t(0), endedAt: t(25) }, // producteur : 15 min payées
+        { arrivedAt: t(40), endedAt: t(54) }, // restaurant : 4 min payées
+        { arrivedAt: t(56) }, // pas encore terminé
+      ]),
+    ).toBe(15 * 50 + 4 * 50);
+    expect(waitPayFor([{ arrivedAt: t(0), endedAt: t(9) }])).toBe(0);
   });
   it("respecte les horaires de travail", () => {
     const hours = {

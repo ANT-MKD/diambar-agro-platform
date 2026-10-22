@@ -115,6 +115,20 @@ export function waitCompensation(minutes: number) {
   );
 }
 
+/** Début du libellé des écritures d'attente payée (portefeuille, relevés). */
+export const WAIT_PAY_NOTE = "Attente payée";
+
+/** Attente payée d'une course : somme des arrêts terminés. */
+export function waitPayFor(
+  waits: { arrivedAt: string | Date; endedAt?: string | Date | null }[],
+): number {
+  return waits.reduce((sum, w) => {
+    if (!w.endedAt) return sum;
+    const minutes = (new Date(w.endedAt).getTime() - new Date(w.arrivedAt).getTime()) / 60_000;
+    return sum + waitCompensation(minutes);
+  }, 0);
+}
+
 /** Une mission tombe-t-elle dans les horaires de travail déclarés ? */
 export function withinWorkingHours(
   scheduledFor: string,

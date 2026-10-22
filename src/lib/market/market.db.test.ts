@@ -12,6 +12,7 @@ import {
   drivers,
   farmers,
   ledgerEntries,
+  missionEvents,
   missions,
   notifications,
   orders,
@@ -31,6 +32,7 @@ import {
   addDeliveryProof,
   confirmOrder,
   confirmPayment,
+  markArrived,
   missionStep,
   moveStock,
   placeOrder,
@@ -56,6 +58,7 @@ import { readBalances } from "./ledger-db.server";
 import { paymentDeadline } from "@/lib/payment-deadline";
 import { DEFAULT_DELIVERY_PRICING, deliveryFee, driverNetCost } from "@/lib/delivery-pricing";
 import { missionPayout } from "@/lib/mission-pay";
+import { DEFAULT_DRIVER_PAY } from "@/lib/platform-rules";
 import { checkouts, invoices } from "@/db/schema";
 import { readSnapshot } from "./snapshot.server";
 
@@ -721,6 +724,89 @@ describe.skipIf(!adminUrl)("place de marché (base)", () => {
       .from(ledgerEntries)
       .where(eq(ledgerEntries.kind, "payout"));
     expect(n).toBe(1);
+  });
+
+  it("attente payée au livreur (à la charge de Diambar) et commission au taux réglé", async () => {
+    await moveStock(db, farmerId, { productId: tomatoes.id, type: "adjust", qty: 100 });
+    // Commission livreur réglée à 15 % dans « Tarifs de livraison ».
+    const [prev] = await db.select().from(settings).where(eq(settings.key, "driver_pay"));
+    const pay15 = { ...DEFAULT_DRIVER_PAY, ...(prev?.value as object), commissionRate: 15 };
+    await db
+      .insert(settings)
+      .values({ key: "driver_pay", value: pay15 })
+      .onConflictDoUpdate({ target: settings.key, set: { value: pay15 } });
+    try {
+      const placed = await placeOrder(
+        db,
+        restaurantId,
+        order({ lines: [{ productId: tomatoes.id, qty: 10 }] }),
+      );
+      const o = placed.orders[0];
+      await confirmOrder(db, farmerId, o.id, {});
+      await pay(placed.checkoutId);
+      const [m] = await db.select().from(missions).where(eq(missions.orderId, o.id));
+      await acceptMission(db, driverId, m.id);
+      const [row] = await db.select().from(orders).where(eq(orders.id, o.id));
+      const arrivedAgo = async (stage: "pickup" | "dropoff", minutes: number) => {
+        await markArrived(db, driverId, m.id, stage);
+        await db
+          .update(missionEvents)
+          .set({ at: new Date(Date.now() - minutes * 60_000 - 5_000) })
+          .where(
+            and(eq(missionEvents.missionId, m.id), eq(missionEvents.note, `arrivee:${stage}`)),
+          );
+      };
+      // 25 min chez le producteur, puis 14 min au restaurant.
+      await arrivedAgo("pickup", 25);
+      await missionStep(db, driverId, m.id, "loaded", row.pickupCode);
+      await arrivedAgo("dropoff", 14);
+      await addDeliveryProof(db, driverId, {
+        missionId: m.id,
+        stage: "dropoff",
+        storageKey: "non-conserve/livre-attente.jpg",
+        mime: "image/jpeg",
+        size: 1000,
+      });
+      await missionStep(db, driverId, m.id, "delivered", row.deliveryCode);
+
+      const entries = await db.select().from(ledgerEntries).where(eq(ledgerEntries.orderId, o.id));
+      const waitPay = 15 * 50 + 4 * 50;
+      const driverWait = entries.find((e) => e.account === "driver" && e.kind === "adjustment");
+      expect(driverWait?.amount).toBe(waitPay);
+      expect(driverWait?.note).toBe(
+        `Attente payée · ${m.reference} · 25 min chez le producteur, 14 min au restaurant`,
+      );
+      expect(entries.find((e) => e.account === "platform" && e.kind === "adjustment")?.amount).toBe(
+        -waitPay,
+      );
+      // Toujours exactement ce que le restaurant a payé, réparti entre les comptes.
+      expect(entries.reduce((sum, e) => sum + e.amount, 0)).toBe(row.subtotal + row.deliveryFee);
+      const commission = entries.find((e) => e.account === "driver" && e.kind === "commission")!;
+      expect(commission.amount).toBe(-Math.round(m.payout * 0.15));
+      expect(commission.note).toBe("Commission livreur 15 %");
+
+      // Portefeuille : l'attente compte dans les gains, la commission affiche 15 %.
+      const snap = await readSnapshot(db, { id: driverId, role: "driver" });
+      const txs = snap.driverWallet!.transactions;
+      expect(txs.find((t) => t.label.startsWith("Attente payée"))).toMatchObject({
+        kind: "bonus",
+        amount: waitPay,
+      });
+      expect(txs.find((t) => t.kind === "commission" && t.ref === m.reference)?.label).toBe(
+        "Commission plateforme (15 %)",
+      );
+      const notes = await db
+        .select()
+        .from(notifications)
+        .where(and(eq(notifications.userId, driverId), eq(notifications.title, "Attente payée")));
+      expect(notes).toHaveLength(1);
+    } finally {
+      if (prev) {
+        await db.update(settings).set({ value: prev.value }).where(eq(settings.key, "driver_pay"));
+      } else {
+        await db.delete(settings).where(eq(settings.key, "driver_pay"));
+      }
+    }
   });
 
   it("non payé à temps : rappel, puis annulation et stock remis ; déclaré : jamais annulé", async () => {

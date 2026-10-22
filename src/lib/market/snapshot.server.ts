@@ -64,6 +64,7 @@ import {
 } from "@/data/mocks";
 import { formatSenegalPhone } from "@/lib/auth/helpers";
 import { lastAddressSegment, routeEstimate, vehicleForWeight } from "@/lib/mission-pay";
+import { WAIT_PAY_NOTE } from "@/lib/mission-eligibility";
 import { DEFAULT_RULES, normalizeDeliveryHours, normalizeDriverPay } from "@/lib/platform-rules";
 import { cityCoords } from "@/lib/tracking/geo";
 import {
@@ -1001,6 +1002,10 @@ export async function readSnapshot(
         available: bal.available,
       };
     } else {
+      // Taux de la commission : celui noté à l'écriture (il a pu changer
+      // depuis), sinon le taux réglé aujourd'hui.
+      const ratePct = (note: string | null) =>
+        note?.match(/(\d+(?:[.,]\d+)?)\s*%/)?.[1] ?? String(rules.driverPay.commissionRate);
       const txs: DriverTx[] = entries
         .filter(
           (e) => e.kind === "driver_payout" || e.kind === "commission" || e.kind === "adjustment",
@@ -1012,15 +1017,18 @@ export async function readSnapshot(
             e.kind === "driver_payout"
               ? `Mission ${e.missionRef ?? ""}`.trim()
               : e.kind === "commission"
-                ? "Commission plateforme (20 %)"
+                ? `Commission plateforme (${ratePct(e.note)} %)`
                 : (e.note ?? "Ajustement"),
           ref: e.missionRef ?? e.orderRef ?? undefined,
+          // L'attente payée compte dans les gains, comme une course.
           kind:
             e.kind === "driver_payout"
               ? "mission"
               : e.kind === "commission"
                 ? "commission"
-                : "adjustment",
+                : e.note?.startsWith(WAIT_PAY_NOTE)
+                  ? "bonus"
+                  : "adjustment",
           amount: e.amount,
           status: "Complété",
         }));
